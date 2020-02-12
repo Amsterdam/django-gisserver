@@ -1,0 +1,174 @@
+<?xml version="1.0" encoding="UTF-8"?>{% load gisserver_tags %}{% comment %}
+   * base structure copied from mapserver
+   * added <ows:AllowedValues> everywhere to validate against the schema.
+   * Most clients support both: https://github.com/tomkralidis/OWSLib/blob/master/owslib/ows.py#L185
+{% endcomment %}
+<wfs:WFS_Capabilities version="2.0.0"
+    xmlns="http://www.opengis.net/wfs/2.0"
+    xmlns:gml="http://www.opengis.net/gml/3.2"
+    xmlns:wfs="http://www.opengis.net/wfs/2.0"
+    xmlns:ows="http://www.opengis.net/ows/1.1"
+    xmlns:xlink="http://www.w3.org/1999/xlink"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:fes="http://www.opengis.net/fes/2.0"
+    xmlns:app="{{ app_xml_namespace }}"
+    xsi:schemaLocation="http://www.opengis.net/wfs/2.0 http://schemas.opengis.net/wfs/2.0/wfs.xsd">
+
+  <ows:ServiceIdentification>
+    <ows:Title>{{ service_description.title|default_if_none:'' }}</ows:Title>
+    <ows:Abstract>{{ service_description.abstract|default_if_none:'' }}</ows:Abstract>{% if service_description.keywords %}
+      <ows:Keywords>{% for keyword in service_description.keywords %}
+        <ows:Keyword>{{ keyword }}</ows:Keyword>{% endfor %}
+      </ows:Keywords>{% endif %}
+    <ows:ServiceType codeSpace="OGC">WFS</ows:ServiceType>
+    <ows:ServiceTypeVersion>2.0.0</ows:ServiceTypeVersion>
+    {% comment %}
+    <ows:Fees>NONE</ows:Fees>
+    <ows:AccessConstraints>NONE</ows:AccessConstraints>
+    {% endcomment %}
+  </ows:ServiceIdentification>
+
+  <ows:ServiceProvider>
+    <ows:ProviderName>{{ service_description.provider_name|default_if_none:'' }}</ows:ProviderName>{% if service_description.provider_site %}
+    <ows:ProviderSite xlink:type="simple" xlink:href="{{ service_description.provider_site }}" />{% endif %}
+    {% if service_description.contact_person %}<ows:ServiceContact>
+      <ows:IndividualName>{{ service_description.contact_person }}</ows:IndividualName>
+      {% comment %}
+      <ows:PositionName/>
+      <ows:ContactInfo>
+        <ows:Phone>
+          <ows:Voice/>
+          <ows:Facsimile/>
+        </ows:Phone>
+        <ows:Address>
+          <ows:DeliveryPoint/>
+          <ows:City/>
+          <ows:AdministrativeArea/>
+          <ows:PostalCode/>
+          <ows:Country/>
+          <ows:ElectronicMailAddress/>
+        </ows:Address>
+        <ows:OnlineResource xlink:type="simple" xlink:href=""/>
+        <ows:HoursOfService/>
+        <ows:ContactInstructions/>
+      </ows:ContactInfo>
+      <ows:Role/>
+      {% endcomment %}
+    </ows:ServiceContact>{% endif %}
+  </ows:ServiceProvider>
+
+  <ows:OperationsMetadata>
+    {% for name, operation in accept_operations.items %}
+    <ows:Operation name="{{ name }}">
+      <ows:DCP>
+        <ows:HTTP>
+          <ows:Get xlink:type="simple" xlink:href="{{ server_url }}"/>
+          {# <ows:Post xlink:type="simple" xlink:href="{{ server_url }}"/> #}
+        </ows:HTTP>
+      </ows:DCP>
+      {% for parameter in operation.get_parameters %}{% if parameter.in_capabilities and parameter.allowed_values %}
+      <ows:Parameter name="{{ parameter.name }}">
+        <ows:AllowedValues>
+          {% for output in parameter.allowed_values %}
+            <ows:Value>{{ output }}</ows:Value>
+          {% endfor %}
+        </ows:AllowedValues>
+      </ows:Parameter>{% endif %}{% endfor %}
+    </ows:Operation>
+    {% endfor %}
+    {% for name, value in service_constraints.items %}
+    <ows:Constraint name="{{ name }}"><ows:NoValues/><ows:DefaultValue>{{ value|yesno:"TRUE,FALSE" }}</ows:DefaultValue></ows:Constraint>{% endfor %}
+    <ows:Constraint name="DefaultMaxFeatures">
+      <ows:AllowedValues>
+        <ows:Value>{{ default_max_features }}</ows:Value>
+      </ows:AllowedValues>
+    </ows:Constraint>
+  </ows:OperationsMetadata>
+
+  <FeatureTypeList>
+    {% for feature in feature_types %}
+    <FeatureType>
+      <Name>{{ feature.name }}</Name>
+      <Title>{{ feature.title }}</Title>{% if feature.abstract %}
+      <Abstract>{{ feature.abstract }}</Abstract>{% endif %}
+      {% if feature.keywords %}<ows:Keywords>{% for keyword in feature.keywords %}
+        <ows:Keyword>{{ keyword }}</ows:Keyword>{% endfor %}
+      </ows:Keywords>{% endif %}
+      <DefaultCRS>{{ feature.crs }}</DefaultCRS>{% for crs in feature.other_crs %}
+      <OtherCRS>{{ crs }}</OtherCRS>{% endfor %}
+      <OutputFormats>{% for output in feature_output_formats %}
+        <Format>{{ output }}</Format>{% endfor %}
+      </OutputFormats>
+      {% with bbox=feature.get_bounding_box %}{% if bbox %}<ows:WGS84BoundingBox dimensions="2">
+        <ows:LowerCorner>{{ bbox.lower_corner|join:" " }}</ows:LowerCorner>
+        <ows:UpperCorner>{{ bbox.upper_corner|join:" " }}</ows:UpperCorner>
+      </ows:WGS84BoundingBox>{% endif %}{% endwith %}{% if feature.metadata_url %}
+      <MetadataURL xlink:href="{{ metadata_url|urljoin:server_url }}"/>{% endif %}
+    </FeatureType>
+    {% endfor %}
+  </FeatureTypeList>
+
+  <fes:Filter_Capabilities>
+    <fes:Conformance>
+    {% for name, value in filter_capabilities.items %}
+        <fes:Constraint name="{{ name }}"><ows:NoValues/><ows:DefaultValue>{{ value|yesno:"TRUE,FALSE" }}</ows:DefaultValue></fes:Constraint>{% endfor %}
+    </fes:Conformance>
+    {% comment %}
+      mapserver: also provides:
+    <fes:Id_Capabilities>
+      <fes:ResourceIdentifier name="fes:ResourceId"/>
+    </fes:Id_Capabilities>
+    <fes:Scalar_Capabilities>
+      <fes:LogicalOperators/>
+      <fes:ComparisonOperators>
+        <fes:ComparisonOperator name="PropertyIsEqualTo"/>
+        <fes:ComparisonOperator name="PropertyIsNotEqualTo"/>
+        <fes:ComparisonOperator name="PropertyIsLessThan"/>
+        <fes:ComparisonOperator name="PropertyIsGreaterThan"/>
+        <fes:ComparisonOperator name="PropertyIsLessThanOrEqualTo"/>
+        <fes:ComparisonOperator name="PropertyIsGreaterThanOrEqualTo"/>
+        <fes:ComparisonOperator name="PropertyIsLike"/>
+        <fes:ComparisonOperator name="PropertyIsBetween"/>
+      </fes:ComparisonOperators>
+    </fes:Scalar_Capabilities>
+    <fes:Spatial_Capabilities>
+      <fes:GeometryOperands>
+        <fes:GeometryOperand name="gml:Point"/>
+        <fes:GeometryOperand name="gml:MultiPoint"/>
+        <fes:GeometryOperand name="gml:LineString"/>
+        <fes:GeometryOperand name="gml:MultiLineString"/>
+        <fes:GeometryOperand name="gml:Curve"/>
+        <fes:GeometryOperand name="gml:MultiCurve"/>
+        <fes:GeometryOperand name="gml:Polygon"/>
+        <fes:GeometryOperand name="gml:MultiPolygon"/>
+        <fes:GeometryOperand name="gml:Surface"/>
+        <fes:GeometryOperand name="gml:MultiSurface"/>
+        <fes:GeometryOperand name="gml:Box"/>
+        <fes:GeometryOperand name="gml:Envelope"/>
+      </fes:GeometryOperands>
+      <fes:SpatialOperators>
+        <fes:SpatialOperator name="Equals"/>
+        <fes:SpatialOperator name="Disjoint"/>
+        <fes:SpatialOperator name="Touches"/>
+        <fes:SpatialOperator name="Within"/>
+        <fes:SpatialOperator name="Overlaps"/>
+        <fes:SpatialOperator name="Crosses"/>
+        <fes:SpatialOperator name="Intersects"/>
+        <fes:SpatialOperator name="Contains"/>
+        <fes:SpatialOperator name="DWithin"/>
+        <fes:SpatialOperator name="Beyond"/>
+        <fes:SpatialOperator name="BBOX"/>
+      </fes:SpatialOperators>
+    </fes:Spatial_Capabilities>
+    <fes:Temporal_Capabilities>
+      <fes:TemporalOperands>
+        <fes:TemporalOperand name="gml:TimePeriod"/>
+        <fes:TemporalOperand name="gml:TimeInstant"/>
+      </fes:TemporalOperands>
+      <fes:TemporalOperators>
+        <fes:TemporalOperator name="During"/>
+      </fes:TemporalOperators>
+    </fes:Temporal_Capabilities>
+    {% endcomment %}
+  </fes:Filter_Capabilities>
+</wfs:WFS_Capabilities>

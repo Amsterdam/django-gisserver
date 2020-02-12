@@ -1,0 +1,41 @@
+<?xml version='1.0' encoding="UTF-8" ?>{% load gisserver_tags %}{% now 'c' as timestamp %}
+<wfs:FeatureCollection
+   xmlns:app="{{ app_xml_namespace }}"
+   xmlns:gml="http://www.opengis.net/gml/3.2"
+   xmlns:wfs="http://www.opengis.net/wfs/2.0"
+   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+   xsi:schemaLocation="{{ app_xml_namespace}} {{ server_url }}?SERVICE=WFS&amp;VERSION=2.0.0&amp;REQUEST=DescribeFeatureType&amp;TYPENAMES={{ xsd_typenames }} http://www.opengis.net/wfs/2.0 http://schemas.opengis.net/wfs/2.0/wfs.xsd http://www.opengis.net/gml/3.2 http://schemas.opengis.net/gml/3.2.1/gml.xsd"
+   timeStamp="{{ timestamp }}" numberMatched="{{ number_matched|default_if_none:'unknown' }}" numberReturned="{{ number_returned }}"{% if next %} next="{{ next }}"{% endif %}{% if previous %} previous="{{ previous }}"{% endif %}>
+{% if number_returned %}
+    {% comment %}
+    <wfs:boundedBy>
+      <gml:Envelope srsName="{{ bounding_box.crs|default:output_crs }}">
+        <gml:lowerCorner>{{ bounding_box.lower_corner|join:" " }}</gml:lowerCorner>
+        <gml:upperCorner>{{ bounding_box.upper_corner|join:" " }}</gml:upperCorner>
+      </gml:Envelope>
+    </wfs:boundedBy>
+    {% endcomment %}
+
+    {% for feature, instances, number_matched in feature_collections %}
+        {% if feature_collections|length > 1 %}{# Multiple feature collections in a single response #}
+            <wfs:member>
+              <wfs:FeatureCollection timeStamp="{{ timestamp }}" numberMatched="{{ number_matched }}" numberReturned="{{ instances|length }}">
+        {% endif %}
+    {% for instance in instances %}
+    <wfs:member>
+      <app:{{ feature.name }} gml:id="{{ feature.name }}.{{ instance.pk }}">
+        {% gml_bounds feature instance output_crs %}
+        {% for name, xs_type, value in instance|with_feature_fields:feature %}
+          {% if value == None %}<app:{{ name }} />{% else %}<app:{{ name }}>{% if "gml:" in xs_type %}
+              {% gml_value feature.name instance.pk value output_crs %}
+          {% else %}{{ value }}{% endif %}</app:{{ name }}>{% endif %}
+        {% endfor %}
+      </app:{{ feature.name }}>
+    </wfs:member>
+    {% endfor %}
+        {% if feature_collections|length > 1 %}
+              </wfs:FeatureCollection>
+            </wfs:member>
+        {% endif %}
+    {% endfor %}
+{% endif %}</wfs:FeatureCollection>
