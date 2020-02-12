@@ -56,7 +56,7 @@ class PlacesWFSView(WFSView):
 
     # Each Django model is listed here as a feature.
     feature_types = [
-        FeatureType(Restaurant, other_crs=[RD_NEW]),
+        FeatureType(Restaurant.objects.all(), other_crs=[RD_NEW]),
     ]
 ```
 

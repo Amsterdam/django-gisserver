@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from math import inf
-from typing import List, Optional, Tuple, Type
+from typing import List, Optional, Tuple
 
 from django.contrib.gis.db.models import Extent, GeometryField
 from django.contrib.gis.db.models.functions import Transform
@@ -34,7 +34,7 @@ class FeatureType:
     This corresponds with a single Django model.
     """
 
-    model: Type[models.Model]
+    queryset: models.QuerySet
     geometry_field_name: str = None
 
     # WFS Metadata:
@@ -47,6 +47,17 @@ class FeatureType:
     metadata_url: Optional[str] = None
 
     def __post_init__(self):
+        if isinstance(self.queryset, models.QuerySet):
+            self.model = self.queryset.model
+        elif isinstance(self.queryset, type) and issubclass(
+            self.queryset, models.Model
+        ):
+            # In case a model is provided, fix that
+            self.model = self.queryset
+            self.queryset = self.model.objects.all()
+        else:
+            raise TypeError("FeatureType expects a model or queryset")
+
         # Add some defaults
         if not self.name:
             self.name = self.model._meta.model_name
@@ -105,6 +116,11 @@ class FeatureType:
         else:
             self.geometry_field_name = self.geometry_fields[0].name
             return self.geometry_fields[0]
+
+    def get_queryset(self) -> models.QuerySet:
+        """Return the queryset that is used as basis for this feature."""
+        # Adding .all() to avoid filling the caches.
+        return self.queryset.all()
 
     def get_bounding_box(self) -> Optional[BoundingBox]:
         """Returns a WGS84 BoundingBox."""

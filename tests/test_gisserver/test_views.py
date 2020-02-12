@@ -38,7 +38,7 @@ class PlacesWFSView(WFSView):
     )
     feature_types = [
         FeatureType(
-            Restaurant,
+            Restaurant.objects.all(),
             keywords=["unittest"],
             other_crs=[RD_NEW],
             metadata_url="/feature/restaurants/",

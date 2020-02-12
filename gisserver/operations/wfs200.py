@@ -229,7 +229,7 @@ class GetFeature(WFSFeatureMethod):
     def get_querysets(self, typeNames, **params):
         """Generate querysets for all requested data."""
         return [
-            self.filter_queryset(feature, feature.model.objects.all(), **params)
+            self.filter_queryset(feature, feature.get_queryset(), **params)
             for feature in typeNames
         ]
 
