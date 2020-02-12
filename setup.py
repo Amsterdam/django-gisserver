@@ -46,7 +46,7 @@ setup(
     author="Diederik van der Boor",
     author_email="opensource@edoburu.nl",
     url="https://github.com/amsterdam/django-gisserver",
-    packages=find_packages(exclude=("example*",)),
+    packages=find_packages(exclude=("tests", "example*"), include=("gisserver",)),
     include_package_data=True,
     zip_safe=False,
     classifiers=[
