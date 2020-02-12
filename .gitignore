@@ -1,0 +1,25 @@
+# Python temp files
+*.pyc
+*.pyo
+*.mo
+*.egg-info/
+*.egg/
+/build/
+/dist/
+
+# OS Temp files
+.DS_Store
+
+# Development
+.python-version
+.coverage
+*.db
+.venv/
+.tox/
+/docs/_build/
+/htmlcov/
+
+# IDE's
+.pydevproject
+.idea/
+.vscode/
