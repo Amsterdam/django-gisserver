@@ -88,8 +88,8 @@ Currently, the following 3 methods are implemented:
 * `DescribeFeatureType`
 * `GetFeature` with bbox and pagination support.
 
-This is sufficient to show results in QGis.
-The unit tests validate the output against WFS XSD schema.
+This is sufficient to show results in [QGis](https://qgis.org/).
+The unit tests validate the output against WFS 2.0 XSD schema.
 
 Some parts for conformance to the "WFS simple" level are not implemented yet:
 
@@ -97,10 +97,10 @@ Some parts for conformance to the "WFS simple" level are not implemented yet:
 * `ListStoredQueries`
 * `DescribeStoredQueries`
 * Certain parameters:
-  * Filtering: `filter`, `filter_language`, `resourceID`, `propertyName`
-  * Resolving: `resolve`, `resolveDepth`, `resolveTimeout`
-  * Output rewriting: `namespaces`, `aliases`
-  * Some `GetCapabilities` features: `acceptFormats` and `sections`
+  * Filtering: `filter`, `filter_language`, `resourceID`, `propertyName`, `aliases`.
+  * Remote resolving: `resolve`, `resolveDepth`, `resolveTimeout`.
+  * Output rewriting: `namespaces`.
+  * Some `GetCapabilities` features: `acceptFormats` and `sections`.
   * Using `GetFeature` with only the `StoredQuery` action.
 
 Filtering is high on the TO-DO list.
@@ -114,6 +114,23 @@ Anything outside WFS simple could be implemented, but is very low on the todo-li
 * SOAP requests.
 * Other protocols (WMS, WMTS, WCS)
 * Other output formats (shapefile, CSV, KML, GML 3.1) - but easy to add.
+
+## Development
+
+When you follow the source of the `WFSView`, `WFSMethod` and `Parameter` classes,
+you'll find that it's written with extensibility in mind. Extra parameters and operations
+can easily be added there. You could even do that within your own projects and implementations.
+
+The `Makefile` gives you all you need to start working on the project.
+Typing `make` gives an overview of all possible shortcut commands.
+
+The WFS specification and examples be found at:
+
+* <http://portal.opengeospatial.org/files/?artifact_id=39967>
+* <https://www.opengeospatial.org/standards/wfs#downloads>
+* <http://schemas.opengis.net/wfs/2.0/>
+* <https://mapserver.org/development/rfc/ms-rfc-105.html>
+
 
 ## Why this code is shared
 
