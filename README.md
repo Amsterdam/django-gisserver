@@ -126,10 +126,11 @@ Typing `make` gives an overview of all possible shortcut commands.
 
 The WFS specification and examples be found at:
 
-* <http://portal.opengeospatial.org/files/?artifact_id=39967>
-* <https://www.opengeospatial.org/standards/wfs#downloads>
-* <http://schemas.opengis.net/wfs/2.0/>
-* <https://mapserver.org/development/rfc/ms-rfc-105.html>
+* <https://docs.opengeospatial.org/is/09-026r2/09-026r2.html> (HTML version)
+* <https://portal.opengeospatial.org/files/09-025r2> (PDF version)
+* <https://www.opengeospatial.org/standards/wfs#downloads> (other links)
+* <http://schemas.opengis.net/wfs/2.0/> (XSD and examples)
+* <https://mapserver.org/development/rfc/ms-rfc-105.html> (more examples)
 
 
 ## Why this code is shared
