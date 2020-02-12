@@ -21,3 +21,9 @@ class TestCRS:
             CRS.from_string("urn:ogc:def:crs:EPSG::28992").urn
             == "urn:ogc:def:crs:EPSG::28992"
         )
+
+    def test_crs_url(self):
+        assert (
+            CRS.from_string("http://www.opengis.net/def/crs/epsg/0/4326").urn
+            == "urn:ogc:def:crs:EPSG::4326"
+        )
