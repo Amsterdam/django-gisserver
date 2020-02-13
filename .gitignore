@@ -13,6 +13,7 @@
 # Development
 .python-version
 .coverage
+.coverage.*
 *.db
 .venv/
 .tox/

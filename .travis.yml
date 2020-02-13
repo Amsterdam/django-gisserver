@@ -1,0 +1,50 @@
+---
+sudo: false
+language: python
+services:
+  - postgresql
+
+dist: bionic
+addons:
+  postgresql: 10
+  apt:
+    packages:
+    - libgdal20
+    - postgis
+    - postgresql-10-postgis-2.4
+env:
+  global:
+    - DATABASE_URL=postgresql://postgres@localhost/django-gisserver
+
+matrix:
+  include:
+    # Python 3.7
+    - python: 3.7
+      env: TOXENV=py37-django22
+    - python: 3.7
+      env: TOXENV=py37-django30
+    # Python 3.8
+    - python: 3.8
+      env: TOXENV=py38-django22
+    - python: 3.8
+      env: TOXENV=py38-django30
+
+cache:
+  directories:
+    - $HOME/.cache/pip
+
+before_cache:
+  - rm -rf $HOME/.cache/pip/log
+
+install:
+  - pip install tox codecov
+
+script:
+  - tox -e $TOXENV
+
+after_success:
+  - tox -e coverage-report
+  - codecov
+
+notifications:
+  email: false
