@@ -1,20 +1,29 @@
 ---
-sudo: false
 language: python
-services:
-  - postgresql
 
 dist: bionic
 addons:
   postgresql: 10
   apt:
+    sources:
+      - sourceline: 'ppa:ubuntugis/ppa'
     packages:
-    - libgdal20
-    - postgis
-    - postgresql-10-postgis-2.4
+      - libgdal20
+      - libproj13  # Fixes projection tests
+      - gdal-bin
+      - postgresql-10-postgis-2.5
+      - postgresql-10-postgis-2.5-scripts
 env:
   global:
     - DATABASE_URL=postgresql://postgres@localhost/django-gisserver
+
+# Make sure postgis uses a modern proj library with recent projection transformation parameters
+before_install:
+  - sudo cp /usr/lib/x86_64-linux-gnu/libproj.so.13.* /usr/lib/x86_64-linux-gnu/libproj.so.12.*
+  - sudo systemctl restart postgresql@10-main  # reload for proj13
+  - gdalinfo --version
+  - psql postgres -c "CREATE EXTENSION IF NOT EXISTS postgis; SELECT PostGIS_full_version();"
+
 
 matrix:
   include:
