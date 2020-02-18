@@ -131,6 +131,7 @@ The WFS specification and examples be found at:
 * <https://www.opengeospatial.org/standards/wfs#downloads> (other links)
 * <http://schemas.opengis.net/wfs/2.0/> (XSD and examples)
 * <https://mapserver.org/development/rfc/ms-rfc-105.html> (more examples)
+* <https://cite.opengeospatial.org/teamengine/> (test suite)
 
 
 ## Why this code is shared
