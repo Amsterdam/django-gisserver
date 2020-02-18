@@ -2,7 +2,7 @@ from pathlib import Path
 
 import django
 import pytest
-from django.contrib.gis.geos import Point
+from django.contrib.gis.geos import Point, geos_version
 from django.contrib.gis.gdal import gdal_version
 
 from tests.test_gisserver.models import Restaurant
@@ -13,7 +13,10 @@ SRID_RD_NEW = 28992
 
 def pytest_configure():
     gdal_ver = gdal_version().decode()
-    print(f"Running with Django {django.__version__}, GDAL {gdal_ver}")
+    geos_ver = geos_version().decode()
+    print(
+        f'Running with Django {django.__version__}, GDAL="{gdal_ver}" GEOS="{geos_ver}"'
+    )
 
 
 @pytest.fixture()
