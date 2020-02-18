@@ -467,7 +467,7 @@ class TestGetFeature:
                     "geometry_name": "Café Noir",
                     "geometry": {
                         "type": "Point",
-                        "coordinates": [4.9087610129, 52.3631712637],
+                        "coordinates": [4.908761012851219, 52.363171263735715],
                     },
                     "properties": {"id": restaurant.id, "name": "Café Noir"},
                 }

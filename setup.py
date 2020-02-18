@@ -37,7 +37,7 @@ setup(
     name="django-gisserver",
     version=find_version("gisserver", "__init__.py"),
     license="Mozilla Public License 2.0 (MPL 2.0)",
-    install_requires=["Django >= 2.0", "lxml >= 4.5.0", "ujson >= 1.35"],
+    install_requires=["Django >= 2.0", "lxml >= 4.5.0", "orjson >= 2.4.0"],
     tests_require=tests_require,
     extras_require={"test": tests_require,},
     requires=["Django (>=2.0)"],

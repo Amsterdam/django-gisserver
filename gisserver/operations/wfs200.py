@@ -13,7 +13,7 @@ import math
 import re
 from urllib.parse import urlencode
 
-import ujson
+import orjson
 from django.contrib.gis.geos import Point
 from django.http import HttpResponse
 
@@ -334,7 +334,7 @@ class GetFeature(WFSFeatureMethod):
         }
 
         return HttpResponse(
-            ujson.dumps(context), content_type="application/json; charset=utf-8"
+            orjson.dumps(context), content_type="application/json; charset=utf-8"
         )
 
     def _replace_url_params(self, **updates) -> str:
