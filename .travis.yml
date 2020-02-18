@@ -12,7 +12,6 @@ addons:
       - libproj13  # Fixes projection tests
       - gdal-bin
       - postgresql-10-postgis-2.5
-      - postgresql-10-postgis-2.5-scripts
 env:
   global:
     - DATABASE_URL=postgresql://postgres@localhost/django-gisserver
