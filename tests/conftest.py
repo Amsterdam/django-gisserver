@@ -4,11 +4,12 @@ import django
 import pytest
 from django.contrib.gis.geos import Point, geos_version
 from django.contrib.gis.gdal import gdal_version
+from django.db import connection
 
+from tests.srid import SRID_RD_NEW, PROJ_RD_NEW
 from tests.test_gisserver.models import Restaurant
 
 HERE = Path(__file__).parent
-SRID_RD_NEW = 28992
 
 
 def pytest_configure():
@@ -24,3 +25,37 @@ def restaurant() -> Restaurant:
     return Restaurant.objects.create(
         name="Café Noir", location=Point(122411, 486250, srid=SRID_RD_NEW)
     )
+
+
+@pytest.fixture(scope="session")
+def django_db_setup(django_db_setup, django_db_blocker):
+    """Make sure PostGIS uses the same coordinate transformation as Django will.
+
+    This is a fix for Travis CI, which uses an older GDAL / proj version.
+    """
+    # Homebrew uses at the time of writing this code:
+    # - libproj.15 (version 17.1.0)
+    # - libgeos 13.2.0
+    #
+    # Revealed using:
+    #
+    # objdump -x /usr/local/Cellar/postgresql/*/lib/postgresql/postgis-2.5.so
+    # cat /usr/local/Cellar/postgresql/*/share/postgresql/extension/postgis--2.5.3.sql
+    #
+    # SELECT postgis_full_version() -- shows on homebrew:
+    #
+    # POSTGIS="2.5.3 r17699" [EXTENSION]
+    # PGSQL="110"
+    # GEOS="3.8.0-CAPI-1.13.1 "
+    # PROJ="Rel. 6.3.0, January 1st, 2020"
+    # GDAL="GDAL 2.4.2, released 2019/06/28"
+    # LIBXML="2.9.9"
+    # LIBJSON="0.13.1"
+    # LIBPROTOBUF="1.3.2"
+    # RASTER
+    with django_db_blocker.unblock():
+        with connection.cursor() as c:
+            c.execute(
+                "UPDATE spatial_ref_sys SET proj4text=%s WHERE srid=%s",
+                [PROJ_RD_NEW, SRID_RD_NEW],
+            )
