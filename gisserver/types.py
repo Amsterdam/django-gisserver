@@ -157,18 +157,23 @@ class CRS:
 
         * A URI in OGC URN format.
         * A legacy CRS URI ("epsg:<SRID>", or "http://www.opengis.net/...").
-        * A numeric SRID (equivalent to "urn:ogc:def:crs:EPSG:6.9:<SRID>")
+        * A numeric SRID (which calls `from_srid()`)
         """
-        if isinstance(uri, int):
-            return cls._from_srid(uri)
+        if isinstance(uri, int) or uri.isdigit():
+            return cls.from_srid(int(uri))
         elif uri.startswith("urn:"):
             return cls._from_urn(uri)
         else:
             return cls._from_legacy(uri)
 
     @classmethod
-    def _from_srid(cls, srid: int):
-        """Instantiate this class using an numeric spatial reference ID"""
+    def from_srid(cls, srid: int):
+        """Instantiate this class using an numeric spatial reference ID
+
+        This is logically identical to calling::
+
+            CRS.from_string("urn:ogc:def:crs:EPSG:6.9:<SRID>")
+        """
         return cls(
             domain="ogc", authority="EPSG", version="", crsid=str(srid), srid=int(srid),
         )
@@ -263,4 +268,4 @@ class CRS:
         return hash((self.authority, self.srid))
 
 
-WGS84 = CRS.from_string(4326)  # aka EPSG:4326
+WGS84 = CRS.from_srid(4326)  # aka EPSG:4326
