@@ -4,11 +4,9 @@ All operations extend from an WFSMethod class.
 This defines the parameters and output formats of the method.
 This introspection data is also parsed by the GetCapabilities call.
 """
-from __future__ import annotations
-
 import re
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Callable, Dict, List, Union
+from typing import Any, Callable, Dict, List, Union
 
 from django.core.exceptions import SuspiciousOperation
 from django.http import HttpResponse
@@ -148,8 +146,8 @@ class WFSMethod:
     #: Default content-type for render_xml()
     xml_content_type = "text/xml; charset=utf-8"
 
-    def __init__(self, view: OGCView):
-        self.view = view
+    def __init__(self, view):
+        self.view = view  # an gisserver.views.GISView
 
     def get_parameters(self):
         """Dynamically return the supported parameters for this method."""
@@ -287,7 +285,3 @@ class WFSFeatureMethod(WFSMethod):
 
             features.append(feature)
         return features
-
-
-if TYPE_CHECKING:
-    from gisserver.views import OGCView

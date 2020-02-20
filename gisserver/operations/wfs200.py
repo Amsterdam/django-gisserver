@@ -7,8 +7,6 @@ Useful docs:
 * https://mapserver.org/development/rfc/ms-rfc-105.html
 * https://enonline.supermap.com/iExpress9D/API/WFS/WFS200/WFS_2.0.0_introduction.htm
 """
-from __future__ import annotations
-
 import math
 import re
 from urllib.parse import urlencode

@@ -2,8 +2,6 @@
 
 This exposes helper classes to parse GEO data types.
 """
-from __future__ import annotations
-
 import re
 from dataclasses import dataclass
 from functools import lru_cache
@@ -53,93 +51,6 @@ def _get_coord_transform(
         target = _get_spatial_reference(target)
 
     return CoordTransform(source, target)
-
-
-@dataclass
-class BoundingBox:
-    """A bounding box that describes the extent of a map layer"""
-
-    lower_lon: float
-    lower_lat: float
-    upper_lon: float
-    upper_lat: float
-    crs: Optional[CRS] = None
-
-    @classmethod
-    def from_string(cls, bbox):
-        """Parse the bounding box from an input string.
-
-        It can either be 4 coordinates, or 4 coordinates with a special reference system.
-        """
-        bbox = bbox.split(",")
-        if not (4 <= len(bbox) <= 5):
-            raise ValueError(
-                f"Input does not contain bounding box, "
-                f"expected 4 or 5 values, not {bbox}."
-            )
-        return cls(
-            float(bbox[0]),
-            float(bbox[1]),
-            float(bbox[2]),
-            float(bbox[3]),
-            CRS.from_string(bbox[4]) if len(bbox) == 5 else None,
-        )
-
-    @property
-    def lower_corner(self):
-        return [self.lower_lon, self.lower_lat]
-
-    @property
-    def upper_corner(self):
-        return [self.upper_lon, self.upper_lat]
-
-    def __repr__(self):
-        return (
-            "BoundingBox("
-            f"{self.lower_lon}, {self.lower_lat}, {self.upper_lon}, {self.upper_lat}"
-            ")"
-        )
-
-    def extend_to(
-        self, lower_lon: float, lower_lat: float, upper_lon: float, upper_lat: float
-    ):
-        """Expand the bounding box in-place"""
-        self.lower_lon = min(self.lower_lon, lower_lon)
-        self.lower_lat = min(self.lower_lat, lower_lat)
-        self.upper_lon = max(self.upper_lon, upper_lon)
-        self.upper_lat = max(self.upper_lat, upper_lat)
-
-    def extend_to_geometry(self, geometry: GEOSGeometry):
-        """Extend this bounding box with the coordinates of a given geometry."""
-        if self.crs is not None and geometry.srid != self.crs.srid:
-            geometry = self.crs.apply_to(geometry, clone=True)
-
-        self.extend_to(*geometry.extent)
-
-    def __add__(self, other):
-        """Combine both extents into a larger box."""
-        if isinstance(other, BoundingBox):
-            if other.crs != self.crs:
-                raise ValueError(
-                    "Can't combine instances with different spatial reference systems"
-                )
-            return BoundingBox(
-                min(self.lower_lon, other.lower_lon),
-                min(self.lower_lat, other.lower_lat),
-                max(self.upper_lon, other.upper_lon),
-                max(self.upper_lat, other.upper_lat),
-            )
-        else:
-            return NotImplemented
-
-    def as_polygon(self) -> Polygon:
-        """Convert the value into a GEOS polygon."""
-        polygon = Polygon.from_bbox(
-            (self.lower_lon, self.lower_lat, self.upper_lon, self.upper_lat)
-        )
-        if self.crs is not None:
-            polygon.srid = self.crs.srid
-        return polygon
 
 
 @dataclass(frozen=True)
@@ -337,3 +248,90 @@ class CRS:
 
 
 WGS84 = CRS.from_srid(4326)  # aka EPSG:4326
+
+
+@dataclass
+class BoundingBox:
+    """A bounding box that describes the extent of a map layer"""
+
+    lower_lon: float
+    lower_lat: float
+    upper_lon: float
+    upper_lat: float
+    crs: Optional[CRS] = None
+
+    @classmethod
+    def from_string(cls, bbox):
+        """Parse the bounding box from an input string.
+
+        It can either be 4 coordinates, or 4 coordinates with a special reference system.
+        """
+        bbox = bbox.split(",")
+        if not (4 <= len(bbox) <= 5):
+            raise ValueError(
+                f"Input does not contain bounding box, "
+                f"expected 4 or 5 values, not {bbox}."
+            )
+        return cls(
+            float(bbox[0]),
+            float(bbox[1]),
+            float(bbox[2]),
+            float(bbox[3]),
+            CRS.from_string(bbox[4]) if len(bbox) == 5 else None,
+        )
+
+    @property
+    def lower_corner(self):
+        return [self.lower_lon, self.lower_lat]
+
+    @property
+    def upper_corner(self):
+        return [self.upper_lon, self.upper_lat]
+
+    def __repr__(self):
+        return (
+            "BoundingBox("
+            f"{self.lower_lon}, {self.lower_lat}, {self.upper_lon}, {self.upper_lat}"
+            ")"
+        )
+
+    def extend_to(
+        self, lower_lon: float, lower_lat: float, upper_lon: float, upper_lat: float
+    ):
+        """Expand the bounding box in-place"""
+        self.lower_lon = min(self.lower_lon, lower_lon)
+        self.lower_lat = min(self.lower_lat, lower_lat)
+        self.upper_lon = max(self.upper_lon, upper_lon)
+        self.upper_lat = max(self.upper_lat, upper_lat)
+
+    def extend_to_geometry(self, geometry: GEOSGeometry):
+        """Extend this bounding box with the coordinates of a given geometry."""
+        if self.crs is not None and geometry.srid != self.crs.srid:
+            geometry = self.crs.apply_to(geometry, clone=True)
+
+        self.extend_to(*geometry.extent)
+
+    def __add__(self, other):
+        """Combine both extents into a larger box."""
+        if isinstance(other, BoundingBox):
+            if other.crs != self.crs:
+                raise ValueError(
+                    "Can't combine instances with different spatial reference systems"
+                )
+            return BoundingBox(
+                min(self.lower_lon, other.lower_lon),
+                min(self.lower_lat, other.lower_lat),
+                max(self.upper_lon, other.upper_lon),
+                max(self.upper_lat, other.upper_lat),
+            )
+        else:
+            return NotImplemented
+
+    def as_polygon(self) -> Polygon:
+        """Convert the value into a GEOS polygon."""
+        polygon = Polygon.from_bbox(
+            (self.lower_lon, self.lower_lat, self.upper_lon, self.upper_lat)
+        )
+        if self.crs is not None:
+            polygon.srid = self.crs.srid
+        return polygon

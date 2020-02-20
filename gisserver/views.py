@@ -1,6 +1,4 @@
 """The view layer parses the request, and dispatches it to an operation."""
-from __future__ import annotations
-
 import re
 from typing import List, Optional, Type
 
