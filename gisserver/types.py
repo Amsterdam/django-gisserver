@@ -111,7 +111,7 @@ class BoundingBox:
 
     def extend_to_geometry(self, geometry: GEOSGeometry):
         """Extend this bounding box with the coordinates of a given geometry."""
-        if geometry.srid != self.crs.srid:
+        if self.crs is not None and geometry.srid != self.crs.srid:
             geometry = self.crs.apply_to(geometry, clone=True)
 
         if isinstance(geometry, Point):
