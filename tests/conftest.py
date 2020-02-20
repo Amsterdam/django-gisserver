@@ -55,6 +55,12 @@ def django_db_setup(django_db_setup, django_db_blocker):
     # RASTER
     with django_db_blocker.unblock():
         with connection.cursor() as c:
+            # Show the postgis version for debugging
+            c.callproc("postgis_full_version")  # SELECT postgis_full_version()
+            result = c.fetchone()[0]
+            print(f"Postgresql setup: {result}")
+
+            # Install the latest PROJ.4 definition for RD/NEW
             c.execute(
                 "UPDATE spatial_ref_sys SET proj4text=%s, srtext=%s WHERE srid=%s",
                 [RD_NEW_PROJ, RD_NEW_WKT, RD_NEW_SRID],

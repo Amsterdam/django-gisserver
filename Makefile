@@ -11,6 +11,10 @@ install:       ## Install the package into the current virtualenv
 test:          ## Run the tests
 	pytest -vs
 
+docker-test:   ## Run the tests against Linux GIS library versions
+	docker build . -t django-gisserver
+	docker run --rm -it django-gisserver make test
+
 retest:        ## Rerun the last failed tests.
 	pytest -vs --lf
 

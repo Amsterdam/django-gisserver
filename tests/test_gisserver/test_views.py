@@ -1,3 +1,5 @@
+import sys
+
 import pytest
 from django.contrib.gis.gdal import SpatialReference
 from django.urls import path
@@ -25,6 +27,20 @@ NAMESPACES = {
 RD_NEW = CRS.from_string(
     "urn:ogc:def:crs:EPSG::28992", backend=SpatialReference(RD_NEW_PROJ),
 )
+
+# Despite efforts to sync the PROJ.4 definitions, there is still a minor difference
+# between platforms, or library versions that cause coordinate shifts. Hopefully,
+# no other changes are visible. Hence keeping these here for now. If there are more
+# differences on other platforms, better perform a live transformation here to see
+# what the expected values will be.
+if sys.platform == "darwin":
+    POINT1_XML_WGS84 = "4.908761012851219 52.363171263735715"
+    POINT1_XML_RD = "122411.00000717948 486250.0005178676"
+    POINT1_GEOJSON = [4.908761012851219, 52.363171263735715]  # GeoJSON is always WGS84
+else:
+    POINT1_XML_WGS84 = "4.90876101285122 52.36317126373569"
+    POINT1_XML_RD = "122411.00000717954 486250.0005178673"
+    POINT1_GEOJSON = [4.90876101285122, 52.36317126373569]
 
 
 class PlacesWFSView(WFSView):
@@ -283,15 +299,15 @@ class TestGetFeature:
       <app:restaurant gml:id="restaurant.{restaurant.id}">
         <gml:boundedBy>
             <gml:Envelope srsName="urn:ogc:def:crs:EPSG::4326">
-                <gml:lowerCorner>4.908761012851219 52.363171263735715</gml:lowerCorner>
-                <gml:upperCorner>4.908761012851219 52.363171263735715</gml:upperCorner>
+                <gml:lowerCorner>{POINT1_XML_WGS84}</gml:lowerCorner>
+                <gml:upperCorner>{POINT1_XML_WGS84}</gml:upperCorner>
             </gml:Envelope>
         </gml:boundedBy>
         <app:id>{restaurant.id}</app:id>
         <app:name>Café Noir</app:name>
         <app:location>
           <gml:Point gml:id="restaurant.{restaurant.id}.1" srsName="urn:ogc:def:crs:EPSG::4326">
-            <gml:pos>4.908761012851219 52.363171263735715</gml:pos>
+            <gml:pos>{POINT1_XML_WGS84}</gml:pos>
           </gml:Point>
         </app:location>
       </app:restaurant>
@@ -372,15 +388,15 @@ class TestGetFeature:
           <app:restaurant gml:id="restaurant.{restaurant.id}">
             <gml:boundedBy>
                  <gml:Envelope srsName="urn:ogc:def:crs:EPSG::28992">
-                <gml:lowerCorner>122411.00000717948 486250.0005178676</gml:lowerCorner>
-                <gml:upperCorner>122411.00000717948 486250.0005178676</gml:upperCorner>
+                <gml:lowerCorner>{POINT1_XML_RD}</gml:lowerCorner>
+                <gml:upperCorner>{POINT1_XML_RD}</gml:upperCorner>
             </gml:Envelope>
             </gml:boundedBy>
             <app:id>{restaurant.id}</app:id>
             <app:name>Café Noir</app:name>
             <app:location>
               <gml:Point gml:id="restaurant.{restaurant.id}.1" srsName="urn:ogc:def:crs:EPSG::28992">
-                <gml:pos>122411.00000717948 486250.0005178676</gml:pos>
+                <gml:pos>{POINT1_XML_RD}</gml:pos>
               </gml:Point>
             </app:location>
           </app:restaurant>
@@ -457,10 +473,7 @@ class TestGetFeature:
         assert response["content-type"] == "application/json; charset=utf-8"
         content = response.json()
         assert response.status_code == 200, content
-        assert content["features"][0]["geometry"]["coordinates"] == [
-            4.908761012851219,
-            52.363171263735715,
-        ]
+        assert content["features"][0]["geometry"]["coordinates"] == POINT1_GEOJSON
         assert content == {
             "type": "FeatureCollection",
             "totalFeatures": 1,
@@ -473,10 +486,7 @@ class TestGetFeature:
                     "type": "Feature",
                     "id": f"restaurant.{restaurant.id}",
                     "geometry_name": "Café Noir",
-                    "geometry": {
-                        "type": "Point",
-                        "coordinates": [4.908761012851219, 52.363171263735715],
-                    },
+                    "geometry": {"type": "Point", "coordinates": POINT1_GEOJSON,},
                     "properties": {"id": restaurant.id, "name": "Café Noir"},
                 }
             ],
