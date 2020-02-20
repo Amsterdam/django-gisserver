@@ -2,11 +2,11 @@ from pathlib import Path
 
 import django
 import pytest
-from django.contrib.gis.geos import Point, geos_version
 from django.contrib.gis.gdal import gdal_version
+from django.contrib.gis.geos import Point, geos_version
 from django.db import connection
 
-from tests.srid import SRID_RD_NEW, PROJ_RD_NEW
+from tests.srid import RD_NEW_PROJ, RD_NEW_SRID, RD_NEW_WKT
 from tests.test_gisserver.models import Restaurant
 
 HERE = Path(__file__).parent
@@ -23,7 +23,7 @@ def pytest_configure():
 @pytest.fixture()
 def restaurant() -> Restaurant:
     return Restaurant.objects.create(
-        name="Café Noir", location=Point(122411, 486250, srid=SRID_RD_NEW)
+        name="Café Noir", location=Point(122411, 486250, srid=RD_NEW_SRID)
     )
 
 
@@ -56,6 +56,6 @@ def django_db_setup(django_db_setup, django_db_blocker):
     with django_db_blocker.unblock():
         with connection.cursor() as c:
             c.execute(
-                "UPDATE spatial_ref_sys SET proj4text=%s WHERE srid=%s",
-                [PROJ_RD_NEW, SRID_RD_NEW],
+                "UPDATE spatial_ref_sys SET proj4text=%s, srtext=%s WHERE srid=%s",
+                [RD_NEW_PROJ, RD_NEW_WKT, RD_NEW_SRID],
             )

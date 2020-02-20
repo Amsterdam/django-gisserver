@@ -6,8 +6,10 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from functools import lru_cache
 from typing import Optional, Union
 
+from django.contrib.gis.gdal import CoordTransform, SpatialReference
 from django.contrib.gis.geos import GEOSGeometry, Point, Polygon
 
 CRS_URN_REGEX = re.compile(
@@ -24,6 +26,33 @@ __all__ = [
     "CRS",
     "WGS84",
 ]
+
+
+@lru_cache(maxsize=100)
+def _get_spatial_reference(srid):
+    """Construct an GDAL object reference"""
+    # Using lru-cache to avoid repeated GDAL c-object construction
+    return SpatialReference(srid, srs_type="epsg")
+
+
+@lru_cache(maxsize=100)
+def _get_coord_transform(
+    source: Union[int, SpatialReference], target: Union[int, SpatialReference]
+) -> CoordTransform:
+    """Get an efficient coordinate transformation object.
+
+    The CoordTransform should be used when performing the same
+    coordinate transformation repeatedly on different geometries.
+
+    NOTE that the cache could be busted when CRS objects are
+    repeatedly created with a custom 'backend' object.
+    """
+    if isinstance(source, int):
+        source = _get_spatial_reference(source)
+    if isinstance(target, int):
+        target = _get_spatial_reference(target)
+
+    return CoordTransform(source, target)
 
 
 @dataclass
@@ -82,8 +111,8 @@ class BoundingBox:
 
     def extend_to_geometry(self, geometry: GEOSGeometry):
         """Extend this bounding box with the coordinates of a given geometry."""
-        if geometry.crs.srid != self.crs.srid:
-            geometry = geometry.transform(self.crs.srid, clone=True)
+        if geometry.srid != self.crs.srid:
+            geometry = self.crs.apply_to(geometry, clone=True)
 
         if isinstance(geometry, Point):
             self.extend_to(geometry.x, geometry.y, geometry.x, geometry.y)
@@ -146,8 +175,13 @@ class CRS:
     #: used by the EPSG and GIS database backends.
     srid: int
 
+    #: GDAL SpatialReference with PROJ.4 / WKT content to describe the exact transformation.
+    backend: Optional[SpatialReference] = None
+
     @classmethod
-    def from_string(cls, uri: Union[str, int]):
+    def from_string(
+        cls, uri: Union[str, int], backend: Optional[SpatialReference] = None
+    ):
         """
         Parse an CRS (Coordinate Reference System) URI, which preferably follows the URN format
         as specified by `the OGC consortium <http://www.opengeospatial.org/ogcUrnPolicy>`_
@@ -160,14 +194,14 @@ class CRS:
         * A numeric SRID (which calls `from_srid()`)
         """
         if isinstance(uri, int) or uri.isdigit():
-            return cls.from_srid(int(uri))
+            return cls.from_srid(int(uri), backend=backend)
         elif uri.startswith("urn:"):
-            return cls._from_urn(uri)
+            return cls._from_urn(uri, backend=backend)
         else:
-            return cls._from_legacy(uri)
+            return cls._from_legacy(uri, backend=backend)
 
     @classmethod
-    def from_srid(cls, srid: int):
+    def from_srid(cls, srid: int, backend=None):
         """Instantiate this class using an numeric spatial reference ID
 
         This is logically identical to calling::
@@ -175,11 +209,16 @@ class CRS:
             CRS.from_string("urn:ogc:def:crs:EPSG:6.9:<SRID>")
         """
         return cls(
-            domain="ogc", authority="EPSG", version="", crsid=str(srid), srid=int(srid),
+            domain="ogc",
+            authority="EPSG",
+            version="",
+            crsid=str(srid),
+            srid=int(srid),
+            backend=backend,
         )
 
     @classmethod
-    def _from_urn(cls, urn):  # noqa: C901
+    def _from_urn(cls, urn, backend=None):  # noqa: C901
         """Instantiate this class using an URN format."""
         urn_match = CRS_URN_REGEX.match(urn)
         if not urn_match:
@@ -217,10 +256,11 @@ class CRS:
             version=urn_match.group(3),
             crsid=crsid,
             srid=srid,
+            backend=backend,
         )
 
     @classmethod
-    def _from_legacy(cls, uri):
+    def _from_legacy(cls, uri, backend=None):
         """Instantiate this class from a legacy URL"""
         luri = uri.lower()
         for head in (
@@ -238,7 +278,12 @@ class CRS:
                     ) from None
 
                 return cls(
-                    domain="ogc", authority="EPSG", version="", crsid=crsid, srid=srid,
+                    domain="ogc",
+                    authority="EPSG",
+                    version="",
+                    crsid=crsid,
+                    srid=srid,
+                    backend=backend,
                 )
 
         raise ValueError(f"Unknown CRS URI [{uri}] specified")
@@ -266,6 +311,32 @@ class CRS:
 
     def __hash__(self):
         return hash((self.authority, self.srid))
+
+    def _as_gdal(self) -> SpatialReference:
+        """Generate the GDAL Spatial Reference object"""
+        if self.backend is None:
+            # Avoid repeated construction
+            self.__dict__["backend"] = _get_spatial_reference(self.srid)
+        return self.backend
+
+    def apply_to(self, geometry: GEOSGeometry, clone=False) -> Optional[GEOSGeometry]:
+        """Transform the geometry using this coordinate reference.
+
+        This method caches the used CoordTransform object
+
+        Every transformation within this package happens through this method,
+        giving full control over coordinate transformations.
+        """
+        if self.srid == geometry.srid:
+            # Avoid changes if spatial reference system is identical.
+            if clone:
+                return geometry.clone()
+            else:
+                return
+        else:
+            # Convert using GDAL / proj
+            transform = _get_coord_transform(geometry.srid, self._as_gdal())
+            return geometry.transform(transform, clone=clone)
 
 
 WGS84 = CRS.from_srid(4326)  # aka EPSG:4326

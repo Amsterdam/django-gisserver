@@ -1,4 +1,5 @@
 import pytest
+from django.contrib.gis.gdal import SpatialReference
 from django.urls import path
 from lxml import etree
 
@@ -6,6 +7,7 @@ from gisserver.features import FeatureType, ServiceDescription
 from gisserver.types import WGS84, CRS
 from gisserver.views import WFSView
 
+from tests.srid import RD_NEW_PROJ
 from .models import Restaurant
 from .utils import WFS_20_XSD, assert_xml_equal, validate_xsd
 
@@ -20,7 +22,9 @@ NAMESPACES = {
     "xsd": "http://www.w3.org/2001/XMLSchema",
 }
 
-RD_NEW = CRS.from_string("urn:ogc:def:crs:EPSG::28992")
+RD_NEW = CRS.from_string(
+    "urn:ogc:def:crs:EPSG::28992", backend=SpatialReference(RD_NEW_PROJ),
+)
 
 
 class PlacesWFSView(WFSView):
@@ -453,6 +457,10 @@ class TestGetFeature:
         assert response["content-type"] == "application/json; charset=utf-8"
         content = response.json()
         assert response.status_code == 200, content
+        assert content["features"][0]["geometry"]["coordinates"] == [
+            4.908761012851219,
+            52.363171263735715,
+        ]
         assert content == {
             "type": "FeatureCollection",
             "totalFeatures": 1,

@@ -51,7 +51,7 @@ def gml_value(context, prefix: str, id, value: GEOSGeometry, output_crs: CRS):
     forloop["gml_field_index"] = gml_field_index
 
     if isinstance(value, Point):
-        value.transform(output_crs.srid)
+        output_crs.apply_to(value)
         return format_html(
             """<gml:Point gml:id="{prefix}.{id}.{seq}" srsName="{srs_name}">
             <gml:pos>{coords}</gml:pos>
