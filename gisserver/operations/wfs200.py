@@ -14,7 +14,6 @@ import re
 from urllib.parse import urlencode
 
 import orjson
-from django.contrib.gis.geos import Point
 from django.http import HttpResponse
 
 from gisserver.exceptions import InvalidParameterValue, VersionNegotiationFailed
@@ -266,29 +265,20 @@ class GetFeature(WFSFeatureMethod):
             for feature, qs, matched in context["feature_collections"]
         ]
 
-        # Determine bounding box of all items
-        bounding_box = BoundingBox(math.inf, math.inf, -math.inf, -math.inf)
+        # Determine bounding box of all items. Start with an obviously invalid
+        # bbox, which corrects at the first extend_to_geometry call.
+        bbox = BoundingBox(math.inf, math.inf, -math.inf, -math.inf)
         for feature, qs, matched in feature_collections:
             for instance in qs:
                 geomery_value = getattr(instance, feature.geometry_field_name)
                 if geomery_value is None:
                     continue
 
-                if isinstance(geomery_value, Point):
-                    bounding_box.extend_to(
-                        geomery_value.x,
-                        geomery_value.y,
-                        geomery_value.x,
-                        geomery_value.y,
-                    )
-                else:
-                    raise NotImplementedError(
-                        f"Rendering {geomery_value} is not implemented"
-                    )
+                bbox.extend_to_geometry(geomery_value)
 
         context["feature_collections"] = feature_collections
         context["number_returned"] = sum(len(qs) for _, qs, _ in feature_collections)
-        context["bounding_box"] = bounding_box
+        context["bounding_box"] = bbox
         context["xsd_typenames"] = self.view.KVP["TYPENAMES"]
         return super().render_xml(context)
 

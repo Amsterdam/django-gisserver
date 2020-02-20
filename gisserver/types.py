@@ -10,7 +10,7 @@ from functools import lru_cache
 from typing import Optional, Union
 
 from django.contrib.gis.gdal import CoordTransform, SpatialReference
-from django.contrib.gis.geos import GEOSGeometry, Point, Polygon
+from django.contrib.gis.geos import GEOSGeometry, Polygon
 
 CRS_URN_REGEX = re.compile(
     r"^urn:(?P<domain>[a-z]+)"
@@ -114,10 +114,7 @@ class BoundingBox:
         if self.crs is not None and geometry.srid != self.crs.srid:
             geometry = self.crs.apply_to(geometry, clone=True)
 
-        if isinstance(geometry, Point):
-            self.extend_to(geometry.x, geometry.y, geometry.x, geometry.y)
-        else:
-            raise NotImplementedError(f"Processing {geometry} is not implemented")
+        self.extend_to(*geometry.extent)
 
     def __add__(self, other):
         """Combine both extents into a larger box."""
