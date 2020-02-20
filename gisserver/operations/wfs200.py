@@ -284,12 +284,17 @@ class GetFeature(WFSFeatureMethod):
 
     def render_geojson(self, context, **params):
         # TODO: write JSON as stream instead.
+        # NOTE: Django has a GeoJSON serializer:
+        # https://docs.djangoproject.com/en/3.0/ref/contrib/gis/serializers/
 
         # Flatten the results, they are not grouped in a second FeatureCollection
         features = []
         for feature, qs, number_matched in context["feature_collections"]:
             for instance in qs:
                 geo_value = getattr(instance, feature.geometry_field_name)
+                geo_json = (
+                    orjson.loads(geo_value.geojson) if geo_value is not None else None
+                )
                 features.append(
                     {
                         "type": "Feature",
@@ -297,16 +302,8 @@ class GetFeature(WFSFeatureMethod):
                         "geometry_name": str(
                             instance
                         ),  # foreign member (allowed by spec)
-                        # bbox: [x, y, x, y]
-                        "geometry": (
-                            {
-                                # using geom_class instead of geom_type for CamelCasing
-                                "type": feature.geometry_field.geom_class.__name__,
-                                "coordinates": geo_value.coords,
-                            }
-                            if geo_value is not None
-                            else None
-                        ),
+                        # "bbox": geo_value.extent,
+                        "geometry": geo_json,
                         "properties": {
                             name: getattr(instance, name)
                             for name, _ in feature.fields
