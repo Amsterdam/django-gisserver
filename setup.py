@@ -36,7 +36,7 @@ tests_require = [
 setup(
     name="django-gisserver",
     version=find_version("gisserver", "__init__.py"),
-    license="Mozilla Public License 2.0 (MPL 2.0)",
+    license="Mozilla Public License 2.0",
     install_requires=[
         "Django >= 2.0",
         "dataclasses;python_version=='3.6'",
@@ -55,10 +55,10 @@ setup(
     include_package_data=True,
     zip_safe=False,
     classifiers=[
-        "Development Status :: 5 - Production/Stable",
+        "Development Status :: 3 - Alpha",
         "Environment :: Web Environment",
         "Intended Audience :: Developers",
-        "License :: OSI Approved :: Apache Software License",
+        "License :: OSI Approved :: Mozilla Public License 2.0 (MPL 2.0)",
         "Operating System :: OS Independent",
         "Programming Language :: Python",
         "Programming Language :: Python :: 3.6",
