@@ -1,3 +1,8 @@
+![http://travis-ci.org/amsterdam/django-gisserver](https://img.shields.io/travis/amsterdam/django-gisserver.svg)
+![https://pypi.python.org/pypi/django-gisserver](https://img.shields.io/pypi/v/django-gisserver.svg)
+![https://pypi.python.org/pypi/django-gisserver](https://img.shields.io/badge/license-MPL%202.0-blue.svg)
+![https://codecov.io/github/amsterdam/django-gisserver?branch=master](https://img.shields.io/codecov/c/github/amsterdam/django-gisserver/master.svg)
+
 # django-gisserver
 
 Django speaking WFS 2.0 to expose geo data.
