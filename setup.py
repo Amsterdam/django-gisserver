@@ -48,6 +48,7 @@ setup(
     requires=["Django (>=2.0)"],
     description="Django speaking WFS 2.0 (exposing GeoDjango model fields)",
     long_description=read("README.md"),
+    long_description_content_type="text/markdown",
     author="Diederik van der Boor",
     author_email="opensource@edoburu.nl",
     url="https://github.com/amsterdam/django-gisserver",
