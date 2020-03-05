@@ -10,7 +10,7 @@ from gisserver.types import WGS84, CRS
 from gisserver.views import WFSView
 
 from tests.srid import RD_NEW_PROJ
-from .models import Restaurant
+from tests.test_gisserver.models import Restaurant
 from .utils import WFS_20_XSD, assert_xml_equal, validate_xsd
 
 WFS_NS = "http://www.opengis.net/wfs/2.0"
