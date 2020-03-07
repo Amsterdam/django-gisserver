@@ -89,7 +89,7 @@ class CRS:
     @classmethod
     def from_string(
         cls, uri: Union[str, int], backend: Optional[SpatialReference] = None
-    ):
+    ) -> "CRS":
         """
         Parse an CRS (Coordinate Reference System) URI, which preferably follows the URN format
         as specified by `the OGC consortium <http://www.opengeospatial.org/ogcUrnPolicy>`_
