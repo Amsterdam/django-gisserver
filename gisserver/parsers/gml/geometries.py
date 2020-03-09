@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from xml.etree.ElementTree import Element, tostring
 
 from django.contrib.gis.geos import GEOSGeometry
+from django.db.models import Value
 
 from gisserver.parsers.base import tag_registry
 from gisserver.types import CRS
@@ -74,6 +75,12 @@ class GEOSGMLGeometry(AbstractGeometry):
     @property
     def json(self):
         return self.geos_data.json
+
+    def build_operator_value(self, fesquery, is_rhs: bool):
+        if is_rhs:
+            return self.geos_data
+        else:
+            return Value(self.geos_data)
 
 
 @tag_registry.register("After", GML32)

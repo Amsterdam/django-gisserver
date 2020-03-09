@@ -5,15 +5,18 @@ import operator
 from dataclasses import dataclass
 from decimal import Decimal
 from enum import Enum
+from functools import reduce
 from typing import List, Optional, Tuple, Union
 from xml.etree.ElementTree import Element
 
 from django.contrib.gis import measure
+from django.db.models import Q
 
 from gisserver.parsers import gml
 from gisserver.parsers.base import FES20, BaseNode, TagNameEnum, tag_registry
 from gisserver.parsers.utils import expect_tag, get_child
-from .expressions import Expression, ValueReference
+from .expressions import Expression, Literal, ValueReference
+from .query import FesQuery
 
 SpatialDescription = Union[gml.GM_Object, gml.GM_Envelope, ValueReference]
 TemporalOperand = Union[gml.TM_Object, ValueReference]
@@ -32,66 +35,71 @@ class MatchAction(Enum):
 
 
 class BinaryComparisonName(TagNameEnum):
-    """XML tag names for value comparisons"""
+    """XML tag names for value comparisons.
+    Values are the used field lookup.
+    """
 
-    PropertyIsEqualTo = operator.eq
-    PropertyIsNotEqualTo = operator.ne
-    PropertyIsLessThan = operator.lt
-    PropertyIsGreaterThan = operator.gt
-    PropertyIsLessThanOrEqualTo = operator.le
-    PropertyIsGreaterThanOrEqualTo = operator.ge
+    PropertyIsEqualTo = "exact"
+    PropertyIsNotEqualTo = "fes_notequal"  # custom FesNotEqualTo lookup
+    PropertyIsLessThan = "lt"
+    PropertyIsGreaterThan = "gt"
+    PropertyIsLessThanOrEqualTo = "lte"
+    PropertyIsGreaterThanOrEqualTo = "gte"
 
 
 class DistanceOperatorName(TagNameEnum):
     """XML tag names for distance operators"""
 
-    Beyond = "Beyond"
-    DWithin = "DWithin"
+    Beyond = "distance_gt"
+    DWithin = "distance_lte"
 
 
 class SpatialOperatorName(TagNameEnum):
     """XML tag names for geometry operators"""
 
-    BBOX = "BBOX"
-    Equals = "Equals"
-    Disjoint = "Disjoint"
-    Intersects = "Intersects"
-    Touches = "Touches"
-    Crosses = "Crosses"
-    Within = "Within"
-    Contains = "Contains"
-    Overlaps = "Overlaps"
+    # (A Within B) implies that (B Contains A)
+
+    # TODO: what is the correct operator for BBOX?
+    BBOX = "bboverlaps"  # ISO version: "NOT DISJOINT"
+    Equals = "equals"  # Test whether t geometries are topologically equal
+    Disjoint = "disjoint"  # Tests whether two geometries are disjoint (do not interact)
+    Intersects = "intersects"  # Tests whether two geometries intersect
+    Touches = "touches"  # Tests whether two geometries touch
+    Crosses = "crosses"  # Tests whether two geometries cross
+    Within = "within"  # Tests whether a geometry is within another one
+    Contains = "contains"  # Tests whether a geometry contains another one
+    Overlaps = "overlaps"  # Test whether two geometries overlap
 
 
 class TemporalOperatorName(TagNameEnum):
     """XML tag names for datetime operators."""
 
-    After = "After"
-    Before = "Before"
-    Begins = "Begins"
-    BegunBy = "BegunBy"
-    TContains = "TContains"
-    TEquals = "TEquals"
-    TOverlaps = "TOverlaps"
-    During = "During"
-    Meets = "Meets"
-    OverlappedBy = "OverlappedBy"
-    MetBy = "MetBy"
-    EndedBy = "EndedBy"
-    AnyInteracts = "AnyInteracts"
+    After = "after"
+    Before = "before"
+    Begins = "begins"
+    BegunBy = "begunby"
+    TContains = "tcontains"
+    TEquals = "tequals"
+    TOverlaps = "toverlaps"
+    During = "during"
+    Meets = "meets"
+    OverlappedBy = "overlappedby"
+    MetBy = "metby"
+    EndedBy = "endedby"
+    AnyInteracts = "anyinteracts"
 
 
 class BinaryLogicType(TagNameEnum):
     """XML tag names for the BinaryLogicOperator."""
 
-    And = "And"
-    Or = "Or"
+    And = operator.and_
+    Or = operator.or_
 
 
 class UnaryLogicType(TagNameEnum):
     """XML tag names for the UnaryLogicOperator."""
 
-    Not = "Not"
+    Not = operator.inv
 
 
 @dataclass
@@ -116,6 +124,11 @@ class Operator(BaseNode):
     """Abstract base class, as defined by FES spec."""
 
     xml_ns = FES20
+
+    def build_query(self, fesquery: FesQuery) -> Q:
+        raise NotImplementedError(
+            f"Using {self.__class__.__name__} is not supported yet."
+        )
 
 
 class IdOperator(Operator):
@@ -157,6 +170,12 @@ class DistanceOperator(SpatialOperator):
             distance=Measure.from_xml(get_child(element, FES20, "Distance")),
         )
 
+    def build_query(self, fesquery: FesQuery) -> Q:
+        lookup = self.operatorType.value
+        return self.valueReference.build_compare_between(
+            fesquery, lookup, (self.geometry, self.distance)
+        )
+
 
 @dataclass
 @tag_registry.register_names(SpatialOperatorName)  # <BBOX>, <Equals>, ...
@@ -177,6 +196,13 @@ class BinarySpatialOperator(SpatialOperator):
                 allowed_types=SpatialDescription.__args__,  # get_args() in 3.8
             ),
         )
+
+    def build_query(self, fesquery: FesQuery) -> Q:
+        if self.operand1 is None:
+            raise NotImplementedError()
+
+        lookup = self.operatorType.value
+        return self.operand1.build_compare(fesquery, lookup, self.operand2)
 
 
 @dataclass
@@ -231,6 +257,11 @@ class BinaryComparisonOperator(ComparisonOperator):
             ),
         )
 
+    def build_query(self, fesquery: FesQuery) -> Q:
+        lookup = self.operatorType.value
+        lhs, rhs = self.expression
+        return lhs.build_compare(fesquery, lookup, rhs)
+
 
 @dataclass
 @tag_registry.register("PropertyIsBetween")
@@ -249,6 +280,11 @@ class BetweenComparisonOperator(ComparisonOperator):
             expression=Expression.from_child_xml(element[0]),
             lowerBoundary=Expression.from_child_xml(lower[0]),
             upperBoundary=Expression.from_child_xml(upper[0]),
+        )
+
+    def build_query(self, fesquery: FesQuery) -> Q:
+        return self.expression.build_compare_between(
+            fesquery, "range", (self.lowerBoundary, self.upperBoundary)
         )
 
 
@@ -274,6 +310,25 @@ class LikeOperator(ComparisonOperator):
             escapeChar=element.attrib["escapeChar"],
         )
 
+    def build_query(self, fesquery: FesQuery) -> Q:
+        lhs, rhs = self.expression
+        if isinstance(rhs, Literal):
+            value = rhs.value
+            # Not using r"\" here as that is a syntax error.
+            if self.escapeChar != "\\":
+                value = value.replace("\\", "\\\\").replace(self.escapeChar, "\\")
+            if self.wildCard != "%":
+                value = value.replace("%", r"\%").replace(self.wildCard, "%")
+            if self.singleChar != "_":
+                value = value.replace("_", r"\_").replace(self.singleChar, "_")
+
+            rhs = value
+        else:
+            raise NotImplementedError()
+
+        # Use the FesLike lookup
+        return lhs.build_compare(fesquery, "fes_like", rhs)
+
 
 @dataclass
 @tag_registry.register("PropertyIsNil")
@@ -290,6 +345,9 @@ class NilOperator(ComparisonOperator):
             nilReason=element.get("nilReason"),
         )
 
+    def build_query(self, fesquery: FesQuery) -> Q:
+        return self.expression.build_compare(fesquery, "isnull", True)
+
 
 @dataclass
 @tag_registry.register("PropertyIsNull")
@@ -300,7 +358,10 @@ class NullOperator(ComparisonOperator):
 
     @classmethod
     def from_xml(cls, element: Element):
-        return cls(expression=Expression.from_child_xml(element[0]),)
+        return cls(expression=Expression.from_child_xml(element[0]))
+
+    def build_query(self, fesquery: FesQuery) -> Q:
+        raise NotImplementedError()
 
 
 class LogicalOperator(NonIdOperator):
@@ -323,6 +384,11 @@ class BinaryLogicOperator(LogicalOperator):
             operatorType=BinaryLogicType.from_xml(element),
         )
 
+    def build_query(self, fesquery: FesQuery) -> Q:
+        """Apply the AND/OR operation to the Q-object"""
+        values = [q.build_query(fesquery) for q in self.operands]
+        return reduce(self.operatorType.value, values)
+
 
 @dataclass
 @tag_registry.register("Not")
@@ -338,6 +404,10 @@ class UnaryLogicOperator(LogicalOperator):
             operands=NonIdOperator.from_child_xml(element[0]),
             operatorType=UnaryLogicType.from_xml(element),
         )
+
+    def build_query(self, fesquery: FesQuery) -> Q:
+        """Apply the NOT operation to the Q-object"""
+        return self.operatorType.value(self.operands.build_query(fesquery))
 
 
 class ExtensionOperator(NonIdOperator):

@@ -1,11 +1,14 @@
 """These classes map to the FES 2.0 specification for identifiers.
 The class names are identical to those in the FES spec.
 """
-
+import operator
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Optional, Union
+from functools import reduce
+from typing import Optional, Union, List
+
+from django.db.models import Q
 
 from gisserver.parsers.base import FES20, BaseNode, tag_registry
 
@@ -24,6 +27,17 @@ class Id(BaseNode):
     """Abstract base class, as defined by FES spec."""
 
     xml_ns = FES20
+
+    def build_value(self, fesquery) -> Q:
+        raise NotImplementedError()
+
+
+class IdList(List[Id]):
+    """List of ResourceId objects"""
+
+    def build_query(self, fesquery) -> Q:
+        """Generate the ID lookup query"""
+        return reduce(operator.or_, [id.build_value(fesquery) for id in self],)
 
 
 @dataclass
@@ -58,3 +72,11 @@ class ResourceId(Id):
             startTime=datetime.fromisoformat(startTime) if startTime else None,
             endTime=datetime.fromisoformat(endTime) if endTime else None,
         )
+
+    def build_value(self, fesquery) -> Q:
+        """Render the SQL filter"""
+        if self.startTime or self.endTime or self.version:
+            raise NotImplementedError(
+                "No support for <fes:ResourceId> startTime/endTime/version attributes"
+            )
+        return Q(pk=self.rid)

@@ -16,6 +16,7 @@ from django.http import HttpResponse
 
 from gisserver.exceptions import InvalidParameterValue, VersionNegotiationFailed
 from gisserver.features import FeatureType
+from gisserver.parsers import parse_fes
 from gisserver.types import CRS, BoundingBox
 
 from .base import (
@@ -28,6 +29,7 @@ from .base import (
 
 SAFE_VERSION = re.compile(r"\A[0-9.]+\Z")
 RE_SAFE_FILENAME = re.compile(r"\A[A-Za-z0-9]+[A-Za-z0-9.]*")  # no dot at the start.
+OGC_FES_FILTER = "urn:ogc:def:queryLanguage:OGC-FES:Filter"
 
 
 class GetCapabilities(WFSMethod):
@@ -153,8 +155,11 @@ class GetFeature(WFSFeatureMethod):
         Parameter("bbox", parser=BoundingBox.from_string),
         Parameter("startIndex", parser=int, default=0),
         Parameter("count", parser=int),  # was called maxFeatures in WFS 1.x
+        Parameter(
+            "filter_language", default=OGC_FES_FILTER, allowed_values=[OGC_FES_FILTER]
+        ),
+        Parameter("filter", parser=parse_fes),
         # Not implemented:
-        UnsupportedParameter("filter"),
         UnsupportedParameter("sortBy"),
         UnsupportedParameter("resourceID"),  # query on ID (called featureID in wfs 1.x)
         UnsupportedParameter("propertyName"),  # which fields to return
@@ -163,7 +168,6 @@ class GetFeature(WFSFeatureMethod):
         UnsupportedParameter("resolveTimeout"),
         UnsupportedParameter("namespaces"),  # define output namespaces
         UnsupportedParameter("aliases"),
-        UnsupportedParameter("filter_language"),
     ]
     output_formats = [
         OutputFormat("text/xml", subtype="gml/3.1.1"),
@@ -230,7 +234,7 @@ class GetFeature(WFSFeatureMethod):
             for feature in typeNames
         ]
 
-    def filter_queryset(self, feature: FeatureType, queryset, bbox, **params):
+    def filter_queryset(self, feature: FeatureType, queryset, bbox, filter, **params):
         """Apply the filters to a single feature type."""
         filters = {}
 
@@ -239,16 +243,19 @@ class GetFeature(WFSFeatureMethod):
             filters[f"{feature.geometry_field_name}__within"] = bbox.as_polygon()
 
         # TODO: other parameters to support:
-        # filter=<fes:...>
         # sortBy=attr+A / +D
         # resourceid=app:Type/gml:name (was featureID in wfs 1.x)
         # propertyName=app:Type/app:field1,app:Type/app:field2
-        for name in ("filter", "sortBy", "resourceID", "propertyName"):
+        for name in ("sortBy", "resourceID", "propertyName"):
             if params[name]:
                 raise InvalidParameterValue(name, f"{name} is not supported yet")
 
         if filters:
             queryset = queryset.filter(**filters)
+
+        # Allow filtering using a <fes:Filter>
+        if filter:
+            queryset = filter.filter_queryset(queryset)
 
         # Attach extra property to keep meta-dataa in place
         queryset.feature = feature

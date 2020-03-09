@@ -10,11 +10,15 @@ This test style is inspired by pyfes (which is also Apache licensed)
 """
 from decimal import Decimal as D
 
-from django.contrib.gis.geos import GEOSGeometry
-
 import pytest
+from django.contrib.gis import measure
+from django.contrib.gis.geos import GEOSGeometry
+from django.db.models import F, Q
+from django.db.models.functions import Sin
+
 from gisserver.parsers.fes20 import Filter, parse_fes
 from gisserver.parsers.fes20.expressions import Function, Literal, ValueReference
+from gisserver.parsers.fes20.functions import function_registry
 from gisserver.parsers.fes20.identifiers import ResourceId
 from gisserver.parsers.fes20.operators import (
     # Importing all these elements directly,
@@ -34,6 +38,7 @@ from gisserver.parsers.fes20.operators import (
     UnaryLogicOperator,
     UnaryLogicType,
 )
+from gisserver.parsers.fes20.query import FesQuery
 from gisserver.parsers.gml import geometries
 from gisserver.parsers.gml.geometries import GEOSGMLGeometry
 from gisserver.types import WGS84
@@ -62,6 +67,10 @@ def test_fes20_c5_example1():
     result = parse_fes(xml_text)
     assert result == expected, f"result={result!r}"
 
+    # Test SQL generating
+    query = result.get_query()
+    assert query == FesQuery(lookups=[Q(SomeProperty__exact=100)]), repr(query)
+
 
 def test_fes20_c5_example2():
     """A simple non-spatial filter comparing a property value to a literal.
@@ -88,6 +97,10 @@ def test_fes20_c5_example2():
     )
     result = parse_fes(xml_text)
     assert result == expected, f"result={result!r}"
+
+    # Test SQL generating
+    query = result.get_query()
+    assert query == FesQuery(lookups=[Q(DEPTH__lt="30")]), repr(query)
 
 
 def test_fes20_c5_example3():
@@ -136,6 +149,19 @@ def test_fes20_c5_example3():
     result = parse_fes(xml_text)
     assert result == expected, f"result={result!r}"
 
+    # Test SQL generating
+    query = result.get_query()
+    assert query == FesQuery(
+        lookups=[
+            ~Q(
+                Geometry__disjoint=GEOSGeometry(
+                    "POLYGON ((13.0983 31.5899, 35.5472 31.5899"
+                    ", 35.5472 42.8143, 13.0983 42.8143, 13.0983 31.5899))"
+                )
+            )
+        ]
+    ), repr(query)
+
 
 def test_fes20_c5_example3_b():
     """An alternative encoding of this filter could have used to fes:BBOX element"""
@@ -172,6 +198,19 @@ def test_fes20_c5_example3_b():
     )
     result = parse_fes(xml_text)
     assert result == expected, f"result={result!r}"
+
+    # Test SQL generating
+    query = result.get_query()
+    assert query == FesQuery(
+        lookups=[
+            Q(
+                Geometry__bboverlaps=GEOSGeometry(
+                    "POLYGON ((13.0983 31.5899, 35.5472 31.5899"
+                    ", 35.5472 42.8143, 13.0983 42.8143, 13.0983 31.5899))"
+                )
+            )
+        ]
+    ), repr(query)
 
 
 def test_fes20_c5_example4():
@@ -239,6 +278,20 @@ def test_fes20_c5_example4():
     result = parse_fes(xml_text)
     assert result == expected, f"result={result!r}"
 
+    # Test SQL generating
+    query = result.get_query()
+    assert query == FesQuery(
+        lookups=[
+            Q(DEPTH__lt="30")
+            & ~Q(
+                Geometry__disjoint=GEOSGeometry(
+                    "POLYGON ((13.0983 31.5899, 35.5472 31.5899"
+                    ", 35.5472 42.8143, 13.0983 42.8143, 13.0983 31.5899))"
+                )
+            )
+        ]
+    ), repr(query)
+
 
 def test_fes20_c5_example5():
     """A fes:Filter element can also be used to identify an enumerated set of
@@ -276,12 +329,32 @@ def test_fes20_c5_example5():
     result = parse_fes(xml_text)
     assert result == expected, f"result={result!r}"
 
+    # Test SQL generating
+    query = result.get_query()
+    assert query == FesQuery(
+        lookups=[
+            Q(pk="TREESA_1M.1234")
+            | Q(pk="TREESA_1M.5678")
+            | Q(pk="TREESA_1M.9012")
+            | Q(pk="INWATERA_1M.3456")
+            | Q(pk="INWATERA_1M.7890")
+            | Q(pk="BUILTUPA_1M.4321")
+        ]
+    ), repr(query)
+
 
 def test_fes20_c5_example6():
     """The following filter includes the encoding of a function. This filter
     identifies all features where the sine() of the property named
     DISPERSION_ANGLE is 1.
     """
+
+    @function_registry.register(
+        name="SIN", arguments=dict(value1="xsd:double"), returns="xsd:double",
+    )
+    def fes_sin(value1):
+        return Sin(value1)
+
     xml_text = """
         <fes:Filter
         xmlns:fes="http://www.opengis.net/fes/2.0"
@@ -312,6 +385,12 @@ def test_fes20_c5_example6():
     result = parse_fes(xml_text)
     assert result == expected, f"result={result!r}"
 
+    # Test SQL generating
+    query = result.get_query()
+    assert query == FesQuery(
+        annotations={"a1": Sin(F("DISPERSION_ANGLE"))}, lookups=[Q(a1__exact="1")]
+    ), repr(query)
+
 
 def test_fes20_c5_example7():
     """This example assumes that the server advertises support for a function
@@ -319,6 +398,14 @@ def test_fes20_c5_example7():
     filter that includes an arithmetic expression. This filter is equivalent
     to the expression PROPA = PROPB + 100.
     """
+
+    @function_registry.register(
+        name="Add", arguments=dict(value1="xsd:double"), returns="xsd:double",
+    )
+    def fes_add(value1: F, value2: str):
+        # value1 is already an F value (thanks to ValueReference)
+        return value1 + value2
+
     xml_text = """
         <fes:Filter
         xmlns:fes="http://www.opengis.net/fes/2.0"
@@ -351,6 +438,13 @@ def test_fes20_c5_example7():
     result = parse_fes(xml_text)
     assert result == expected, f"result={result!r}"
 
+    # Test SQL generating
+    # Testing against repr() because CombinedExpression / Value doesn't do __eq__ testing.
+    query = result.get_query()
+    assert repr(query) == repr(
+        FesQuery(lookups=[Q(PROPA__exact=F("PROPB") + 100)])
+    ), repr(query)
+
 
 def test_fes20_c5_example8():
     """This example encodes a filter using the BETWEEN operator. The filter
@@ -381,6 +475,10 @@ def test_fes20_c5_example8():
     )
     result = parse_fes(xml_text)
     assert result == expected, f"result={result!r}"
+
+    # Test SQL generating
+    query = result.get_query()
+    assert query == FesQuery(lookups=[Q(DEPTH__range=("100", "200"))]), repr(query)
 
 
 def test_fes20_c5_example9():
@@ -414,6 +512,14 @@ def test_fes20_c5_example9():
     result = parse_fes(xml_text)
     assert result == expected, f"result={result!r}"
 
+    # Test SQL generating
+    query = result.get_query()
+    assert query == FesQuery(
+        lookups=[
+            Q(SAMPLE_DATE__range=("2001-01-15T20:07:48.11", "2001-03-06T12:00:00.00"))
+        ]
+    ), repr(query)
+
 
 def test_fes20_c5_example10():
     """This example encodes a filter using the LIKE operation to perform a
@@ -445,6 +551,10 @@ def test_fes20_c5_example10():
     )
     result = parse_fes(xml_text)
     assert result == expected, f"result={result!r}"
+
+    # Test SQL generating
+    query = result.get_query()
+    assert query == FesQuery(lookups=[Q(LAST_NAME__fes_like="JOHN%")]), repr(query)
 
 
 def test_fes20_c5_example11():
@@ -484,6 +594,18 @@ def test_fes20_c5_example11():
     )
     result = parse_fes(xml_text)
     assert result == expected, f"result={result!r}"
+
+    # Test SQL generating
+    query = result.get_query()
+    assert query == FesQuery(
+        lookups=[
+            Q(
+                Geometry__overlaps=GEOSGeometry(
+                    "POLYGON ((10 10, 20 20, 30 30, 40 40, 10 10))"
+                )
+            )
+        ]
+    ), repr(query)
 
 
 def test_fes20_c5_example11_b():
@@ -526,6 +648,18 @@ def test_fes20_c5_example11_b():
     )
     result = parse_fes(xml_text)
     assert result == expected, f"result={result!r}"
+
+    # Test SQL generating
+    query = result.get_query()
+    assert query == FesQuery(
+        lookups=[
+            Q(
+                Geometry__overlaps=GEOSGeometry(
+                    "POLYGON ((10 10, 20 20, 30 30, 40 40, 10 10))"
+                )
+            )
+        ]
+    ), repr(query)
 
 
 def test_fes20_c5_example12():
@@ -600,6 +734,14 @@ def test_fes20_c5_example12():
     result = parse_fes(xml_text)
     assert result == expected, f"result={result!r}"
 
+    # Test SQL generating
+    query = result.get_query()
+    assert query == FesQuery(
+        lookups=[
+            (Q(FIELD1__exact="10") | Q(FIELD1__exact="20")) & Q(STATUS__exact="VALID")
+        ]
+    ), repr(query)
+
 
 def test_fes20_c5_example13():
     """Spatial and non-spatial predicates can be encoded in a single filter
@@ -668,6 +810,19 @@ def test_fes20_c5_example13():
     result = parse_fes(xml_text)
     assert result == expected, f"result={result!r}"
 
+    # Test SQL generating
+    query = result.get_query()
+    assert query == FesQuery(
+        lookups=[
+            Q(
+                WKB_GEOM__within=GEOSGeometry(
+                    "POLYGON ((10 10, 20 20, 30 30, 40 40, 10 10))"
+                )
+            )
+            & Q(DEPTH__range=("400", "800"))
+        ]
+    ), repr(query)
+
 
 def test_fes20_c5_example14():
     """This example restricts the active set of objects to those instances of
@@ -721,6 +876,15 @@ def test_fes20_c5_example14():
     )
     assert result == expected, f"result={result!r}"
 
+    # Test SQL generating
+    query = result.get_query()
+    assert query == FesQuery(
+        lookups=[
+            Q(Person__age__gt="50")
+            & Q(Person__mailAddress__Address__city__exact="Toronto")
+        ]
+    ), repr(query)
+
 
 def test_fes20_c5_example15():
     """This example finds features within a specified distance of a geometry."""
@@ -756,6 +920,19 @@ def test_fes20_c5_example15():
     )
     result = parse_fes(xml_text)
     assert result == expected, f"result={result!r}"
+
+    # Test SQL generating
+    query = result.get_query()
+    assert query == FesQuery(
+        lookups=[
+            Q(
+                geometry__distance_lte=(
+                    GEOSGeometry("POINT (43.716589 -79.34068600000001)"),
+                    measure.Distance(m=10.0),
+                )
+            )
+        ]
+    ), repr(query)
 
 
 def test_fes20_c7_example1():
@@ -798,6 +975,19 @@ def test_fes20_c7_example1():
     result = parse_fes(xml_text)
     assert result == expected, f"result={result!r}"
 
+    # Test SQL generating
+    query = result.get_query()
+    assert query == FesQuery(
+        lookups=[
+            Q(
+                geometry__distance_lte=(
+                    GEOSGeometry("POINT (43.716589 -79.34068600000001)"),
+                    measure.Distance(m=10),
+                )
+            )
+        ]
+    ), repr(query)
+
 
 @pytest.mark.skip
 def test_fes20_c7_example2():
@@ -823,6 +1013,8 @@ def test_fes20_c7_example2():
     result = parse_fes(xml_text)
     assert result == expected, f"result={result!r}"
 
+    print(result.get_query())
+
 
 @pytest.mark.skip(reason="GML Temporal support is incomplete")
 def test_fes20_c7_example3():
@@ -847,6 +1039,8 @@ def test_fes20_c7_example3():
     expected = Filter([])
     result = parse_fes(xml_text)
     assert result == expected, f"result={result!r}"
+
+    print(result.get_query())
 
 
 @pytest.mark.skip(reason="GML Temporal support is incomplete")
@@ -882,6 +1076,8 @@ def test_fes20_c7_example4():
     result = parse_fes(xml_text)
     assert result == expected, f"result={result!r}"
 
+    print(result.get_query())
+
 
 @pytest.mark.skip(reason="GML Temporal support is incomplete")
 def test_fes20_c7_example5():
@@ -915,3 +1111,5 @@ def test_fes20_c7_example5():
     expected = Filter([])
     result = parse_fes(xml_text)
     assert result == expected, f"result={result!r}"
+
+    print(result.get_query())
