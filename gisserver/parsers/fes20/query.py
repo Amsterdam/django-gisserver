@@ -1,6 +1,8 @@
 import operator
 from functools import reduce
 
+from django.contrib.gis.db.models.fields import BaseSpatialField
+from django.contrib.gis.db.models.lookups import DistanceLookupBase
 from django.db import models
 from django.db.models import Q, QuerySet, lookups
 
@@ -94,3 +96,9 @@ class FesNotEqualTo(lookups.Lookup):
         lhs, lhs_params = self.process_lhs(compiler, connection)  # = (table.field, %s)
         rhs, rhs_params = self.process_rhs(compiler, connection)  # = ("prep-value", [])
         return f"{lhs} != {rhs}", lhs_params + rhs_params
+
+
+@BaseSpatialField.register_lookup
+class FesNotDWithinLookup(DistanceLookupBase):
+    lookup_name = "fes_not_dwithin"
+    sql_template = "NOT %(func)s(%(lhs)s, %(rhs)s, %(value)s)"

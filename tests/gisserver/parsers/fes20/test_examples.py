@@ -921,7 +921,7 @@ def test_fes20_c5_example15():
     assert query == FesQuery(
         lookups=[
             Q(
-                geometry__distance_lte=(
+                geometry__dwithin=(
                     GEOSGeometry("POINT (43.716589 -79.34068600000001)"),
                     measure.Distance(m=10.0),
                 )
@@ -975,7 +975,7 @@ def test_fes20_c7_example1():
     assert query == FesQuery(
         lookups=[
             Q(
-                geometry__distance_lte=(
+                geometry__dwithin=(
                     GEOSGeometry("POINT (43.716589 -79.34068600000001)"),
                     measure.Distance(m=10),
                 )
