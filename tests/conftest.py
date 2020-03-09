@@ -23,7 +23,14 @@ def pytest_configure():
 @pytest.fixture()
 def restaurant() -> Restaurant:
     return Restaurant.objects.create(
-        name="Café Noir", location=Point(122411, 486250, srid=RD_NEW_SRID)
+        name="Café Noir", location=Point(122411, 486250, srid=RD_NEW_SRID), rating=5.0
+    )
+
+
+@pytest.fixture()
+def bad_restaurant() -> Restaurant:
+    return Restaurant.objects.create(
+        name="Foo Bar", location=Point(122421, 486290, srid=RD_NEW_SRID), rating=1.0
     )
 
 

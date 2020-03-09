@@ -1,4 +1,5 @@
 import sys
+from urllib.parse import quote_plus
 
 import pytest
 from django.contrib.gis.gdal import SpatialReference
@@ -213,7 +214,7 @@ class TestDescribeFeatureType:
             namespaces=NAMESPACES,
         )
         field_names = [el.attrib["name"] for el in elements]
-        assert field_names == ["id", "name", "location"]
+        assert field_names == ["id", "name", "location", "rating"]
 
         assert_xml_equal(
             response.content,
@@ -235,6 +236,7 @@ class TestDescribeFeatureType:
           <element name="id" type="integer" minOccurs="0" />
           <element name="name" type="string" minOccurs="0" />
           <element name="location" type="gml:GeometryPropertyType" minOccurs="0" maxOccurs="1"/>
+          <element name="rating" type="double" minOccurs="0" />
         </sequence>
       </extension>
     </complexContent>
@@ -310,6 +312,7 @@ class TestGetFeature:
             <gml:pos>{POINT1_XML_WGS84}</gml:pos>
           </gml:Point>
         </app:location>
+        <app:rating>5.0</app:rating>
       </app:restaurant>
     </wfs:member>
 </wfs:FeatureCollection>""",  # noqa: E501
@@ -347,6 +350,7 @@ class TestGetFeature:
             <app:id>{restaurant.id}</app:id>
             <app:name>Empty</app:name>
             <app:location />
+            <app:rating>0.0</app:rating>
           </app:restaurant>
         </wfs:member>
     </wfs:FeatureCollection>""",  # noqa: E501
@@ -387,10 +391,10 @@ class TestGetFeature:
         <wfs:member>
           <app:restaurant gml:id="restaurant.{restaurant.id}">
             <gml:boundedBy>
-                 <gml:Envelope srsName="urn:ogc:def:crs:EPSG::28992">
+              <gml:Envelope srsName="urn:ogc:def:crs:EPSG::28992">
                 <gml:lowerCorner>{POINT1_XML_RD}</gml:lowerCorner>
                 <gml:upperCorner>{POINT1_XML_RD}</gml:upperCorner>
-            </gml:Envelope>
+              </gml:Envelope>
             </gml:boundedBy>
             <app:id>{restaurant.id}</app:id>
             <app:name>Café Noir</app:name>
@@ -399,13 +403,14 @@ class TestGetFeature:
                 <gml:pos>{POINT1_XML_RD}</gml:pos>
               </gml:Point>
             </app:location>
+            <app:rating>5.0</app:rating>
           </app:restaurant>
         </wfs:member>
     </wfs:FeatureCollection>""",  # noqa: E501
         )
 
     def test_get_bbox(self, client, restaurant):
-        """Prove that that parsing RESULTTYPE=hits works"""
+        """Prove that that parsing BBOX=... works"""
         response = client.get(
             "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
             "&BBOX=122400,486200,122500,486300,urn:ogc:def:crs:EPSG::28992"
@@ -433,6 +438,44 @@ class TestGetFeature:
         xml_doc = validate_xsd(response2.content, WFS_20_XSD)
         assert xml_doc.attrib["numberMatched"] == "0"
         assert xml_doc.attrib["numberReturned"] == "0"
+
+    def test_get_filter(self, client, restaurant, bad_restaurant):
+        """Prove that that parsing FILTER=<fes:Filter>... works"""
+        filter1 = """
+        <?xml version="1.0"?>
+        <fes:Filter
+             xmlns:fes="http://www.opengis.net/fes/2.0"
+             xmlns:gml="http://www.opengis.net/gml/3.2"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xsi:schemaLocation="http://www.opengis.net/fes/2.0
+             http://schemas.opengis.net/filter/2.0/filterAll.xsd
+             http://www.opengis.net/gml
+             http://schemas.opengis.net/gml/2.1.2/geometry.xsd">
+            <fes:PropertyIsGreaterThanOrEqualTo>
+                <fes:ValueReference>rating</fes:ValueReference>
+                <fes:Literal>3.0</fes:Literal>
+            </fes:PropertyIsGreaterThanOrEqualTo>
+        </fes:Filter>
+        """.strip()
+
+        response = client.get(
+            "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
+            "&FILTER=" + quote_plus(filter1)
+        )
+        content = response.content.decode()
+        assert response["content-type"] == "text/xml; charset=utf-8", content
+        assert response.status_code == 200, content
+        assert "</wfs:FeatureCollection>" in content
+
+        # Validate against the WFS 2.0 XSD
+        xml_doc = validate_xsd(response.content, WFS_20_XSD)
+        assert xml_doc.attrib["numberMatched"] == "1"
+        assert xml_doc.attrib["numberReturned"] == "1"
+
+        # Prove that the output is still rendered in WGS84
+        feature = xml_doc.find("wfs:member/app:restaurant", namespaces=NAMESPACES)
+        geometry = feature.find("app:location/gml:Point", namespaces=NAMESPACES)
+        assert geometry.attrib["srsName"] == WGS84.urn
 
     def test_get_hits(self, client, restaurant):
         """Prove that that parsing RESULTTYPE=hits works"""
@@ -487,7 +530,11 @@ class TestGetFeature:
                     "id": f"restaurant.{restaurant.id}",
                     "geometry_name": "Café Noir",
                     "geometry": {"type": "Point", "coordinates": POINT1_GEOJSON,},
-                    "properties": {"id": restaurant.id, "name": "Café Noir"},
+                    "properties": {
+                        "id": restaurant.id,
+                        "name": "Café Noir",
+                        "rating": 5.0,
+                    },
                 }
             ],
         }
