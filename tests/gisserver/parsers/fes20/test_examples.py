@@ -61,7 +61,7 @@ def test_fes20_c5_example1():
     expected = Filter(
         BinaryComparisonOperator(
             BinaryComparisonName.PropertyIsEqualTo,
-            expression=(ValueReference("SomeProperty"), Literal("100"),),
+            expression=(ValueReference("SomeProperty"), Literal(100),),
         )
     )
     result = parse_fes(xml_text)
@@ -92,7 +92,7 @@ def test_fes20_c5_example2():
     expected = Filter(
         BinaryComparisonOperator(
             BinaryComparisonName.PropertyIsLessThan,
-            expression=(ValueReference("DEPTH"), Literal("30")),
+            expression=(ValueReference("DEPTH"), Literal(30)),
         )
     )
     result = parse_fes(xml_text)
@@ -100,7 +100,7 @@ def test_fes20_c5_example2():
 
     # Test SQL generating
     query = result.get_query()
-    assert query == FesQuery(lookups=[Q(DEPTH__lt="30")]), repr(query)
+    assert query == FesQuery(lookups=[Q(DEPTH__lt=30)]), repr(query)
 
 
 def test_fes20_c5_example3():
@@ -252,7 +252,7 @@ def test_fes20_c5_example4():
                     operatorType=BinaryComparisonName.PropertyIsLessThan,
                     expression=(
                         ValueReference(xpath="DEPTH"),
-                        Literal(value="30", type=None),
+                        Literal(value=30, type=None),
                     ),
                     matchCase=True,
                     matchAction=MatchAction.Any,
@@ -282,7 +282,7 @@ def test_fes20_c5_example4():
     query = result.get_query()
     assert query == FesQuery(
         lookups=[
-            Q(DEPTH__lt="30")
+            Q(DEPTH__lt=30)
             & ~Q(
                 Geometry__disjoint=GEOSGeometry(
                     "POLYGON ((13.0983 31.5899, 35.5472 31.5899"
@@ -376,7 +376,7 @@ def test_fes20_c5_example6():
                 Function(
                     name="SIN", arguments=[ValueReference(xpath="DISPERSION_ANGLE")],
                 ),
-                Literal(value="1"),
+                Literal(value=1),
             ),
             matchCase=True,
             matchAction=MatchAction.Any,
@@ -388,7 +388,7 @@ def test_fes20_c5_example6():
     # Test SQL generating
     query = result.get_query()
     assert query == FesQuery(
-        annotations={"a1": Sin(F("DISPERSION_ANGLE"))}, lookups=[Q(a1__exact="1")]
+        annotations={"a1": Sin(F("DISPERSION_ANGLE"))}, lookups=[Q(a1__exact=1)]
     ), repr(query)
 
 
@@ -428,7 +428,7 @@ def test_fes20_c5_example7():
                 ValueReference(xpath="PROPA"),
                 Function(
                     name="Add",
-                    arguments=[ValueReference(xpath="PROPB"), Literal(value="100")],
+                    arguments=[ValueReference(xpath="PROPB"), Literal(value=100)],
                 ),
             ),
             matchCase=True,
@@ -469,8 +469,8 @@ def test_fes20_c5_example8():
     expected = Filter(
         predicate=BetweenComparisonOperator(
             expression=ValueReference(xpath="DEPTH"),
-            lowerBoundary=Literal(value="100"),
-            upperBoundary=Literal(value="200"),
+            lowerBoundary=Literal(value=100),
+            upperBoundary=Literal(value=200),
         )
     )
     result = parse_fes(xml_text)
@@ -478,7 +478,7 @@ def test_fes20_c5_example8():
 
     # Test SQL generating
     query = result.get_query()
-    assert query == FesQuery(lookups=[Q(DEPTH__range=("100", "200"))]), repr(query)
+    assert query == FesQuery(lookups=[Q(DEPTH__range=(100, 200))]), repr(query)
 
 
 def test_fes20_c5_example9():
@@ -701,7 +701,7 @@ def test_fes20_c5_example12():
                             operatorType=BinaryComparisonName.PropertyIsEqualTo,
                             expression=(
                                 ValueReference(xpath="FIELD1"),
-                                Literal(value="10"),
+                                Literal(value=10),
                             ),
                             matchCase=True,
                             matchAction=MatchAction.Any,
@@ -710,7 +710,7 @@ def test_fes20_c5_example12():
                             operatorType=BinaryComparisonName.PropertyIsEqualTo,
                             expression=(
                                 ValueReference(xpath="FIELD1"),
-                                Literal(value="20"),
+                                Literal(value=20),
                             ),
                             matchCase=True,
                             matchAction=MatchAction.Any,
@@ -737,9 +737,7 @@ def test_fes20_c5_example12():
     # Test SQL generating
     query = result.get_query()
     assert query == FesQuery(
-        lookups=[
-            (Q(FIELD1__exact="10") | Q(FIELD1__exact="20")) & Q(STATUS__exact="VALID")
-        ]
+        lookups=[(Q(FIELD1__exact=10) | Q(FIELD1__exact=20)) & Q(STATUS__exact="VALID")]
     ), repr(query)
 
 
@@ -800,8 +798,8 @@ def test_fes20_c5_example13():
                 ),
                 BetweenComparisonOperator(
                     expression=ValueReference(xpath="DEPTH"),
-                    lowerBoundary=Literal(value="400", type=None),
-                    upperBoundary=Literal(value="800", type=None),
+                    lowerBoundary=Literal(value=400, type=None),
+                    upperBoundary=Literal(value=800, type=None),
                 ),
             ],
             operatorType=BinaryLogicType.And,
@@ -819,7 +817,7 @@ def test_fes20_c5_example13():
                     "POLYGON ((10 10, 20 20, 30 30, 40 40, 10 10))"
                 )
             )
-            & Q(DEPTH__range=("400", "800"))
+            & Q(DEPTH__range=(400, 800))
         ]
     ), repr(query)
 
@@ -854,10 +852,7 @@ def test_fes20_c5_example14():
             operands=[
                 BinaryComparisonOperator(
                     operatorType=BinaryComparisonName.PropertyIsGreaterThan,
-                    expression=(
-                        ValueReference(xpath="Person/age"),
-                        Literal(value="50"),
-                    ),
+                    expression=(ValueReference(xpath="Person/age"), Literal(value=50)),
                     matchCase=True,
                     matchAction=MatchAction.Any,
                 ),
@@ -880,7 +875,7 @@ def test_fes20_c5_example14():
     query = result.get_query()
     assert query == FesQuery(
         lookups=[
-            Q(Person__age__gt="50")
+            Q(Person__age__gt=50)
             & Q(Person__mailAddress__Address__city__exact="Toronto")
         ]
     ), repr(query)

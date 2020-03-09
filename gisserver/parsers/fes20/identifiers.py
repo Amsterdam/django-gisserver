@@ -11,6 +11,7 @@ from typing import Optional, Union, List
 from django.db.models import Q
 
 from gisserver.parsers.base import FES20, BaseNode, tag_registry
+from gisserver.parsers.utils import auto_cast
 
 NoneType = type(None)
 
@@ -57,14 +58,7 @@ class ResourceId(Id):
         endTime = element.get("endTime")
 
         if version:
-            if version.isdigit():
-                version = int(version)
-
-            if "T" in version:
-                try:
-                    version = datetime.fromisoformat(version)
-                except ValueError:
-                    pass
+            version = auto_cast(version)
 
         return cls(
             rid=element.attrib["rid"],

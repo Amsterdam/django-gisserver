@@ -3,7 +3,8 @@ The class names are identical to those in the FES spec.
 """
 import re
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
+from decimal import Decimal as D
 from typing import List, Optional, Tuple, Union
 from xml.etree.ElementTree import Element
 
@@ -14,7 +15,7 @@ from gisserver.parsers.base import BaseNode, FES20, tag_registry
 from gisserver.parsers.fes20.functions import function_registry
 from gisserver.parsers.fes20.query import FesQuery
 from gisserver.parsers.gml import GM_Object
-from gisserver.parsers.utils import expect_tag
+from gisserver.parsers.utils import auto_cast, expect_tag, xsd_cast
 
 NoneType = type(None)
 RE_NON_NAME = re.compile(r"[^a-zA-Z0-9_/]")
@@ -75,7 +76,7 @@ class Expression(BaseNode):
 class Literal(Expression):
     """The <fes:Literal> element that holds a literal value"""
 
-    value: Union[str, date, NoneType]  # officially <xsd:any>
+    value: Union[int, str, date, D, datetime, NoneType]  # officially <xsd:any>
     type: Optional[str] = None
 
     def __str__(self):
@@ -84,18 +85,15 @@ class Literal(Expression):
     @classmethod
     @expect_tag(FES20, "Literal")
     def from_xml(cls, element: Element):
-        # Cast the value based on the given xsd:QName
         type = element.get("type")
         value = element.text
+
         if type:
-            if type == "xs:date":
-                value = date.fromisoformat(value)
-            elif type == "xsd:string":
-                pass
-            else:
-                raise NotImplementedError(
-                    f'<fes:Literal type="{type}"> is not implemented.'
-                )
+            # Cast the value based on the given xsd:QName
+            value = xsd_cast(value, type)
+        else:
+            # Make sure gt / datetime comparisons work out of the box.
+            value = auto_cast(value)
 
         return cls(value=value, type=type)
 

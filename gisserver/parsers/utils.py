@@ -1,6 +1,11 @@
+import re
+from datetime import date, datetime, time
+from decimal import Decimal as D
 from functools import wraps
 from typing import List, Optional, Tuple
 from xml.etree.ElementTree import Element, QName
+
+RE_FLOAT = re.compile(r"\A[0-9]+(\.[0-9]+)\Z")
 
 
 def expect_tag(namespace, tag_name):
@@ -42,3 +47,35 @@ def split_ns(element) -> Tuple[Optional[str], str]:
         return element.tag[1:end], element.tag[end + 1 :]
     else:
         return None, element.tag
+
+
+def auto_cast(value: str):
+    """Automatically cast a value to a scalar."""
+    if value.isdigit():
+        return int(value)
+    elif RE_FLOAT.match(value):
+        return D(value)
+    elif "T" in value:
+        try:
+            return datetime.fromisoformat(value)
+        except ValueError:
+            pass
+
+    return value
+
+
+def xsd_cast(value: str, type: str):
+    if type == "xs:date":
+        return date.fromisoformat(value)
+    elif type == "xs:datetime":
+        return datetime.fromisoformat(value)
+    elif type == "xs:time":
+        return time.fromisoformat(value)
+    elif type == "xs:string":
+        return value
+    elif type in ("xs:int", "xs:integer", "xs:long"):
+        return int(value)
+    elif type in ("xs:float", "xs:double", "xs:decimal"):
+        return D(value)
+    else:
+        raise NotImplementedError(f'<fes:Literal type="{type}"> is not implemented.')
