@@ -240,7 +240,10 @@ class GetFeature(WFSFeatureMethod):
 
         # Allow filtering within a bounding box
         if bbox:
-            filters[f"{feature.geometry_field_name}__within"] = bbox.as_polygon()
+            # Using __within does not work with geometries
+            # that only partially exist within the bbox
+            # TODO: what is the correct operator for BBOX?
+            filters[f"{feature.geometry_field_name}__bboverlaps"] = bbox.as_polygon()
 
         # TODO: other parameters to support:
         # sortBy=attr+A / +D
