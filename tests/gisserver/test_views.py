@@ -232,8 +232,8 @@ class TestDescribeFeatureType:
     <complexContent>
       <extension base="gml:AbstractFeatureType">
         <sequence>
-          <element name="id" minOccurs="0" type="integer"/>
-          <element name="name" minOccurs="0" type="string"/>
+          <element name="id" type="integer" minOccurs="0" />
+          <element name="name" type="string" minOccurs="0" />
           <element name="location" type="gml:GeometryPropertyType" minOccurs="0" maxOccurs="1"/>
         </sequence>
       </extension>

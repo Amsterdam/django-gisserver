@@ -16,7 +16,7 @@
     <complexContent>
       <extension base="gml:AbstractFeatureType">
         <sequence>{% for name, xs_type in feature.fields %}
-          <element name="{{ name }}" minOccurs="0" type="{{ xs_type }}"{% if "gml:" in xs_type %} maxOccurs="1"{% endif %}/>{% endfor %}
+          <element name="{{ name }}" type="{{ xs_type }}" minOccurs="0"{% if "gml:" in xs_type %} maxOccurs="1"{% endif %}/>{% endfor %}
         </sequence>
       </extension>
     </complexContent>

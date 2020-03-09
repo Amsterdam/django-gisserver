@@ -95,8 +95,22 @@ class FeatureType:
         if isinstance(model_field, models.ForeignKey):
             # Don't let it query on the relation value yet
             return self.get_field_type(model_field.remote_field)
+        elif isinstance(model_field, models.BooleanField):
+            return "boolean"
         elif isinstance(model_field, models.IntegerField):
             return "integer"
+        elif isinstance(model_field, models.FloatField):
+            return "double"
+        elif isinstance(model_field, models.DecimalField):
+            return "decimal"
+        elif isinstance(model_field, models.TimeField):
+            return "time"
+        elif isinstance(model_field, models.DateField):
+            return "date"
+        elif isinstance(model_field, models.DateTimeField):
+            return "dateTime"
+        elif isinstance(model_field, models.URLField):
+            return "anyURI"
         elif model_field.name == self.geometry_field_name:
             return "gml:GeometryPropertyType"
         else:
