@@ -208,7 +208,7 @@ def test_fes20_c5_example3_b():
     assert query == FesQuery(
         lookups=[
             Q(
-                Geometry__bboverlaps=GEOSGeometry(
+                Geometry__intersects=GEOSGeometry(
                     "POLYGON ((13.0983 31.5899, 35.5472 31.5899"
                     ", 35.5472 42.8143, 13.0983 42.8143, 13.0983 31.5899))",
                     srid=4326,

@@ -17,6 +17,7 @@ from django.http import HttpResponse
 from gisserver.exceptions import InvalidParameterValue, VersionNegotiationFailed
 from gisserver.features import FeatureType
 from gisserver.parsers import fes20
+from gisserver.parsers.fes20 import operators
 from gisserver.types import CRS, BoundingBox
 
 from .base import (
@@ -243,8 +244,8 @@ class GetFeature(WFSFeatureMethod):
         if bbox:
             # Using __within does not work with geometries
             # that only partially exist within the bbox
-            # TODO: what is the correct operator for BBOX?
-            filters[f"{feature.geometry_field_name}__bboverlaps"] = bbox.as_polygon()
+            lookup = operators.SpatialOperatorName.BBOX.value
+            filters[f"{feature.geometry_field_name}__{lookup}"] = bbox.as_polygon()
 
         # TODO: other parameters to support:
         # sortBy=attr+A / +D

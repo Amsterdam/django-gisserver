@@ -72,8 +72,9 @@ class SpatialOperatorName(TagNameEnum):
 
     # (A Within B) implies that (B Contains A)
 
-    # TODO: what is the correct operator for BBOX?
-    BBOX = "bboverlaps"  # ISO version: "NOT DISJOINT"
+    # BBOX can either be implemented using bboverlaps (more efficient), or the
+    # more correct "intersects" option (e.g. a line near the box would match otherwise).
+    BBOX = "intersects"  # ISO version: "NOT DISJOINT"
     Equals = "equals"  # Test whether t geometries are topologically equal
     Disjoint = "disjoint"  # Tests whether two geometries are disjoint (do not interact)
     Intersects = "intersects"  # Tests whether two geometries intersect
