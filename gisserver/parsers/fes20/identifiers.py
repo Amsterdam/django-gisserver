@@ -6,12 +6,12 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from functools import reduce
-from typing import Optional, Union, List
+from typing import List, Optional, Union
 
 from django.db.models import Q
 
 from gisserver.parsers.base import FES20, BaseNode, tag_registry
-from gisserver.parsers.utils import auto_cast, parse_iso_datetime
+from gisserver.parsers.utils import auto_cast, get_attribute, parse_iso_datetime
 
 NoneType = type(None)
 
@@ -61,7 +61,7 @@ class ResourceId(Id):
             version = auto_cast(version)
 
         return cls(
-            rid=element.attrib["rid"],
+            rid=get_attribute(element, "rid"),
             version=version,
             startTime=parse_iso_datetime(startTime) if startTime else None,
             endTime=parse_iso_datetime(endTime) if endTime else None,

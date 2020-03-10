@@ -9,6 +9,7 @@ from xml.etree.ElementTree import Element, tostring
 from django.contrib.gis.geos import GEOSGeometry
 
 from gisserver.parsers.base import tag_registry
+from gisserver.parsers.utils import get_attribute
 from gisserver.types import CRS
 
 from .base import AbstractGeometry, TM_Object
@@ -56,7 +57,7 @@ class GEOSGMLGeometry(AbstractGeometry):
         GML is a complex beast with many different forms for the same thing:
         http://erouault.blogspot.com/2014/04/gml-madness.html
         """
-        srs = CRS.from_string(element.attrib["srsName"])
+        srs = CRS.from_string(get_attribute(element, "srsName"))
 
         # Push the whole <gml:...> element into the GEOS parser.
         # This avoids having to support the whole GEOS logic.

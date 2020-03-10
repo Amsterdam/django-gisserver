@@ -16,7 +16,7 @@ from gisserver.parsers.base import FES20, BaseNode, tag_registry
 from gisserver.parsers.fes20.functions import function_registry
 from gisserver.parsers.fes20.query import FesQuery
 from gisserver.parsers.gml import GM_Object
-from gisserver.parsers.utils import auto_cast, expect_tag, xsd_cast
+from gisserver.parsers.utils import auto_cast, expect_tag, get_attribute, xsd_cast
 
 NoneType = type(None)
 RE_NON_NAME = re.compile(r"[^a-zA-Z0-9_/]")
@@ -187,7 +187,7 @@ class Function(Expression):
     @expect_tag(FES20, "Function")
     def from_xml(cls, element: Element):
         return cls(
-            name=element.attrib["name"],
+            name=get_attribute(element, "name"),
             arguments=[Expression.from_child_xml(child) for child in element],
         )
 

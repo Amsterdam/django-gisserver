@@ -38,6 +38,16 @@ def get_children(root, namespace, localname) -> List[Element]:
     return root.findall(QName(namespace, localname).text)
 
 
+def get_attribute(element: Element, name) -> str:
+    """Resolve an attribute, raise an error when it's missing."""
+    try:
+        return element.attrib[name]
+    except KeyError:
+        raise ValueError(
+            f"Element {element.tag} misses required attribute '{name}'"
+        ) from None
+
+
 def split_ns(tag_name: str) -> Tuple[Optional[str], str]:
     """Split the element tag into the namespace and local name.
     The stdlib etree doesn't have the properties for this (lxml does).

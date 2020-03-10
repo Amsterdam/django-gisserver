@@ -14,7 +14,7 @@ from django.db.models import Q
 
 from gisserver.parsers import gml
 from gisserver.parsers.base import FES20, BaseNode, TagNameEnum, tag_registry
-from gisserver.parsers.utils import expect_tag, get_child
+from gisserver.parsers.utils import expect_tag, get_attribute, get_child
 from .expressions import Expression, Literal, ValueReference
 from .query import FesQuery
 
@@ -114,7 +114,7 @@ class Measure(BaseNode):
     @classmethod
     @expect_tag(FES20, "Distance")
     def from_xml(cls, element: Element):
-        return cls(value=Decimal(element.text), uom=element.attrib["uom"])
+        return cls(value=Decimal(element.text), uom=get_attribute(element, "uom"))
 
     def build_rhs(self, fesquery) -> measure.Distance:
         return measure.Distance(default_unit=self.uom, **{self.uom: self.value})
@@ -305,9 +305,9 @@ class LikeOperator(ComparisonOperator):
                 Expression.from_child_xml(element[0]),
                 Expression.from_child_xml(element[1]),
             ),
-            wildCard=element.attrib["wildCard"],
-            singleChar=element.attrib["singleChar"],
-            escapeChar=element.attrib["escapeChar"],
+            wildCard=get_attribute(element, "wildCard"),
+            singleChar=get_attribute(element, "singleChar"),
+            escapeChar=get_attribute(element, "escapeChar"),
         )
 
     def build_query(self, fesquery: FesQuery) -> Q:
