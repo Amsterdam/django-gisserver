@@ -452,6 +452,18 @@ class TestGetFeature:
                     <fes:Literal>3.0</fes:Literal>
                 </fes:PropertyIsGreaterThanOrEqualTo>
             </fes:Filter>""",
+        "like": """
+            <?xml version="1.0"?>
+            <fes:Filter
+                 xmlns:fes="http://www.opengis.net/fes/2.0"
+                 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                 xsi:schemaLocation="http://www.opengis.net/fes/2.0
+                 http://schemas.opengis.net/filter/2.0/filterAll.xsd">
+                <fes:PropertyIsLike wildCard="*" singleChar="?" escapeChar="!">
+                    <fes:ValueReference>name</fes:ValueReference>
+                    <fes:Literal>C?fé*</fes:Literal>
+                </fes:PropertyIsLike>
+            </fes:Filter>""",
         "bbox": """
             <?xml version="1.0"?>
             <fes:Filter
