@@ -38,15 +38,15 @@ def get_children(root, namespace, localname) -> List[Element]:
     return root.findall(QName(namespace, localname).text)
 
 
-def split_ns(element) -> Tuple[Optional[str], str]:
+def split_ns(tag_name: str) -> Tuple[Optional[str], str]:
     """Split the element tag into the namespace and local name.
     The stdlib etree doesn't have the properties for this (lxml does).
     """
-    if element.tag.startswith("{"):
-        end = element.tag.index("}")
-        return element.tag[1:end], element.tag[end + 1 :]
+    if tag_name.startswith("{"):
+        end = tag_name.index("}")
+        return tag_name[1:end], tag_name[end + 1 :]
     else:
-        return None, element.tag
+        return None, tag_name
 
 
 def auto_cast(value: str):

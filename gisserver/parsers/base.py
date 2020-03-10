@@ -19,7 +19,7 @@ class TagNameEnum(Enum):
     @classmethod
     def from_xml(cls, element: Element):
         """Cast the element tag name into the enum member"""
-        ns, localname = split_ns(element)
+        ns, localname = split_ns(element.tag)
         return cls[localname]
 
     @classmethod
