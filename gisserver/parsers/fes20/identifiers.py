@@ -11,7 +11,7 @@ from typing import Optional, Union, List
 from django.db.models import Q
 
 from gisserver.parsers.base import FES20, BaseNode, tag_registry
-from gisserver.parsers.utils import auto_cast
+from gisserver.parsers.utils import auto_cast, parse_iso_datetime
 
 NoneType = type(None)
 
@@ -63,8 +63,8 @@ class ResourceId(Id):
         return cls(
             rid=element.attrib["rid"],
             version=version,
-            startTime=datetime.fromisoformat(startTime) if startTime else None,
-            endTime=datetime.fromisoformat(endTime) if endTime else None,
+            startTime=parse_iso_datetime(startTime) if startTime else None,
+            endTime=parse_iso_datetime(endTime) if endTime else None,
         )
 
     def build_query(self, fesquery) -> Q:

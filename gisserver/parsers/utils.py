@@ -57,7 +57,7 @@ def auto_cast(value: str):
         return D(value)
     elif "T" in value:
         try:
-            return datetime.fromisoformat(value)
+            return parse_iso_datetime(value)
         except ValueError:
             pass
 
@@ -68,7 +68,7 @@ def xsd_cast(value: str, type: str):
     if type == "xs:date":
         return date.fromisoformat(value)
     elif type == "xs:datetime":
-        return datetime.fromisoformat(value)
+        return parse_iso_datetime(value)
     elif type == "xs:time":
         return time.fromisoformat(value)
     elif type == "xs:string":
@@ -79,3 +79,10 @@ def xsd_cast(value: str, type: str):
         return D(value)
     else:
         raise NotImplementedError(f'<fes:Literal type="{type}"> is not implemented.')
+
+
+def parse_iso_datetime(value) -> datetime:
+    try:
+        return datetime.fromisoformat(value)  # Python 3.7+
+    except AttributeError:
+        return datetime.strptime(value, "%Y-%m-%dT%H:%M:%S")
