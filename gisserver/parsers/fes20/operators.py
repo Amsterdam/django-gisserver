@@ -116,7 +116,7 @@ class Measure(BaseNode):
     def from_xml(cls, element: Element):
         return cls(value=Decimal(element.text), uom=element.attrib["uom"])
 
-    def build_operator_value(self, fesquery, is_rhs: bool) -> measure.Distance:
+    def build_rhs(self, fesquery) -> measure.Distance:
         return measure.Distance(default_unit=self.uom, **{self.uom: self.value})
 
 

@@ -29,7 +29,7 @@ class Id(BaseNode):
 
     xml_ns = FES20
 
-    def build_value(self, fesquery) -> Q:
+    def build_query(self, fesquery) -> Q:
         raise NotImplementedError()
 
 
@@ -38,7 +38,7 @@ class IdList(List[Id]):
 
     def build_query(self, fesquery) -> Q:
         """Generate the ID lookup query"""
-        return reduce(operator.or_, [id.build_value(fesquery) for id in self],)
+        return reduce(operator.or_, [id.build_query(fesquery) for id in self],)
 
 
 @dataclass
@@ -67,7 +67,7 @@ class ResourceId(Id):
             endTime=datetime.fromisoformat(endTime) if endTime else None,
         )
 
-    def build_value(self, fesquery) -> Q:
+    def build_query(self, fesquery) -> Q:
         """Render the SQL filter"""
         if self.startTime or self.endTime or self.version:
             raise NotImplementedError(

@@ -1,14 +1,20 @@
 import operator
 from functools import reduce
+from typing import Union
 
 from django.contrib.gis.db.models.fields import BaseSpatialField
 from django.contrib.gis.db.models.lookups import DistanceLookupBase
 from django.db import models
 from django.db.models import Q, QuerySet, lookups
+from django.db.models.expressions import Combinable
 
 
 class FesQuery:
-    """Collect all filters for a Django queryset."""
+    """Collect all data to query a Django queryset.
+
+    This object is passed though all build_...() methods,
+    so it can be used to add extra lookups and annotations.
+    """
 
     def __init__(self, lookups=None, annotations=None):
         self.lookups = lookups or []
@@ -16,13 +22,18 @@ class FesQuery:
         self.aliases = 0
         self.extra_lookups = []
 
-    def add_annotation(self, value):
+    def add_annotation(self, value: Union[Combinable, Q]) -> str:
+        """Create an named-alias for a function/Q object.
+
+        This alias can be used as left-hand-side of the query expression.
+        """
         self.aliases += 1
         name = f"a{self.aliases}"
         self.annotations[name] = value
         return name
 
     def add_lookups(self, q_object: Q):
+        """Register an extra 'WHERE' clause of the query."""
         if not isinstance(q_object, Q):
             raise TypeError()
         self.lookups.append(q_object)
@@ -33,7 +44,7 @@ class FesQuery:
             raise TypeError()
         self.extra_lookups.append(q_object)
 
-    def combine_extra_lookups(self, result: Q) -> Q:
+    def apply_extra_lookups(self, result: Q) -> Q:
         """Combine stashed lookups with the produced result."""
         if self.extra_lookups:
             result = reduce(operator.and_, [result] + self.extra_lookups)
@@ -43,8 +54,9 @@ class FesQuery:
     def filter_queryset(self, queryset: QuerySet) -> QuerySet:
         """Apply the filters and lookups to the queryset"""
         if self.extra_lookups:
-            # When
-            raise RuntimeError("combine_extra_lookups() was not called")
+            # Each time an expression node calls add_extra_lookup(),
+            # the parent should have used apply_extra_lookups()
+            raise RuntimeError("apply_extra_lookups() was not called")
 
         return queryset.annotate(**self.annotations).filter(*self.lookups)
 
@@ -52,6 +64,7 @@ class FesQuery:
         return f"<FesQuery annotations={self.annotations!r}, lookups={self.lookups!r}>"
 
     def __eq__(self, other):
+        """For pytest comparisons."""
         if isinstance(other, FesQuery):
             return (
                 other.lookups == self.lookups and other.annotations == self.annotations
