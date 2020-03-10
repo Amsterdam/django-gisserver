@@ -72,7 +72,9 @@ class Parameter:
         if self.parser is not None:
             try:
                 value = self.parser(value)
-            except (TypeError, ValueError) as e:
+            except (TypeError, ValueError, NotImplementedError) as e:
+                # TypeError/ValueError are raised by most handlers for unexpected data
+                # The NotImplementedError can be raised by fes parsing.
                 raise InvalidParameterValue(
                     self.name, f"Unable to parse {kvp_name} argument: {e}"
                 ) from None
