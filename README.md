@@ -11,6 +11,7 @@ Django speaking WFS 2.0 to expose geo data.
 
 * WFS 2.0 simple implementation.
 * GML 3.2 output.
+* Standard and spatial filtering (FES 2.0)
 * GeoJSON export support.
 * Extensible view/operations.
 * Uses GeoDjango queries for filtering.
@@ -91,7 +92,7 @@ Currently, the following 3 methods are implemented:
 
 * `GetCapabilities`
 * `DescribeFeatureType`
-* `GetFeature` with bbox and pagination support.
+* `GetFeature` with filtering and pagination support.
 
 This is sufficient to show results in [QGis](https://qgis.org/).
 The unit tests validate the output against WFS 2.0 XSD schema.
@@ -102,13 +103,12 @@ Some parts for conformance to the "WFS simple" level are not implemented yet:
 * `ListStoredQueries`
 * `DescribeStoredQueries`
 * Certain parameters:
-  * Filtering: `filter`, `filter_language`, `resourceID`, `propertyName`, `aliases`.
+  * KVP filters: `resourceID`, `propertyName`, `aliases`.
   * Remote resolving: `resolve`, `resolveDepth`, `resolveTimeout`.
   * Output rewriting: `namespaces`.
   * Some `GetCapabilities` features: `acceptFormats` and `sections`.
   * Using `GetFeature` with only the `StoredQuery` action.
-
-Filtering is high on the TO-DO list.
+  * Temporal filtering (high on todo)
 
 ### Low-prio items:
 

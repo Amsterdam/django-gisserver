@@ -64,15 +64,15 @@ class GISView(View):
     filter_capabilities = {
         "ImplementsQuery": False,  # mapserver: true
         "ImplementsAdHocQuery": False,  # mapserver: true
-        "ImplementsFunctions": False,
-        "ImplementsResourceId": False,  # mapserver: true
-        "ImplementsMinStandardFilter": False,  # mapserver: true
-        "ImplementsStandardFilter": False,  # mapserver: true
-        "ImplementsMinSpatialFilter": False,  # mapserver: true
-        "ImplementsSpatialFilter": False,
-        "ImplementsMinTemporalFilter": False,  # mapserver: true
+        "ImplementsFunctions": True,  # <fes:Function> support
+        "ImplementsResourceId": True,  # <fes:ResourceId> support
+        "ImplementsMinStandardFilter": True,  # <fes:PropertyIs...> support
+        "ImplementsStandardFilter": True,  # <fes:And>, <fes:Or> and advanced functions
+        "ImplementsMinSpatialFilter": True,  # <fes:BBOX>
+        "ImplementsSpatialFilter": True,  # Other spatial functions
+        "ImplementsMinTemporalFilter": False,  # mapserver: true (During)
         "ImplementsTemporalFilter": False,
-        "ImplementsVersionNav": False,
+        "ImplementsVersionNav": False,  # <fes:ResourceId version="..">
         "ImplementsSorting": False,  # mapserver: true
         "ImplementsExtendedOperators": False,
         "ImplementsMinimumXPath": False,  # mapserver: True
