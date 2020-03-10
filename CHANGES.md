@@ -1,3 +1,9 @@
+# 2020-03-09 (0.3)
+
+* Added FES filtering support.
+* Changed BBOX lookup operator to bboverlaps (uses PostGIS && operator).
+* Improve field type reporting in DescribeFeatureType.
+
 # 2020-02-24 (0.2)
 
 * Added `CRS.from_srid()` function
