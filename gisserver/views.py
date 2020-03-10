@@ -13,7 +13,7 @@ from gisserver.exceptions import (
     OperationNotSupported,
 )
 from gisserver.features import FeatureType, ServiceDescription
-from gisserver.operations import base, wfs200
+from gisserver.operations import base, wfs20
 
 SAFE_VERSION = re.compile(r"\A[0-9.]+\Z")
 
@@ -185,9 +185,9 @@ class WFSView(GISView):
     #: Internal configuration of all available RPC calls.
     accept_operations = {
         "WFS": {
-            "GetCapabilities": wfs200.GetCapabilities,
-            "DescribeFeatureType": wfs200.DescribeFeatureType,
-            "GetFeature": wfs200.GetFeature,
+            "GetCapabilities": wfs20.GetCapabilities,
+            "DescribeFeatureType": wfs20.DescribeFeatureType,
+            "GetFeature": wfs20.GetFeature,
         }
     }
 
