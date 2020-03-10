@@ -439,28 +439,47 @@ class TestGetFeature:
         assert xml_doc.attrib["numberMatched"] == "0"
         assert xml_doc.attrib["numberReturned"] == "0"
 
-    def test_get_filter(self, client, restaurant, bad_restaurant):
+    FILTERS = {
+        "simple": """
+            <?xml version="1.0"?>
+            <fes:Filter
+                 xmlns:fes="http://www.opengis.net/fes/2.0"
+                 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                 xsi:schemaLocation="http://www.opengis.net/fes/2.0
+                 http://schemas.opengis.net/filter/2.0/filterAll.xsd">
+                <fes:PropertyIsGreaterThanOrEqualTo>
+                    <fes:ValueReference>rating</fes:ValueReference>
+                    <fes:Literal>3.0</fes:Literal>
+                </fes:PropertyIsGreaterThanOrEqualTo>
+            </fes:Filter>""",
+        "bbox": """
+            <?xml version="1.0"?>
+            <fes:Filter
+                xmlns:fes="http://www.opengis.net/fes/2.0"
+                xmlns:gml="http://www.opengis.net/gml/3.2"
+                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                xsi:schemaLocation="http://www.opengis.net/fes/2.0
+                http://schemas.opengis.net/filter/2.0/filterAll.xsd
+                http://www.opengis.net/gml/3.2
+                http://schemas.opengis.net/gml/3.2.1/gml.xsd">
+                <fes:BBOX>
+                    <fes:ValueReference>location</fes:ValueReference>
+                    <gml:Envelope srsName="urn:ogc:def:crs:EPSG::28992">
+                        <gml:lowerCorner>122410 486240</gml:lowerCorner>
+                        <gml:upperCorner>122412 486260</gml:upperCorner>
+                    </gml:Envelope>
+                </fes:BBOX>
+            </fes:Filter>""",
+    }
+
+    @pytest.mark.parametrize("filter_name", list(FILTERS.keys()))
+    def test_get_filter_simple(self, client, restaurant, bad_restaurant, filter_name):
         """Prove that that parsing FILTER=<fes:Filter>... works"""
-        filter1 = """
-        <?xml version="1.0"?>
-        <fes:Filter
-             xmlns:fes="http://www.opengis.net/fes/2.0"
-             xmlns:gml="http://www.opengis.net/gml/3.2"
-             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-             xsi:schemaLocation="http://www.opengis.net/fes/2.0
-             http://schemas.opengis.net/filter/2.0/filterAll.xsd
-             http://www.opengis.net/gml
-             http://schemas.opengis.net/gml/2.1.2/geometry.xsd">
-            <fes:PropertyIsGreaterThanOrEqualTo>
-                <fes:ValueReference>rating</fes:ValueReference>
-                <fes:Literal>3.0</fes:Literal>
-            </fes:PropertyIsGreaterThanOrEqualTo>
-        </fes:Filter>
-        """.strip()
+        filter = self.FILTERS[filter_name].strip()
 
         response = client.get(
             "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
-            "&FILTER=" + quote_plus(filter1)
+            "&FILTER=" + quote_plus(filter)
         )
         content = response.content.decode()
         assert response["content-type"] == "text/xml; charset=utf-8", content

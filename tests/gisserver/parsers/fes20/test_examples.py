@@ -139,7 +139,8 @@ def test_fes20_c5_example3():
                     srs=WGS84,
                     geos_data=GEOSGeometry(
                         "POLYGON ((13.0983 31.5899, 35.5472 31.5899"
-                        ", 35.5472 42.8143, 13.0983 42.8143, 13.0983 31.5899))"
+                        ", 35.5472 42.8143, 13.0983 42.8143, 13.0983 31.5899))",
+                        srid=4326,
                     ),
                 ),
             ),
@@ -156,7 +157,8 @@ def test_fes20_c5_example3():
             ~Q(
                 Geometry__disjoint=GEOSGeometry(
                     "POLYGON ((13.0983 31.5899, 35.5472 31.5899"
-                    ", 35.5472 42.8143, 13.0983 42.8143, 13.0983 31.5899))"
+                    ", 35.5472 42.8143, 13.0983 42.8143, 13.0983 31.5899))",
+                    srid=4326,
                 )
             )
         ]
@@ -191,7 +193,8 @@ def test_fes20_c5_example3_b():
                 srs=WGS84,
                 geos_data=GEOSGeometry(
                     "POLYGON ((13.0983 31.5899, 35.5472 31.5899"
-                    ", 35.5472 42.8143, 13.0983 42.8143, 13.0983 31.5899))"
+                    ", 35.5472 42.8143, 13.0983 42.8143, 13.0983 31.5899))",
+                    srid=4326,
                 ),
             ),
         )
@@ -206,7 +209,8 @@ def test_fes20_c5_example3_b():
             Q(
                 Geometry__bboverlaps=GEOSGeometry(
                     "POLYGON ((13.0983 31.5899, 35.5472 31.5899"
-                    ", 35.5472 42.8143, 13.0983 42.8143, 13.0983 31.5899))"
+                    ", 35.5472 42.8143, 13.0983 42.8143, 13.0983 31.5899))",
+                    srid=4326,
                 )
             )
         ]
@@ -265,7 +269,8 @@ def test_fes20_c5_example4():
                             srs=WGS84,
                             geos_data=GEOSGeometry(
                                 "POLYGON ((13.0983 31.5899, 35.5472 31.5899"
-                                ", 35.5472 42.8143, 13.0983 42.8143, 13.0983 31.5899))"
+                                ", 35.5472 42.8143, 13.0983 42.8143, 13.0983 31.5899))",
+                                srid=4326,
                             ),
                         ),
                     ),
@@ -286,7 +291,8 @@ def test_fes20_c5_example4():
             & ~Q(
                 Geometry__disjoint=GEOSGeometry(
                     "POLYGON ((13.0983 31.5899, 35.5472 31.5899"
-                    ", 35.5472 42.8143, 13.0983 42.8143, 13.0983 31.5899))"
+                    ", 35.5472 42.8143, 13.0983 42.8143, 13.0983 31.5899))",
+                    srid=4326,
                 )
             )
         ]
@@ -588,7 +594,9 @@ def test_fes20_c5_example11():
             operand1=ValueReference(xpath="Geometry"),
             operand2=geometries.GEOSGMLGeometry(
                 srs=WGS84,
-                geos_data=GEOSGeometry("POLYGON ((10 10, 20 20, 30 30, 40 40, 10 10))"),
+                geos_data=GEOSGeometry(
+                    "POLYGON ((10 10, 20 20, 30 30, 40 40, 10 10))", srid=4326
+                ),
             ),
         )
     )
@@ -601,7 +609,7 @@ def test_fes20_c5_example11():
         lookups=[
             Q(
                 Geometry__overlaps=GEOSGeometry(
-                    "POLYGON ((10 10, 20 20, 30 30, 40 40, 10 10))"
+                    "POLYGON ((10 10, 20 20, 30 30, 40 40, 10 10))", srid=4326
                 )
             )
         ]
@@ -642,7 +650,9 @@ def test_fes20_c5_example11_b():
             operand1=ValueReference(xpath="Geometry"),
             operand2=geometries.GEOSGMLGeometry(
                 srs=WGS84,
-                geos_data=GEOSGeometry("POLYGON ((10 10, 20 20, 30 30, 40 40, 10 10))"),
+                geos_data=GEOSGeometry(
+                    "POLYGON ((10 10, 20 20, 30 30, 40 40, 10 10))", srid=4326
+                ),
             ),
         )
     )
@@ -655,7 +665,7 @@ def test_fes20_c5_example11_b():
         lookups=[
             Q(
                 Geometry__overlaps=GEOSGeometry(
-                    "POLYGON ((10 10, 20 20, 30 30, 40 40, 10 10))"
+                    "POLYGON ((10 10, 20 20, 30 30, 40 40, 10 10))", srid=4326
                 )
             )
         ]
@@ -792,7 +802,7 @@ def test_fes20_c5_example13():
                     operand2=geometries.GEOSGMLGeometry(
                         srs=WGS84,
                         geos_data=GEOSGeometry(
-                            "POLYGON ((10 10, 20 20, 30 30, 40 40, 10 10))"
+                            "POLYGON ((10 10, 20 20, 30 30, 40 40, 10 10))", srid=4326
                         ),
                     ),
                 ),
@@ -814,7 +824,7 @@ def test_fes20_c5_example13():
         lookups=[
             Q(
                 WKB_GEOM__within=GEOSGeometry(
-                    "POLYGON ((10 10, 20 20, 30 30, 40 40, 10 10))"
+                    "POLYGON ((10 10, 20 20, 30 30, 40 40, 10 10))", srid=4326
                 )
             )
             & Q(DEPTH__range=(400, 800))
@@ -908,7 +918,9 @@ def test_fes20_c5_example15():
             operatorType=DistanceOperatorName.DWithin,
             geometry=geometries.GEOSGMLGeometry(
                 srs=WGS84,
-                geos_data=GEOSGeometry("POINT (43.716589 -79.34068600000001)"),
+                geos_data=GEOSGeometry(
+                    "POINT (43.716589 -79.34068600000001)", srid=4326
+                ),
             ),
             distance=Measure(value=D("10"), uom="m"),
         )
@@ -922,7 +934,7 @@ def test_fes20_c5_example15():
         lookups=[
             Q(
                 geometry__dwithin=(
-                    GEOSGeometry("POINT (43.716589 -79.34068600000001)"),
+                    GEOSGeometry("POINT (43.716589 -79.34068600000001)", srid=4326),
                     measure.Distance(m=10.0),
                 )
             )
@@ -962,7 +974,9 @@ def test_fes20_c7_example1():
             operatorType=DistanceOperatorName.DWithin,
             geometry=geometries.GEOSGMLGeometry(
                 srs=WGS84,
-                geos_data=GEOSGeometry("POINT (43.716589 -79.34068600000001)"),
+                geos_data=GEOSGeometry(
+                    "POINT (43.716589 -79.34068600000001)", srid=4326
+                ),
             ),
             distance=Measure(value=10, uom="m"),
         )
@@ -976,7 +990,7 @@ def test_fes20_c7_example1():
         lookups=[
             Q(
                 geometry__dwithin=(
-                    GEOSGeometry("POINT (43.716589 -79.34068600000001)"),
+                    GEOSGeometry("POINT (43.716589 -79.34068600000001)", srid=4326),
                     measure.Distance(m=10),
                 )
             )

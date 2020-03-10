@@ -60,8 +60,9 @@ class GEOSGMLGeometry(AbstractGeometry):
 
         # Push the whole <gml:...> element into the GEOS parser.
         # This avoids having to support the whole GEOS logic.
-        xml_text = tostring(element)
-        return cls(srs=srs, geos_data=GEOSGeometry.from_gml(xml_text))
+        geos_data = GEOSGeometry.from_gml(tostring(element))
+        geos_data.srid = srs.srid
+        return cls(srs=srs, geos_data=geos_data)
 
     def __repr__(self):
         # Better rendering for unit test debugging
