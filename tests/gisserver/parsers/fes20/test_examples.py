@@ -16,7 +16,7 @@ from django.contrib.gis.geos import GEOSGeometry
 from django.db.models import F, Q
 from django.db.models.functions import Sin
 
-from gisserver.parsers.fes20 import Filter, parse_fes
+from gisserver.parsers.fes20 import Filter
 from gisserver.parsers.fes20.expressions import Function, Literal, ValueReference
 from gisserver.parsers.fes20.functions import function_registry
 from gisserver.parsers.fes20.identifiers import ResourceId
@@ -64,7 +64,7 @@ def test_fes20_c5_example1():
             expression=(ValueReference("SomeProperty"), Literal(100),),
         )
     )
-    result = parse_fes(xml_text)
+    result = Filter.from_string(xml_text)
     assert result == expected, f"result={result!r}"
 
     # Test SQL generating
@@ -95,7 +95,7 @@ def test_fes20_c5_example2():
             expression=(ValueReference("DEPTH"), Literal(30)),
         )
     )
-    result = parse_fes(xml_text)
+    result = Filter.from_string(xml_text)
     assert result == expected, f"result={result!r}"
 
     # Test SQL generating
@@ -146,7 +146,7 @@ def test_fes20_c5_example3():
             operatorType=UnaryLogicType.Not,
         )
     )
-    result = parse_fes(xml_text)
+    result = Filter.from_string(xml_text)
     assert result == expected, f"result={result!r}"
 
     # Test SQL generating
@@ -196,7 +196,7 @@ def test_fes20_c5_example3_b():
             ),
         )
     )
-    result = parse_fes(xml_text)
+    result = Filter.from_string(xml_text)
     assert result == expected, f"result={result!r}"
 
     # Test SQL generating
@@ -275,7 +275,7 @@ def test_fes20_c5_example4():
             operatorType=BinaryLogicType.And,
         )
     )
-    result = parse_fes(xml_text)
+    result = Filter.from_string(xml_text)
     assert result == expected, f"result={result!r}"
 
     # Test SQL generating
@@ -326,7 +326,7 @@ def test_fes20_c5_example5():
             ResourceId(rid="BUILTUPA_1M.4321"),
         ]
     )
-    result = parse_fes(xml_text)
+    result = Filter.from_string(xml_text)
     assert result == expected, f"result={result!r}"
 
     # Test SQL generating
@@ -382,7 +382,7 @@ def test_fes20_c5_example6():
             matchAction=MatchAction.Any,
         )
     )
-    result = parse_fes(xml_text)
+    result = Filter.from_string(xml_text)
     assert result == expected, f"result={result!r}"
 
     # Test SQL generating
@@ -435,7 +435,7 @@ def test_fes20_c5_example7():
             matchAction=MatchAction.Any,
         )
     )
-    result = parse_fes(xml_text)
+    result = Filter.from_string(xml_text)
     assert result == expected, f"result={result!r}"
 
     # Test SQL generating
@@ -473,7 +473,7 @@ def test_fes20_c5_example8():
             upperBoundary=Literal(value=200),
         )
     )
-    result = parse_fes(xml_text)
+    result = Filter.from_string(xml_text)
     assert result == expected, f"result={result!r}"
 
     # Test SQL generating
@@ -509,7 +509,7 @@ def test_fes20_c5_example9():
             upperBoundary=Literal(value="2001-03-06T12:00:00.00", type=None),
         )
     )
-    result = parse_fes(xml_text)
+    result = Filter.from_string(xml_text)
     assert result == expected, f"result={result!r}"
 
     # Test SQL generating
@@ -549,7 +549,7 @@ def test_fes20_c5_example10():
             escapeChar="!",
         )
     )
-    result = parse_fes(xml_text)
+    result = Filter.from_string(xml_text)
     assert result == expected, f"result={result!r}"
 
     # Test SQL generating
@@ -592,7 +592,7 @@ def test_fes20_c5_example11():
             ),
         )
     )
-    result = parse_fes(xml_text)
+    result = Filter.from_string(xml_text)
     assert result == expected, f"result={result!r}"
 
     # Test SQL generating
@@ -646,7 +646,7 @@ def test_fes20_c5_example11_b():
             ),
         )
     )
-    result = parse_fes(xml_text)
+    result = Filter.from_string(xml_text)
     assert result == expected, f"result={result!r}"
 
     # Test SQL generating
@@ -731,7 +731,7 @@ def test_fes20_c5_example12():
             operatorType=BinaryLogicType.And,
         )
     )
-    result = parse_fes(xml_text)
+    result = Filter.from_string(xml_text)
     assert result == expected, f"result={result!r}"
 
     # Test SQL generating
@@ -805,7 +805,7 @@ def test_fes20_c5_example13():
             operatorType=BinaryLogicType.And,
         )
     )
-    result = parse_fes(xml_text)
+    result = Filter.from_string(xml_text)
     assert result == expected, f"result={result!r}"
 
     # Test SQL generating
@@ -846,7 +846,7 @@ def test_fes20_c5_example14():
            </fes:And>
         </fes:Filter>
     """.strip()
-    result = parse_fes(xml_text)
+    result = Filter.from_string(xml_text)
     expected = Filter(
         predicate=BinaryLogicOperator(
             operands=[
@@ -913,7 +913,7 @@ def test_fes20_c5_example15():
             distance=Measure(value=D("10"), uom="m"),
         )
     )
-    result = parse_fes(xml_text)
+    result = Filter.from_string(xml_text)
     assert result == expected, f"result={result!r}"
 
     # Test SQL generating
@@ -967,7 +967,7 @@ def test_fes20_c7_example1():
             distance=Measure(value=10, uom="m"),
         )
     )
-    result = parse_fes(xml_text)
+    result = Filter.from_string(xml_text)
     assert result == expected, f"result={result!r}"
 
     # Test SQL generating
@@ -1005,7 +1005,7 @@ def test_fes20_c7_example2():
         </fes:Filter>
     """.strip()  # noqa: E501
     expected = Filter([])
-    result = parse_fes(xml_text)
+    result = Filter.from_string(xml_text)
     assert result == expected, f"result={result!r}"
 
     print(result.get_query())
@@ -1032,7 +1032,7 @@ def test_fes20_c7_example3():
         </fes:Filter>
     """.strip()
     expected = Filter([])
-    result = parse_fes(xml_text)
+    result = Filter.from_string(xml_text)
     assert result == expected, f"result={result!r}"
 
     print(result.get_query())
@@ -1068,7 +1068,7 @@ def test_fes20_c7_example4():
         </fes:Filter>
     """.strip()
     expected = Filter([])
-    result = parse_fes(xml_text)
+    result = Filter.from_string(xml_text)
     assert result == expected, f"result={result!r}"
 
     print(result.get_query())
@@ -1104,7 +1104,7 @@ def test_fes20_c7_example5():
         </fes:Filter>
     """.strip()
     expected = Filter([])
-    result = parse_fes(xml_text)
+    result = Filter.from_string(xml_text)
     assert result == expected, f"result={result!r}"
 
     print(result.get_query())

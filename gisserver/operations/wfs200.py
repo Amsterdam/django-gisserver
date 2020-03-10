@@ -16,7 +16,7 @@ from django.http import HttpResponse
 
 from gisserver.exceptions import InvalidParameterValue, VersionNegotiationFailed
 from gisserver.features import FeatureType
-from gisserver.parsers import parse_fes
+from gisserver.parsers import fes20
 from gisserver.types import CRS, BoundingBox
 
 from .base import (
@@ -29,7 +29,6 @@ from .base import (
 
 SAFE_VERSION = re.compile(r"\A[0-9.]+\Z")
 RE_SAFE_FILENAME = re.compile(r"\A[A-Za-z0-9]+[A-Za-z0-9.]*")  # no dot at the start.
-OGC_FES_FILTER = "urn:ogc:def:queryLanguage:OGC-FES:Filter"
 
 
 class GetCapabilities(WFSMethod):
@@ -156,9 +155,11 @@ class GetFeature(WFSFeatureMethod):
         Parameter("startIndex", parser=int, default=0),
         Parameter("count", parser=int),  # was called maxFeatures in WFS 1.x
         Parameter(
-            "filter_language", default=OGC_FES_FILTER, allowed_values=[OGC_FES_FILTER]
+            "filter_language",
+            default=fes20.Filter.query_language,
+            allowed_values=[fes20.Filter.query_language],
         ),
-        Parameter("filter", parser=parse_fes),
+        Parameter("filter", parser=fes20.Filter.from_string),
         # Not implemented:
         UnsupportedParameter("sortBy"),
         UnsupportedParameter("resourceID"),  # query on ID (called featureID in wfs 1.x)

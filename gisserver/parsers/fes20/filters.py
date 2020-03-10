@@ -1,7 +1,8 @@
 from dataclasses import dataclass
-from typing import Union
+from typing import AnyStr, Union
 from xml.etree.ElementTree import Element, QName
 
+from defusedxml.ElementTree import fromstring, ParseError
 from django.db.models import QuerySet
 
 from gisserver.parsers.base import FES20, tag_registry
@@ -13,9 +14,30 @@ FilterPredicates = Union[expressions.Function, identifiers.IdList, operators.Ope
 
 @dataclass
 class Filter:
-    """The <fes20:Filter> element."""
+    """The <fes:Filter> element.
+
+    As this is a wrapper, it only contains a "predicate" element with the contents.
+    """
+
+    query_language = "urn:ogc:def:queryLanguage:OGC-FES:Filter"
 
     predicate: FilterPredicates
+
+    @classmethod
+    def from_string(cls, text: AnyStr) -> "Filter":
+        """Parse an XML <fes20:Filter> string.
+
+        This uses defusedxml by default, to avoid various XML injection attacks.
+
+        :raises ValueError: When data is incorrect, or XML has syntax errors.
+        :raises NotImplementedError: When unsupported features are called.
+        """
+        try:
+            root_element = fromstring(text)
+        except ParseError as e:
+            # Offer consistent results for callers to check for invalid data.
+            raise ValueError(f"Syntax error in filter: {e}") from e
+        return Filter.from_xml(root_element)
 
     @classmethod
     @expect_tag(FES20, "Filter")
