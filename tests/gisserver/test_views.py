@@ -470,6 +470,30 @@ class TestGetFeature:
                     </gml:Envelope>
                 </fes:BBOX>
             </fes:Filter>""",
+        "and": """
+        <?xml version="1.0"?>
+        <fes:Filter
+            xmlns:fes="http://www.opengis.net/fes/2.0"
+            xmlns:gml="http://www.opengis.net/gml/3.2"
+            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+            xsi:schemaLocation="http://www.opengis.net/fes/2.0
+            http://schemas.opengis.net/filter/2.0/filterAll.xsd
+            http://www.opengis.net/gml/3.2
+            http://schemas.opengis.net/gml/3.2.1/gml.xsd">
+            <fes:And>
+                <fes:PropertyIsGreaterThanOrEqualTo>
+                    <fes:ValueReference>rating</fes:ValueReference>
+                    <fes:Literal>3.0</fes:Literal>
+                </fes:PropertyIsGreaterThanOrEqualTo>
+                <fes:BBOX>
+                    <fes:ValueReference>location</fes:ValueReference>
+                    <gml:Envelope srsName="urn:ogc:def:crs:EPSG::28992">
+                        <gml:lowerCorner>122410 486240</gml:lowerCorner>
+                        <gml:upperCorner>122412 486260</gml:upperCorner>
+                    </gml:Envelope>
+                </fes:BBOX>
+            </fes:And>
+        </fes:Filter>""",
     }
 
     @pytest.mark.parametrize("filter_name", list(FILTERS.keys()))
