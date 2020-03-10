@@ -260,6 +260,12 @@ class GetFeature(WFSFeatureMethod):
 
         # Allow filtering using a <fes:Filter>
         if filter:
+            if bbox:
+                raise InvalidParameterValue(
+                    "filter",
+                    "The FILTER parameter is mutually exclusive with BBOX and RESOURCEID",
+                )
+
             queryset = filter.filter_queryset(queryset)
 
         # Attach extra property to keep meta-dataa in place
