@@ -113,8 +113,6 @@
     {% for name, value in filter_capabilities.items %}
         <fes:Constraint name="{{ name }}"><ows:NoValues/><ows:DefaultValue>{{ value|yesno:"TRUE,FALSE" }}</ows:DefaultValue></fes:Constraint>{% endfor %}
     </fes:Conformance>
-    {% comment %}
-      mapserver: also provides:
     <fes:Id_Capabilities>
       <fes:ResourceIdentifier name="fes:ResourceId"/>
     </fes:Id_Capabilities>
@@ -129,6 +127,10 @@
         <fes:ComparisonOperator name="PropertyIsGreaterThanOrEqualTo"/>
         <fes:ComparisonOperator name="PropertyIsLike"/>
         <fes:ComparisonOperator name="PropertyIsBetween"/>
+        <fes:ComparisonOperator name="PropertyIsNil"/>{% comment %}
+          Not implemented:
+          <fes:ComparisonOperator name="PropertyIsNull"/>
+        {% endcomment %}
       </fes:ComparisonOperators>
     </fes:Scalar_Capabilities>
     <fes:Spatial_Capabilities>
@@ -137,14 +139,16 @@
         <fes:GeometryOperand name="gml:MultiPoint"/>
         <fes:GeometryOperand name="gml:LineString"/>
         <fes:GeometryOperand name="gml:MultiLineString"/>
-        <fes:GeometryOperand name="gml:Curve"/>
-        <fes:GeometryOperand name="gml:MultiCurve"/>
         <fes:GeometryOperand name="gml:Polygon"/>
         <fes:GeometryOperand name="gml:MultiPolygon"/>
-        <fes:GeometryOperand name="gml:Surface"/>
-        <fes:GeometryOperand name="gml:MultiSurface"/>
         <fes:GeometryOperand name="gml:Box"/>
-        <fes:GeometryOperand name="gml:Envelope"/>
+        <fes:GeometryOperand name="gml:Envelope"/>{% comment %}
+          Also supported in mapserver:
+          <fes:GeometryOperand name="gml:Curve"/>
+          <fes:GeometryOperand name="gml:MultiCurve"/>
+          <fes:GeometryOperand name="gml:Surface"/>
+          <fes:GeometryOperand name="gml:MultiSurface"/>
+        {% endcomment %}
       </fes:GeometryOperands>
       <fes:SpatialOperators>
         <fes:SpatialOperator name="Equals"/>
@@ -160,6 +164,8 @@
         <fes:SpatialOperator name="BBOX"/>
       </fes:SpatialOperators>
     </fes:Spatial_Capabilities>
+    {% comment %}
+      Supported by mapserver:
     <fes:Temporal_Capabilities>
       <fes:TemporalOperands>
         <fes:TemporalOperand name="gml:TimePeriod"/>
