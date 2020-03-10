@@ -497,7 +497,7 @@ class TestGetFeature:
     }
 
     @pytest.mark.parametrize("filter_name", list(FILTERS.keys()))
-    def test_get_filter_simple(self, client, restaurant, bad_restaurant, filter_name):
+    def test_get_filter(self, client, restaurant, bad_restaurant, filter_name):
         """Prove that that parsing FILTER=<fes:Filter>... works"""
         filter = self.FILTERS[filter_name].strip()
 
