@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from typing import AnyStr, Union
 from xml.etree.ElementTree import Element, QName
 
@@ -12,7 +11,6 @@ from . import expressions, identifiers, operators, query
 FilterPredicates = Union[expressions.Function, identifiers.IdList, operators.Operator]
 
 
-@dataclass
 class Filter:
     """The <fes:Filter> element.
 
@@ -22,6 +20,9 @@ class Filter:
     query_language = "urn:ogc:def:queryLanguage:OGC-FES:Filter"
 
     predicate: FilterPredicates
+
+    def __init__(self, predicate: FilterPredicates):
+        self.predicate = predicate
 
     @classmethod
     def from_string(cls, text: AnyStr) -> "Filter":
@@ -72,3 +73,12 @@ class Filter:
             fesquery.add_lookups(q_object)
 
         return fesquery
+
+    def __repr__(self):
+        return f"Filter(predicate={self.predicate!r})"
+
+    def __eq__(self, other):
+        if isinstance(other, Filter):
+            return self.predicate == other.predicate
+        else:
+            return NotImplemented
