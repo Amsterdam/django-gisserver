@@ -1,7 +1,7 @@
-![http://travis-ci.org/amsterdam/django-gisserver](https://img.shields.io/travis/amsterdam/django-gisserver.svg)
-![https://pypi.python.org/pypi/django-gisserver](https://img.shields.io/pypi/v/django-gisserver.svg)
-![https://pypi.python.org/pypi/django-gisserver](https://img.shields.io/badge/license-MPL%202.0-blue.svg)
-![https://codecov.io/github/amsterdam/django-gisserver?branch=master](https://img.shields.io/codecov/c/github/amsterdam/django-gisserver/master.svg)
+[![Travis](https://img.shields.io/travis/amsterdam/django-gisserver.svg)](http://travis-ci.org/amsterdam/django-gisserver)
+[![PyPI](https://img.shields.io/pypi/v/django-gisserver.svg)](https://pypi.python.org/pypi/django-gisserver)
+[![MPL License](https://img.shields.io/badge/license-MPL%202.0-blue.svg)](https://pypi.python.org/pypi/django-gisserver)
+[![Coverage](https://img.shields.io/codecov/c/github/amsterdam/django-gisserver/master.svg)](https://codecov.io/github/amsterdam/django-gisserver?branch=master)
 
 # django-gisserver
 
