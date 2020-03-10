@@ -31,6 +31,7 @@ from gisserver.parsers.fes20.operators import (
     BinarySpatialOperator,
     DistanceOperator,
     DistanceOperatorName,
+    IdOperator,
     LikeOperator,
     MatchAction,
     Measure,
@@ -323,14 +324,16 @@ def test_fes20_c5_example5():
         </fes:Filter>
     """.strip()
     expected = Filter(
-        [
-            ResourceId(rid="TREESA_1M.1234"),
-            ResourceId(rid="TREESA_1M.5678"),
-            ResourceId(rid="TREESA_1M.9012"),
-            ResourceId(rid="INWATERA_1M.3456"),
-            ResourceId(rid="INWATERA_1M.7890"),
-            ResourceId(rid="BUILTUPA_1M.4321"),
-        ]
+        IdOperator(
+            [
+                ResourceId(rid="TREESA_1M.1234"),
+                ResourceId(rid="TREESA_1M.5678"),
+                ResourceId(rid="TREESA_1M.9012"),
+                ResourceId(rid="INWATERA_1M.3456"),
+                ResourceId(rid="INWATERA_1M.7890"),
+                ResourceId(rid="BUILTUPA_1M.4321"),
+            ]
+        )
     )
     result = Filter.from_string(xml_text)
     assert result == expected, f"result={result!r}"

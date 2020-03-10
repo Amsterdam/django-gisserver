@@ -8,7 +8,7 @@ from gisserver.parsers.base import FES20, tag_registry
 from gisserver.parsers.utils import expect_tag
 from . import expressions, identifiers, operators, query
 
-FilterPredicates = Union[expressions.Function, identifiers.IdList, operators.Operator]
+FilterPredicates = Union[expressions.Function, operators.Operator]
 
 
 class Filter:
@@ -47,7 +47,7 @@ class Filter:
         if len(element) > 1 or element[0].tag == QName(FES20, "ResourceId"):
             # fes20:ResourceId is the only element that may appear multiple times.
             return Filter(
-                predicate=identifiers.IdList(
+                predicate=operators.IdOperator(
                     [identifiers.Id.from_child_xml(child) for child in element]
                 )
             )

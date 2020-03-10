@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 from enum import Enum
 from functools import reduce
-from typing import List, Optional, Tuple, Union
+from typing import Any, List, Optional, Tuple, Union
 from xml.etree.ElementTree import Element
 
 from django.contrib.gis import measure
@@ -15,11 +15,24 @@ from django.db.models import Q
 from gisserver.parsers import gml
 from gisserver.parsers.base import FES20, BaseNode, TagNameEnum, tag_registry
 from gisserver.parsers.utils import expect_tag, get_attribute, get_child
-from .expressions import Expression, Literal, ValueReference
+from .identifiers import Id
+from .expressions import Expression, Literal, RhsTypes, ValueReference
 from .query import FesQuery
 
 SpatialDescription = Union[gml.GM_Object, gml.GM_Envelope, ValueReference]
 TemporalOperand = Union[gml.TM_Object, ValueReference]
+
+
+# Define interface for any class that has "build_rhs()"
+try:
+    from typing import Protocol
+except ImportError:
+    HasBuildRhs = Any  # Python 3.7 and below
+else:
+
+    class HasBuildRhs(Protocol):
+        def build_rhs(self, fesquery) -> RhsTypes:
+            ...
 
 
 class MatchAction(Enum):
@@ -131,12 +144,53 @@ class Operator(BaseNode):
         )
 
 
+@dataclass
 class IdOperator(Operator):
-    """Abstract base class, as defined by FES spec."""
+    """List of ResourceId objects"""
+
+    id: List[Id]
+
+    def build_query(self, fesquery) -> Q:
+        """Generate the ID lookup query"""
+        return reduce(operator.or_, [id.build_query(fesquery) for id in self.id])
 
 
 class NonIdOperator(Operator):
     """Abstract base class, as defined by FES spec."""
+
+    def build_compare(
+        self, fesquery: FesQuery, lhs: Expression, lookup: str, rhs: RhsTypes
+    ) -> Q:
+        """Use the value in comparison with some other expression.
+
+        This calls build_lhs() and build_rhs() on the expressions.
+        """
+        lhs = lhs.build_lhs(fesquery)
+
+        if isinstance(rhs, (Expression, gml.GM_Object)):
+            rhs = rhs.build_rhs(fesquery)
+
+        result = Q(**{f"{lhs}__{lookup}": rhs})
+        return fesquery.apply_extra_lookups(result)
+
+    def build_compare_between(
+        self,
+        fesquery: FesQuery,
+        lhs: Expression,
+        lookup: str,
+        rhs: Tuple[HasBuildRhs, HasBuildRhs],
+    ) -> Q:
+        """Use the value in comparison with 2 other values (e.g. between query)"""
+        field_name = lhs.build_lhs(fesquery)
+        result = Q(
+            **{
+                f"{field_name}__{lookup}": (
+                    rhs[0].build_rhs(fesquery),
+                    rhs[1].build_rhs(fesquery),
+                )
+            }
+        )
+        return fesquery.apply_extra_lookups(result)
 
 
 class SpatialOperator(NonIdOperator):
@@ -171,9 +225,11 @@ class DistanceOperator(SpatialOperator):
         )
 
     def build_query(self, fesquery: FesQuery) -> Q:
-        lookup = self.operatorType.value
-        return self.valueReference.build_compare_between(
-            fesquery, lookup, (self.geometry, self.distance)
+        return self.build_compare_between(
+            fesquery,
+            lhs=self.valueReference,
+            lookup=self.operatorType.value,
+            rhs=(self.geometry, self.distance),
         )
 
 
@@ -201,8 +257,12 @@ class BinarySpatialOperator(SpatialOperator):
         if self.operand1 is None:
             raise NotImplementedError()
 
-        lookup = self.operatorType.value
-        return self.operand1.build_compare(fesquery, lookup, self.operand2)
+        return self.build_compare(
+            fesquery,
+            lhs=self.operand1,
+            lookup=self.operatorType.value,
+            rhs=self.operand2,
+        )
 
 
 @dataclass
@@ -258,9 +318,10 @@ class BinaryComparisonOperator(ComparisonOperator):
         )
 
     def build_query(self, fesquery: FesQuery) -> Q:
-        lookup = self.operatorType.value
         lhs, rhs = self.expression
-        return lhs.build_compare(fesquery, lookup, rhs)
+        return self.build_compare(
+            fesquery, lhs=lhs, lookup=self.operatorType.value, rhs=rhs
+        )
 
 
 @dataclass
@@ -283,8 +344,11 @@ class BetweenComparisonOperator(ComparisonOperator):
         )
 
     def build_query(self, fesquery: FesQuery) -> Q:
-        return self.expression.build_compare_between(
-            fesquery, "range", (self.lowerBoundary, self.upperBoundary)
+        return self.build_compare_between(
+            fesquery,
+            lhs=self.expression,
+            lookup="range",
+            rhs=(self.lowerBoundary, self.upperBoundary),
         )
 
 
@@ -327,13 +391,15 @@ class LikeOperator(ComparisonOperator):
             raise NotImplementedError()
 
         # Use the FesLike lookup
-        return lhs.build_compare(fesquery, "fes_like", rhs)
+        return self.build_compare(fesquery, lhs=lhs, lookup="fes_like", rhs=rhs)
 
 
 @dataclass
 @tag_registry.register("PropertyIsNil")
 class NilOperator(ComparisonOperator):
-    """Check whether the value evaluates to null/None"""
+    """Check whether the value evaluates to null/None.
+    If the WFS would return a property element with <tns:p xsi:nil='true'>, this returns true.
+    """
 
     expression: Optional[Expression]
     nilReason: str
@@ -346,13 +412,17 @@ class NilOperator(ComparisonOperator):
         )
 
     def build_query(self, fesquery: FesQuery) -> Q:
-        return self.expression.build_compare(fesquery, "isnull", True)
+        return self.build_compare(
+            fesquery, lhs=self.expression, lookup="isnull", rhs=True
+        )
 
 
 @dataclass
 @tag_registry.register("PropertyIsNull")
 class NullOperator(ComparisonOperator):
-    """Check whether the property exists."""
+    """Check whether the property exists.
+    If the WFS would not return the property element <tns:p>, this returns true.
+    """
 
     expression: Expression
 
