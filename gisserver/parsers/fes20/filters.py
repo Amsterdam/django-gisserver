@@ -4,6 +4,7 @@ from xml.etree.ElementTree import Element, QName
 from defusedxml.ElementTree import fromstring, ParseError
 from django.db.models import QuerySet
 
+from gisserver.parsers import gml
 from gisserver.parsers.base import FES20, tag_registry
 from gisserver.parsers.utils import expect_tag
 from . import expressions, identifiers, operators, query
@@ -18,6 +19,11 @@ class Filter:
     """
 
     query_language = "urn:ogc:def:queryLanguage:OGC-FES:Filter"
+    capabilities = {
+        "ComparisonOperators": operators.ComparisonOperator.xml_tags,
+        "GeometryOperands": gml.AbstractGeometry.get_operands(),
+        "SpatialOperators": list(operators.SpatialOperatorName.__members__.keys()),
+    }
 
     predicate: FilterPredicates
     source: Optional[AnyStr]

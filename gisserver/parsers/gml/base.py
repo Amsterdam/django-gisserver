@@ -4,6 +4,7 @@ See "Table D.2" in the GML 3.2.1 spec, showing how the UML names
 map to the GML implementations. These names are referenced by the FES spec.
 """
 from gisserver.parsers.base import BaseNode
+from gisserver.parsers.utils import split_ns
 
 
 class GM_Object(BaseNode):
@@ -11,6 +12,13 @@ class GM_Object(BaseNode):
 
     <gml:AbstractGeometry> implements the ISO 19107 GM_Object.
     """
+
+    # Start counting tag names
+    xml_tags = []
+
+    @classmethod
+    def get_operands(cls):
+        return sorted(set(split_ns(tag)[1] for tag in cls.xml_tags))
 
 
 class GM_Envelope(BaseNode):
