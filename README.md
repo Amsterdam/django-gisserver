@@ -15,7 +15,7 @@ Django speaking WFS 2.0 to expose geo data.
 * GeoJSON export support.
 * Extensible view/operations.
 * Uses GeoDjango queries for filtering.
-* Uses Django template engine for rendering XML (might become streaming lxml later).
+* Streaming responses for large datasets.
 
 ## Usage
 
