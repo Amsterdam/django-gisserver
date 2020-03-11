@@ -73,7 +73,7 @@ class GISView(View):
         "ImplementsMinTemporalFilter": False,  # mapserver: true (During)
         "ImplementsTemporalFilter": False,
         "ImplementsVersionNav": False,  # <fes:ResourceId version="..">
-        "ImplementsSorting": False,  # mapserver: true
+        "ImplementsSorting": True,  # SORTBY parameter
         "ImplementsExtendedOperators": False,
         "ImplementsMinimumXPath": False,  # mapserver: True
         "ImplementsSchemaElementFunc": False,

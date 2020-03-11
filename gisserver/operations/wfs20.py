@@ -9,6 +9,7 @@ Useful docs:
 """
 import logging
 import re
+from typing import List
 from urllib.parse import urlencode
 
 from django.db import ProgrammingError
@@ -140,6 +141,23 @@ class DescribeFeatureType(WFSFeatureMethod):
         return {"feature_types": typeNames}
 
 
+def parse_sort_by(value) -> List[str]:
+    """Parse the SORTBY parameter."""
+    result = []
+    for field in value.split(","):
+        if " " in field:
+            field, direction = field.split(" ", 1)
+            # Also supporting WFS 1.0 A/D format for clients that use this.
+            if direction not in {"A", "ASC", "D", "DESC"}:
+                raise InvalidParameterValue(
+                    "sortby", "Expect ASC/DESC ordering direction"
+                )
+            if direction in {"D", "DESC"}:
+                field = f"-{field}"
+        result.append(field)
+    return result
+
+
 class GetFeature(WFSFeatureMethod):
     """This returns the feature details; the individual records based on a query.
     Various query parameters allow limiting the data.
@@ -163,8 +181,8 @@ class GetFeature(WFSFeatureMethod):
             allowed_values=[fes20.Filter.query_language],
         ),
         Parameter("filter", parser=fes20.Filter.from_string),
+        Parameter("sortBy", parser=parse_sort_by),
         # Not implemented:
-        UnsupportedParameter("sortBy"),
         UnsupportedParameter("resourceID"),  # query on ID (called featureID in wfs 1.x)
         UnsupportedParameter("propertyName"),  # which fields to return
         UnsupportedParameter("resolve"),  # subresource settings
@@ -267,7 +285,9 @@ class GetFeature(WFSFeatureMethod):
             for feature in typeNames
         ]
 
-    def filter_queryset(self, feature: FeatureType, queryset, bbox, filter, **params):
+    def filter_queryset(
+        self, feature: FeatureType, queryset, bbox, filter, sortBy, **params
+    ):
         """Apply the filters to a single feature type."""
         filters = {}
 
@@ -279,15 +299,14 @@ class GetFeature(WFSFeatureMethod):
             filters[f"{feature.geometry_field_name}__{lookup}"] = bbox.as_polygon()
 
         # TODO: other parameters to support:
-        # sortBy=attr+A / +D
         # resourceid=app:Type/gml:name (was featureID in wfs 1.x)
         # propertyName=app:Type/app:field1,app:Type/app:field2
-        for name in ("sortBy", "resourceID", "propertyName"):
-            if params[name]:
-                raise InvalidParameterValue(name, f"{name} is not supported yet")
 
         if filters:
             queryset = queryset.filter(**filters)
+
+        if sortBy:
+            queryset = queryset.order_by(*sortBy)
 
         # Allow filtering using a <fes:Filter>
         if filter:

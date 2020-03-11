@@ -644,6 +644,41 @@ class TestGetFeature:
 </wfs:FeatureCollection>""",  # noqa: E501
         )
 
+    SORT_BY = {
+        "name": ("name", ["Café Noir", "Foo Bar"]),
+        "name-asc": ("name ASC", ["Café Noir", "Foo Bar"]),
+        "name-desc": ("name DESC", ["Foo Bar", "Café Noir"]),
+        "rating-desc": ("rating DESC", ["Café Noir", "Foo Bar"]),
+        "rating,name-asc": ("rating,name ASC", ["Foo Bar", "Café Noir"]),
+    }
+
+    @pytest.mark.parametrize("ordering", list(SORT_BY.keys()))
+    def test_get_sort_by(self, client, restaurant, bad_restaurant, ordering):
+        """Prove that that parsing BBOX=... works"""
+        sort_by, expect = self.SORT_BY[ordering]
+        response = client.get(
+            "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
+            f"&SORTBY={sort_by}"
+        )
+        content = self.read_response(response)
+        assert response["content-type"] == "text/xml; charset=utf-8", content
+        assert response.status_code == 200, content
+        assert "</wfs:FeatureCollection>" in content
+
+        # Validate against the WFS 2.0 XSD
+        xml_doc = validate_xsd(content, WFS_20_XSD)
+        assert xml_doc.attrib["numberMatched"] == "2"
+        assert xml_doc.attrib["numberReturned"] == "2"
+
+        # Test sort ordering.
+        restaurants = xml_doc.findall(
+            "wfs:member/app:restaurant", namespaces=NAMESPACES
+        )
+        names = [
+            res.find("app:name", namespaces=NAMESPACES).text for res in restaurants
+        ]
+        assert names == expect
+
     def test_get_geojson(self, client, restaurant, bad_restaurant):
         """Prove that the geojson export works.
 
