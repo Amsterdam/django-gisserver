@@ -6,9 +6,9 @@ from typing import List, Union
 from xml.etree.ElementTree import Element
 
 from defusedxml.ElementTree import fromstring
-
 from gisserver.parsers.base import tag_registry
-from .base import GM_Envelope, GM_Object, TM_Object
+
+from .base import AbstractGeometry, GM_Envelope, GM_Object, TM_Object
 from .geometries import GML21, GML32, is_gml_element  # also do tag registration
 
 # All known root nodes as GML object:
@@ -18,6 +18,7 @@ __all__ = [
     "GM_Object",
     "GM_Envelope",
     "TM_Object",
+    "AbstractGeometry",
     "parse_gml",
     "parse_gml_node",
     "find_gml_nodes",
