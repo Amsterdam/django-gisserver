@@ -177,7 +177,7 @@ class WFSView(GISView):
     """
 
     #: Maximum number of features to return
-    max_page_size = 500_000
+    max_page_size = 1000
 
     #: Define the features (=tables) in this dataset.
     feature_types: List[FeatureType] = []
