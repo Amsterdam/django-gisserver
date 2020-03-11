@@ -13,7 +13,7 @@ def expect_tag(namespace, tag_name):
 
     def _wrapper(func):
         @wraps(func)
-        def _from_xml_expect(cls, element):
+        def _from_xml_expect(cls, element, *args, **kwargs):
             qname = QName(namespace, tag_name)
             if element.tag != qname:
                 raise ValueError(
@@ -21,7 +21,7 @@ def expect_tag(namespace, tag_name):
                     f"got <{element.tag}>"
                 )
 
-            return func(cls, element)
+            return func(cls, element, *args, **kwargs)
 
         return _from_xml_expect
 

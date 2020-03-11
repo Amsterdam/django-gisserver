@@ -532,6 +532,76 @@ class TestGetFeature:
         geometry = feature.find("app:location/gml:Point", namespaces=NAMESPACES)
         assert geometry.attrib["srsName"] == WGS84.urn
 
+    INVALID_FILTERS = {
+        "syntax": (
+            """<fes:Filter xmlns:fes="http://www.opengis.net/fes/2.0">FDFDS</fes:Filter""",
+            "Unable to parse FILTER argument: unclosed token: line 1, column 60",
+        ),
+        "missing_xmlns": (
+            """<?xml version="1.0"?>
+            <fes:Filter
+                 xmlns:fes="http://www.opengis.net/fes/2.0"
+                 xsi:schemaLocation="http://www.opengis.net/fes/2.0
+                 http://schemas.opengis.net/filter/2.0/filterAll.xsd">
+                <fes:PropertyIsGreaterThanOrEqualTo>
+                    <fes:ValueReference>rating</fes:ValueReference>
+                    <fes:Literal>3.0</fes:Literal>
+                </fes:PropertyIsGreaterThanOrEqualTo>
+            </fes:Filter>""",
+            "Unable to parse FILTER argument: unbound prefix: line 2, column 12",
+        ),
+        "closing_tag": (
+            """
+        <fes:Filter
+             xmlns:fes="http://www.opengis.net/fes/2.0"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xsi:schemaLocation="http://www.opengis.net/fes/2.0
+             http://schemas.opengis.net/filter/2.0/filterAll.xsd">
+            <fes:PropertyIsGreaterThanOrEqualTo>
+                <fes:ValueReference>rating</fes:ValueReference>
+                <fes:Literal>3.0</fes:Literal>
+            </fes:PropertyIsGreaterThanOrEqualTofoo>
+        </fes:Filter>""",
+            "Unable to parse FILTER argument: mismatched tag: line 9, column 14",
+        ),
+        "float_text": (
+            """
+        <fes:Filter
+             xmlns:fes="http://www.opengis.net/fes/2.0"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xsi:schemaLocation="http://www.opengis.net/fes/2.0
+             http://schemas.opengis.net/filter/2.0/filterAll.xsd">
+            <fes:PropertyIsGreaterThanOrEqualTo>
+                <fes:ValueReference>rating</fes:ValueReference>
+                <fes:Literal>TEXT</fes:Literal>
+            </fes:PropertyIsGreaterThanOrEqualTo>
+        </fes:Filter>""",
+            "Invalid filter query: Field 'rating' expected a number but got 'TEXT'.",
+        ),
+    }
+
+    @pytest.mark.parametrize("filter_name", list(INVALID_FILTERS.keys()))
+    def test_get_filter_invalid(self, client, restaurant, filter_name):
+        """Prove that that parsing FILTER=<fes:Filter>... works"""
+        filter, expect_msg = self.INVALID_FILTERS[filter_name]
+
+        response = client.get(
+            "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
+            "&FILTER=" + quote_plus(filter.strip())
+        )
+        content = response.content.decode()
+        assert response["content-type"] == "text/xml; charset=utf-8", content
+        assert response.status_code == 400, content
+        assert "</ows:Exception>" in content
+
+        xml_doc = validate_xsd(response.content, WFS_20_XSD)
+        assert xml_doc.attrib["version"] == "2.0.0"
+        exception = xml_doc.find("ows:Exception", NAMESPACES)
+        assert exception.attrib["exceptionCode"] == "InvalidParameterValue"
+
+        message = exception.find("ows:ExceptionText", NAMESPACES).text
+        assert message == expect_msg
+
     def test_get_hits(self, client, restaurant):
         """Prove that that parsing RESULTTYPE=hits works"""
         response = client.get(

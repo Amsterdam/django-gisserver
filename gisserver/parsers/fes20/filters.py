@@ -1,4 +1,4 @@
-from typing import AnyStr, Union
+from typing import AnyStr, Union, Optional
 from xml.etree.ElementTree import Element, QName
 
 from defusedxml.ElementTree import fromstring, ParseError
@@ -20,9 +20,11 @@ class Filter:
     query_language = "urn:ogc:def:queryLanguage:OGC-FES:Filter"
 
     predicate: FilterPredicates
+    source: Optional[AnyStr]
 
-    def __init__(self, predicate: FilterPredicates):
+    def __init__(self, predicate: FilterPredicates, source: Optional[AnyStr] = None):
         self.predicate = predicate
+        self.source = source
 
     @classmethod
     def from_string(cls, text: AnyStr) -> "Filter":
@@ -37,25 +39,27 @@ class Filter:
             root_element = fromstring(text)
         except ParseError as e:
             # Offer consistent results for callers to check for invalid data.
-            raise ValueError(f"Syntax error in filter: {e}") from e
-        return Filter.from_xml(root_element)
+            raise ValueError(str(e)) from e
+        return Filter.from_xml(root_element, source=text)
 
     @classmethod
     @expect_tag(FES20, "Filter")
-    def from_xml(cls, element: Element) -> "Filter":
+    def from_xml(cls, element: Element, source: Optional[AnyStr] = None) -> "Filter":
         """Parse the <fes20:Filter> element."""
         if len(element) > 1 or element[0].tag == QName(FES20, "ResourceId"):
             # fes20:ResourceId is the only element that may appear multiple times.
             return Filter(
                 predicate=operators.IdOperator(
                     [identifiers.Id.from_child_xml(child) for child in element]
-                )
+                ),
+                source=source,
             )
         else:
             return Filter(
                 predicate=tag_registry.from_child_xml(
                     element[0], allowed_types=(expressions.Function, operators.Operator)
-                )
+                ),
+                source=source,
             )
 
     def filter_queryset(self, queryset: QuerySet) -> QuerySet:
@@ -75,7 +79,7 @@ class Filter:
         return fesquery
 
     def __repr__(self):
-        return f"Filter(predicate={self.predicate!r})"
+        return f"Filter(predicate={self.predicate!r}, source={self.source})"
 
     def __eq__(self, other):
         if isinstance(other, Filter):

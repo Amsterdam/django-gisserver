@@ -7,11 +7,13 @@ Useful docs:
 * https://mapserver.org/development/rfc/ms-rfc-105.html
 * https://enonline.supermap.com/iExpress9D/API/WFS/WFS200/WFS_2.0.0_introduction.htm
 """
+import logging
 import math
 import re
 from urllib.parse import urlencode
 
 import orjson
+from django.db import ProgrammingError
 from django.http import HttpResponse
 
 from gisserver.exceptions import InvalidParameterValue, VersionNegotiationFailed
@@ -27,6 +29,8 @@ from .base import (
     WFSMethod,
     UnsupportedParameter,
 )
+
+logger = logging.getLogger(__name__)
 
 SAFE_VERSION = re.compile(r"\A[0-9.]+\Z")
 RE_SAFE_FILENAME = re.compile(r"\A[A-Za-z0-9]+[A-Za-z0-9.]*")  # no dot at the start.
@@ -210,9 +214,30 @@ class GetFeature(WFSFeatureMethod):
         stop = start + page_size
 
         # The querysets are not executed until the very end.
-        feature_collections = [
-            (qs.feature, qs[start:stop].iterator(), qs.count()) for qs in querysets
-        ]
+        try:
+            feature_collections = [
+                (qs.feature, qs[start:stop].iterator(), qs.count()) for qs in querysets
+            ]
+        except ProgrammingError as e:
+            # e.g. comparing datetime against integer
+            fes_xml = params["filter"].source if params["filter"] else "(not provided)"
+            try:
+                sql = e.__cause__.cursor.query.decode()
+            except AttributeError:
+                logger.warning("WFS query failed: %s\nFilter:\n%s", e, fes_xml)
+            else:
+                logger.warning(
+                    "WFS query failed: %s\nSQL Query: %s\n\nFilter:\n%s",
+                    e,
+                    sql,
+                    fes_xml,
+                )
+
+            raise InvalidParameterValue(
+                "filter",
+                "Invalid filter query, check the used datatypes and field names.",
+            ) from e
+
         number_matched = sum(item[2] for item in feature_collections)
 
         previous = next = None
@@ -266,7 +291,12 @@ class GetFeature(WFSFeatureMethod):
                     "The FILTER parameter is mutually exclusive with BBOX and RESOURCEID",
                 )
 
-            queryset = filter.filter_queryset(queryset)
+            try:
+                queryset = filter.filter_queryset(queryset)
+            except (ValueError, TypeError) as e:
+                raise InvalidParameterValue(
+                    "filter", f"Invalid filter query: {e}",
+                ) from e
 
         # Attach extra property to keep meta-dataa in place
         queryset.feature = feature
