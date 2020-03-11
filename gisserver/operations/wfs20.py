@@ -8,13 +8,10 @@ Useful docs:
 * https://enonline.supermap.com/iExpress9D/API/WFS/WFS200/WFS_2.0.0_introduction.htm
 """
 import logging
-import math
 import re
 from urllib.parse import urlencode
 
-import orjson
 from django.db import ProgrammingError
-from django.http import HttpResponse
 
 from gisserver.exceptions import InvalidParameterValue, VersionNegotiationFailed
 from gisserver.features import FeatureType
@@ -29,6 +26,7 @@ from .base import (
     WFSMethod,
     UnsupportedParameter,
 )
+from gisserver import output
 
 logger = logging.getLogger(__name__)
 
@@ -176,14 +174,20 @@ class GetFeature(WFSFeatureMethod):
         UnsupportedParameter("aliases"),
     ]
     output_formats = [
-        OutputFormat("text/xml", subtype="gml/3.1.1"),
+        OutputFormat(
+            "text/xml", subtype="gml/3.2", renderer_class=output.GML32Renderer
+        ),
         # OutputFormat("gml"),
-        OutputFormat("application/json", subtype="geojson", charset="utf-8"),
+        OutputFormat(
+            "application/json",
+            subtype="geojson",
+            charset="utf-8",
+            renderer_class=output.GeoJsonRenderer,
+        ),
         # OutputFormat("text/csv"),
         # OutputFormat("shapezip"),
         # OutputFormat("application/zip"),
     ]
-    xml_template_name = "get_feature.xml"
 
     def get_context_data(self, resultType, **params):
         if resultType == "HITS":
@@ -198,6 +202,7 @@ class GetFeature(WFSFeatureMethod):
         querysets = self.get_querysets(**params)
         number_matched = sum([qs.count() for qs in querysets])
         return {
+            "xsd_typenames": self.view.KVP["TYPENAMES"],
             "output_crs": srsName or params["typeNames"][0].crs,
             "feature_collections": [],
             "number_matched": number_matched,
@@ -247,6 +252,7 @@ class GetFeature(WFSFeatureMethod):
             next = self._replace_url_params(STARTINDEX=start + page_size)
 
         return {
+            "xsd_typenames": self.view.KVP["TYPENAMES"],
             "output_crs": srsName or params["typeNames"][0].crs,
             "feature_collections": feature_collections,
             "number_matched": number_matched,
@@ -301,74 +307,6 @@ class GetFeature(WFSFeatureMethod):
         # Attach extra property to keep meta-dataa in place
         queryset.feature = feature
         return queryset
-
-    def render_xml(self, context, **params):
-        """Improve the context for XML output."""
-        # It's not possible the stream the queryset results with the XML format,
-        # as the first tag needs to describe the number of results.
-        feature_collections = [
-            (feature, list(qs), matched)
-            for feature, qs, matched in context["feature_collections"]
-        ]
-
-        # Determine bounding box of all items. Start with an obviously invalid
-        # bbox, which corrects at the first extend_to_geometry call.
-        bbox = BoundingBox(math.inf, math.inf, -math.inf, -math.inf)
-        for feature, qs, matched in feature_collections:
-            for instance in qs:
-                geomery_value = getattr(instance, feature.geometry_field_name)
-                if geomery_value is None:
-                    continue
-
-                bbox.extend_to_geometry(geomery_value)
-
-        context["feature_collections"] = feature_collections
-        context["number_returned"] = sum(len(qs) for _, qs, _ in feature_collections)
-        context["bounding_box"] = bbox
-        context["xsd_typenames"] = self.view.KVP["TYPENAMES"]
-        return super().render_xml(context)
-
-    def render_geojson(self, context, **params):
-        # TODO: write JSON as stream instead.
-        # NOTE: Django has a GeoJSON serializer:
-        # https://docs.djangoproject.com/en/3.0/ref/contrib/gis/serializers/
-
-        # Flatten the results, they are not grouped in a second FeatureCollection
-        features = []
-        for feature, qs, number_matched in context["feature_collections"]:
-            for instance in qs:
-                geo_value = getattr(instance, feature.geometry_field_name)
-                geo_json = (
-                    orjson.loads(geo_value.geojson) if geo_value is not None else None
-                )
-                features.append(
-                    {
-                        "type": "Feature",
-                        "id": f"{feature.name}.{instance.pk}",  # foreign member (allowed by spec)
-                        "geometry_name": str(
-                            instance
-                        ),  # foreign member (allowed by spec)
-                        # "bbox": geo_value.extent,
-                        "geometry": geo_json,
-                        "properties": {
-                            name: getattr(instance, name)
-                            for name, _ in feature.fields
-                            if name not in feature.geometry_field_names
-                        },
-                    }
-                )
-
-        crs = context["output_crs"]
-        context = {
-            "type": "FeatureCollection",
-            "totalFeatures": context["number_matched"],
-            "crs": {"type": "name", "properties": {"name": str(crs)}},
-            "features": features,
-        }
-
-        return HttpResponse(
-            orjson.dumps(context), content_type="application/json; charset=utf-8"
-        )
 
     def _replace_url_params(self, **updates) -> str:
         """Replace a query parameter in the URL"""

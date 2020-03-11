@@ -1,3 +1,4 @@
+import json
 import sys
 from urllib.parse import quote_plus
 
@@ -7,9 +8,8 @@ from django.urls import path
 from lxml import etree
 
 from gisserver.features import FeatureType, ServiceDescription
-from gisserver.types import WGS84, CRS
+from gisserver.types import CRS, WGS84
 from gisserver.views import WFSView
-
 from tests.srid import RD_NEW_PROJ
 from tests.test_gisserver.models import Restaurant
 from .utils import WFS_20_XSD, assert_xml_equal, validate_xsd
@@ -38,10 +38,12 @@ if sys.platform == "darwin":
     POINT1_XML_WGS84 = "4.908761012851219 52.363171263735715"
     POINT1_XML_RD = "122411.00000717948 486250.0005178676"
     POINT1_GEOJSON = [4.908761012851219, 52.363171263735715]  # GeoJSON is always WGS84
+    POINT2_GEOJSON = [4.908903943932534, 52.36353134993197]  # GeoJSON is always WGS84
 else:
     POINT1_XML_WGS84 = "4.90876101285122 52.36317126373569"
     POINT1_XML_RD = "122411.00000717954 486250.0005178673"
     POINT1_GEOJSON = [4.90876101285122, 52.36317126373569]
+    POINT2_GEOJSON = [4.908903943932534, 52.36353134993195]
 
 
 class PlacesWFSView(WFSView):
@@ -128,7 +130,7 @@ class TestGetCapabilities:
         <DefaultCRS>urn:ogc:def:crs:EPSG::4326</DefaultCRS>
         <OtherCRS>urn:ogc:def:crs:EPSG::28992</OtherCRS>
         <OutputFormats>
-          <Format>text/xml; subtype=gml/3.1.1</Format>
+          <Format>text/xml; subtype=gml/3.2</Format>
           <Format>application/json; subtype=geojson; charset=utf-8</Format>
         </OutputFormats>
         <ows:WGS84BoundingBox dimensions="2">
@@ -214,7 +216,7 @@ class TestDescribeFeatureType:
             namespaces=NAMESPACES,
         )
         field_names = [el.attrib["name"] for el in elements]
-        assert field_names == ["id", "name", "location", "rating"]
+        assert field_names == ["id", "name", "location", "rating", "created"]
 
         assert_xml_equal(
             response.content,
@@ -237,6 +239,7 @@ class TestDescribeFeatureType:
           <element name="name" type="string" minOccurs="0" />
           <element name="location" type="gml:GeometryPropertyType" minOccurs="0" maxOccurs="1"/>
           <element name="rating" type="double" minOccurs="0" />
+          <element name="created" type="date" minOccurs="0" />
         </sequence>
       </extension>
     </complexContent>
@@ -266,18 +269,23 @@ class TestGetFeature:
     The methods need to have at least one datatype, otherwise not all content is rendered.
     """
 
+    @staticmethod
+    def read_response(response) -> str:
+        # works for all HttpResponse subclasses.
+        return b"".join(response).decode()
+
     def test_get(self, client, restaurant):
         """Prove that the happy flow works"""
         response = client.get(
             "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
         )
-        content = response.content.decode()
+        content = self.read_response(response)
         assert response["content-type"] == "text/xml; charset=utf-8", content
         assert response.status_code == 200, content
         assert "</wfs:FeatureCollection>" in content
 
         # Validate against the WFS 2.0 XSD
-        xml_doc = validate_xsd(response.content, WFS_20_XSD)
+        xml_doc = validate_xsd(content, WFS_20_XSD)
         assert xml_doc.attrib["numberMatched"] == "1"
         assert xml_doc.attrib["numberReturned"] == "1"
 
@@ -288,7 +296,7 @@ class TestGetFeature:
         timestamp = xml_doc.attrib["timeStamp"]
 
         assert_xml_equal(
-            response.content,
+            content,
             f"""<wfs:FeatureCollection
    xmlns:app="http://example.org/gisserver"
    xmlns:gml="http://www.opengis.net/gml/3.2"
@@ -313,6 +321,7 @@ class TestGetFeature:
           </gml:Point>
         </app:location>
         <app:rating>5.0</app:rating>
+        <app:created>2020-04-05T12:11:10+00:00</app:created>
       </app:restaurant>
     </wfs:member>
 </wfs:FeatureCollection>""",  # noqa: E501
@@ -324,19 +333,19 @@ class TestGetFeature:
         response = client.get(
             "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
         )
-        content = response.content.decode()
+        content = self.read_response(response)
         assert response["content-type"] == "text/xml; charset=utf-8", content
         assert response.status_code == 200, content
         assert "</wfs:FeatureCollection>" in content
 
         # Validate against the WFS 2.0 XSD
-        xml_doc = validate_xsd(response.content, WFS_20_XSD)
+        xml_doc = validate_xsd(content, WFS_20_XSD)
         feature = xml_doc.find("wfs:member/app:restaurant", namespaces=NAMESPACES)
         assert feature.find("app:location", namespaces=NAMESPACES).text is None
         timestamp = xml_doc.attrib["timeStamp"]
 
         assert_xml_equal(
-            response.content,
+            content,
             f"""<wfs:FeatureCollection
        xmlns:app="http://example.org/gisserver"
        xmlns:gml="http://www.opengis.net/gml/3.2"
@@ -351,6 +360,7 @@ class TestGetFeature:
             <app:name>Empty</app:name>
             <app:location />
             <app:rating>0.0</app:rating>
+            <app:created>2020-04-05T12:11:10+00:00</app:created>
           </app:restaurant>
         </wfs:member>
     </wfs:FeatureCollection>""",  # noqa: E501
@@ -362,13 +372,13 @@ class TestGetFeature:
             "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
             "&SRSNAME=urn:ogc:def:crs:EPSG::28992"
         )
-        content = response.content.decode()
+        content = self.read_response(response)
         assert response["content-type"] == "text/xml; charset=utf-8", content
         assert response.status_code == 200, content
         assert "</wfs:FeatureCollection>" in content
 
         # Validate against the WFS 2.0 XSD
-        xml_doc = validate_xsd(response.content, WFS_20_XSD)
+        xml_doc = validate_xsd(content, WFS_20_XSD)
         assert xml_doc.attrib["numberMatched"] == "1"
         assert xml_doc.attrib["numberReturned"] == "1"
 
@@ -379,7 +389,7 @@ class TestGetFeature:
 
         timestamp = xml_doc.attrib["timeStamp"]
         assert_xml_equal(
-            response.content,
+            content,
             f"""<wfs:FeatureCollection
        xmlns:app="http://example.org/gisserver"
        xmlns:gml="http://www.opengis.net/gml/3.2"
@@ -404,6 +414,7 @@ class TestGetFeature:
               </gml:Point>
             </app:location>
             <app:rating>5.0</app:rating>
+            <app:created>2020-04-05T12:11:10+00:00</app:created>
           </app:restaurant>
         </wfs:member>
     </wfs:FeatureCollection>""",  # noqa: E501
@@ -415,13 +426,13 @@ class TestGetFeature:
             "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
             "&BBOX=122400,486200,122500,486300,urn:ogc:def:crs:EPSG::28992"
         )
-        content = response.content.decode()
+        content = self.read_response(response)
         assert response["content-type"] == "text/xml; charset=utf-8", content
         assert response.status_code == 200, content
         assert "</wfs:FeatureCollection>" in content
 
         # Validate against the WFS 2.0 XSD
-        xml_doc = validate_xsd(response.content, WFS_20_XSD)
+        xml_doc = validate_xsd(content, WFS_20_XSD)
         assert xml_doc.attrib["numberMatched"] == "1"
         assert xml_doc.attrib["numberReturned"] == "1"
 
@@ -435,7 +446,8 @@ class TestGetFeature:
             "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
             "&BBOX=100,100,200,200,urn:ogc:def:crs:EPSG::28992"
         )
-        xml_doc = validate_xsd(response2.content, WFS_20_XSD)
+        content2 = self.read_response(response2)
+        xml_doc = validate_xsd(content2, WFS_20_XSD)
         assert xml_doc.attrib["numberMatched"] == "0"
         assert xml_doc.attrib["numberReturned"] == "0"
 
@@ -517,13 +529,13 @@ class TestGetFeature:
             "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
             "&FILTER=" + quote_plus(filter)
         )
-        content = response.content.decode()
+        content = self.read_response(response)
         assert response["content-type"] == "text/xml; charset=utf-8", content
         assert response.status_code == 200, content
         assert "</wfs:FeatureCollection>" in content
 
         # Validate against the WFS 2.0 XSD
-        xml_doc = validate_xsd(response.content, WFS_20_XSD)
+        xml_doc = validate_xsd(content, WFS_20_XSD)
         assert xml_doc.attrib["numberMatched"] == "1"
         assert xml_doc.attrib["numberReturned"] == "1"
 
@@ -589,12 +601,12 @@ class TestGetFeature:
             "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
             "&FILTER=" + quote_plus(filter.strip())
         )
-        content = response.content.decode()
+        content = self.read_response(response)
         assert response["content-type"] == "text/xml; charset=utf-8", content
         assert response.status_code == 400, content
         assert "</ows:Exception>" in content
 
-        xml_doc = validate_xsd(response.content, WFS_20_XSD)
+        xml_doc = validate_xsd(content, WFS_20_XSD)
         assert xml_doc.attrib["version"] == "2.0.0"
         exception = xml_doc.find("ows:Exception", NAMESPACES)
         assert exception.attrib["exceptionCode"] == "InvalidParameterValue"
@@ -608,20 +620,20 @@ class TestGetFeature:
             "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
             "&RESULTTYPE=hits"
         )
-        content = response.content.decode()
+        content = self.read_response(response)
         assert response["content-type"] == "text/xml; charset=utf-8", content
         assert response.status_code == 200, content
         assert "</wfs:FeatureCollection>" in content
 
         # Validate against the WFS 2.0 XSD
-        xml_doc = validate_xsd(response.content, WFS_20_XSD)
+        xml_doc = validate_xsd(content, WFS_20_XSD)
         assert xml_doc.attrib["numberMatched"] == "1"
         assert xml_doc.attrib["numberReturned"] == "0"
         assert not xml_doc.getchildren()  # should not have children!
         timestamp = xml_doc.attrib["timeStamp"]
 
         assert_xml_equal(
-            response.content,
+            content,
             f"""<wfs:FeatureCollection
    xmlns:app="http://example.org/gisserver"
    xmlns:gml="http://www.opengis.net/gml/3.2"
@@ -632,19 +644,25 @@ class TestGetFeature:
 </wfs:FeatureCollection>""",  # noqa: E501
         )
 
-    def test_get_geojson(self, client, restaurant):
-        """Prove that the geojson export works"""
+    def test_get_geojson(self, client, restaurant, bad_restaurant):
+        """Prove that the geojson export works.
+
+        Including 2 objects to prove that the list rendering
+        also includes comma's properly.
+        """
         response = client.get(
             "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
             "&outputformat=geojson"
         )
         assert response["content-type"] == "application/json; charset=utf-8"
-        content = response.json()
+        content = self.read_response(response)
+        data = json.loads(content)
+
         assert response.status_code == 200, content
-        assert content["features"][0]["geometry"]["coordinates"] == POINT1_GEOJSON
-        assert content == {
+        assert data["features"][0]["geometry"]["coordinates"] == POINT1_GEOJSON
+        assert data == {
             "type": "FeatureCollection",
-            "totalFeatures": 1,
+            "totalFeatures": 2,
             "crs": {
                 "type": "name",
                 "properties": {"name": "urn:ogc:def:crs:EPSG::4326"},
@@ -654,12 +672,25 @@ class TestGetFeature:
                     "type": "Feature",
                     "id": f"restaurant.{restaurant.id}",
                     "geometry_name": "Café Noir",
-                    "geometry": {"type": "Point", "coordinates": POINT1_GEOJSON,},
+                    "geometry": {"type": "Point", "coordinates": POINT1_GEOJSON},
                     "properties": {
                         "id": restaurant.id,
                         "name": "Café Noir",
                         "rating": 5.0,
+                        "created": "2020-04-05T12:11:10+00:00",
                     },
-                }
+                },
+                {
+                    "type": "Feature",
+                    "id": f"restaurant.{bad_restaurant.id}",
+                    "geometry_name": "Foo Bar",
+                    "geometry": {"type": "Point", "coordinates": POINT2_GEOJSON},
+                    "properties": {
+                        "id": bad_restaurant.id,
+                        "name": "Foo Bar",
+                        "rating": 1.0,
+                        "created": "2020-04-05T12:11:10+00:00",
+                    },
+                },
             ],
         }

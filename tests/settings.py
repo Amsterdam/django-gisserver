@@ -4,6 +4,8 @@ env = Env()
 
 SECRET_KEY = "insecure-tests-only"
 
+TIME_ZONE = "Europe/Amsterdam"
+
 DATABASES = {
     "default": env.db_url(
         "DATABASE_URL",

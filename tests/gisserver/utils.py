@@ -20,14 +20,21 @@ def compile_xsd(xsd_file) -> etree.XMLSchema:
     return etree.XMLSchema(xmlschema_doc)
 
 
-def validate_xsd(xml_text: bytes, xsd_file: str) -> etree._Element:
+def validate_xsd(xml_text: Union[bytes, str], xsd_file: str) -> etree._Element:
     """Validate an XML file"""
     xml_schema = compile_xsd(xsd_file)
 
-    xml_doc = etree.fromstring(xml_text)
+    if isinstance(xml_text, str):
+        xml_str = xml_text
+        xml_bytes = xml_text.encode()
+    else:
+        xml_bytes = xml_text
+        xml_str = xml_text.decode()
+
+    xml_doc = etree.fromstring(xml_bytes)
     if not xml_schema.validate(xml_doc):
         # Improve error message display, to ease debugging of XML data
-        source_lines = xml_text.decode().splitlines()
+        source_lines = xml_str.splitlines()
         raise etree.DocumentInvalid(
             "\n".join(
                 [
@@ -44,6 +51,9 @@ def validate_xsd(xml_text: bytes, xsd_file: str) -> etree._Element:
 def assert_xml_equal(got: Union[bytes, str], want: str):
     """Compare two XML strings."""
     checker = LXMLOutputChecker()
+    if isinstance(got, str):
+        got = got.encode()
+
     if not checker.check_output(want, got, PARSE_XML):
         example = Example("", "")
         example.want = want  # unencoded, avoid doctest for bytes type.

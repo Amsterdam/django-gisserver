@@ -113,10 +113,13 @@ class OutputFormat:
     These formats should be used in the ``output_formats`` section of the WFSMethod.
     """
 
-    def __init__(self, content_type, **extra):
+    def __init__(
+        self, content_type, renderer_class=None, **extra,
+    ):
         self.content_type = content_type
         self.extra = extra
         self.subtype = self.extra.get("subtype")
+        self.renderer_class = renderer_class
 
     def matches(self, value):
         """Test whether the 'value' is matched by this object."""
@@ -212,8 +215,11 @@ class WFSMethod:
         """Default call implementation: render an XML template."""
         context = self.get_context_data(**params)
         output_format: OutputFormat = params["outputFormat"]
-        if output_format.subtype == "geojson":
-            return self.render_geojson(context, **params)
+
+        if output_format.renderer_class is not None:
+            # Streaming HTTP responses, e.g. GML32/GeoJSON output:
+            renderer = output_format.renderer_class(self, context, **params)
+            return renderer.get_response()
         else:
             return self.render_xml(context, **params)
 
@@ -221,12 +227,11 @@ class WFSMethod:
         """Collect all arguments to use for rendering the XML template"""
         return {}
 
-    def render_geojson(self, context, **params):
-        """Shortcut to render JSON"""
-        raise NotImplementedError()
-
     def render_xml(self, context, **params):
-        """Shortcut to render XML"""
+        """Shortcut to render XML.
+
+        This is the default method when the OutputFormat class doesn't have a renderer_class
+        """
         return HttpResponse(
             render_to_string(
                 self._get_xml_template_name(),
