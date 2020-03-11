@@ -1,3 +1,16 @@
+# 2020-03-11 (0.4)
+
+* Added response streaming for GML/GeoJSON
+* Added `OutputFormat(..., renderer_class=...)` API to integrate custom output formats.
+* Added `SORTBY` parameter support.
+* Fixed mentioning GML 3.2 instead of 3.1.1 in `GetCapabilities`.
+* Fixed exposing FES filter capabilities for `GetCapabilities` request.
+* Fixed error reporting for filter XML that were omitted.
+* Fixed BBOX and FILTER to be mutually exclusive, as the spec requests.
+* Fixed ISO formatting for date/datetime/time.
+* Reverted BBOX operator to intersects (is more correct).
+* Internal code reorganizations.
+
 # 2020-03-09 (0.3)
 
 * Added FES filtering support.
