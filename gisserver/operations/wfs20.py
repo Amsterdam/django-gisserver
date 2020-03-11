@@ -9,9 +9,10 @@ Useful docs:
 """
 import logging
 import re
-from typing import List
+from typing import List, Optional
 from urllib.parse import urlencode
 
+from django.core.exceptions import FieldError
 from django.db import ProgrammingError
 
 from gisserver.exceptions import InvalidParameterValue, VersionNegotiationFailed
@@ -243,19 +244,7 @@ class GetFeature(WFSFeatureMethod):
             ]
         except ProgrammingError as e:
             # e.g. comparing datetime against integer
-            fes_xml = params["filter"].source if params["filter"] else "(not provided)"
-            try:
-                sql = e.__cause__.cursor.query.decode()
-            except AttributeError:
-                logger.warning("WFS query failed: %s\nFilter:\n%s", e, fes_xml)
-            else:
-                logger.warning(
-                    "WFS query failed: %s\nSQL Query: %s\n\nFilter:\n%s",
-                    e,
-                    sql,
-                    fes_xml,
-                )
-
+            self._log_filter_error(logging.WARNING, e, params["filter"])
             raise InvalidParameterValue(
                 "filter",
                 "Invalid filter query, check the used datatypes and field names.",
@@ -286,7 +275,13 @@ class GetFeature(WFSFeatureMethod):
         ]
 
     def filter_queryset(
-        self, feature: FeatureType, queryset, bbox, filter, sortBy, **params
+        self,
+        feature: FeatureType,
+        queryset,
+        bbox: Optional[BoundingBox],
+        filter: Optional[fes20.Filter],
+        sortBy,
+        **params,
     ):
         """Apply the filters to a single feature type."""
         filters = {}
@@ -318,6 +313,12 @@ class GetFeature(WFSFeatureMethod):
 
             try:
                 queryset = filter.filter_queryset(queryset)
+            except FieldError as e:
+                # e.g. doing a LIKE on a foreign key
+                self._log_filter_error(logging.ERROR, e, filter)
+                raise InvalidParameterValue(
+                    "filter", f"Internal error when processing filter",
+                ) from e
             except (ValueError, TypeError) as e:
                 raise InvalidParameterValue(
                     "filter", f"Invalid filter query: {e}",
@@ -326,6 +327,22 @@ class GetFeature(WFSFeatureMethod):
         # Attach extra property to keep meta-dataa in place
         queryset.feature = feature
         return queryset
+
+    def _log_filter_error(self, level, exc, filter: fes20.Filter):
+        """Report a filtering parsing error in the logging"""
+        fes_xml = filter.source if filter is not None else "(not provided)"
+        try:
+            sql = exc.__cause__.cursor.query.decode()
+        except AttributeError:
+            logger.log(level, "WFS query failed: %s\nFilter:\n%s", exc, fes_xml)
+        else:
+            logger.log(
+                level,
+                "WFS query failed: %s\nSQL Query: %s\n\nFilter:\n%s",
+                exc,
+                sql,
+                fes_xml,
+            )
 
     def _replace_url_params(self, **updates) -> str:
         """Replace a query parameter in the URL"""

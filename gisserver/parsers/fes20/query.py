@@ -73,8 +73,7 @@ class FesQuery:
             return NotImplemented
 
 
-@models.CharField.register_lookup
-@models.TextField.register_lookup
+@models.Field.register_lookup
 class FesLike(lookups.Lookup):
     """Allow fieldname__fes_like=... lookups in querysets."""
 
@@ -95,10 +94,7 @@ class FesLike(lookups.Lookup):
         return "%s", [value]
 
 
-@models.CharField.register_lookup
-@models.TextField.register_lookup
-@models.DateField.register_lookup
-@models.DateTimeField.register_lookup
+@models.Field.register_lookup
 class FesNotEqualTo(lookups.Lookup):
     """Allow fieldname__fes_notequal=... lookups in querysets."""
 
