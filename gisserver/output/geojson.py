@@ -38,6 +38,7 @@ class GeoJsonRenderer(GetFeatureOutputRenderer):
             for instance in qs:
                 # Get all instance attributes:
                 geo_value = getattr(instance, feature.geometry_field_name)
+                self.output_crs.apply_to(geo_value)
                 geometry = (
                     geo_value.geojson.encode() if geo_value is not None else b"null"
                 )
