@@ -1,6 +1,7 @@
 """These classes map to the FES 2.0 specification for expressions.
 The class names are identical to those in the FES spec.
 """
+import operator
 import re
 from dataclasses import dataclass
 from datetime import date, datetime
@@ -12,7 +13,7 @@ from django.contrib.gis.geos import GEOSGeometry
 from django.db.models import F, Func, Q, Value
 from django.db.models.expressions import Combinable
 
-from gisserver.parsers.base import BaseNode, FES20, tag_registry
+from gisserver.parsers.base import FES20, BaseNode, TagNameEnum, tag_registry
 from gisserver.parsers.fes20.functions import function_registry
 from gisserver.parsers.utils import auto_cast, expect_tag, get_attribute, xsd_cast
 
@@ -22,6 +23,19 @@ RE_NON_NAME = re.compile(r"[^a-zA-Z0-9_/]")
 RhsTypes = Union[
     Combinable, Func, Q, GEOSGeometry, bool, int, str, date, datetime, tuple
 ]
+
+
+class BinaryOperatorType(TagNameEnum):
+    """FES 1.0 Arithmetic operators.
+
+    This are no longer part of the FES 2.0 spec, but clients (like QGis)
+    still assume the server supports these. Hence these need to be included.
+    """
+
+    Add = operator.add
+    Sub = operator.sub
+    Mul = operator.mul
+    Div = operator.truediv
 
 
 class Expression(BaseNode):
@@ -37,10 +51,7 @@ class Expression(BaseNode):
         expression is actually a Function/Literal, this should generate the
         name using a queryset annotation.
         """
-        value = self.build_rhs(fesquery)
-        if not isinstance(value, (Combinable, Q)):
-            value = Value(value)  # e.g. str, or GEOSGeometry
-
+        value = _make_combinable(self.build_rhs(fesquery))
         return fesquery.add_annotation(value)
 
     def build_rhs(self, fesquery) -> RhsTypes:
@@ -154,3 +165,39 @@ class Function(Expression):
         db_function = function_registry.resolve_function(self.name)
         args = [arg.build_rhs(fesquery) for arg in self.arguments]
         return db_function(*args)
+
+
+@dataclass
+@tag_registry.register_names(BinaryOperatorType)
+class BinaryOperator(Expression):
+    """Support for FES 1.0 arithmetic operators.
+
+    This are no longer part of the FES 2.0 spec, but clients (like QGis)
+    still assume the server supports these. Hence these need to be included.
+    """
+
+    _operatorType: BinaryOperatorType
+    expression: Tuple[Expression, Expression]
+
+    @classmethod
+    def from_xml(cls, element: Element):
+        return cls(
+            _operatorType=BinaryOperatorType.from_xml(element),
+            expression=(
+                Expression.from_child_xml(element[0]),
+                Expression.from_child_xml(element[1]),
+            ),
+        )
+
+    def build_rhs(self, fesquery) -> RhsTypes:
+        value1 = _make_combinable(self.expression[0].build_rhs(fesquery))
+        value2 = _make_combinable(self.expression[1].build_rhs(fesquery))
+        return self._operatorType.value(value1, value2)
+
+
+def _make_combinable(value) -> Union[Combinable, Q]:
+    """Make sure the scalar value is wrapped inside a compilable object"""
+    if isinstance(value, (Combinable, Q)):
+        return value
+    else:
+        return Value(value)  # e.g. str, or GEOSGeometry
