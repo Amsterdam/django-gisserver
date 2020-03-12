@@ -274,6 +274,15 @@ class TestGetFeature:
         # works for all HttpResponse subclasses.
         return b"".join(response).decode()
 
+    @staticmethod
+    def read_json(content) -> dict:
+        try:
+            return json.loads(content)
+        except json.JSONDecodeError as e:
+            snippet = content[e.pos - 300 : e.pos + 300]
+            snippet = snippet[snippet.index("\n") :]  # from last newline
+            raise AssertionError(f"Parsing JSON failed: {e}\nNear: {snippet}") from None
+
     def test_get(self, client, restaurant):
         """Prove that the happy flow works"""
         response = client.get(
@@ -691,13 +700,16 @@ class TestGetFeature:
         )
         assert response["content-type"] == "application/json; charset=utf-8"
         content = self.read_response(response)
-        data = json.loads(content)
-
         assert response.status_code == 200, content
+        data = self.read_json(content)
+
         assert data["features"][0]["geometry"]["coordinates"] == POINT1_GEOJSON
         assert data == {
             "type": "FeatureCollection",
-            "totalFeatures": 2,
+            "links": [],
+            "timeStamp": data["timeStamp"],
+            "numberMatched": 2,
+            "numberReturned": 2,
             "crs": {
                 "type": "name",
                 "properties": {"name": "urn:ogc:def:crs:EPSG::4326"},
@@ -729,3 +741,24 @@ class TestGetFeature:
                 },
             ],
         }
+
+    def test_get_geojson_pagination(self, client):
+        """Prove that the geojson export handles pagination."""
+        # Create a large set so the buffer needs to flush.
+        for i in range(1500):
+            Restaurant.objects.create(name=f"obj#{i}")
+
+        response = client.get(
+            "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
+            "&outputformat=geojson"
+        )
+        assert response["content-type"] == "application/json; charset=utf-8"
+        content = self.read_response(response)
+
+        # If the response is invalid json, there was likely
+        # some exception that aborted further writing.
+        data = self.read_json(content)
+
+        assert len(data["features"]) == 1000
+        assert data["numberReturned"] == 1000
+        assert data["numberMatched"] == 1500
