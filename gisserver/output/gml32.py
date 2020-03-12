@@ -14,20 +14,7 @@ class GML32Renderer(GetFeatureOutputRenderer):
     """Render the GetFeature XML output in GML 3.2 format"""
 
     content_type = "text/xml; charset=utf-8"
-
-    def get_context_data(self, **context):
-        """Improve the context for XML output."""
-        # It's not possible the stream the queryset results with the XML format,
-        # as the first tag needs to describe the number of results.
-        feature_collections = [
-            (feature, list(qs), matched)
-            for feature, qs, matched in context["feature_collections"]
-        ]
-
-        context["feature_collections"] = feature_collections
-        context["number_returned"] = sum(len(qs) for _, qs, _ in feature_collections)
-        context["bounding_box"] = self.get_bounding_box(feature_collections)
-        return context
+    needs_number_matched = True
 
     def render_get_feature(
         self, feature_collections, number_matched, number_returned, next, previous

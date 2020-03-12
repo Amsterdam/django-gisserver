@@ -50,6 +50,9 @@ class GetFeatureOutputRenderer(OutputRenderer):
     This maps some common elements to avoid duplication.
     """
 
+    #: Whether the output format needs a number_matched in the context data
+    needs_number_matched = False
+
     def __init__(self, method: WFSMethod, context: dict, **params):
         # Common elements for GetFeature output:
         self.server_url = method.view.server_url
@@ -61,8 +64,26 @@ class GetFeatureOutputRenderer(OutputRenderer):
 
         super().__init__(method, context, **params)
 
+    def get_context_data(self, **context):
+        """Improve the context for XML output."""
+        if not self.needs_number_matched:
+            return context
+
+        # For GML/XML, it's not possible the stream the queryset results
+        # as the first tag needs to describe the number of results.
+        feature_collections = [
+            (feature, list(qs), matched)
+            for feature, qs, matched in context["feature_collections"]
+        ]
+
+        context["feature_collections"] = feature_collections
+        context["number_returned"] = sum(len(qs) for _, qs, _ in feature_collections)
+        context["bounding_box"] = self.get_bounding_box(feature_collections)
+        return context
+
     def render_stream(self):
         """Render the XML as streaming content"""
+        # This is just a convenience approach for various common parameters:
         return self.render_get_feature(
             feature_collections=self.context["feature_collections"],
             number_matched=self.context.get("number_matched"),
