@@ -7,7 +7,7 @@ from django.utils.timezone import utc
 
 from gisserver.features import FeatureType
 
-from .base import GetFeatureOutputRenderer
+from .base import GetFeatureOutputRenderer, StringBuffer
 
 
 class GML32Renderer(GetFeatureOutputRenderer):
@@ -41,8 +41,10 @@ class GML32Renderer(GetFeatureOutputRenderer):
             "http://www.opengis.net/gml/3.2 http://schemas.opengis.net/gml/3.2.1/gml.xsd",
         ]
 
-        yield format_html(
-            """<?xml version='1.0' encoding="UTF-8" ?>
+        output = StringBuffer()
+        output.write(
+            format_html(
+                """<?xml version='1.0' encoding="UTF-8" ?>
 <wfs:FeatureCollection
      xmlns:app="{app_xml_namespace}"
      xmlns:gml="http://www.opengis.net/gml/3.2"
@@ -50,13 +52,14 @@ class GML32Renderer(GetFeatureOutputRenderer):
      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
      xsi:schemaLocation="{schema_location}"
      timeStamp="{timestamp}" numberMatched="{number_matched}" numberReturned="{number_returned}"{next}{previous}>""",  # noqa: E501
-            app_xml_namespace=self.app_xml_namespace,
-            schema_location=" ".join(schema_location),
-            timestamp=self.timestamp,
-            number_matched="unknown" if number_matched is None else number_matched,
-            number_returned=number_returned,
-            next=format_html(' next="{}"', next) if next else "",
-            previous=format_html(' previous="{}"', previous) if previous else "",
+                app_xml_namespace=self.app_xml_namespace,
+                schema_location=" ".join(schema_location),
+                timestamp=self.timestamp,
+                number_matched="unknown" if number_matched is None else number_matched,
+                number_returned=number_returned,
+                next=format_html(' next="{}"', next) if next else "",
+                previous=format_html(' previous="{}"', previous) if previous else "",
+            )
         )
         if number_returned:
             # <wfs:boundedBy>
@@ -68,60 +71,71 @@ class GML32Renderer(GetFeatureOutputRenderer):
 
             for feature, instances, number_matched in feature_collections:
                 if len(feature_collections) > 1:
-                    yield format_html(
-                        "  <wfs:member>\n"
-                        "    <wfs:FeatureCollection"
-                        ' timeStamp="{timestamp}"'
-                        ' numberMatched="{number_matched}"'
-                        ' numberReturned="{number_returned}">',
-                        timestamp=self.timestamp,
-                        number_matche=number_matched,
-                        number_returned=len(instances),
-                    )
-
-                yield from self.render_xml_members(feature, instances)
-
-                if len(feature_collections) > 1:
-                    yield "    </wfs:FeatureCollection>\n  </wfs:member>"
-
-        yield "</wfs:FeatureCollection>\n"
-
-    def render_xml_members(self, feature: FeatureType, instances: list):
-        gml_seq = 0
-        for instance in instances:
-            bits = [
-                "  <wfs:member>\n",
-                format_html(
-                    '    <app:{name} gml:id="{name}.{pk}">\n',
-                    name=feature.name,
-                    pk=instance.pk,
-                ),
-            ]
-
-            member_bbox = feature.get_envelope(instance, self.output_crs)
-            if member_bbox is not None:
-                bits.append(self.render_gml_bounds(member_bbox))
-
-            for field, xs_type in feature.fields:
-                value = getattr(instance, field)
-                if isinstance(value, GEOSGeometry):
-                    gml_seq += 1
-                    bits.append(
-                        self.render_gml_field(
-                            feature,
-                            field,
-                            value,
-                            gml_id=self.get_gml_id(feature, instance, seq=gml_seq),
+                    output.write(
+                        format_html(
+                            "  <wfs:member>\n"
+                            "    <wfs:FeatureCollection"
+                            ' timeStamp="{timestamp}"'
+                            ' numberMatched="{number_matched}"'
+                            ' numberReturned="{number_returned}">\n',
+                            timestamp=self.timestamp,
+                            number_matche=number_matched,
+                            number_returned=len(instances),
                         )
                     )
-                else:
-                    bits.append(self.render_xml_field(feature, field, value))
 
-            bits.append(format_html("    </app:{name}>\n", name=feature.name))
-            bits.append("  </wfs:member>\n")
-            yield "".join(bits)  # yield just once
+                for instance in instances:
+                    output.write(self.render_xml_member(feature, instance))
 
-    def render_xml_field(self, feature: FeatureType, field: str, value):
+                    # Only perform a 'yield' every once in a while,
+                    # as it goes back-and-forth for writing it to the client.
+                    if output.is_full():
+                        yield output.getvalue()
+                        output.clear()
+
+                if len(feature_collections) > 1:
+                    output.write("    </wfs:FeatureCollection>\n  </wfs:member>\n")
+
+        output.write("</wfs:FeatureCollection>\n")
+        yield output.getvalue()
+
+    def render_xml_member(self, feature: FeatureType, instance) -> str:
+        """Write the XML for a single object."""
+        gml_seq = 0
+        output = StringBuffer()
+        output.write("  <wfs:member>\n")
+        output.write(
+            format_html(
+                '    <app:{name} gml:id="{name}.{pk}">\n',
+                name=feature.name,
+                pk=instance.pk,
+            ),
+        )
+
+        member_bbox = feature.get_envelope(instance, self.output_crs)
+        if member_bbox is not None:
+            output.write(self.render_gml_bounds(member_bbox))
+
+        for field, xs_type in feature.fields:
+            value = getattr(instance, field)
+            if isinstance(value, GEOSGeometry):
+                gml_seq += 1
+                output.write(
+                    self.render_gml_field(
+                        feature,
+                        field,
+                        value,
+                        gml_id=self.get_gml_id(feature, instance, seq=gml_seq),
+                    )
+                )
+            else:
+                output.write(self.render_xml_field(feature, field, value))
+
+        output.write(format_html("    </app:{name}>\n", name=feature.name))
+        output.write("  </wfs:member>\n")
+        return output.getvalue()
+
+    def render_xml_field(self, feature: FeatureType, field: str, value) -> str:
         """Write the value of a single field."""
         if value is None:
             return format_html("    <app:{field} />\n", field=field)
@@ -136,7 +150,7 @@ class GML32Renderer(GetFeatureOutputRenderer):
             "    <app:{field}>{value}</app:{field}>\n", field=field, value=value
         )
 
-    def render_gml_field(self, feature: FeatureType, name, value, gml_id):
+    def render_gml_field(self, feature: FeatureType, name, value, gml_id) -> str:
         """Write the value of an GML tag"""
         return format_html(
             "      <app:{name}>{gml}</app:{name}>\n",
@@ -144,7 +158,7 @@ class GML32Renderer(GetFeatureOutputRenderer):
             gml=self.render_gml_value(value, gml_id=gml_id),
         )
 
-    def render_gml_value(self, value: GEOSGeometry, gml_id: str):
+    def render_gml_value(self, value: GEOSGeometry, gml_id: str) -> str:
         """Convert a Geometry into GML syntax."""
         self.output_crs.apply_to(value)
         if isinstance(value, Point):

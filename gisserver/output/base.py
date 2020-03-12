@@ -1,3 +1,4 @@
+import io
 import math
 
 from django.http import StreamingHttpResponse
@@ -91,3 +92,44 @@ class GetFeatureOutputRenderer(OutputRenderer):
                 bbox.extend_to_geometry(geomery_value)
 
         return bbox
+
+
+class BaseBuffer:
+    """Fast buffer to write data in chunks.
+    This avoids performing too many yields in the output writing.
+    Especially for GeoJSON, that slows down the response times.
+    """
+
+    buffer_class = None
+
+    def __init__(self, chunk_size=4096):
+        self.data = self.buffer_class()
+        self.size = 0
+        self.chunk_size = chunk_size
+
+    def is_full(self):
+        return self.size >= self.chunk_size
+
+    def write(self, value):
+        self.size += len(value)
+        self.data.write(value)
+
+    def getvalue(self):
+        return self.data.getvalue()
+
+    def clear(self):
+        self.data.seek(0)
+        self.data.truncate(0)
+        self.size = 0
+
+
+class BytesBuffer(BaseBuffer):
+    """Collect the data as bytes."""
+
+    buffer_class = io.BytesIO
+
+
+class StringBuffer(BaseBuffer):
+    """Collect the data as string"""
+
+    buffer_class = io.StringIO
