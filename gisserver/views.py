@@ -90,6 +90,7 @@ class GISView(View):
                 exc.as_xml().encode("utf-8"),
                 content_type="text/xml; charset=utf-8",
                 status=exc.status_code,
+                reason=exc.reason,
             )
 
     def get(self, request, *args, **kwargs):
