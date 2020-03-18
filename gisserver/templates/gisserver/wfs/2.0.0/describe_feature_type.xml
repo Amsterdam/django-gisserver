@@ -1,4 +1,9 @@
-<?xml version='1.0' encoding="UTF-8" ?>
+<?xml version='1.0' encoding="UTF-8" ?>{% comment %}<!--
+
+  This schema essentially declares our <app:featureName> to be a subclass of <gml:AbstractFeatureType>.
+  Thus, elements like <gml:name> and <gml:boundedBy> are also supported.
+
+-->{% endcomment %}
 <schema
    xmlns="http://www.w3.org/2001/XMLSchema"
    xmlns:app="{{ app_xml_namespace }}"

@@ -62,7 +62,11 @@ class PlacesWFSView(WFSView):
 
     # Each Django model is listed here as a feature.
     feature_types = [
-        FeatureType(Restaurant.objects.all(), other_crs=[RD_NEW]),
+        FeatureType(
+            Restaurant.objects.all(),
+            fields="__all__",
+            other_crs=[RD_NEW]
+        ),
     ]
 ```
 
@@ -85,6 +89,9 @@ It will perform requests such as:
 * <http://localhost:8000/wfs/places/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant&STARTINDEX=0&COUNT=1000&SRSNAME=urn:ogc:def:crs:EPSG::28992>
 
 By adding `&OUTPUTFORMAT=geojson` to the `GetFeature` request, the GeoJSON output is returned.
+
+NOTE: by default, the minimum number of model fields are exposed as WFS attributes.
+Use `FeatureType(..., fields=[...])` parameter to define which fields should be exposed.
 
 ## Standards compliance
 

@@ -93,12 +93,15 @@ class GML32Renderer(GetFeatureOutputRenderer):
         output.write("  <wfs:member>\n")
         output.write(
             format_html(
-                '    <app:{name} gml:id="{name}.{pk}">\n',
+                '    <app:{name} gml:id="{name}.{pk}">\n'
+                "      <gml:name>{display}</gml:name>\n",
                 name=feature.name,
                 pk=instance.pk,
+                display=str(instance),
             ),
         )
 
+        # Add <gml:boundedBy>
         member_bbox = feature.get_envelope(instance, self.output_crs)
         if member_bbox is not None:
             output.write(self.render_gml_bounds(member_bbox))

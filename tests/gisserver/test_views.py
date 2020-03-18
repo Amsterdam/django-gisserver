@@ -6,7 +6,6 @@ import pytest
 from django.contrib.gis.gdal import SpatialReference
 from django.urls import path
 from lxml import etree
-from lxml.etree import QName
 
 from gisserver.features import FeatureType, ServiceDescription
 from gisserver.types import CRS, WGS84
@@ -63,6 +62,7 @@ class PlacesWFSView(WFSView):
     feature_types = [
         FeatureType(
             Restaurant.objects.all(),
+            fields="__all__",
             keywords=["unittest"],
             other_crs=[RD_NEW],
             metadata_url="/feature/restaurants/",
@@ -70,7 +70,6 @@ class PlacesWFSView(WFSView):
         FeatureType(
             Restaurant.objects.all(),
             name="mini-restaurant",
-            fields=["name", "location"],
             keywords=["unittest", "limited-fields"],
             other_crs=[RD_NEW],
             metadata_url="/feature/restaurants-limit/",
@@ -345,6 +344,7 @@ class TestGetFeature:
 
     <wfs:member>
       <app:restaurant gml:id="restaurant.{restaurant.id}">
+        <gml:name>Café Noir</gml:name>
         <gml:boundedBy>
             <gml:Envelope srsName="urn:ogc:def:crs:EPSG::4326">
                 <gml:lowerCorner>{POINT1_XML_WGS84}</gml:lowerCorner>
@@ -395,6 +395,7 @@ class TestGetFeature:
 
         <wfs:member>
           <app:restaurant gml:id="restaurant.{restaurant.id}">
+            <gml:name>Empty</gml:name>
             <app:id>{restaurant.id}</app:id>
             <app:name>Empty</app:name>
             <app:city_id xsi:nil="true" />
@@ -424,16 +425,8 @@ class TestGetFeature:
         # See whether our feature is rendered
         feature = xml_doc.find("wfs:member/app:mini-restaurant", namespaces=NAMESPACES)
         assert feature is not None
-        assert feature.find("app:name", namespaces=NAMESPACES).text == restaurant.name
+        assert feature.find("gml:name", namespaces=NAMESPACES).text == restaurant.name
         timestamp = xml_doc.attrib["timeStamp"]
-
-        first_member = xml_doc.find(
-            "wfs:member/app:mini-restaurant", namespaces=NAMESPACES,
-        )
-        # QName isn't used in the app parsing because that uses defusedxml ElementTree
-        # instead of the lxml parser that's used here.
-        field_names = [QName(el).localname for el in first_member if el.prefix == "app"]
-        assert field_names == ["name", "location"]
 
         assert_xml_equal(
             content,
@@ -447,13 +440,13 @@ class TestGetFeature:
 
     <wfs:member>
       <app:mini-restaurant gml:id="mini-restaurant.{restaurant.id}">
+        <gml:name>Café Noir</gml:name>
         <gml:boundedBy>
             <gml:Envelope srsName="urn:ogc:def:crs:EPSG::4326">
                 <gml:lowerCorner>{POINT1_XML_WGS84}</gml:lowerCorner>
                 <gml:upperCorner>{POINT1_XML_WGS84}</gml:upperCorner>
             </gml:Envelope>
         </gml:boundedBy>
-        <app:name>Café Noir</app:name>
         <app:location>
           <gml:Point gml:id="mini-restaurant.{restaurant.id}.1" srsName="urn:ogc:def:crs:EPSG::4326">
             <gml:pos>{POINT1_XML_WGS84}</gml:pos>
@@ -498,6 +491,7 @@ class TestGetFeature:
 
         <wfs:member>
           <app:restaurant gml:id="restaurant.{restaurant.id}">
+            <gml:name>Café Noir</gml:name>
             <gml:boundedBy>
               <gml:Envelope srsName="urn:ogc:def:crs:EPSG::28992">
                 <gml:lowerCorner>{POINT1_XML_RD}</gml:lowerCorner>

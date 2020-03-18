@@ -1,7 +1,7 @@
 """Dataclasses that expose the metadata for the GetCapabilities call."""
 from dataclasses import dataclass, field
 from math import inf
-from typing import List, Optional
+from typing import List, Optional, Union
 
 from django.contrib.gis.db.models import Extent, GeometryField
 from django.contrib.gis.db.models.functions import Transform
@@ -11,6 +11,8 @@ from django.db.models.fields.reverse_related import ForeignObjectRel
 from django.utils.functional import cached_property  # py3.8: functools
 
 from gisserver.types import CRS, WGS84, BoundingBox
+
+NoneType = type(None)
 
 XSD_TYPES = {
     models.BooleanField: "boolean",
@@ -46,14 +48,16 @@ class FeatureType:
 
     queryset: models.QuerySet
 
-    #: Name of the geometry field to expose (default =
+    #: Define which fields to show in the WFS data:
+    fields: Union[str, List[str], NoneType] = None
+
+    #: Name of the geometry field to expose (default = auto detect)
     geometry_field_name: str = None
 
-    #: Define which fields to show in the WFS data:
-    fields: Optional[List[str]] = None
+    #: Name, also used as XML tag name
+    name: str = None
 
     # WFS Metadata:
-    name: str = None
     title: str = None
     abstract: str = None
     keywords: List[str] = field(default_factory=list)
@@ -78,13 +82,22 @@ class FeatureType:
             self.name = self.model._meta.model_name
         if not self.title:
             self.title = self.model._meta.verbose_name
-        if self.fields is None:
-            self.fields = self._get_default_fields()
 
+        # Auto-detect geometry fields (also fills geometry_field_name)
         self.geometry_fields = [
             f for f in self.model._meta.get_fields() if isinstance(f, GeometryField)
         ]
         self.geometry_field = self._get_geometry_field()
+
+        if self.fields is None:
+            self.fields = [self.geometry_field_name]
+        elif isinstance(self.fields, str):
+            if self.fields == "__all__":
+                self.fields = self._get_all_fields()
+            else:
+                raise TypeError('FeatureType.fields accepts lists and "__all__"')
+
+        # Default CRS
         default_crs = self.geometry_field.srid  # checks lookup too
         if not self.crs:
             self.crs = CRS.from_string(default_crs)
@@ -102,7 +115,7 @@ class FeatureType:
 
         return fields
 
-    def _get_default_fields(self) -> List[str]:
+    def _get_all_fields(self) -> List[str]:
         """Return all fields that can be queried."""
         fields = []
         for model_field in self.model._meta.get_fields():
