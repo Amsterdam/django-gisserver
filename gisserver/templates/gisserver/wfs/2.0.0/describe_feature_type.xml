@@ -1,10 +1,9 @@
 <?xml version='1.0' encoding="UTF-8" ?>
 <schema
-   targetNamespace="{{ app_xml_namespace }}"
-   xmlns:app="{{ app_xml_namespace }}"
-   xmlns:xsd="http://www.w3.org/2001/XMLSchema"
    xmlns="http://www.w3.org/2001/XMLSchema"
+   xmlns:app="{{ app_xml_namespace }}"
    xmlns:gml="http://www.opengis.net/gml/3.2"
+   targetNamespace="{{ app_xml_namespace }}"
    elementFormDefault="qualified" version="0.1" >
 
   <import namespace="http://www.opengis.net/gml/3.2" schemaLocation="http://schemas.opengis.net/gml/3.2.1/gml.xsd" />
@@ -15,7 +14,7 @@
   <complexType name="{{ feature.name }}Type">
     <complexContent>
       <extension base="gml:AbstractFeatureType">
-        <sequence>{% for name, xs_type in feature.fields %}
+        <sequence>{% for name, xs_type in feature.fields_with_type %}
           <element name="{{ name }}" type="{{ xs_type }}" minOccurs="0"{% if "gml:" in xs_type %} maxOccurs="1"{% endif %}/>{% endfor %}
         </sequence>
       </extension>

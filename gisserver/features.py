@@ -1,7 +1,7 @@
 """Dataclasses that expose the metadata for the GetCapabilities call."""
 from dataclasses import dataclass, field
 from math import inf
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
 from django.contrib.gis.db.models import Extent, GeometryField
 from django.contrib.gis.db.models.functions import Transform
@@ -45,7 +45,12 @@ class FeatureType:
     """
 
     queryset: models.QuerySet
+
+    #: Name of the geometry field to expose (default =
     geometry_field_name: str = None
+
+    #: Define which fields to show in the WFS data:
+    fields: Optional[List[str]] = None
 
     # WFS Metadata:
     name: str = None
@@ -73,6 +78,8 @@ class FeatureType:
             self.name = self.model._meta.model_name
         if not self.title:
             self.title = self.model._meta.verbose_name
+        if self.fields is None:
+            self.fields = self._get_default_fields()
 
         self.geometry_fields = [
             f for f in self.model._meta.get_fields() if isinstance(f, GeometryField)
@@ -87,7 +94,15 @@ class FeatureType:
         return [f.name for f in self.geometry_fields]
 
     @cached_property
-    def fields(self) -> List[Tuple[str, str]]:
+    def fields_with_type(self):
+        fields = []
+        for name in self.fields:
+            field = self.model._meta.get_field(name)
+            fields.append((name, self.get_field_type(field)))
+
+        return fields
+
+    def _get_default_fields(self) -> List[str]:
         """Return all fields that can be queried."""
         fields = []
         for model_field in self.model._meta.get_fields():
@@ -97,8 +112,7 @@ class FeatureType:
             else:
                 field_name = model_field.name
 
-            field_type = self.get_field_type(model_field)
-            fields.append((field_name, field_type))
+            fields.append(field_name)
 
         return fields
 

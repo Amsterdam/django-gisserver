@@ -103,7 +103,7 @@ class GML32Renderer(GetFeatureOutputRenderer):
         if member_bbox is not None:
             output.write(self.render_gml_bounds(member_bbox))
 
-        for field, xs_type in feature.fields:
+        for field in feature.fields:
             value = getattr(instance, field)
             if isinstance(value, GEOSGeometry):
                 gml_seq += 1

@@ -157,6 +157,6 @@ class GeoJsonRenderer(GetFeatureOutputRenderer):
         """Collect the data for the 'properties' field"""
         return {
             name: self._format_geojson_value(getattr(instance, name))
-            for name, _ in feature.fields
+            for name in feature.fields
             if name not in feature.geometry_field_names
         }

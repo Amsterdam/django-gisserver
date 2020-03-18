@@ -6,6 +6,7 @@ import pytest
 from django.contrib.gis.gdal import SpatialReference
 from django.urls import path
 from lxml import etree
+from lxml.etree import QName
 
 from gisserver.features import FeatureType, ServiceDescription
 from gisserver.types import CRS, WGS84
@@ -65,6 +66,14 @@ class PlacesWFSView(WFSView):
             keywords=["unittest"],
             other_crs=[RD_NEW],
             metadata_url="/feature/restaurants/",
+        ),
+        FeatureType(
+            Restaurant.objects.all(),
+            name="mini-restaurant",
+            fields=["name", "location"],
+            keywords=["unittest", "limited-fields"],
+            other_crs=[RD_NEW],
+            metadata_url="/feature/restaurants-limit/",
         ),
     ]
 
@@ -126,6 +135,25 @@ class TestGetCapabilities:
         <Title>restaurant</Title>
         <ows:Keywords>
           <ows:Keyword>unittest</ows:Keyword>
+        </ows:Keywords>
+        <DefaultCRS>urn:ogc:def:crs:EPSG::4326</DefaultCRS>
+        <OtherCRS>urn:ogc:def:crs:EPSG::28992</OtherCRS>
+        <OutputFormats>
+          <Format>text/xml; subtype=gml/3.2</Format>
+          <Format>application/json; subtype=geojson; charset=utf-8</Format>
+        </OutputFormats>
+        <ows:WGS84BoundingBox dimensions="2">
+          <ows:LowerCorner>4.90876101285122 52.3631712637357</ows:LowerCorner>
+          <ows:UpperCorner>4.90876101285122 52.3631712637357</ows:UpperCorner>
+        </ows:WGS84BoundingBox>
+        <MetadataURL xlink:href="http://testserver/v1/wfs/" />
+      </FeatureType>
+      <FeatureType>
+        <Name>mini-restaurant</Name>
+        <Title>restaurant</Title>
+        <ows:Keywords>
+          <ows:Keyword>unittest</ows:Keyword>
+          <ows:Keyword>limited-fields</ows:Keyword>
         </ows:Keywords>
         <DefaultCRS>urn:ogc:def:crs:EPSG::4326</DefaultCRS>
         <OtherCRS>urn:ogc:def:crs:EPSG::28992</OtherCRS>
@@ -376,6 +404,64 @@ class TestGetFeature:
           </app:restaurant>
         </wfs:member>
     </wfs:FeatureCollection>""",  # noqa: E501
+        )
+
+    def test_get_limited_fields(self, client, restaurant):
+        """Prove that the 'FeatureType(fields=..)' reduces the returned fields."""
+        response = client.get(
+            "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=mini-restaurant"
+        )
+        content = self.read_response(response)
+        assert response["content-type"] == "text/xml; charset=utf-8", content
+        assert response.status_code == 200, content
+        assert "</wfs:FeatureCollection>" in content
+
+        # Validate against the WFS 2.0 XSD
+        xml_doc = validate_xsd(content, WFS_20_XSD)
+        assert xml_doc.attrib["numberMatched"] == "1"
+        assert xml_doc.attrib["numberReturned"] == "1"
+
+        # See whether our feature is rendered
+        feature = xml_doc.find("wfs:member/app:mini-restaurant", namespaces=NAMESPACES)
+        assert feature is not None
+        assert feature.find("app:name", namespaces=NAMESPACES).text == restaurant.name
+        timestamp = xml_doc.attrib["timeStamp"]
+
+        first_member = xml_doc.find(
+            "wfs:member/app:mini-restaurant", namespaces=NAMESPACES,
+        )
+        # QName isn't used in the app parsing because that uses defusedxml ElementTree
+        # instead of the lxml parser that's used here.
+        field_names = [QName(el).localname for el in first_member if el.prefix == "app"]
+        assert field_names == ["name", "location"]
+
+        assert_xml_equal(
+            content,
+            f"""<wfs:FeatureCollection
+   xmlns:app="http://example.org/gisserver"
+   xmlns:gml="http://www.opengis.net/gml/3.2"
+   xmlns:wfs="http://www.opengis.net/wfs/2.0"
+   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+   xsi:schemaLocation="http://example.org/gisserver http://testserver/v1/wfs/?SERVICE=WFS&amp;VERSION=2.0.0&amp;REQUEST=DescribeFeatureType&amp;TYPENAMES=mini-restaurant http://www.opengis.net/wfs/2.0 http://schemas.opengis.net/wfs/2.0/wfs.xsd http://www.opengis.net/gml/3.2 http://schemas.opengis.net/gml/3.2.1/gml.xsd"
+   timeStamp="{timestamp}" numberMatched="1" numberReturned="1">
+
+    <wfs:member>
+      <app:mini-restaurant gml:id="mini-restaurant.{restaurant.id}">
+        <gml:boundedBy>
+            <gml:Envelope srsName="urn:ogc:def:crs:EPSG::4326">
+                <gml:lowerCorner>{POINT1_XML_WGS84}</gml:lowerCorner>
+                <gml:upperCorner>{POINT1_XML_WGS84}</gml:upperCorner>
+            </gml:Envelope>
+        </gml:boundedBy>
+        <app:name>Café Noir</app:name>
+        <app:location>
+          <gml:Point gml:id="mini-restaurant.{restaurant.id}.1" srsName="urn:ogc:def:crs:EPSG::4326">
+            <gml:pos>{POINT1_XML_WGS84}</gml:pos>
+          </gml:Point>
+        </app:location>
+      </app:mini-restaurant>
+    </wfs:member>
+</wfs:FeatureCollection>""",  # noqa: E501
         )
 
     def test_get_srs_name(self, client, restaurant):
