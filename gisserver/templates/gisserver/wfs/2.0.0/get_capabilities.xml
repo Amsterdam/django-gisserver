@@ -1,8 +1,8 @@
-<?xml version="1.0" encoding="UTF-8"?>{% load gisserver_tags %}{% comment %}
+<?xml version="1.0" encoding="UTF-8"?>{% load gisserver_tags %}{% comment %}<!--
    * base structure copied from mapserver
    * added <ows:AllowedValues> everywhere to validate against the schema.
    * Most clients support both: https://github.com/tomkralidis/OWSLib/blob/master/owslib/ows.py#L185
-{% endcomment %}
+-->{% endcomment %}
 <wfs:WFS_Capabilities version="2.0.0"
     xmlns="http://www.opengis.net/wfs/2.0"
     xmlns:gml="http://www.opengis.net/gml/3.2"
