@@ -22,6 +22,7 @@ def find_version(*parts):
 tests_require = [
     "django-environ >= 0.4.5",
     "psycopg2-binary >= 2.8.4",
+    "lxml >= 4.5.0",
     "flake8 >= 3.7.9",
     "flake8-blind-except >= 0.1.1",
     "flake8-colors >= 0.1.6",
@@ -40,7 +41,6 @@ setup(
     install_requires=[
         "Django >= 2.0",
         "dataclasses;python_version=='3.6'",
-        "lxml >= 4.5.0",
         "defusedxml >= 0.6.0",
         "orjson >= 2.4.0",
     ],
