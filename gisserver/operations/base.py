@@ -8,7 +8,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Union
 
-from django.core.exceptions import SuspiciousOperation
+from django.core.exceptions import ImproperlyConfigured, SuspiciousOperation
 from django.http import HttpResponse
 from django.template.loader import render_to_string
 
@@ -273,14 +273,28 @@ class WFSFeatureMethod(WFSMethod):
             Parameter("typeNames", required=True, parser=self._parse_type_names)
         ]
 
-    def _parse_type_names(self, type_names) -> List[FeatureType]:
-        """Find the requested feature types by name"""
+    def _init_feature_types(self):
+        """Initialize the 'self.feature_types'."""
         self.feature_types = self.view.get_feature_types()
 
-        type_names = type_names.split(",")
         features_by_name = {feature.name: feature for feature in self.feature_types}
+        if len(features_by_name) != len(self.feature_types):
+            all_names = [feature.name for feature in self.feature_types]
+            duplicates = ", ".join(
+                sorted(set(n for n in all_names if all_names.count(n) > 1))
+            )
+            raise ImproperlyConfigured(
+                f"FeatureType names should be unique: {duplicates}"
+            )
+
+        return features_by_name
+
+    def _parse_type_names(self, type_names) -> List[FeatureType]:
+        """Find the requested feature types by name"""
+        features_by_name = self._init_feature_types()
+
         features = []
-        for name in type_names:
+        for name in type_names.split(","):
             try:
                 feature = features_by_name[name]
             except KeyError:
