@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<wfs:ListStoredQueriesResponse
+    xmlns="http://www.opengis.net/wfs/2.0"
+    xmlns:app="{{ app_xml_namespace }}"
+    xmlns:wfs="http://www.opengis.net/wfs/2.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.opengis.net/wfs/2.0 http://schemas.opengis.net/wfs/2.0/wfs.xsd">
+    {% comment %}<!--
+      This should be included for full compliance:
+
+  <StoredQuery id="urn:ogc:def:query:OGC-WFS::GetFeatureById">
+    <Title>Get feature by identifier</Title>    {% for feature in feature_types %}
+    <ReturnFeatureType>{{ feature.name }}</ReturnFeatureType>{% endfor %}
+  </StoredQuery>
+
+-->{% endcomment %}
+</wfs:ListStoredQueriesResponse>

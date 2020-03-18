@@ -142,6 +142,32 @@ class DescribeFeatureType(WFSFeatureMethod):
         return {"feature_types": typeNames}
 
 
+class ListStoredQueries(WFSMethod):
+    """This describes the available queries"""
+
+    xml_template_name = "list_stored_queries.xml"
+
+    def get_context_data(self, **params):
+        return {"feature_types": self.view.get_feature_types()}
+
+
+class DescribeStoredQueries(WFSMethod):
+    """This describes the available queries"""
+
+    xml_template_name = "describe_stored_queries.xml"
+
+    parameters = [Parameter("STOREDQUERY_ID", parser=lambda v: v.split(","))]
+
+    def get_context_data(self, **params):
+        if params["STOREDQUERY_ID"] is not None:
+            for q in params["STOREDQUERY_ID"]:
+                raise InvalidParameterValue(
+                    "storedqueryid", f"Unknown stored query id: {q}"
+                )
+
+        return {"feature_types": self.view.get_feature_types()}
+
+
 def parse_sort_by(value) -> List[str]:
     """Parse the SORTBY parameter."""
     result = []

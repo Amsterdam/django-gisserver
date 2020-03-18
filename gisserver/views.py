@@ -189,6 +189,8 @@ class WFSView(GISView):
             "GetCapabilities": wfs20.GetCapabilities,
             "DescribeFeatureType": wfs20.DescribeFeatureType,
             "GetFeature": wfs20.GetFeature,
+            "ListStoredQueries": wfs20.ListStoredQueries,
+            "DescribeStoredQueries": wfs20.DescribeStoredQueries,
         }
     }
 

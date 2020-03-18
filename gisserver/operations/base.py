@@ -214,14 +214,15 @@ class WFSMethod:
     def __call__(self, **params):
         """Default call implementation: render an XML template."""
         context = self.get_context_data(**params)
-        output_format: OutputFormat = params["outputFormat"]
+        if "outputFormat" in params:
+            output_format: OutputFormat = params["outputFormat"]
 
-        if output_format.renderer_class is not None:
-            # Streaming HTTP responses, e.g. GML32/GeoJSON output:
-            renderer = output_format.renderer_class(self, context, **params)
-            return renderer.get_response()
-        else:
-            return self.render_xml(context, **params)
+            if output_format.renderer_class is not None:
+                # Streaming HTTP responses, e.g. GML32/GeoJSON output:
+                renderer = output_format.renderer_class(self, context, **params)
+                return renderer.get_response()
+
+        return self.render_xml(context, **params)
 
     def get_context_data(self, **params):
         """Collect all arguments to use for rendering the XML template"""
