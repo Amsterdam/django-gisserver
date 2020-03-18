@@ -7,7 +7,7 @@ from django.contrib.gis.geos import Point, geos_version
 from django.db import connection
 
 from tests.srid import RD_NEW_PROJ, RD_NEW_SRID, RD_NEW_WKT
-from tests.test_gisserver.models import Restaurant
+from tests.test_gisserver.models import City, Restaurant
 
 HERE = Path(__file__).parent
 
@@ -21,9 +21,17 @@ def pytest_configure():
 
 
 @pytest.fixture()
-def restaurant() -> Restaurant:
+def city() -> City:
+    return City.objects.create(name="CloudCity")
+
+
+@pytest.fixture()
+def restaurant(city) -> Restaurant:
     return Restaurant.objects.create(
-        name="Café Noir", location=Point(122411, 486250, srid=RD_NEW_SRID), rating=5.0
+        name="Café Noir",
+        city=city,
+        location=Point(122411, 486250, srid=RD_NEW_SRID),
+        rating=5.0,
     )
 
 

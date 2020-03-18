@@ -7,9 +7,21 @@ from django.contrib.gis.db.models import Extent, GeometryField
 from django.contrib.gis.db.models.functions import Transform
 from django.core.exceptions import ImproperlyConfigured
 from django.db import models
+from django.db.models.fields.reverse_related import ForeignObjectRel
 from django.utils.functional import cached_property  # py3.8: functools
 
 from gisserver.types import CRS, WGS84, BoundingBox
+
+XSD_TYPES = {
+    models.BooleanField: "boolean",
+    models.IntegerField: "integer",
+    models.FloatField: "double",
+    models.DecimalField: "decimal",
+    models.TimeField: "time",
+    models.DateField: "date",
+    models.DateTimeField: "dateTime",
+    models.URLField: "anyURI",
+}
 
 
 @dataclass
@@ -90,31 +102,30 @@ class FeatureType:
 
         return fields
 
-    def get_field_type(self, model_field) -> str:
+    def get_field_type(self, model_field: models.Field) -> str:
         """Determine the XSD field type for a Django field."""
+        try:
+            # Direct instance, quickly resolved!
+            return XSD_TYPES[model_field]
+        except KeyError:
+            pass
+
         if isinstance(model_field, models.ForeignKey):
             # Don't let it query on the relation value yet
-            return self.get_field_type(model_field.remote_field)
-        elif isinstance(model_field, models.BooleanField):
-            return "boolean"
-        elif isinstance(model_field, models.IntegerField):
-            return "integer"
-        elif isinstance(model_field, models.FloatField):
-            return "double"
-        elif isinstance(model_field, models.DecimalField):
-            return "decimal"
-        elif isinstance(model_field, models.TimeField):
-            return "time"
-        elif isinstance(model_field, models.DateField):
-            return "date"
-        elif isinstance(model_field, models.DateTimeField):
-            return "dateTime"
-        elif isinstance(model_field, models.URLField):
-            return "anyURI"
+            return self.get_field_type(model_field.target_field)
+        elif isinstance(model_field, ForeignObjectRel):
+            # e.g. ManyToOneRel descriptor of a foreignkey_id field.
+            return self.get_field_type(model_field.remote_field.target_field)
         elif model_field.name == self.geometry_field_name:
             return "gml:GeometryPropertyType"
         else:
-            return "string"
+            # Subclass checks:
+            for field_cls, xsd_type in XSD_TYPES.items():
+                if isinstance(model_field, field_cls):
+                    return xsd_type
+
+        # Default XML choice:
+        return "string"
 
     def _get_geometry_field(self) -> GeometryField:
         """Access the Django field"""

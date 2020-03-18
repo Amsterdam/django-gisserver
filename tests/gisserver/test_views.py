@@ -216,7 +216,7 @@ class TestDescribeFeatureType:
             namespaces=NAMESPACES,
         )
         field_names = [el.attrib["name"] for el in elements]
-        assert field_names == ["id", "name", "location", "rating", "created"]
+        assert field_names == ["id", "name", "city_id", "location", "rating", "created"]
 
         assert_xml_equal(
             response.content,
@@ -237,6 +237,7 @@ class TestDescribeFeatureType:
         <sequence>
           <element name="id" type="integer" minOccurs="0" />
           <element name="name" type="string" minOccurs="0" />
+          <element name="city_id" type="integer" minOccurs="0" />
           <element name="location" type="gml:GeometryPropertyType" minOccurs="0" maxOccurs="1"/>
           <element name="rating" type="double" minOccurs="0" />
           <element name="created" type="date" minOccurs="0" />
@@ -324,6 +325,7 @@ class TestGetFeature:
         </gml:boundedBy>
         <app:id>{restaurant.id}</app:id>
         <app:name>Café Noir</app:name>
+        <app:city_id>{restaurant.city_id}</app:city_id>
         <app:location>
           <gml:Point gml:id="restaurant.{restaurant.id}.1" srsName="urn:ogc:def:crs:EPSG::4326">
             <gml:pos>{POINT1_XML_WGS84}</gml:pos>
@@ -367,7 +369,8 @@ class TestGetFeature:
           <app:restaurant gml:id="restaurant.{restaurant.id}">
             <app:id>{restaurant.id}</app:id>
             <app:name>Empty</app:name>
-            <app:location />
+            <app:city_id xsi:nil="true" />
+            <app:location xsi:nil="true" />
             <app:rating>0.0</app:rating>
             <app:created>2020-04-05T12:11:10+00:00</app:created>
           </app:restaurant>
@@ -417,6 +420,7 @@ class TestGetFeature:
             </gml:boundedBy>
             <app:id>{restaurant.id}</app:id>
             <app:name>Café Noir</app:name>
+            <app:city_id>{restaurant.city_id}</app:city_id>
             <app:location>
               <gml:Point gml:id="restaurant.{restaurant.id}.1" srsName="urn:ogc:def:crs:EPSG::28992">
                 <gml:pos>{POINT1_XML_RD}</gml:pos>
@@ -723,6 +727,7 @@ class TestGetFeature:
                     "properties": {
                         "id": restaurant.id,
                         "name": "Café Noir",
+                        "city_id": restaurant.city_id,
                         "rating": 5.0,
                         "created": "2020-04-05T12:11:10+00:00",
                     },
@@ -735,6 +740,7 @@ class TestGetFeature:
                     "properties": {
                         "id": bad_restaurant.id,
                         "name": "Foo Bar",
+                        "city_id": None,
                         "rating": 1.0,
                         "created": "2020-04-05T12:11:10+00:00",
                     },

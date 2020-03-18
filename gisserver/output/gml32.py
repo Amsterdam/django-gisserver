@@ -125,7 +125,7 @@ class GML32Renderer(GetFeatureOutputRenderer):
     def render_xml_field(self, feature: FeatureType, field: str, value) -> str:
         """Write the value of a single field."""
         if value is None:
-            return format_html("    <app:{field} />\n", field=field)
+            return format_html('    <app:{field} xsi:nil="true" />\n', field=field)
         elif isinstance(value, datetime):
             value = value.astimezone(utc).isoformat()
         elif isinstance(value, (date, time)):
