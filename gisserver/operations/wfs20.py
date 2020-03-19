@@ -240,40 +240,42 @@ class GetFeature(WFSTypeNamesMethod):
     ]
 
     def get_context_data(self, resultType, **params):
+        querysets = self.get_querysets(**params)
+
         if resultType == "HITS":
-            return self.get_context_data_hits(**params)
+            collection = self.get_hits(querysets)
         elif resultType == "RESULTS":
-            return self.get_context_data_results(**params)
+            collection = self.get_paginated_results(querysets, **params)
         else:
             raise NotImplementedError()
 
-    def get_context_data_hits(self, srsName, **params):
-        """Return the context data for the "HITS" type."""
-        querysets = self.get_querysets(**params)
-        number_matched = sum([qs.count() for qs in querysets])
+        # These become init kwargs for the selected OutputRenderer class:
         return {
-            "xsd_typenames": self.view.KVP["TYPENAMES"],
-            "output_crs": srsName or params["typeNames"][0].crs,
-            "feature_collections": [],
-            "number_matched": number_matched,
+            "collection": collection,
+            "output_crs": params["srsName"] or params["typeNames"][0].crs,
         }
 
-    def get_context_data_results(self, srsName, **params):
-        """Return the context data for the "RESULTS" type."""
-        querysets = self.get_querysets(**params)
+    def get_hits(self, querysets) -> output.FeatureCollection:
+        """Return the number of hits"""
+        return output.FeatureCollection(
+            results=[], number_matched=sum([qs.count() for qs in querysets])
+        )
 
-        # Parse pagination settings
+    def get_paginated_results(self, querysets, **params) -> output.FeatureCollection:
+        """Handle pagination settings."""
         max_page_size = self.view.max_page_size
         start = max(0, params["startIndex"])
         page_size = min(max_page_size, params["count"] or max_page_size)
         stop = start + page_size
 
         # The querysets are not executed until the very end.
+        results = [
+            output.SimpleFeatureCollection(qs.feature_type, qs, start, stop)
+            for qs in querysets
+        ]
+
         try:
-            feature_collections = [
-                (qs.feature_type, qs[start:stop].iterator(), qs.count())
-                for qs in querysets
-            ]
+            number_matched = sum(collection.number_matched for collection in results)
         except ProgrammingError as e:
             # e.g. comparing datetime against integer
             self._log_filter_error(logging.WARNING, e, params["filter"])
@@ -282,22 +284,15 @@ class GetFeature(WFSTypeNamesMethod):
                 "Invalid filter query, check the used datatypes and field names.",
             ) from e
 
-        number_matched = sum(item[2] for item in feature_collections)
-
         previous = next = None
         if start > 0:
             previous = self._replace_url_params(STARTINDEX=max(0, start - page_size))
         if stop < number_matched:  # TODO: fix for returning multiple typeNames
             next = self._replace_url_params(STARTINDEX=start + page_size)
 
-        return {
-            "xsd_typenames": self.view.KVP["TYPENAMES"],
-            "output_crs": srsName or params["typeNames"][0].crs,
-            "feature_collections": feature_collections,
-            "number_matched": number_matched,
-            "next": next,
-            "previous": previous,
-        }
+        return output.FeatureCollection(
+            results=results, number_matched=number_matched, next=next, previous=previous
+        )
 
     def get_querysets(self, typeNames, **params):
         """Generate querysets for all requested data."""

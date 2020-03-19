@@ -8,27 +8,31 @@ from django.utils.timezone import utc
 
 from gisserver.features import FeatureType
 
-from .base import GetFeatureOutputRenderer, StringBuffer
+from .base import OutputRenderer, StringBuffer
 
 
-class GML32Renderer(GetFeatureOutputRenderer):
+def default_if_none(value, default):
+    if value is None:
+        return default
+    else:
+        return value
+
+
+class GML32Renderer(OutputRenderer):
     """Render the GetFeature XML output in GML 3.2 format"""
 
     content_type = "text/xml; charset=utf-8"
-    needs_number_matched = True
 
-    def render_get_feature(
-        self, feature_collections, number_matched, number_returned, next, previous
-    ):
+    def render_stream(self):
         """Render the XML as streaming content"""
-
-        xsd_typenames = self.context["xsd_typenames"]
+        xsd_typenames = self.xsd_typenames
         schema_location = [
             f"{self.app_xml_namespace} {self.server_url}?SERVICE=WFS&VERSION=2.0.0&REQUEST=DescribeFeatureType&TYPENAMES={xsd_typenames}",  # noqa: E501
             "http://www.opengis.net/wfs/2.0 http://schemas.opengis.net/wfs/2.0/wfs.xsd",
             "http://www.opengis.net/gml/3.2 http://schemas.opengis.net/gml/3.2.1/gml.xsd",
         ]
 
+        collection = self.collection
         output = StringBuffer()
         output.write(
             format_html(
@@ -42,23 +46,28 @@ class GML32Renderer(GetFeatureOutputRenderer):
      timeStamp="{timestamp}" numberMatched="{number_matched}" numberReturned="{number_returned}"{next}{previous}>\n""",  # noqa: E501
                 app_xml_namespace=self.app_xml_namespace,
                 schema_location=" ".join(schema_location),
-                timestamp=self.timestamp,
-                number_matched="unknown" if number_matched is None else number_matched,
-                number_returned=number_returned,
-                next=format_html(' next="{}"', next) if next else "",
-                previous=format_html(' previous="{}"', previous) if previous else "",
+                timestamp=collection.timestamp,
+                number_matched=default_if_none(collection.number_matched, "unknown"),
+                number_returned=collection.number_returned,
+                next=format_html(' next="{}"', collection.next)
+                if collection.next
+                else "",
+                previous=format_html(' previous="{}"', collection.previous)
+                if collection.previous
+                else "",
             )
         )
-        if number_returned:
+        if collection.number_returned:
             # <wfs:boundedBy>
             #   <gml:Envelope srsName="{{ bounding_box.crs|default:output_crs }}">
             #     <gml:lowerCorner>{{ bounding_box.lower_corner|join:" " }}</gml:lowerCorner>
             #     <gml:upperCorner>{{ bounding_box.upper_corner|join:" " }}</gml:upperCorner>
             #   </gml:Envelope>
             # </wfs:boundedBy>
+            has_multiple_collections = len(collection.results) > 1
 
-            for feature_type, instances, number_matched in feature_collections:
-                if len(feature_collections) > 1:
+            for sub_collection in collection.results:
+                if has_multiple_collections:
                     output.write(
                         format_html(
                             "  <wfs:member>\n"
@@ -66,14 +75,16 @@ class GML32Renderer(GetFeatureOutputRenderer):
                             ' timeStamp="{timestamp}"'
                             ' numberMatched="{number_matched}"'
                             ' numberReturned="{number_returned}">\n',
-                            timestamp=self.timestamp,
-                            number_matche=number_matched,
-                            number_returned=len(instances),
+                            timestamp=collection.timestamp,
+                            number_returned=sub_collection.number_returned,
+                            number_matched=sub_collection.number_matched,
                         )
                     )
 
-                for instance in instances:
-                    output.write(self.render_xml_member(feature_type, instance))
+                for instance in sub_collection:
+                    output.write(
+                        self.render_xml_member(sub_collection.feature_type, instance)
+                    )
 
                     # Only perform a 'yield' every once in a while,
                     # as it goes back-and-forth for writing it to the client.
@@ -81,7 +92,7 @@ class GML32Renderer(GetFeatureOutputRenderer):
                         yield output.getvalue()
                         output.clear()
 
-                if len(feature_collections) > 1:
+                if has_multiple_collections:
                     output.write("    </wfs:FeatureCollection>\n  </wfs:member>\n")
 
         output.write("</wfs:FeatureCollection>\n")

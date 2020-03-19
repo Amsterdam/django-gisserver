@@ -223,7 +223,7 @@ class WFSMethod:
 
             if output_format.renderer_class is not None:
                 # Streaming HTTP responses, e.g. GML32/GeoJSON output:
-                renderer = output_format.renderer_class(self, context, **params)
+                renderer = output_format.renderer_class(self, **context)
                 return renderer.get_response()
 
         return self.render_xml(context, **params)
