@@ -38,7 +38,7 @@ class GML32Renderer(GetFeatureOutputRenderer):
      xmlns:wfs="http://www.opengis.net/wfs/2.0"
      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
      xsi:schemaLocation="{schema_location}"
-     timeStamp="{timestamp}" numberMatched="{number_matched}" numberReturned="{number_returned}"{next}{previous}>""",  # noqa: E501
+     timeStamp="{timestamp}" numberMatched="{number_matched}" numberReturned="{number_returned}"{next}{previous}>\n""",  # noqa: E501
                 app_xml_namespace=self.app_xml_namespace,
                 schema_location=" ".join(schema_location),
                 timestamp=self.timestamp,
