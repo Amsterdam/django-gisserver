@@ -164,7 +164,7 @@ class Function(Expression):
         """Build the SQL function object"""
         db_function = function_registry.resolve_function(self.name)
         args = [arg.build_rhs(fesquery) for arg in self.arguments]
-        return db_function(*args)
+        return db_function.build_query(*args)
 
 
 @dataclass

@@ -42,7 +42,7 @@ from gisserver.parsers.fes20.operators import (
 from gisserver.parsers.fes20.query import FesQuery
 from gisserver.parsers.gml import geometries
 from gisserver.parsers.gml.geometries import GEOSGMLGeometry
-from gisserver.types import WGS84
+from gisserver.types import WGS84, XsdTypes
 
 
 def test_fes20_c5_example1():
@@ -409,7 +409,9 @@ def test_fes20_c5_example7():
     """
 
     @function_registry.register(
-        name="Add", arguments=dict(value1="xsd:double"), returns="xsd:double",
+        name="Add",
+        arguments=dict(value1=XsdTypes.double, value2=XsdTypes.double),
+        returns=XsdTypes.double,
     )
     def fes_add(value1: F, value2: str):
         # value1 is already an F value (thanks to ValueReference)

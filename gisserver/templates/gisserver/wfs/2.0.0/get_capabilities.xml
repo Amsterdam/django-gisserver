@@ -9,6 +9,7 @@
     xmlns:wfs="http://www.opengis.net/wfs/2.0"
     xmlns:ows="http://www.opengis.net/ows/1.1"
     xmlns:xlink="http://www.w3.org/1999/xlink"
+    xmlns:xs="http://www.w3.org/2001/XMLSchema"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xmlns:fes="http://www.opengis.net/fes/2.0"
     xmlns:app="{{ app_xml_namespace }}"
@@ -175,6 +176,16 @@
         <fes:TemporalOperator name="During"/>
       </fes:TemporalOperators>
     </fes:Temporal_Capabilities>
-    {% endcomment %}
+    {% endcomment %}{% if function_registry %}
+    <fes:Functions>{% for function in function_registry %}
+      <fes:Function name="{{ function.name }}">
+        <fes:Returns>{{ function.returns.with_prefix }}</fes:Returns>{% if function.arguments %}
+        <fes:Arguments>{% for name, xs_type in function.arguments.items %}
+          <fes:Argument name="{{ name }}">
+            <fes:Type>{{ xs_type.with_prefix }}</fes:Type>
+          </fes:Argument>{% endfor %}
+        </fes:Arguments>{% endif %}
+      </fes:Function>{% endfor %}
+    </fes:Functions>{% endif %}
   </fes:Filter_Capabilities>
 </wfs:WFS_Capabilities>

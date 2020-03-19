@@ -119,6 +119,7 @@ class GetCapabilities(WFSMethod):
             },
             "service_constraints": self.view.service_constraints,
             "filter_capabilities": self.view.filter_capabilities,
+            "function_registry": fes20.function_registry,
             "accept_versions": self.view.accept_versions,
             "feature_types": self.view.get_feature_types(),
             "feature_output_formats": feature_output_formats,

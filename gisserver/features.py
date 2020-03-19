@@ -10,19 +10,20 @@ from django.db import models
 from django.db.models.fields.reverse_related import ForeignObjectRel
 from django.utils.functional import cached_property  # py3.8: functools
 
-from gisserver.types import CRS, WGS84, BoundingBox
+from gisserver.types import CRS, WGS84, BoundingBox, XsdTypes
 
 NoneType = type(None)
 
+
 XSD_TYPES = {
-    models.BooleanField: "boolean",
-    models.IntegerField: "integer",
-    models.FloatField: "double",
-    models.DecimalField: "decimal",
-    models.TimeField: "time",
-    models.DateField: "date",
-    models.DateTimeField: "dateTime",
-    models.URLField: "anyURI",
+    models.BooleanField: XsdTypes.boolean,
+    models.IntegerField: XsdTypes.integer,
+    models.FloatField: XsdTypes.double,
+    models.DecimalField: XsdTypes.decimal,
+    models.TimeField: XsdTypes.time,
+    models.DateField: XsdTypes.date,
+    models.DateTimeField: XsdTypes.dateTime,
+    models.URLField: XsdTypes.anyURI,
 }
 
 
@@ -129,7 +130,7 @@ class FeatureType:
 
         return fields
 
-    def get_field_type(self, model_field: models.Field) -> str:
+    def get_field_type(self, model_field: models.Field) -> XsdTypes:
         """Determine the XSD field type for a Django field."""
         try:
             # Direct instance, quickly resolved!
@@ -144,7 +145,7 @@ class FeatureType:
             # e.g. ManyToOneRel descriptor of a foreignkey_id field.
             return self.get_field_type(model_field.remote_field.target_field)
         elif model_field.name == self.geometry_field_name:
-            return "gml:GeometryPropertyType"
+            return XsdTypes.gmlGeometryPropertyType
         else:
             # Subclass checks:
             for field_cls, xsd_type in XSD_TYPES.items():
@@ -152,7 +153,7 @@ class FeatureType:
                     return xsd_type
 
         # Default XML choice:
-        return "string"
+        return XsdTypes.string
 
     def _get_geometry_field(self) -> GeometryField:
         """Access the Django field"""

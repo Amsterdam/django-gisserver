@@ -4,6 +4,7 @@ This exposes helper classes to parse GEO data types.
 """
 import re
 from dataclasses import dataclass
+from enum import Enum
 from functools import lru_cache
 from typing import Optional, Union
 
@@ -24,6 +25,53 @@ __all__ = [
     "CRS",
     "WGS84",
 ]
+
+
+class XsdTypes(Enum):
+    """Brief enumeration of basic XSD-types.
+
+    Based on https://www.w3.org/TR/xmlschema-2/#built-in-datatypes
+    """
+
+    string = "string"
+    boolean = "boolean"
+    decimal = "decimal"  # the base type for all numbers too.
+    integer = "integer"
+    float = "float"
+    double = "double"
+    time = "time"
+    date = "date"
+    dateTime = "dateTime"
+    anyURI = "anyURI"
+
+    # Less common, but useful nonetheless:
+    duration = "duration"
+    nonNegativeInteger = "nonNegativeInteger"
+    gYear = "gYear"
+    hexBinary = "hexBinary"
+    base64Binary = "base64Binary"
+    token = "token"
+    language = "language"
+
+    # Field that contains a GML value:
+    gmlGeometryPropertyType = "gml:GeometryPropertyType"
+
+    #: A direct geometry value
+    gmlAbstractGeometryType = "gml:AbstractGeometryType"
+
+    def __str__(self):
+        return self.value
+
+    @property
+    def prefix(self) -> Optional[str]:
+        colon = self.value.find(":")
+        return self.value[:colon] if colon else None
+
+    def with_prefix(self, prefix="xs"):
+        if ":" in self.value:
+            return self.value
+        else:
+            return f"{prefix}:{self.value}"
 
 
 @lru_cache(maxsize=100)
