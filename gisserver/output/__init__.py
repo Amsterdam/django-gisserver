@@ -2,7 +2,7 @@
 from .base import OutputRenderer
 from .results import FeatureCollection, SimpleFeatureCollection
 from .geojson import GeoJsonRenderer
-from .gml32 import GML32Renderer
+from .gml32 import GML32Renderer, GML32ValueRenderer
 
 __all__ = [
     "OutputRenderer",
@@ -10,4 +10,5 @@ __all__ = [
     "SimpleFeatureCollection",
     "GeoJsonRenderer",
     "GML32Renderer",
+    "GML32ValueRenderer",
 ]

@@ -8,6 +8,8 @@ from django.db import models
 from django.db.models import Q, QuerySet, lookups
 from django.db.models.expressions import Combinable
 
+from . import expressions
+
 
 class FesQuery:
     """Collect all data to query a Django queryset.
@@ -21,6 +23,7 @@ class FesQuery:
         self.annotations = annotations or {}
         self.aliases = 0
         self.extra_lookups = []
+        self.sort_by = []
 
     def add_annotation(self, value: Union[Combinable, Q]) -> str:
         """Create an named-alias for a function/Q object.
@@ -44,6 +47,9 @@ class FesQuery:
             raise TypeError()
         self.extra_lookups.append(q_object)
 
+    def add_sort_by(self, sort_by: list):
+        self.sort_by += sort_by
+
     def apply_extra_lookups(self, result: Q) -> Q:
         """Combine stashed lookups with the produced result."""
         if self.extra_lookups:
@@ -58,7 +64,27 @@ class FesQuery:
             # the parent should have used apply_extra_lookups()
             raise RuntimeError("apply_extra_lookups() was not called")
 
-        return queryset.annotate(**self.annotations).filter(*self.lookups)
+        # All are applied at once.
+        if self.annotations:
+            queryset = queryset.annotate(**self.annotations)
+
+        if self.lookups:
+            queryset = queryset.filter(*self.lookups)
+
+        if self.sort_by:
+            queryset = queryset.order_by(*self.sort_by)
+
+        return queryset
+
+    def filter_queryset_value(
+        self, queryset: QuerySet, value_reference: expressions.ValueReference,
+    ) -> QuerySet:
+        """Apply this filter to a Django QuerySet, return one property.
+        This is used for GetPropertyValue requests.
+        """
+        # The "pk" field is also included to render the gml:id.
+        field = value_reference.build_rhs(self)
+        return self.filter_queryset(queryset).values("pk", member=field)
 
     def __repr__(self):
         return f"<FesQuery annotations={self.annotations!r}, lookups={self.lookups!r}>"

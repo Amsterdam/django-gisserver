@@ -9,7 +9,7 @@ Useful docs:
 """
 import logging
 import re
-from typing import List, Optional
+from typing import List
 from urllib.parse import urlencode
 
 from django.core.exceptions import FieldError
@@ -17,8 +17,8 @@ from django.db import ProgrammingError
 
 from gisserver.exceptions import InvalidParameterValue, VersionNegotiationFailed
 from gisserver.features import FeatureType
-from gisserver.parsers import fes20
-from gisserver.parsers.fes20 import operators
+from gisserver.parsers import fes20, AdhocQuery
+from gisserver.parsers.fes20 import expressions
 from gisserver.types import BoundingBox, CRS
 
 from .base import (
@@ -186,10 +186,8 @@ def parse_sort_by(value) -> List[str]:
     return result
 
 
-class GetFeature(WFSTypeNamesMethod):
-    """This returns the feature details; the individual records based on a query.
-    Various query parameters allow limiting the data.
-    """
+class BaseWFSPresentationMethod(WFSTypeNamesMethod):
+    """Base class for GetFeature / GetPropertyValue"""
 
     parameters = [
         # StandardPresentationParameters
@@ -222,21 +220,6 @@ class GetFeature(WFSTypeNamesMethod):
         Parameter("sortBy", parser=parse_sort_by),
         UnsupportedParameter("resourceID"),  # query on ID (called featureID in wfs 1.x)
         UnsupportedParameter("aliases"),
-    ]
-    output_formats = [
-        OutputFormat(
-            "text/xml", subtype="gml/3.2", renderer_class=output.GML32Renderer
-        ),
-        # OutputFormat("gml"),
-        OutputFormat(
-            "application/json",
-            subtype="geojson",
-            charset="utf-8",
-            renderer_class=output.GeoJsonRenderer,
-        ),
-        # OutputFormat("text/csv"),
-        # OutputFormat("shapezip"),
-        # OutputFormat("application/zip"),
     ]
 
     def get_context_data(self, resultType, **params):
@@ -296,53 +279,14 @@ class GetFeature(WFSTypeNamesMethod):
 
     def get_querysets(self, typeNames, **params):
         """Generate querysets for all requested data."""
-        return [
-            self.filter_queryset(feature_type, feature_type.get_queryset(), **params)
-            for feature_type in typeNames
-        ]
-
-    def filter_queryset(
-        self,
-        feature_type: FeatureType,
-        queryset,
-        bbox: Optional[BoundingBox],
-        filter: Optional[fes20.Filter],
-        sortBy,
-        **params,
-    ):
-        """Apply the filters to a single feature type."""
-        filters = {}
-
-        # Allow filtering within a bounding box
-        if bbox:
-            # Using __within does not work with geometries
-            # that only partially exist within the bbox
-            lookup = operators.SpatialOperatorName.BBOX.value
-            filters[f"{feature_type.geometry_field_name}__{lookup}"] = bbox.as_polygon()
-
-        # TODO: other parameters to support:
-        # resourceid=app:Type/gml:name (was featureID in wfs 1.x)
-        # propertyName=app:Type/app:field1,app:Type/app:field2
-
-        if filters:
-            queryset = queryset.filter(**filters)
-
-        if sortBy:
-            queryset = queryset.order_by(*sortBy)
-
-        # Allow filtering using a <fes:Filter>
-        if filter:
-            if bbox:
-                raise InvalidParameterValue(
-                    "filter",
-                    "The FILTER parameter is mutually exclusive with BBOX and RESOURCEID",
-                )
-
+        adhoc_query = AdhocQuery.from_kvp_request(typeNames=typeNames, **params)
+        results = []
+        for feature_type in typeNames:
             try:
-                queryset = filter.filter_queryset(queryset)
+                queryset = self.get_queryset(feature_type, adhoc_query, **params)
             except FieldError as e:
                 # e.g. doing a LIKE on a foreign key
-                self._log_filter_error(logging.ERROR, e, filter)
+                self._log_filter_error(logging.ERROR, e, params["filter"])
                 raise InvalidParameterValue(
                     "filter", f"Internal error when processing filter",
                 ) from e
@@ -351,9 +295,16 @@ class GetFeature(WFSTypeNamesMethod):
                     "filter", f"Invalid filter query: {e}",
                 ) from e
 
-        # Attach extra property to keep meta-dataa in place
-        queryset.feature_type = feature_type
-        return queryset
+            queryset.feature_type = feature_type
+            results.append(queryset)
+
+        return results
+
+    def get_queryset(self, feature_type: FeatureType, adhoc_query, **params):
+        """Generate the queryset for a single feature."""
+        fes_query = adhoc_query.get_fes_query(feature_type)
+        queryset = feature_type.get_queryset()
+        return fes_query.filter_queryset(queryset)
 
     def _log_filter_error(self, level, exc, filter: fes20.Filter):
         """Report a filtering parsing error in the logging"""
@@ -376,3 +327,61 @@ class GetFeature(WFSTypeNamesMethod):
         new_params = self.view.KVP.copy()
         new_params.update(updates)
         return f"{self.view.server_url}?{urlencode(new_params)}"
+
+
+class GetFeature(BaseWFSPresentationMethod):
+    """This returns all properties of the feature.
+
+    Various query parameters allow limiting the data.
+    """
+
+    output_formats = [
+        OutputFormat(
+            "text/xml", subtype="gml/3.2", renderer_class=output.GML32Renderer
+        ),
+        # OutputFormat("gml"),
+        OutputFormat(
+            "application/json",
+            subtype="geojson",
+            charset="utf-8",
+            renderer_class=output.GeoJsonRenderer,
+        ),
+        # OutputFormat("text/csv"),
+        # OutputFormat("shapezip"),
+        # OutputFormat("application/zip"),
+    ]
+
+
+class GetPropertyValue(BaseWFSPresentationMethod):
+    """This returns a limited set of properties of the feature.
+    It works almost identical to GetFeature, except that it returns a single field.
+    """
+
+    output_formats = [
+        OutputFormat(
+            "text/xml", subtype="gml/3.2", renderer_class=output.GML32ValueRenderer
+        ),
+    ]
+
+    parameters = BaseWFSPresentationMethod.parameters + [
+        Parameter("valueReference", required=True, parser=expressions.ValueReference)
+    ]
+
+    def get_queryset(self, feature_type: FeatureType, adhoc_query, **params):
+        """Generate the queryset that returns only the value reference."""
+        fes_query = adhoc_query.get_fes_query(feature_type)
+        queryset = feature_type.get_queryset()
+        value_reference: expressions.ValueReference = params["valueReference"]
+
+        # TODO: for now only check direct field names, no xpath (while query support it)
+        if value_reference.element_name not in feature_type.fields:
+            raise InvalidParameterValue(
+                "valueReference", f"Field '{value_reference.xpath}' does not exist.",
+            )
+
+        return fes_query.filter_queryset_value(queryset, value_reference)
+
+    def get_context_data(self, **params):
+        context = super().get_context_data(**params)
+        context["value_reference"] = params["valueReference"]
+        return context

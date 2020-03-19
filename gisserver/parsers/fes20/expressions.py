@@ -143,6 +143,16 @@ class ValueReference(Expression):
 
         return orm_field, None
 
+    @property
+    def element_name(self):
+        """Tell which element this reference points to."""
+        try:
+            pos = self.xpath.rindex("/")
+        except ValueError:
+            return self.xpath
+        else:
+            return self.xpath[pos + 1 :]
+
 
 @dataclass
 @tag_registry.register("Function")

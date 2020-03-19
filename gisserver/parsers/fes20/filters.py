@@ -1,8 +1,7 @@
-from typing import AnyStr, Union, Optional
+from typing import AnyStr, Optional, Union
 from xml.etree.ElementTree import Element, QName
 
-from defusedxml.ElementTree import fromstring, ParseError
-from django.db.models import QuerySet
+from defusedxml.ElementTree import ParseError, fromstring
 
 from gisserver.parsers.base import FES20, tag_registry
 from gisserver.parsers.utils import expect_tag
@@ -61,11 +60,6 @@ class Filter:
                 ),
                 source=source,
             )
-
-    def filter_queryset(self, queryset: QuerySet) -> QuerySet:
-        """Apply this filter to a Django QuerySet."""
-        fesquery = self.get_query()
-        return fesquery.filter_queryset(queryset)
 
     def get_query(self) -> query.FesQuery:
         """Collect the data to perform a Django ORM query."""

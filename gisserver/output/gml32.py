@@ -7,6 +7,7 @@ from django.utils.html import format_html
 from django.utils.timezone import utc
 
 from gisserver.features import FeatureType
+from gisserver.parsers.fes20.expressions import ValueReference
 
 from .base import OutputRenderer, StringBuffer
 
@@ -22,6 +23,7 @@ class GML32Renderer(OutputRenderer):
     """Render the GetFeature XML output in GML 3.2 format"""
 
     content_type = "text/xml; charset=utf-8"
+    xml_tag = "FeatureCollection"
 
     def render_stream(self):
         """Render the XML as streaming content"""
@@ -37,13 +39,14 @@ class GML32Renderer(OutputRenderer):
         output.write(
             format_html(
                 """<?xml version='1.0' encoding="UTF-8" ?>
-<wfs:FeatureCollection
+<wfs:{xml_tag}
      xmlns:app="{app_xml_namespace}"
      xmlns:gml="http://www.opengis.net/gml/3.2"
      xmlns:wfs="http://www.opengis.net/wfs/2.0"
      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
      xsi:schemaLocation="{schema_location}"
      timeStamp="{timestamp}" numberMatched="{number_matched}" numberReturned="{number_returned}"{next}{previous}>\n""",  # noqa: E501
+                xml_tag=self.xml_tag,
                 app_xml_namespace=self.app_xml_namespace,
                 schema_location=" ".join(schema_location),
                 timestamp=collection.timestamp,
@@ -71,10 +74,11 @@ class GML32Renderer(OutputRenderer):
                     output.write(
                         format_html(
                             "  <wfs:member>\n"
-                            "    <wfs:FeatureCollection"
+                            "    <wfs:{xml_tag}"
                             ' timeStamp="{timestamp}"'
                             ' numberMatched="{number_matched}"'
                             ' numberReturned="{number_returned}">\n',
+                            xml_tag=self.xml_tag,
                             timestamp=collection.timestamp,
                             number_returned=sub_collection.number_returned,
                             number_matched=sub_collection.number_matched,
@@ -93,9 +97,9 @@ class GML32Renderer(OutputRenderer):
                         output.clear()
 
                 if has_multiple_collections:
-                    output.write("    </wfs:FeatureCollection>\n  </wfs:member>\n")
+                    output.write(f"    </wfs:{self.xml_tag}>\n  </wfs:member>\n")
 
-        output.write("</wfs:FeatureCollection>\n")
+        output.write(f"</wfs:{self.xml_tag}>\n")
         yield output.getvalue()
 
     def render_xml_member(
@@ -129,7 +133,7 @@ class GML32Renderer(OutputRenderer):
                         feature_type,
                         field,
                         value,
-                        gml_id=self.get_gml_id(feature_type, instance, seq=gml_seq),
+                        gml_id=self.get_gml_id(feature_type, instance.pk, seq=gml_seq),
                     )
                 )
             else:
@@ -177,10 +181,10 @@ class GML32Renderer(OutputRenderer):
                 coords=" ".join(map(str, value.coords)),
             )
 
-    def get_gml_id(self, feature_type: FeatureType, instance, seq) -> str:
+    def get_gml_id(self, feature_type: FeatureType, object_id, seq) -> str:
         """Generate the gml:id value, which is required for GML 3.2 objects."""
         return "{prefix}.{id}.{seq}".format(
-            prefix=feature_type.name, id=instance.pk, seq=seq
+            prefix=feature_type.name, id=object_id, seq=seq
         )
 
     def render_gml_bounds(self, bbox) -> str:
@@ -196,3 +200,37 @@ class GML32Renderer(OutputRenderer):
             lower=" ".join(map(str, bbox.lower_corner)),
             upper=" ".join(map(str, bbox.upper_corner)),
         )
+
+
+class GML32ValueRenderer(GML32Renderer):
+    """Render the GetPropertyValue XML output in GML 3.2 format"""
+
+    content_type = "text/xml; charset=utf-8"
+    xml_tag = "ValueCollection"
+
+    def __init__(self, *args, value_reference: ValueReference, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.element_name = value_reference.element_name
+
+    def render_xml_member(self, feature_type: FeatureType, instance: dict) -> str:
+        """Write the XML for a single object."""
+        gml_seq = 0
+        output = StringBuffer()
+        output.write("  <wfs:member>\n")
+
+        value = instance["member"]
+        if isinstance(value, GEOSGeometry):
+            gml_seq += 1
+            output.write(
+                self.render_gml_field(
+                    feature_type,
+                    name=self.element_name,
+                    value=value,
+                    gml_id=self.get_gml_id(feature_type, instance["pk"], seq=gml_seq),
+                )
+            )
+        else:
+            output.write(self.render_xml_field(feature_type, self.element_name, value))
+
+        output.write("  </wfs:member>\n")
+        return output.getvalue()

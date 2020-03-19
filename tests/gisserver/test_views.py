@@ -353,16 +353,16 @@ class TestListStoredQueries:
         )
 
 
+def read_response(response) -> str:
+    # works for all HttpResponse subclasses.
+    return b"".join(response).decode()
+
+
 @pytest.mark.django_db
 class TestGetFeature:
     """All tests for the GetFeature method.
     The methods need to have at least one datatype, otherwise not all content is rendered.
     """
-
-    @staticmethod
-    def read_response(response) -> str:
-        # works for all HttpResponse subclasses.
-        return b"".join(response).decode()
 
     @staticmethod
     def read_json(content) -> dict:
@@ -378,7 +378,7 @@ class TestGetFeature:
         response = client.get(
             "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
         )
-        content = self.read_response(response)
+        content = read_response(response)
         assert response["content-type"] == "text/xml; charset=utf-8", content
         assert response.status_code == 200, content
         assert "</wfs:FeatureCollection>" in content
@@ -434,7 +434,7 @@ class TestGetFeature:
         response = client.get(
             "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
         )
-        content = self.read_response(response)
+        content = read_response(response)
         assert response["content-type"] == "text/xml; charset=utf-8", content
         assert response.status_code == 200, content
         assert "</wfs:FeatureCollection>" in content
@@ -474,7 +474,7 @@ class TestGetFeature:
         response = client.get(
             "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=mini-restaurant"
         )
-        content = self.read_response(response)
+        content = read_response(response)
         assert response["content-type"] == "text/xml; charset=utf-8", content
         assert response.status_code == 200, content
         assert "</wfs:FeatureCollection>" in content
@@ -525,7 +525,7 @@ class TestGetFeature:
             "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
             "&SRSNAME=urn:ogc:def:crs:EPSG::28992"
         )
-        content = self.read_response(response)
+        content = read_response(response)
         assert response["content-type"] == "text/xml; charset=utf-8", content
         assert response.status_code == 200, content
         assert "</wfs:FeatureCollection>" in content
@@ -581,7 +581,7 @@ class TestGetFeature:
             "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
             "&BBOX=122400,486200,122500,486300,urn:ogc:def:crs:EPSG::28992"
         )
-        content = self.read_response(response)
+        content = read_response(response)
         assert response["content-type"] == "text/xml; charset=utf-8", content
         assert response.status_code == 200, content
         assert "</wfs:FeatureCollection>" in content
@@ -601,7 +601,7 @@ class TestGetFeature:
             "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
             "&BBOX=100,100,200,200,urn:ogc:def:crs:EPSG::28992"
         )
-        content2 = self.read_response(response2)
+        content2 = read_response(response2)
         xml_doc = validate_xsd(content2, WFS_20_XSD)
         assert xml_doc.attrib["numberMatched"] == "0"
         assert xml_doc.attrib["numberReturned"] == "0"
@@ -684,7 +684,7 @@ class TestGetFeature:
             "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
             "&FILTER=" + quote_plus(filter)
         )
-        content = self.read_response(response)
+        content = read_response(response)
         assert response["content-type"] == "text/xml; charset=utf-8", content
         assert response.status_code == 200, content
         assert "</wfs:FeatureCollection>" in content
@@ -698,6 +698,10 @@ class TestGetFeature:
         feature = xml_doc.find("wfs:member/app:restaurant", namespaces=NAMESPACES)
         geometry = feature.find("app:location/gml:Point", namespaces=NAMESPACES)
         assert geometry.attrib["srsName"] == WGS84.urn
+
+        # Assert that the correct object was matched
+        name = feature.find("app:name", namespaces=NAMESPACES).text
+        assert name == "Café Noir"
 
     INVALID_FILTERS = {
         "syntax": (
@@ -756,7 +760,7 @@ class TestGetFeature:
             "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
             "&FILTER=" + quote_plus(filter.strip())
         )
-        content = self.read_response(response)
+        content = read_response(response)
         assert response["content-type"] == "text/xml; charset=utf-8", content
         assert response.status_code == 400, content
         assert "</ows:Exception>" in content
@@ -775,7 +779,7 @@ class TestGetFeature:
             "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
             "&RESULTTYPE=hits"
         )
-        content = self.read_response(response)
+        content = read_response(response)
         assert response["content-type"] == "text/xml; charset=utf-8", content
         assert response.status_code == 200, content
         assert "</wfs:FeatureCollection>" in content
@@ -815,7 +819,7 @@ class TestGetFeature:
             "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
             f"&SORTBY={sort_by}"
         )
-        content = self.read_response(response)
+        content = read_response(response)
         assert response["content-type"] == "text/xml; charset=utf-8", content
         assert response.status_code == 200, content
         assert "</wfs:FeatureCollection>" in content
@@ -845,7 +849,7 @@ class TestGetFeature:
             "&outputformat=geojson"
         )
         assert response["content-type"] == "application/json; charset=utf-8"
-        content = self.read_response(response)
+        content = read_response(response)
         assert response.status_code == 200, content
         data = self.read_json(content)
 
@@ -901,7 +905,7 @@ class TestGetFeature:
             "&outputformat=geojson"
         )
         assert response["content-type"] == "application/json; charset=utf-8"
-        content = self.read_response(response)
+        content = read_response(response)
 
         # If the response is invalid json, there was likely
         # some exception that aborted further writing.
@@ -910,3 +914,147 @@ class TestGetFeature:
         assert len(data["features"]) == 1000
         assert data["numberReturned"] == 1000
         assert data["numberMatched"] == 1500
+
+
+@pytest.mark.django_db
+class TestGetPropertyValue:
+    """All tests for the GetPropertyValue method."""
+
+    def test_get(self, client, restaurant, bad_restaurant):
+        """Prove that the happy flow works"""
+        response = client.get(
+            "/v1/wfs/?SERVICE=WFS&REQUEST=GetPropertyValue&VERSION=2.0.0&TYPENAMES=restaurant"
+            "&VALUEREFERENCE=name"
+        )
+        content = read_response(response)
+        assert response["content-type"] == "text/xml; charset=utf-8", content
+        assert response.status_code == 200, content
+        assert "</wfs:ValueCollection>" in content
+
+        # Validate against the WFS 2.0 XSD
+        xml_doc = validate_xsd(content, WFS_20_XSD)
+        assert xml_doc.attrib["numberMatched"] == "2"
+        assert xml_doc.attrib["numberReturned"] == "2"
+        timestamp = xml_doc.attrib["timeStamp"]
+
+        assert_xml_equal(
+            content,
+            f"""<wfs:ValueCollection
+       xmlns:app="http://example.org/gisserver"
+       xmlns:gml="http://www.opengis.net/gml/3.2"
+       xmlns:wfs="http://www.opengis.net/wfs/2.0"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://example.org/gisserver http://testserver/v1/wfs/?SERVICE=WFS&amp;VERSION=2.0.0&amp;REQUEST=DescribeFeatureType&amp;TYPENAMES=restaurant http://www.opengis.net/wfs/2.0 http://schemas.opengis.net/wfs/2.0/wfs.xsd http://www.opengis.net/gml/3.2 http://schemas.opengis.net/gml/3.2.1/gml.xsd"
+       timeStamp="{timestamp}" numberMatched="2" numberReturned="2">
+  <wfs:member>
+    <app:name>Café Noir</app:name>
+  </wfs:member>
+  <wfs:member>
+    <app:name>Foo Bar</app:name>
+  </wfs:member>
+</wfs:ValueCollection>""",  # noqa: E501
+        )
+
+    def test_get_location(self, client, restaurant):
+        """Prove that rendering geometry values also works"""
+        response = client.get(
+            "/v1/wfs/?SERVICE=WFS&REQUEST=GetPropertyValue&VERSION=2.0.0&TYPENAMES=restaurant"
+            "&VALUEREFERENCE=location"
+        )
+        content = read_response(response)
+        assert response["content-type"] == "text/xml; charset=utf-8", content
+        assert response.status_code == 200, content
+        assert "</wfs:ValueCollection>" in content
+
+        # Validate against the WFS 2.0 XSD
+        xml_doc = validate_xsd(content, WFS_20_XSD)
+        assert xml_doc.attrib["numberMatched"] == "1"
+        assert xml_doc.attrib["numberReturned"] == "1"
+        timestamp = xml_doc.attrib["timeStamp"]
+
+        assert_xml_equal(
+            content,
+            f"""<wfs:ValueCollection
+       xmlns:app="http://example.org/gisserver"
+       xmlns:gml="http://www.opengis.net/gml/3.2"
+       xmlns:wfs="http://www.opengis.net/wfs/2.0"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://example.org/gisserver http://testserver/v1/wfs/?SERVICE=WFS&amp;VERSION=2.0.0&amp;REQUEST=DescribeFeatureType&amp;TYPENAMES=restaurant http://www.opengis.net/wfs/2.0 http://schemas.opengis.net/wfs/2.0/wfs.xsd http://www.opengis.net/gml/3.2 http://schemas.opengis.net/gml/3.2.1/gml.xsd"
+       timeStamp="{timestamp}" numberMatched="1" numberReturned="1">
+  <wfs:member>
+    <app:location>
+      <gml:Point gml:id="restaurant.{restaurant.id}.1" srsName="urn:ogc:def:crs:EPSG::4326">
+        <gml:pos>{POINT1_XML_WGS84}</gml:pos>
+      </gml:Point>
+    </app:location>
+  </wfs:member>
+</wfs:ValueCollection>""",  # noqa: E501
+        )
+
+    @pytest.mark.parametrize("filter_name", list(TestGetFeature.FILTERS.keys()))
+    def test_get_filter(self, client, restaurant, bad_restaurant, filter_name):
+        """Prove that that parsing FILTER=<fes:Filter>... works"""
+        filter = TestGetFeature.FILTERS[filter_name].strip()
+
+        response = client.get(
+            "/v1/wfs/?SERVICE=WFS&REQUEST=GetPropertyValue&VERSION=2.0.0&TYPENAMES=restaurant"
+            "&VALUEREFERENCE=name&FILTER=" + quote_plus(filter)
+        )
+        content = read_response(response)
+        assert response["content-type"] == "text/xml; charset=utf-8", content
+        assert response.status_code == 200, content
+        assert "</wfs:ValueCollection>" in content
+
+        # Validate against the WFS 2.0 XSD
+        xml_doc = validate_xsd(content, WFS_20_XSD)
+        assert xml_doc.attrib["numberMatched"] == "1"
+        assert xml_doc.attrib["numberReturned"] == "1"
+
+        # Assert that the correct object was matched
+        name = xml_doc.find("wfs:member/app:name", namespaces=NAMESPACES).text
+        assert name == "Café Noir"
+
+    @pytest.mark.parametrize("filter_name", list(TestGetFeature.INVALID_FILTERS.keys()))
+    def test_get_filter_invalid(self, client, restaurant, filter_name):
+        """Prove that that parsing FILTER=<fes:Filter>... works"""
+        filter, expect_msg = TestGetFeature.INVALID_FILTERS[filter_name]
+
+        response = client.get(
+            "/v1/wfs/?SERVICE=WFS&REQUEST=GetPropertyValue&VERSION=2.0.0&TYPENAMES=restaurant"
+            "&VALUEREFERENCE=name&FILTER=" + quote_plus(filter.strip())
+        )
+        content = read_response(response)
+        assert response["content-type"] == "text/xml; charset=utf-8", content
+        assert response.status_code == 400, content
+        assert "</ows:Exception>" in content
+
+        xml_doc = validate_xsd(content, WFS_20_XSD)
+        assert xml_doc.attrib["version"] == "2.0.0"
+        exception = xml_doc.find("ows:Exception", NAMESPACES)
+        assert exception.attrib["exceptionCode"] == "InvalidParameterValue"
+
+        message = exception.find("ows:ExceptionText", NAMESPACES).text
+        assert message == expect_msg
+
+    @pytest.mark.parametrize("ordering", list(TestGetFeature.SORT_BY.keys()))
+    def test_get_sort_by(self, client, restaurant, bad_restaurant, ordering):
+        """Prove that that parsing BBOX=... works"""
+        sort_by, expect = TestGetFeature.SORT_BY[ordering]
+        response = client.get(
+            "/v1/wfs/?SERVICE=WFS&REQUEST=GetPropertyValue&VERSION=2.0.0&TYPENAMES=restaurant"
+            f"&VALUEREFERENCE=name&SORTBY={sort_by}"
+        )
+        content = read_response(response)
+        assert response["content-type"] == "text/xml; charset=utf-8", content
+        assert response.status_code == 200, content
+        assert "</wfs:ValueCollection>" in content
+
+        # Validate against the WFS 2.0 XSD
+        xml_doc = validate_xsd(content, WFS_20_XSD)
+        assert xml_doc.attrib["numberMatched"] == "2"
+        assert xml_doc.attrib["numberReturned"] == "2"
+
+        # Test sort ordering.
+        members = xml_doc.findall("wfs:member", namespaces=NAMESPACES)
+        names = [res.find("app:name", namespaces=NAMESPACES).text for res in members]
+        assert names == expect
