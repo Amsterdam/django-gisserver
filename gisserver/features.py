@@ -47,6 +47,7 @@ class FeatureType:
     This corresponds with a single Django model.
     """
 
+    #: The queryset to retrieve the data.
     queryset: models.QuerySet
 
     #: Define which fields to show in the WFS data:

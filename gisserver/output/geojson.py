@@ -75,14 +75,14 @@ class GeoJsonRenderer(GetFeatureOutputRenderer):
         output.write(b"}\n")
         yield output.getvalue()
 
-    def render_feature(self, feature, instance) -> bytes:
+    def render_feature(self, feature_type, instance) -> bytes:
         """Render the output of a single feature"""
 
         # Get geo value
-        geo_value = getattr(instance, feature.geometry_field_name)
+        geo_value = getattr(instance, feature_type.geometry_field_name)
 
         # Get all instance attributes:
-        properties = self.get_properties(feature, instance)
+        properties = self.get_properties(feature_type, instance)
 
         return (
             b"    {"
@@ -93,7 +93,7 @@ class GeoJsonRenderer(GetFeatureOutputRenderer):
             b'"properties":%b'
             b"}"
         ) % (
-            orjson.dumps(f"{feature.name}.{instance.pk}"),
+            orjson.dumps(f"{feature_type.name}.{instance.pk}"),
             orjson.dumps(str(instance)),
             self.render_geometry(geo_value),
             orjson.dumps(properties),
@@ -153,10 +153,10 @@ class GeoJsonRenderer(GetFeatureOutputRenderer):
             )
         return links
 
-    def get_properties(self, feature, instance) -> dict:
+    def get_properties(self, feature_type, instance) -> dict:
         """Collect the data for the 'properties' field"""
         return {
             name: self._format_geojson_value(getattr(instance, name))
-            for name in feature.fields
-            if name not in feature.geometry_field_names
+            for name in feature_type.fields
+            if name not in feature_type.geometry_field_names
         }

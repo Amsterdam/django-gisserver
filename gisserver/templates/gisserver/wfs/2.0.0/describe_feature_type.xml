@@ -13,14 +13,14 @@
 
   <import namespace="http://www.opengis.net/gml/3.2" schemaLocation="http://schemas.opengis.net/gml/3.2.1/gml.xsd" />
 
-{% for feature in feature_types %}
-  <element name="{{ feature.name }}" type="app:{{ feature.name }}Type" substitutionGroup="gml:AbstractFeature" />
+{% for feature_type in feature_types %}
+  <element name="{{ feature_type.name }}" type="app:{{ feature_type.name }}Type" substitutionGroup="gml:AbstractFeature" />
 
-  <complexType name="{{ feature.name }}Type">
+  <complexType name="{{ feature_type.name }}Type">
     <complexContent>
       <extension base="gml:AbstractFeatureType">
-        <sequence>{% for name, xs_type in feature.fields_with_type %}
-          <element name="{{ name }}" type="{{ xs_type }}" minOccurs="0"{% if "gml:" in xs_type %} maxOccurs="1"{% endif %}/>{% endfor %}
+        <sequence>{% for name, xs_type in feature_type.fields_with_type %}
+          <element name="{{ name }}" type="{{ xs_type }}" minOccurs="0"{% if xs_type.prefix == "gml" %} maxOccurs="1"{% endif %}/>{% endfor %}
         </sequence>
       </extension>
     </complexContent>

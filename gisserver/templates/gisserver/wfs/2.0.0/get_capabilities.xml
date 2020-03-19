@@ -87,23 +87,23 @@
   </ows:OperationsMetadata>
 
   <FeatureTypeList>
-    {% for feature in feature_types %}
+    {% for feature_type in feature_types %}
     <FeatureType>
-      <Name>{{ feature.name }}</Name>
-      <Title>{{ feature.title }}</Title>{% if feature.abstract %}
-      <Abstract>{{ feature.abstract }}</Abstract>{% endif %}
-      {% if feature.keywords %}<ows:Keywords>{% for keyword in feature.keywords %}
+      <Name>{{ feature_type.name }}</Name>
+      <Title>{{ feature_type.title }}</Title>{% if feature_type.abstract %}
+      <Abstract>{{ feature_type.abstract }}</Abstract>{% endif %}
+      {% if feature_type.keywords %}<ows:Keywords>{% for keyword in feature_type.keywords %}
         <ows:Keyword>{{ keyword }}</ows:Keyword>{% endfor %}
       </ows:Keywords>{% endif %}
-      <DefaultCRS>{{ feature.crs }}</DefaultCRS>{% for crs in feature.other_crs %}
+      <DefaultCRS>{{ feature_type.crs }}</DefaultCRS>{% for crs in feature_type.other_crs %}
       <OtherCRS>{{ crs }}</OtherCRS>{% endfor %}
       <OutputFormats>{% for output in feature_output_formats %}
         <Format>{{ output }}</Format>{% endfor %}
       </OutputFormats>
-      {% with bbox=feature.get_bounding_box %}{% if bbox %}<ows:WGS84BoundingBox dimensions="2">
+      {% with bbox=feature_type.get_bounding_box %}{% if bbox %}<ows:WGS84BoundingBox dimensions="2">
         <ows:LowerCorner>{{ bbox.lower_corner|join:" " }}</ows:LowerCorner>
         <ows:UpperCorner>{{ bbox.upper_corner|join:" " }}</ows:UpperCorner>
-      </ows:WGS84BoundingBox>{% endif %}{% endwith %}{% if feature.metadata_url %}
+      </ows:WGS84BoundingBox>{% endif %}{% endwith %}{% if feature_type.metadata_url %}
       <MetadataURL xlink:href="{{ metadata_url|urljoin:server_url }}"/>{% endif %}
     </FeatureType>
     {% endfor %}

@@ -2,6 +2,7 @@
 from datetime import date, datetime, time
 
 from django.contrib.gis.geos import GEOSGeometry, Point
+from django.db import models
 from django.utils.html import format_html
 from django.utils.timezone import utc
 
@@ -56,7 +57,7 @@ class GML32Renderer(GetFeatureOutputRenderer):
             #   </gml:Envelope>
             # </wfs:boundedBy>
 
-            for feature, instances, number_matched in feature_collections:
+            for feature_type, instances, number_matched in feature_collections:
                 if len(feature_collections) > 1:
                     output.write(
                         format_html(
@@ -72,7 +73,7 @@ class GML32Renderer(GetFeatureOutputRenderer):
                     )
 
                 for instance in instances:
-                    output.write(self.render_xml_member(feature, instance))
+                    output.write(self.render_xml_member(feature_type, instance))
 
                     # Only perform a 'yield' every once in a while,
                     # as it goes back-and-forth for writing it to the client.
@@ -86,7 +87,9 @@ class GML32Renderer(GetFeatureOutputRenderer):
         output.write("</wfs:FeatureCollection>\n")
         yield output.getvalue()
 
-    def render_xml_member(self, feature: FeatureType, instance) -> str:
+    def render_xml_member(
+        self, feature_type: FeatureType, instance: models.Model
+    ) -> str:
         """Write the XML for a single object."""
         gml_seq = 0
         output = StringBuffer()
@@ -95,37 +98,37 @@ class GML32Renderer(GetFeatureOutputRenderer):
             format_html(
                 '    <app:{name} gml:id="{name}.{pk}">\n'
                 "      <gml:name>{display}</gml:name>\n",
-                name=feature.name,
+                name=feature_type.name,
                 pk=instance.pk,
                 display=str(instance),
             ),
         )
 
         # Add <gml:boundedBy>
-        member_bbox = feature.get_envelope(instance, self.output_crs)
+        member_bbox = feature_type.get_envelope(instance, self.output_crs)
         if member_bbox is not None:
             output.write(self.render_gml_bounds(member_bbox))
 
-        for field in feature.fields:
+        for field in feature_type.fields:
             value = getattr(instance, field)
             if isinstance(value, GEOSGeometry):
                 gml_seq += 1
                 output.write(
                     self.render_gml_field(
-                        feature,
+                        feature_type,
                         field,
                         value,
-                        gml_id=self.get_gml_id(feature, instance, seq=gml_seq),
+                        gml_id=self.get_gml_id(feature_type, instance, seq=gml_seq),
                     )
                 )
             else:
-                output.write(self.render_xml_field(feature, field, value))
+                output.write(self.render_xml_field(feature_type, field, value))
 
-        output.write(format_html("    </app:{name}>\n", name=feature.name))
+        output.write(format_html("    </app:{name}>\n", name=feature_type.name))
         output.write("  </wfs:member>\n")
         return output.getvalue()
 
-    def render_xml_field(self, feature: FeatureType, field: str, value) -> str:
+    def render_xml_field(self, feature_type: FeatureType, field: str, value) -> str:
         """Write the value of a single field."""
         if value is None:
             return format_html('    <app:{field} xsi:nil="true" />\n', field=field)
@@ -140,7 +143,7 @@ class GML32Renderer(GetFeatureOutputRenderer):
             "    <app:{field}>{value}</app:{field}>\n", field=field, value=value
         )
 
-    def render_gml_field(self, feature: FeatureType, name, value, gml_id) -> str:
+    def render_gml_field(self, feature_type: FeatureType, name, value, gml_id) -> str:
         """Write the value of an GML tag"""
         return format_html(
             "      <app:{name}>{gml}</app:{name}>\n",
@@ -163,10 +166,10 @@ class GML32Renderer(GetFeatureOutputRenderer):
                 coords=" ".join(map(str, value.coords)),
             )
 
-    def get_gml_id(self, feature: FeatureType, instance, seq) -> str:
+    def get_gml_id(self, feature_type: FeatureType, instance, seq) -> str:
         """Generate the gml:id value, which is required for GML 3.2 objects."""
         return "{prefix}.{id}.{seq}".format(
-            prefix=feature.name, id=instance.pk, seq=seq
+            prefix=feature_type.name, id=instance.pk, seq=seq
         )
 
     def render_gml_bounds(self, bbox) -> str:

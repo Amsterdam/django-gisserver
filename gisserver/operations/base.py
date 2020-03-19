@@ -158,6 +158,7 @@ class WFSMethod:
         """Dynamically return the supported parameters for this method."""
         parameters = [
             # Always add SERVICE and VERSION as required parameters
+            # Part of BaseRequest:
             Parameter(
                 "service",
                 required=True,
@@ -173,10 +174,13 @@ class WFSMethod:
                     "invalid": "WFS Server does not support VERSION {value}.",
                 },
             ),
+            # Common for all WFS methods:
+            UnsupportedParameter("namespaces"),  # define output namespaces
         ] + self.parameters
 
         if self.output_formats:
             parameters += [
+                # Part of StandardPresentationParameters:
                 Parameter(
                     "outputFormat",
                     in_capabilities=True,
@@ -265,7 +269,7 @@ class WFSMethod:
         return template_name
 
 
-class WFSFeatureMethod(WFSMethod):
+class WFSTypeNamesMethod(WFSMethod):
     """A base method that also resolved the TYPENAMES parameter."""
 
     def get_parameters(self):
@@ -278,9 +282,9 @@ class WFSFeatureMethod(WFSMethod):
         """Initialize the 'self.feature_types'."""
         self.feature_types = self.view.get_feature_types()
 
-        features_by_name = {feature.name: feature for feature in self.feature_types}
+        features_by_name = {ft.name: ft for ft in self.feature_types}
         if len(features_by_name) != len(self.feature_types):
-            all_names = [feature.name for feature in self.feature_types]
+            all_names = [ft.name for ft in self.feature_types]
             duplicates = ", ".join(
                 sorted(set(n for n in all_names if all_names.count(n) > 1))
             )

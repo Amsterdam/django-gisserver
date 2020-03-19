@@ -9,8 +9,8 @@
       This should be included for full compliance:
 
   <StoredQuery id="urn:ogc:def:query:OGC-WFS::GetFeatureById">
-    <Title>Get feature by identifier</Title>    {% for feature in feature_types %}
-    <ReturnFeatureType>{{ feature.name }}</ReturnFeatureType>{% endfor %}
+    <Title>Get feature by identifier</Title>{% for feature_type in feature_types %}
+    <ReturnFeatureType>{{ feature_type.name }}</ReturnFeatureType>{% endfor %}
   </StoredQuery>
 
 -->{% endcomment %}

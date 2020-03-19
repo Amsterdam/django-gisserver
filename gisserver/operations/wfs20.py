@@ -19,13 +19,13 @@ from gisserver.exceptions import InvalidParameterValue, VersionNegotiationFailed
 from gisserver.features import FeatureType
 from gisserver.parsers import fes20
 from gisserver.parsers.fes20 import operators
-from gisserver.types import CRS, BoundingBox
+from gisserver.types import BoundingBox, CRS
 
 from .base import (
     OutputFormat,
     Parameter,
-    WFSFeatureMethod,
     WFSMethod,
+    WFSTypeNamesMethod,
     UnsupportedParameter,
 )
 from gisserver import output
@@ -127,7 +127,7 @@ class GetCapabilities(WFSMethod):
         }
 
 
-class DescribeFeatureType(WFSFeatureMethod):
+class DescribeFeatureType(WFSTypeNamesMethod):
     """This returns an XML Schema for the provided objects.
     Each feature is exposed as an XSD definition with it's fields.
     """
@@ -186,12 +186,13 @@ def parse_sort_by(value) -> List[str]:
     return result
 
 
-class GetFeature(WFSFeatureMethod):
+class GetFeature(WFSTypeNamesMethod):
     """This returns the feature details; the individual records based on a query.
     Various query parameters allow limiting the data.
     """
 
     parameters = [
+        # StandardPresentationParameters
         Parameter(
             "resultType",
             in_capabilities=True,
@@ -199,10 +200,19 @@ class GetFeature(WFSFeatureMethod):
             allowed_values=["RESULTS", "HITS"],
             default="RESULTS",
         ),
-        Parameter("srsName", parser=CRS.from_string),
-        Parameter("bbox", parser=BoundingBox.from_string),
         Parameter("startIndex", parser=int, default=0),
         Parameter("count", parser=int),  # was called maxFeatures in WFS 1.x
+        # outputFormat will be added by the base class.
+        # StandardResolveParameters
+        UnsupportedParameter("resolve"),  # subresource settings
+        UnsupportedParameter("resolveDepth"),
+        UnsupportedParameter("resolveTimeout"),
+        # StandardInputParameters
+        Parameter("srsName", parser=CRS.from_string),
+        # Projection clause parameters
+        UnsupportedParameter("propertyName"),  # which fields to return
+        # AdHoc Query parameters
+        Parameter("bbox", parser=BoundingBox.from_string),
         Parameter(
             "filter_language",
             default=fes20.Filter.query_language,
@@ -210,13 +220,7 @@ class GetFeature(WFSFeatureMethod):
         ),
         Parameter("filter", parser=fes20.Filter.from_string),
         Parameter("sortBy", parser=parse_sort_by),
-        # Not implemented:
         UnsupportedParameter("resourceID"),  # query on ID (called featureID in wfs 1.x)
-        UnsupportedParameter("propertyName"),  # which fields to return
-        UnsupportedParameter("resolve"),  # subresource settings
-        UnsupportedParameter("resolveDepth"),
-        UnsupportedParameter("resolveTimeout"),
-        UnsupportedParameter("namespaces"),  # define output namespaces
         UnsupportedParameter("aliases"),
     ]
     output_formats = [
@@ -267,7 +271,8 @@ class GetFeature(WFSFeatureMethod):
         # The querysets are not executed until the very end.
         try:
             feature_collections = [
-                (qs.feature, qs[start:stop].iterator(), qs.count()) for qs in querysets
+                (qs.feature_type, qs[start:stop].iterator(), qs.count())
+                for qs in querysets
             ]
         except ProgrammingError as e:
             # e.g. comparing datetime against integer
@@ -297,13 +302,13 @@ class GetFeature(WFSFeatureMethod):
     def get_querysets(self, typeNames, **params):
         """Generate querysets for all requested data."""
         return [
-            self.filter_queryset(feature, feature.get_queryset(), **params)
-            for feature in typeNames
+            self.filter_queryset(feature_type, feature_type.get_queryset(), **params)
+            for feature_type in typeNames
         ]
 
     def filter_queryset(
         self,
-        feature: FeatureType,
+        feature_type: FeatureType,
         queryset,
         bbox: Optional[BoundingBox],
         filter: Optional[fes20.Filter],
@@ -318,7 +323,7 @@ class GetFeature(WFSFeatureMethod):
             # Using __within does not work with geometries
             # that only partially exist within the bbox
             lookup = operators.SpatialOperatorName.BBOX.value
-            filters[f"{feature.geometry_field_name}__{lookup}"] = bbox.as_polygon()
+            filters[f"{feature_type.geometry_field_name}__{lookup}"] = bbox.as_polygon()
 
         # TODO: other parameters to support:
         # resourceid=app:Type/gml:name (was featureID in wfs 1.x)
@@ -352,7 +357,7 @@ class GetFeature(WFSFeatureMethod):
                 ) from e
 
         # Attach extra property to keep meta-dataa in place
-        queryset.feature = feature
+        queryset.feature_type = feature_type
         return queryset
 
     def _log_filter_error(self, level, exc, filter: fes20.Filter):
