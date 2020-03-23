@@ -17,7 +17,7 @@ from django.db import ProgrammingError
 
 from gisserver.exceptions import InvalidParameterValue, VersionNegotiationFailed
 from gisserver.features import FeatureType
-from gisserver.parsers import fes20, AdhocQuery
+from gisserver.parsers import fes20, queries
 from gisserver.parsers.fes20 import expressions
 from gisserver.types import BoundingBox, CRS
 
@@ -223,7 +223,8 @@ class BaseWFSPresentationMethod(WFSTypeNamesMethod):
     ]
 
     def get_context_data(self, resultType, **params):
-        querysets = self.get_querysets(**params)
+        query_expression = self.get_query(**params)
+        querysets = self.get_querysets(query_expression, **params)
 
         if resultType == "HITS":
             collection = self.get_hits(querysets)
@@ -237,6 +238,10 @@ class BaseWFSPresentationMethod(WFSTypeNamesMethod):
             "collection": collection,
             "output_crs": params["srsName"] or params["typeNames"][0].crs,
         }
+
+    def get_query(self, **params) -> queries.QueryExpression:
+        """Create the query object that will process this request"""
+        return queries.AdhocQuery.from_kvp_request(**params)
 
     def get_hits(self, querysets) -> output.FeatureCollection:
         """Return the number of hits"""
@@ -277,13 +282,12 @@ class BaseWFSPresentationMethod(WFSTypeNamesMethod):
             results=results, number_matched=number_matched, next=next, previous=previous
         )
 
-    def get_querysets(self, typeNames, **params):
+    def get_querysets(self, query_expression, typeNames, **params):
         """Generate querysets for all requested data."""
-        adhoc_query = AdhocQuery.from_kvp_request(typeNames=typeNames, **params)
         results = []
         for feature_type in typeNames:
             try:
-                queryset = self.get_queryset(feature_type, adhoc_query, **params)
+                queryset = self.get_queryset(feature_type, query_expression, **params)
             except FieldError as e:
                 # e.g. doing a LIKE on a foreign key
                 self._log_filter_error(logging.ERROR, e, params["filter"])
@@ -300,9 +304,9 @@ class BaseWFSPresentationMethod(WFSTypeNamesMethod):
 
         return results
 
-    def get_queryset(self, feature_type: FeatureType, adhoc_query, **params):
+    def get_queryset(self, feature_type: FeatureType, query_expression, **params):
         """Generate the queryset for a single feature."""
-        fes_query = adhoc_query.get_fes_query(feature_type)
+        fes_query = query_expression.get_fes_query(feature_type)
         queryset = feature_type.get_queryset()
         return fes_query.filter_queryset(queryset)
 
@@ -379,7 +383,12 @@ class GetPropertyValue(BaseWFSPresentationMethod):
                 "valueReference", f"Field '{value_reference.xpath}' does not exist.",
             )
 
-        return fes_query.filter_queryset_value(queryset, value_reference)
+        # Adjust FesQuery to query for the selected propety
+        field = fes_query.add_value_reference(value_reference)
+        queryset = fes_query.filter_queryset(queryset)
+
+        # Only return those values
+        return queryset.values("pk", member=field)
 
     def get_context_data(self, **params):
         context = super().get_context_data(**params)

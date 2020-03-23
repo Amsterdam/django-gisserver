@@ -50,6 +50,15 @@ class FesQuery:
     def add_sort_by(self, sort_by: list):
         self.sort_by += sort_by
 
+    def add_value_reference(self, value_reference: expressions.ValueReference) -> str:
+        """Add a reference that should be returned by the query.
+
+        This includes the XPath expression to the query, in case that adds
+        extra lookups. The name (or alias) is returned that can be used in the
+         ``queryset.values()`` result
+        """
+        return value_reference.build_rhs(self)
+
     def apply_extra_lookups(self, result: Q) -> Q:
         """Combine stashed lookups with the produced result."""
         if self.extra_lookups:
@@ -75,16 +84,6 @@ class FesQuery:
             queryset = queryset.order_by(*self.sort_by)
 
         return queryset
-
-    def filter_queryset_value(
-        self, queryset: QuerySet, value_reference: expressions.ValueReference,
-    ) -> QuerySet:
-        """Apply this filter to a Django QuerySet, return one property.
-        This is used for GetPropertyValue requests.
-        """
-        # The "pk" field is also included to render the gml:id.
-        field = value_reference.build_rhs(self)
-        return self.filter_queryset(queryset).values("pk", member=field)
 
     def __repr__(self):
         return f"<FesQuery annotations={self.annotations!r}, lookups={self.lookups!r}>"

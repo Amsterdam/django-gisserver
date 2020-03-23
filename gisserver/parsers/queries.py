@@ -1,4 +1,4 @@
-"""Complex request objects"""
+"""Handle query objects"""
 from dataclasses import dataclass
 from typing import List, Optional
 
@@ -11,12 +11,24 @@ from gisserver.parsers.fes20 import operators
 from gisserver.types import BoundingBox
 
 
+class QueryExpression:
+    """WFS base class for all queries."""
+
+    handle = ""
+
+    def get_fes_query(self, feature_type: FeatureType) -> fes20.FesQuery:
+        """Generate the FES query."""
+        raise NotImplementedError()
+
+
 @dataclass
-class AdhocQuery:
+class AdhocQuery(QueryExpression):
     """The Ad hoc query expression parameters.
 
+    This represents all dynamic queries received as request (hence "adhoc"),
+    such as the "FILTER" and "BBOX" arguments from a HTTP GET.
+
     The WFS Spec has 3 class levels for this:
-    - QueryExpression (only "handle")
     - AdhocQueryExpression (types, projection, selection, sorting)
     - Query (adds srsName, featureVersion)
 
