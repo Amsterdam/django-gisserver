@@ -1,6 +1,21 @@
+# 2020-03-23 (0.5)
+
+* Added `GetPropertyValue` support.
+* Added empty `ListStoredQueries`/`DescribeStoredQueries` operations nearing Simple WFS conformance.
+* Added a lot of built-in FES functions.
+* Added `FeatureType(fields=...)` to limit which fields are exposed (can also use `__all__`).
+* **Backwards incompatible:** by default no fields are exposed, unless they are mentioned.
+* Added pagination links to GeoJSON response, based on WFS 3.0 DRAFT.
+* Changed `max_page_size` to reasonable 1000 per page.
+* Fixed `SRSNAME` support on GeoJSON output to select the coordinate reference system.
+* Fixed `ResourceId` to extract the ID from the typename.id value.
+* Improved performance of output streaming (buffering output, reducing yield).
+* Removed lxml dependency, as it's only used for tests.
+* Internal code reorganizations/cleanups.
+
 # 2020-03-11 (0.4)
 
-* Added response streaming for GML/GeoJSON
+* Added response streaming for GML/GeoJSON.
 * Added `OutputFormat(..., renderer_class=...)` API to integrate custom output formats.
 * Added `SORTBY` parameter support.
 * Fixed mentioning GML 3.2 instead of 3.1.1 in `GetCapabilities`.
