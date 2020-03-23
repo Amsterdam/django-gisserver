@@ -58,7 +58,7 @@ class AdhocQuery(QueryExpression):
     def from_kvp_request(cls, **params):
         """Build this object from a HTTP GET (key-value-pair) request."""
         # Allow filtering using a <fes:Filter>
-        if params["filter"] and params["bbox"]:
+        if params["filter"] and (params["bbox"] or params["resourceID"]):
             raise InvalidParameterValue(
                 "filter",
                 "The FILTER parameter is mutually exclusive with BBOX and RESOURCEID",
