@@ -7,6 +7,7 @@ from enum import Enum
 from typing import Optional, Union
 
 from django.db.models import Q
+from django.utils.functional import cached_property
 
 from gisserver.parsers.base import BaseNode, FES20, tag_registry
 from gisserver.parsers.utils import auto_cast, get_attribute, parse_iso_datetime
@@ -30,6 +31,11 @@ class Id(BaseNode):
     def build_query(self, fesquery) -> Q:
         raise NotImplementedError()
 
+    @property
+    def type_name(self):
+        """Tell which typename this ID applies to"""
+        raise NotImplementedError()
+
 
 @dataclass
 @tag_registry.register("ResourceId")
@@ -40,6 +46,18 @@ class ResourceId(Id):
     version: Union[int, datetime, VersionActionTokens, NoneType] = None
     startTime: Optional[datetime] = None
     endTime: Optional[datetime] = None
+
+    @cached_property
+    def _rid_parts(self):
+        return self.rid.rsplit(".", 1)
+
+    @property
+    def type_name(self):
+        return self._rid_parts[0]
+
+    @property
+    def id(self):
+        return self._rid_parts[1]
 
     @classmethod
     def from_xml(cls, element):
@@ -63,4 +81,5 @@ class ResourceId(Id):
             raise NotImplementedError(
                 "No support for <fes:ResourceId> startTime/endTime/version attributes"
             )
-        return Q(pk=self.rid)
+
+        return Q(pk=self.id)
