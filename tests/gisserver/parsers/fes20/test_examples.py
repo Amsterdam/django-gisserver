@@ -341,14 +341,11 @@ def test_fes20_c5_example5():
     # Test SQL generating
     query = result.get_query()
     assert query == FesQuery(
-        lookups=[
-            Q(pk="TREESA_1M.1234")
-            | Q(pk="TREESA_1M.5678")
-            | Q(pk="TREESA_1M.9012")
-            | Q(pk="INWATERA_1M.3456")
-            | Q(pk="INWATERA_1M.7890")
-            | Q(pk="BUILTUPA_1M.4321")
-        ]
+        typed_lookups={
+            "BUILTUPA_1M": [Q(pk="4321")],
+            "INWATERA_1M": [Q(pk="3456") | Q(pk="7890")],
+            "TREESA_1M": [Q(pk="1234") | Q(pk="5678") | Q(pk="9012")],
+        }
     ), repr(query)
 
 

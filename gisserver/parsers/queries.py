@@ -83,7 +83,7 @@ class AdhocQuery(QueryExpression):
 
     def _get_non_fes_query(self, feature_type):
         """Generate the query based on the remaining parameters."""
-        query = fes20.FesQuery(feature_types=self.typeNames)
+        query = fes20.FesQuery()
 
         if self.bbox:
             # Using __within does not work with geometries

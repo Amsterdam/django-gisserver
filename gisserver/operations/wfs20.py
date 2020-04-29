@@ -319,7 +319,7 @@ class BaseWFSPresentationMethod(WFSTypeNamesMethod):
 
         # Apply filters
         fes_query = query_expression.get_fes_query(feature_type)
-        return fes_query.filter_queryset(queryset)
+        return fes_query.filter_queryset(queryset, feature_type=feature_type)
 
     def _log_filter_error(self, level, exc, filter: fes20.Filter):
         """Report a filtering parsing error in the logging"""
@@ -396,7 +396,7 @@ class GetPropertyValue(BaseWFSPresentationMethod):
 
         # Adjust FesQuery to query for the selected propety
         field = fes_query.add_value_reference(value_reference)
-        queryset = fes_query.filter_queryset(queryset)
+        queryset = fes_query.filter_queryset(queryset, feature_type=feature_type)
 
         # Only return those values
         return queryset.values("pk", member=field)

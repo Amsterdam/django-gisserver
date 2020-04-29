@@ -1,6 +1,6 @@
 import operator
 from functools import reduce
-from typing import Union
+from typing import Optional, Union
 
 from django.contrib.gis.db.models.fields import BaseSpatialField
 from django.contrib.gis.db.models.lookups import DistanceLookupBase
@@ -8,6 +8,7 @@ from django.db import models
 from django.db.models import Q, QuerySet, lookups
 from django.db.models.expressions import Combinable
 
+from gisserver.features import FeatureType
 from . import expressions
 
 
@@ -18,8 +19,11 @@ class FesQuery:
     so it can be used to add extra lookups and annotations.
     """
 
-    def __init__(self, lookups=None, annotations=None):
+    def __init__(
+        self, lookups=None, typed_lookups=None, annotations=None,
+    ):
         self.lookups = lookups or []
+        self.typed_lookups = typed_lookups or {}
         self.annotations = annotations or {}
         self.aliases = 0
         self.extra_lookups = []
@@ -35,11 +39,17 @@ class FesQuery:
         self.annotations[name] = value
         return name
 
-    def add_lookups(self, q_object: Q):
+    def add_lookups(self, q_object: Q, type_name: Optional[str] = None):
         """Register an extra 'WHERE' clause of the query."""
         if not isinstance(q_object, Q):
             raise TypeError()
-        self.lookups.append(q_object)
+
+        if type_name is not None:
+            if type_name not in self.typed_lookups:
+                self.typed_lookups[type_name] = []
+            self.typed_lookups[type_name].append(q_object)
+        else:
+            self.lookups.append(q_object)
 
     def add_extra_lookup(self, q_object: Q):
         """Temporary stash an extra lookup that the expression can't return yet."""
@@ -66,8 +76,14 @@ class FesQuery:
             self.extra_lookups.clear()
         return result
 
-    def filter_queryset(self, queryset: QuerySet) -> QuerySet:
-        """Apply the filters and lookups to the queryset"""
+    def filter_queryset(
+        self, queryset: QuerySet, feature_type: FeatureType
+    ) -> QuerySet:
+        """Apply the filters and lookups to the queryset.
+
+        :param queryset: The queryset to filter.
+        :param feature_type: The feature type that the queryset originated from.
+        """
         if self.extra_lookups:
             # Each time an expression node calls add_extra_lookup(),
             # the parent should have used apply_extra_lookups()
@@ -77,8 +93,14 @@ class FesQuery:
         if self.annotations:
             queryset = queryset.annotate(**self.annotations)
 
-        if self.lookups:
-            queryset = queryset.filter(*self.lookups)
+        lookups = self.lookups
+        try:
+            lookups += self.typed_lookups[feature_type.name]
+        except KeyError:
+            pass
+
+        if lookups:
+            queryset = queryset.filter(*lookups)
 
         if self.sort_by:
             queryset = queryset.order_by(*self.sort_by)
@@ -86,13 +108,20 @@ class FesQuery:
         return queryset
 
     def __repr__(self):
-        return f"<FesQuery annotations={self.annotations!r}, lookups={self.lookups!r}>"
+        return (
+            "<FesQuery"
+            f" annotations={self.annotations!r},"
+            f" lookups={self.lookups!r},"
+            f" typed_lookups={self.typed_lookups!r}>"
+        )
 
     def __eq__(self, other):
         """For pytest comparisons."""
         if isinstance(other, FesQuery):
             return (
-                other.lookups == self.lookups and other.annotations == self.annotations
+                other.lookups == self.lookups
+                and other.typed_lookups == self.typed_lookups
+                and other.annotations == self.annotations
             )
         else:
             return NotImplemented

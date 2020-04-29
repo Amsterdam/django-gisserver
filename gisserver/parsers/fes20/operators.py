@@ -1,6 +1,8 @@
 """These classes map to the FES 2.0 specification for operators.
 The class names and attributes are identical to those in the FES spec.
 """
+from itertools import groupby
+
 import operator
 from dataclasses import dataclass
 from decimal import Decimal
@@ -151,9 +153,19 @@ class IdOperator(Operator):
 
     id: List[Id]
 
-    def build_query(self, fesquery) -> Q:
-        """Generate the ID lookup query"""
-        return reduce(operator.or_, [id.build_query(fesquery) for id in self.id])
+    def build_query(self, fesquery):
+        """Generate the ID lookup query.
+
+        As these identifiers also reference the type name, no Q-object is
+        returned. The lookups are directly added to the fes query object.
+        """
+        # For itertools.groupby(), items need to be sorted first.
+        ids = sorted(self.id, key=operator.attrgetter("rid"))
+        for type_name, items in groupby(ids, key=operator.attrgetter("type_name")):
+            ids_subset = reduce(
+                operator.or_, [id.build_query(fesquery) for id in items]
+            )
+            fesquery.add_lookups(ids_subset, type_name=type_name)
 
 
 class NonIdOperator(Operator):

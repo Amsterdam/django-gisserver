@@ -82,4 +82,5 @@ class ResourceId(Id):
                 "No support for <fes:ResourceId> startTime/endTime/version attributes"
             )
 
+        # NOTE: type_name is currently read by the IdOperator that contains this object.
         return Q(pk=self.id)
