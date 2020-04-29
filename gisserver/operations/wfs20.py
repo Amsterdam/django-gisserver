@@ -282,12 +282,16 @@ class BaseWFSPresentationMethod(WFSTypeNamesMethod):
             results=results, number_matched=number_matched, next=next, previous=previous
         )
 
-    def get_querysets(self, query_expression, typeNames, **params):
-        """Generate querysets for all requested data."""
+    def get_querysets(self, query_expression, **params):
+        """Generate querysets for all requested data.
+
+        :param query_expression: The request wrapped in a (adhoc) query expression.
+        :param params: The raw parameters.
+        """
         results = []
-        for feature_type in typeNames:
+        for feature_type in params["typeNames"]:
             try:
-                queryset = self.get_queryset(feature_type, query_expression, **params)
+                queryset = self.get_queryset(query_expression, feature_type, **params)
             except FieldError as e:
                 # e.g. doing a LIKE on a foreign key
                 self._log_filter_error(logging.ERROR, e, params["filter"])
@@ -304,10 +308,17 @@ class BaseWFSPresentationMethod(WFSTypeNamesMethod):
 
         return results
 
-    def get_queryset(self, feature_type: FeatureType, query_expression, **params):
-        """Generate the queryset for a single feature."""
-        fes_query = query_expression.get_fes_query(feature_type)
+    def get_queryset(self, query_expression, feature_type: FeatureType, **params):
+        """Generate the queryset for a single feature.
+
+        :param query_expression: The request wrapped in a (adhoc) query expression.
+        :param feature_type: The specific feature type to render the queryset for.
+        :param params: The raw parameters.
+        """
         queryset = feature_type.get_queryset()
+
+        # Apply filters
+        fes_query = query_expression.get_fes_query(feature_type)
         return fes_query.filter_queryset(queryset)
 
     def _log_filter_error(self, level, exc, filter: fes20.Filter):
@@ -371,9 +382,9 @@ class GetPropertyValue(BaseWFSPresentationMethod):
         Parameter("valueReference", required=True, parser=expressions.ValueReference)
     ]
 
-    def get_queryset(self, feature_type: FeatureType, adhoc_query, **params):
+    def get_queryset(self, query_expression, feature_type: FeatureType, **params):
         """Generate the queryset that returns only the value reference."""
-        fes_query = adhoc_query.get_fes_query(feature_type)
+        fes_query = query_expression.get_fes_query(feature_type)
         queryset = feature_type.get_queryset()
         value_reference: expressions.ValueReference = params["valueReference"]
 

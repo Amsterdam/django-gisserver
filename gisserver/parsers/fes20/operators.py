@@ -139,7 +139,7 @@ class Operator(BaseNode):
 
     xml_ns = FES20
 
-    def build_query(self, fesquery: FesQuery) -> Q:
+    def build_query(self, fesquery: FesQuery) -> Optional[Q]:
         raise NotImplementedError(
             f"Using {self.__class__.__name__} is not supported yet."
         )

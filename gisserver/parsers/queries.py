@@ -75,10 +75,16 @@ class AdhocQuery(QueryExpression):
     def get_fes_query(self, feature_type: FeatureType) -> fes20.FesQuery:
         """Return our internal FesQuery object that can be applied to the queryset."""
         if self.filter:
+            # Generate the internal query object from the <fes:Filter>
             return self.filter.get_query()
+        else:
+            # Generate the internal query object from the BBOX and sortBy args.
+            return self._get_non_fes_query(feature_type)
 
-        query = fes20.FesQuery()
-        # Allow filtering within a bounding box
+    def _get_non_fes_query(self, feature_type):
+        """Generate the query based on the remaining parameters."""
+        query = fes20.FesQuery(feature_types=self.typeNames)
+
         if self.bbox:
             # Using __within does not work with geometries
             # that only partially exist within the bbox
