@@ -8,8 +8,10 @@ from django.db import connection
 
 from tests.srid import RD_NEW_PROJ, RD_NEW_SRID, RD_NEW_WKT
 from tests.test_gisserver.models import City, Restaurant
+from tests.xsd_download import download_schema
 
 HERE = Path(__file__).parent
+XSD_ROOT = HERE.joinpath("files/xsd")
 
 
 def pytest_configure():
@@ -18,6 +20,10 @@ def pytest_configure():
     print(
         f'Running with Django {django.__version__}, GDAL="{gdal_ver}" GEOS="{geos_ver}"'
     )
+
+    if not XSD_ROOT.joinpath("schemas.opengis.net").exists():
+        download_schema("http://schemas.opengis.net/gml/3.2.1/gml.xsd")
+        download_schema("http://schemas.opengis.net/wfs/2.0/wfs.xsd")
 
 
 @pytest.fixture()
