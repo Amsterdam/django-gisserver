@@ -267,7 +267,7 @@ class TestDescribeFeatureType:
           <element name="city_id" type="integer" minOccurs="0" />
           <element name="location" type="gml:GeometryPropertyType" minOccurs="0" maxOccurs="1"/>
           <element name="rating" type="double" minOccurs="0" />
-          <element name="created" type="date" minOccurs="0" />
+          <element name="created" type="dateTime" minOccurs="0" />
         </sequence>
       </extension>
     </complexContent>

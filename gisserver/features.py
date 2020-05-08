@@ -22,7 +22,7 @@ XSD_TYPES = {
     models.DecimalField: XsdTypes.decimal,
     models.TimeField: XsdTypes.time,
     models.DateField: XsdTypes.date,
-    models.DateTimeField: XsdTypes.dateTime,
+    models.DateTimeField: XsdTypes.dateTime,  # note: DateTimeField extends DateField!
     models.URLField: XsdTypes.anyURI,
 }
 
@@ -135,7 +135,7 @@ class FeatureType:
         """Determine the XSD field type for a Django field."""
         try:
             # Direct instance, quickly resolved!
-            return XSD_TYPES[model_field]
+            return XSD_TYPES[model_field.__class__]
         except KeyError:
             pass
 
