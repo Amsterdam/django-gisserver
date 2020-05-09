@@ -99,7 +99,7 @@ class NotFound(WFSException):
 
     status_code = 404
     reason = "Invalid feature or property value"
-    code = "InvalidValue"
+    code = "NotFound"
     text_template = "Invalid feature or property value"
 
 

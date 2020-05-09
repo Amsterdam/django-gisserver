@@ -12,13 +12,8 @@ import re
 from typing import List
 from urllib.parse import urlencode
 
-from django.core.exceptions import FieldError
-from django.db import ProgrammingError
-
 from gisserver.exceptions import InvalidParameterValue, VersionNegotiationFailed
-from gisserver.features import FeatureType
 from gisserver.parsers import fes20, queries
-from gisserver.parsers.fes20 import expressions
 from gisserver.types import BoundingBox, CRS
 
 from .base import (
@@ -132,6 +127,7 @@ class DescribeFeatureType(WFSTypeNamesMethod):
     Each feature is exposed as an XSD definition with it's fields.
     """
 
+    require_type_names = True
     output_formats = [
         OutputFormat("XMLSCHEMA"),
         # OutputFormat("text/xml", subtype="gml/3.1.1"),
@@ -157,15 +153,15 @@ class DescribeStoredQueries(WFSMethod):
 
     xml_template_name = "describe_stored_queries.xml"
 
-    parameters = [Parameter("STOREDQUERY_ID", parser=lambda v: v.split(","))]
+    parameters = [
+        Parameter(
+            "STOREDQUERY_ID",
+            parser=lambda v: v.split(","),
+            allowed_values=["urn:ogc:def:query:OGC-WFS::GetFeatureById"],
+        )
+    ]
 
     def get_context_data(self, **params):
-        if params["STOREDQUERY_ID"] is not None:
-            for q in params["STOREDQUERY_ID"]:
-                raise InvalidParameterValue(
-                    "storedqueryid", f"Unknown stored query id: {q}"
-                )
-
         return {"feature_types": self.view.get_feature_types()}
 
 
@@ -220,122 +216,79 @@ class BaseWFSPresentationMethod(WFSTypeNamesMethod):
         Parameter("sortBy", parser=parse_sort_by),
         UnsupportedParameter("resourceID"),  # query on ID (called featureID in wfs 1.x)
         UnsupportedParameter("aliases"),
+        queries.StoredQueryParameter(),
     ]
 
     def get_context_data(self, resultType, **params):
-        query_expression = self.get_query(**params)
-        querysets = self.get_querysets(query_expression, **params)
+        query = self.get_query(**params)
 
         if resultType == "HITS":
-            collection = self.get_hits(querysets)
+            collection = self.get_hits(query)
         elif resultType == "RESULTS":
-            collection = self.get_paginated_results(querysets, **params)
+            # Validate StandardPresentationParameters
+            collection = self.get_paginated_results(query, **params)
         else:
             raise NotImplementedError()
 
+        output_crs = params["srsName"]
+        if not output_crs and collection.results:
+            output_crs = collection.results[0].feature_type.crs
+
         # These become init kwargs for the selected OutputRenderer class:
         return {
+            "source_query": query,
             "collection": collection,
-            "output_crs": params["srsName"] or params["typeNames"][0].crs,
+            "output_crs": output_crs,
         }
 
     def get_query(self, **params) -> queries.QueryExpression:
         """Create the query object that will process this request"""
-        return queries.AdhocQuery.from_kvp_request(**params)
+        if params["STOREDQUERY_ID"]:
+            # The 'StoredQueryParameter' already parses the input into a complete object.
+            # When it's not provided, the regular Adhoc-query will be created from the KVP request.
+            query = params["STOREDQUERY_ID"]
+        else:
+            query = queries.AdhocQuery.from_kvp_request(**params)
 
-    def get_hits(self, querysets) -> output.FeatureCollection:
-        """Return the number of hits"""
-        return output.FeatureCollection(
-            results=[], number_matched=sum([qs.count() for qs in querysets])
+        # TODO: pass this in a cleaner way?
+        query.bind(
+            all_feature_types=self.all_feature_types_by_name,  # for GetFeatureById
+            value_reference=params.get("valueReference"),  # for GetPropertyValue
         )
 
-    def get_paginated_results(self, querysets, **params) -> output.FeatureCollection:
+        return query
+
+    def get_hits(self, query: queries.QueryExpression) -> output.FeatureCollection:
+        """Return the number of hits"""
+        return query.get_hits()
+
+    def get_results(
+        self, query: queries.QueryExpression, start, count
+    ) -> output.FeatureCollection:
+        """Return the actual results"""
+        return query.get_results(start, count=count)
+
+    def get_paginated_results(
+        self, query: queries.QueryExpression, **params
+    ) -> output.FeatureCollection:
         """Handle pagination settings."""
         max_page_size = self.view.max_page_size
         start = max(0, params["startIndex"])
         page_size = min(max_page_size, params["count"] or max_page_size)
         stop = start + page_size
 
-        # The querysets are not executed until the very end.
-        results = [
-            output.SimpleFeatureCollection(qs.feature_type, qs, start, stop)
-            for qs in querysets
-        ]
+        # Perform query
+        collection = self.get_results(query, start=start, count=page_size)
 
-        try:
-            number_matched = sum(collection.number_matched for collection in results)
-        except ProgrammingError as e:
-            # e.g. comparing datetime against integer
-            self._log_filter_error(logging.WARNING, e, params["filter"])
-            raise InvalidParameterValue(
-                "filter",
-                "Invalid filter query, check the used datatypes and field names.",
-            ) from e
-
-        previous = next = None
         if start > 0:
-            previous = self._replace_url_params(STARTINDEX=max(0, start - page_size))
-        if stop < number_matched:  # TODO: fix for returning multiple typeNames
-            next = self._replace_url_params(STARTINDEX=start + page_size)
-
-        return output.FeatureCollection(
-            results=results, number_matched=number_matched, next=next, previous=previous
-        )
-
-    def get_querysets(self, query_expression, **params):
-        """Generate querysets for all requested data.
-
-        :param query_expression: The request wrapped in a (adhoc) query expression.
-        :param params: The raw parameters.
-        """
-        results = []
-        for feature_type in params["typeNames"]:
-            try:
-                queryset = self.get_queryset(query_expression, feature_type, **params)
-            except FieldError as e:
-                # e.g. doing a LIKE on a foreign key
-                self._log_filter_error(logging.ERROR, e, params["filter"])
-                raise InvalidParameterValue(
-                    "filter", f"Internal error when processing filter",
-                ) from e
-            except (ValueError, TypeError) as e:
-                raise InvalidParameterValue(
-                    "filter", f"Invalid filter query: {e}",
-                ) from e
-
-            queryset.feature_type = feature_type
-            results.append(queryset)
-
-        return results
-
-    def get_queryset(self, query_expression, feature_type: FeatureType, **params):
-        """Generate the queryset for a single feature.
-
-        :param query_expression: The request wrapped in a (adhoc) query expression.
-        :param feature_type: The specific feature type to render the queryset for.
-        :param params: The raw parameters.
-        """
-        queryset = feature_type.get_queryset()
-
-        # Apply filters
-        fes_query = query_expression.get_fes_query(feature_type)
-        return fes_query.filter_queryset(queryset, feature_type=feature_type)
-
-    def _log_filter_error(self, level, exc, filter: fes20.Filter):
-        """Report a filtering parsing error in the logging"""
-        fes_xml = filter.source if filter is not None else "(not provided)"
-        try:
-            sql = exc.__cause__.cursor.query.decode()
-        except AttributeError:
-            logger.log(level, "WFS query failed: %s\nFilter:\n%s", exc, fes_xml)
-        else:
-            logger.log(
-                level,
-                "WFS query failed: %s\nSQL Query: %s\n\nFilter:\n%s",
-                exc,
-                sql,
-                fes_xml,
+            collection.previous = self._replace_url_params(
+                STARTINDEX=max(0, start - page_size)
             )
+        if stop < collection.number_matched:
+            # TODO: fix this when returning multiple typeNames:
+            collection.next = self._replace_url_params(STARTINDEX=start + page_size)
+
+        return collection
 
     def _replace_url_params(self, **updates) -> str:
         """Replace a query parameter in the URL"""
@@ -379,29 +332,14 @@ class GetPropertyValue(BaseWFSPresentationMethod):
     ]
 
     parameters = BaseWFSPresentationMethod.parameters + [
-        Parameter("valueReference", required=True, parser=expressions.ValueReference)
+        Parameter("valueReference", required=True, parser=fes20.ValueReference)
     ]
 
-    def get_queryset(self, query_expression, feature_type: FeatureType, **params):
-        """Generate the queryset that returns only the value reference."""
-        fes_query = query_expression.get_fes_query(feature_type)
-        queryset = feature_type.get_queryset()
-        value_reference: expressions.ValueReference = params["valueReference"]
-
-        # TODO: for now only check direct field names, no xpath (while query support it)
-        if value_reference.element_name not in feature_type.fields:
-            raise InvalidParameterValue(
-                "valueReference", f"Field '{value_reference.xpath}' does not exist.",
-            )
-
-        # Adjust FesQuery to query for the selected propety
-        field = fes_query.add_value_reference(value_reference)
-        queryset = fes_query.filter_queryset(queryset, feature_type=feature_type)
-
-        # Only return those values
-        return queryset.values("pk", member=field)
-
     def get_context_data(self, **params):
+        # Pass valueReference to output format.
+        # NOTE: The AdhocQuery object also performs internal processing,
+        # so the query performs a "SELECT id, <fieldname>" as well.
+        # In the WFS-spec, the valueReference is only a presentation layer change.
         context = super().get_context_data(**params)
         context["value_reference"] = params["valueReference"]
         return context

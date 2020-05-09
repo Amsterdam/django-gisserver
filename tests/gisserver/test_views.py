@@ -1,3 +1,5 @@
+from xml.etree.ElementTree import QName
+
 import json
 import sys
 from urllib.parse import quote_plus
@@ -306,7 +308,7 @@ class TestDescribeStoredQueries:
 
         # Validate against the WFS 2.0 XSD
         xml_doc = validate_xsd(content, WFS_20_XSD)
-        assert not len(xml_doc)
+        assert len(xml_doc) == 1
 
         assert_xml_equal(
             content,
@@ -317,8 +319,13 @@ class TestDescribeStoredQueries:
     xmlns:xs="http://www.w3.org/2001/XMLSchema"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:schemaLocation="http://www.opengis.net/wfs/2.0 http://schemas.opengis.net/wfs/2.0/wfs.xsd">
-
-</wfs:DescribeStoredQueriesResponse>""",
+  <StoredQueryDescription id="urn:ogc:def:query:OGC-WFS::GetFeatureById">
+    <Title>Get feature by identifier</Title>
+    <Abstract>Returns the single feature whose value is equal to the specified value of the ID argument</Abstract>
+    <Parameter name="ID" type="xs:string"/>
+    <QueryExpressionText isPrivate="true" language="urn:ogc:def:queryLanguage:OGC-WFS::WFS_QueryExpression" returnFeatureTypes="restaurant mini-restaurant"/>
+  </StoredQueryDescription>
+</wfs:DescribeStoredQueriesResponse>""",  # noqa: E501
         )
 
 
@@ -337,7 +344,7 @@ class TestListStoredQueries:
 
         # Validate against the WFS 2.0 XSD
         xml_doc = validate_xsd(content, WFS_20_XSD)
-        assert not len(xml_doc)
+        assert len(xml_doc) == 1
 
         assert_xml_equal(
             content,
@@ -348,8 +355,12 @@ class TestListStoredQueries:
     xmlns:xs="http://www.w3.org/2001/XMLSchema"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:schemaLocation="http://www.opengis.net/wfs/2.0 http://schemas.opengis.net/wfs/2.0/wfs.xsd">
-
-</wfs:ListStoredQueriesResponse>""",
+  <StoredQuery id="urn:ogc:def:query:OGC-WFS::GetFeatureById">
+    <Title>Get feature by identifier</Title>
+    <ReturnFeatureType>restaurant</ReturnFeatureType>
+    <ReturnFeatureType>mini-restaurant</ReturnFeatureType>
+  </StoredQuery>
+</wfs:ListStoredQueriesResponse>""",  # noqa: E501
         )
 
 
@@ -915,6 +926,97 @@ class TestGetFeature:
         assert data["numberReturned"] == 1000
         assert data["numberMatched"] == 1500
 
+    def test_get_feature_by_id_stored_query(self, client, restaurant, bad_restaurant):
+        """Prove that fetching objects by ID works."""
+        response = client.get(
+            "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
+            f"&STOREDQUERY_ID=urn:ogc:def:query:OGC-WFS::GetFeatureById"
+            f"&ID=restaurant.{restaurant.id}"
+        )
+        content = read_response(response)
+        assert response["content-type"] == "text/xml; charset=utf-8", content
+        assert response.status_code == 200, content
+        assert "</app:restaurant>" in content
+        assert "</wfs:FeatureCollection>" not in content
+
+        # Fetch the XSD of the service itself.
+        response = client.get(
+            "/v1/wfs/?SERVICE=WFS&REQUEST=DescribeFeatureType&VERSION=2.0.0&TYPENAMES=restaurant"
+        )
+        xsd_content = response.content.decode()
+        assert response["content-type"] == "application/gml+xml; version=3.2", content
+        assert response.status_code == 200, content
+
+        # Validate against the WFS 2.0 XSD
+        xml_doc = validate_xsd(content, xsd_content=xsd_content)
+        assert xml_doc.tag == QName(NAMESPACES["app"], "restaurant").text
+
+        # See whether our feature is rendered
+        # For GetFeatureById, no <wfs:FeatureCollection> is returned.
+        assert_xml_equal(
+            content,
+            f"""<app:restaurant gml:id="restaurant.{restaurant.id}"
+   xmlns:app="http://example.org/gisserver" xmlns:gml="http://www.opengis.net/gml/3.2">
+    <gml:name>Café Noir</gml:name>
+    <gml:boundedBy>
+        <gml:Envelope srsName="urn:ogc:def:crs:EPSG::4326">
+            <gml:lowerCorner>{POINT1_XML_WGS84}</gml:lowerCorner>
+            <gml:upperCorner>{POINT1_XML_WGS84}</gml:upperCorner>
+        </gml:Envelope>
+    </gml:boundedBy>
+    <app:id>{restaurant.id}</app:id>
+    <app:name>Café Noir</app:name>
+    <app:city_id>{restaurant.city_id}</app:city_id>
+    <app:location>
+        <gml:Point gml:id="restaurant.{restaurant.id}.1" srsName="urn:ogc:def:crs:EPSG::4326">
+            <gml:pos>{POINT1_XML_WGS84}</gml:pos>
+        </gml:Point>
+    </app:location>
+    <app:rating>5.0</app:rating>
+    <app:created>2020-04-05T12:11:10+00:00</app:created>
+</app:restaurant>""",  # noqa: E501
+        )
+
+    def test_get_feature_by_id_bad_id(self, client, restaurant, bad_restaurant):
+        """Prove that invalid IDs are properly handled."""
+        response = client.get(
+            "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
+            f"&STOREDQUERY_ID=urn:ogc:def:query:OGC-WFS::GetFeatureById"
+            f"&ID=restaurant.ABC"
+        )
+        content = read_response(response)
+        assert response["content-type"] == "text/xml; charset=utf-8", content
+        assert response.status_code == 400, content
+
+        xml_doc = validate_xsd(content, WFS_20_XSD)
+        assert xml_doc.attrib["version"] == "2.0.0"
+        exception = xml_doc.find("ows:Exception", NAMESPACES)
+        assert exception.attrib["exceptionCode"] == "InvalidParameterValue"
+
+        message = exception.find("ows:ExceptionText", NAMESPACES).text
+        assert (
+            message == "Invalid ID value: Field 'id' expected a number but got 'ABC'."
+        )
+
+    def test_get_feature_by_id_404(self, client, restaurant, bad_restaurant):
+        """Prove that missing IDs are properly handled."""
+        response = client.get(
+            "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
+            f"&STOREDQUERY_ID=urn:ogc:def:query:OGC-WFS::GetFeatureById"
+            f"&ID=restaurant.0"
+        )
+        content = read_response(response)
+        assert response["content-type"] == "text/xml; charset=utf-8", content
+        assert response.status_code == 404, content
+
+        xml_doc = validate_xsd(content, WFS_20_XSD)
+        assert xml_doc.attrib["version"] == "2.0.0"
+        exception = xml_doc.find("ows:Exception", NAMESPACES)
+        assert exception.attrib["exceptionCode"] == "NotFound"
+
+        message = exception.find("ows:ExceptionText", NAMESPACES).text
+        assert message == "Feature not found with ID 0."
+
 
 @pytest.mark.django_db
 class TestGetPropertyValue:
@@ -1058,3 +1160,64 @@ class TestGetPropertyValue:
         members = xml_doc.findall("wfs:member", namespaces=NAMESPACES)
         names = [res.find("app:name", namespaces=NAMESPACES).text for res in members]
         assert names == expect
+
+    def test_get_feature_by_id_stored_query(self, client, restaurant, bad_restaurant):
+        """Prove that fetching objects by ID works."""
+        response = client.get(
+            "/v1/wfs/?SERVICE=WFS&REQUEST=GetPropertyValue&VERSION=2.0.0"
+            f"&STOREDQUERY_ID=urn:ogc:def:query:OGC-WFS::GetFeatureById"
+            f"&ID=restaurant.{restaurant.id}&VALUEREFERENCE=name"
+        )
+        content = read_response(response)
+        assert response["content-type"] == "text/xml; charset=utf-8", content
+        assert response.status_code == 200, content
+        assert "</app:restaurant>" not in content
+        assert "</wfs:FeatureCollection>" not in content
+
+        # See whether our feature is rendered
+        # For GetFeatureById, no <wfs:FeatureCollection> is returned.
+        assert_xml_equal(
+            content,
+            f"""<app:name xmlns:app="http://example.org/gisserver"
+                          xmlns:gml="http://www.opengis.net/gml/3.2">Café Noir</app:name>""",
+        )
+
+    def test_get_feature_by_id_bad_id(self, client, restaurant, bad_restaurant):
+        """Prove that invalid IDs are properly handled."""
+        response = client.get(
+            "/v1/wfs/?SERVICE=WFS&REQUEST=GetPropertyValue&VERSION=2.0.0"
+            f"&STOREDQUERY_ID=urn:ogc:def:query:OGC-WFS::GetFeatureById"
+            f"&ID=restaurant.ABC&VALUEREFERENCE=name"
+        )
+        content = read_response(response)
+        assert response["content-type"] == "text/xml; charset=utf-8", content
+        assert response.status_code == 400, content
+
+        xml_doc = validate_xsd(content, WFS_20_XSD)
+        assert xml_doc.attrib["version"] == "2.0.0"
+        exception = xml_doc.find("ows:Exception", NAMESPACES)
+        assert exception.attrib["exceptionCode"] == "InvalidParameterValue"
+
+        message = exception.find("ows:ExceptionText", NAMESPACES).text
+        assert (
+            message == "Invalid ID value: Field 'id' expected a number but got 'ABC'."
+        )
+
+    def test_get_feature_by_id_404(self, client, restaurant, bad_restaurant):
+        """Prove that missing IDs are properly handled."""
+        response = client.get(
+            "/v1/wfs/?SERVICE=WFS&REQUEST=GetPropertyValue&VERSION=2.0.0"
+            f"&STOREDQUERY_ID=urn:ogc:def:query:OGC-WFS::GetFeatureById"
+            f"&ID=restaurant.0&VALUEREFERENCE=name"
+        )
+        content = read_response(response)
+        assert response["content-type"] == "text/xml; charset=utf-8", content
+        assert response.status_code == 404, content
+
+        xml_doc = validate_xsd(content, WFS_20_XSD)
+        assert xml_doc.attrib["version"] == "2.0.0"
+        exception = xml_doc.find("ows:Exception", NAMESPACES)
+        assert exception.attrib["exceptionCode"] == "NotFound"
+
+        message = exception.find("ows:ExceptionText", NAMESPACES).text
+        assert message == "Feature not found with ID 0."

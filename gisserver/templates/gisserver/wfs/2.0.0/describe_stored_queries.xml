@@ -6,8 +6,6 @@
     xmlns:xs="http://www.w3.org/2001/XMLSchema"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:schemaLocation="http://www.opengis.net/wfs/2.0 http://schemas.opengis.net/wfs/2.0/wfs.xsd">
-    {% comment %}<!--
-      This should be included for full compliance:
 
   <StoredQueryDescription id="urn:ogc:def:query:OGC-WFS::GetFeatureById">
     <Title>Get feature by identifier</Title>
@@ -16,5 +14,4 @@
     <QueryExpressionText isPrivate="true" language="urn:ogc:def:queryLanguage:OGC-WFS::WFS_QueryExpression" returnFeatureTypes="{% for feature in feature_types %}{% if not forloop.first %} {% endif %}{{ feature.name }}{% endfor %}"/>
   </StoredQueryDescription>
 
--->{% endcomment %}
 </wfs:DescribeStoredQueriesResponse>

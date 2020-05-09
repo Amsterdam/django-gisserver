@@ -1,24 +1,30 @@
-"""Handle query objects"""
+"""Handle adhoc-query objects.
+
+The adhoc query is based on incoming request parameters,
+such as the "FILTER", "BBOX" and "RESOURCEID" parameters.
+
+These definitions follow the WFS spec.
+"""
+import logging
 from dataclasses import dataclass
+
+from django.core.exceptions import FieldError
+from django.db import ProgrammingError
+from django.db.models import Q
 from typing import List, Optional
 
-from django.db.models import Q
-
-from gisserver.exceptions import InvalidParameterValue
+from gisserver import output
+from gisserver.exceptions import (
+    InvalidParameterValue,
+    MissingParameterValue,
+)
 from gisserver.features import FeatureType
 from gisserver.parsers import fes20
 from gisserver.parsers.fes20 import operators
 from gisserver.types import BoundingBox
+from .base import QueryExpression
 
-
-class QueryExpression:
-    """WFS base class for all queries."""
-
-    handle = ""
-
-    def get_fes_query(self, feature_type: FeatureType) -> fes20.FesQuery:
-        """Generate the FES query."""
-        raise NotImplementedError()
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -54,6 +60,11 @@ class AdhocQuery(QueryExpression):
     # Sorting Clause
     sortBy: Optional[List[str]] = None
 
+    # GetPropertyValue:
+    # In the WFS spec, this is only part of the operation/presentation.
+    # For Django, we'd like to make this part of the query too.
+    value_reference: Optional[fes20.ValueReference] = None
+
     @classmethod
     def from_kvp_request(cls, **params):
         """Build this object from a HTTP GET (key-value-pair) request."""
@@ -64,22 +75,72 @@ class AdhocQuery(QueryExpression):
                 "The FILTER parameter is mutually exclusive with BBOX and RESOURCEID",
             )
 
+        if not params["typeNames"]:
+            raise MissingParameterValue("typeNames", f"Empty TYPENAMES parameter")
+
         return AdhocQuery(
             typeNames=params["typeNames"],
             filter=params["filter"],
             filter_language=params["filter_language"],
             bbox=params["bbox"],
             sortBy=params["sortBy"],
+            value_reference=params.get("valueReference"),
         )
+
+    def get_results(self, start_index=0, count=100) -> output.FeatureCollection:
+        """Overwritten to improve error handling messages."""
+        try:
+            return super().get_results(start_index=start_index, count=count)
+        except ProgrammingError as e:
+            # e.g. comparing datetime against integer
+            self._log_filter_error(logging.WARNING, e)
+            raise InvalidParameterValue(
+                "filter",
+                "Invalid filter query, check the used datatypes and field names.",
+            ) from e
+
+    def get_type_names(self):
+        return self.typeNames
+
+    def get_queryset(self, feature_type: FeatureType):
+        """Overwritten to improve error handling messages."""
+        try:
+            return super().get_queryset(feature_type)
+        except FieldError as e:
+            # e.g. doing a LIKE on a foreign key
+            self._log_filter_error(logging.ERROR, e)
+            raise InvalidParameterValue(
+                "filter", f"Internal error when processing filter",
+            ) from e
+        except (ValueError, TypeError) as e:
+            raise InvalidParameterValue("filter", f"Invalid filter query: {e}",) from e
+
+    def _log_filter_error(self, level, exc):
+        """Report a filtering parsing error in the logging"""
+        fes_xml = self.filter.source if self.filter is not None else "(not provided)"
+        try:
+            sql = exc.__cause__.cursor.query.decode()
+        except AttributeError:
+            logger.log(level, "WFS query failed: %s\nFilter:\n%s", exc, fes_xml)
+        else:
+            logger.log(
+                level,
+                "WFS query failed: %s\nSQL Query: %s\n\nFilter:\n%s",
+                exc,
+                sql,
+                fes_xml,
+            )
 
     def get_fes_query(self, feature_type: FeatureType) -> fes20.FesQuery:
         """Return our internal FesQuery object that can be applied to the queryset."""
         if self.filter:
             # Generate the internal query object from the <fes:Filter>
-            return self.filter.get_query()
+            query = self.filter.get_query()
         else:
             # Generate the internal query object from the BBOX and sortBy args.
-            return self._get_non_fes_query(feature_type)
+            query = self._get_non_fes_query(feature_type)
+
+        return query
 
     def _get_non_fes_query(self, feature_type):
         """Generate the query based on the remaining parameters."""

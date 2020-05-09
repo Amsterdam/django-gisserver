@@ -19,9 +19,7 @@ class FesQuery:
     so it can be used to add extra lookups and annotations.
     """
 
-    def __init__(
-        self, lookups=None, typed_lookups=None, annotations=None,
-    ):
+    def __init__(self, lookups=None, typed_lookups=None, annotations=None):
         self.lookups = lookups or []
         self.typed_lookups = typed_lookups or {}
         self.annotations = annotations or {}

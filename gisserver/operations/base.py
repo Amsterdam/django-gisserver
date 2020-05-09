@@ -6,6 +6,8 @@ This introspection data is also parsed by the GetCapabilities call.
 """
 import re
 from dataclasses import dataclass, field
+
+from django.utils.functional import cached_property
 from typing import Any, Callable, Dict, List, Union
 
 from django.core.exceptions import ImproperlyConfigured, SuspiciousOperation
@@ -272,36 +274,33 @@ class WFSMethod:
 class WFSTypeNamesMethod(WFSMethod):
     """A base method that also resolved the TYPENAMES parameter."""
 
+    require_type_names = False
+
     def get_parameters(self):
         return super().get_parameters() + [
             # QGis sends both TYPENAME (wfs 1.x) and TYPENAMES (wfs 2.0) for DescribeFeatureType
-            Parameter("typeNames", required=True, parser=self._parse_type_names)
+            # typeNames is not required when a ResourceID / GetFeatureById is specified.
+            Parameter(
+                "typeNames",
+                required=self.require_type_names,
+                parser=self._parse_type_names,
+            )
         ]
 
-    def _init_feature_types(self):
-        """Initialize the 'self.feature_types'."""
-        self.feature_types = self.view.get_feature_types()
+    @cached_property
+    def all_feature_types(self) -> List[FeatureType]:
+        return self.view.get_feature_types()
 
-        features_by_name = {ft.name: ft for ft in self.feature_types}
-        if len(features_by_name) != len(self.feature_types):
-            all_names = [ft.name for ft in self.feature_types]
-            duplicates = ", ".join(
-                sorted(set(n for n in all_names if all_names.count(n) > 1))
-            )
-            raise ImproperlyConfigured(
-                f"FeatureType names should be unique: {duplicates}"
-            )
-
-        return features_by_name
+    @cached_property
+    def all_feature_types_by_name(self) -> Dict[str, FeatureType]:
+        return _get_feature_types_by_name(self.all_feature_types)
 
     def _parse_type_names(self, type_names) -> List[FeatureType]:
         """Find the requested feature types by name"""
-        features_by_name = self._init_feature_types()
-
         features = []
         for name in type_names.split(","):
             try:
-                feature = features_by_name[name]
+                feature = self.all_feature_types_by_name[name]
             except KeyError:
                 raise InvalidParameterValue(
                     "typename",
@@ -311,3 +310,18 @@ class WFSTypeNamesMethod(WFSMethod):
 
             features.append(feature)
         return features
+
+
+def _get_feature_types_by_name(feature_types) -> Dict[str, FeatureType]:
+    """Create a lookup for feature types by name."""
+    features_by_name = {ft.name: ft for ft in feature_types}
+
+    # Check against bad configuration
+    if len(features_by_name) != len(feature_types):
+        all_names = [ft.name for ft in feature_types]
+        duplicates = ", ".join(
+            sorted(set(n for n in all_names if all_names.count(n) > 1))
+        )
+        raise ImproperlyConfigured(f"FeatureType names should be unique: {duplicates}")
+
+    return features_by_name

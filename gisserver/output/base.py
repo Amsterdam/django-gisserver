@@ -17,21 +17,27 @@ class OutputRenderer:
     content_type = "application/octet-stream"
 
     def __init__(
-        self, method: WFSMethod, collection: FeatureCollection, output_crs: CRS,
+        self,
+        method: WFSMethod,
+        source_query,
+        collection: FeatureCollection,
+        output_crs: CRS,
     ):
         """
         Receive the collected data to render.
 
         :param method: The calling WFS Method (e.g. GetFeature class)
-        :param context: The collected data for rendering
-        :param params: The input parameters of the request.
+        :param source_query: The query that generated this output.
+        :type source_query: gisserver.parsers.queries.QueryExpression
+        :param collection: The collected data for rendering
+        :param output_crs: The requested output projection.
         """
         self.method = method
+        self.source_query = source_query
         self.collection = collection
         self.output_crs = output_crs
 
         # Common elements for output rendering:
-        self.xsd_typenames = method.view.KVP["TYPENAMES"]
         self.server_url = method.view.server_url
         self.app_xml_namespace = method.view.xml_namespace
 

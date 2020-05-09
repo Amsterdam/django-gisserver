@@ -1,4 +1,8 @@
-"""Wrappers for the results of GetFeature/GetPropertyValue"""
+"""Wrappers for the results of GetFeature/GetPropertyValue.
+
+The "SimpleFeatureCollection" and "FeatureCollection" and their
+properties match the WFS 2.0 spec closely.
+"""
 import math
 import operator
 from dataclasses import dataclass
@@ -14,7 +18,11 @@ from gisserver.types import BoundingBox
 
 
 class SimpleFeatureCollection:
-    """Wrapper to read a result set."""
+    """Wrapper to read a result set.
+
+    This object type is defined in the WFS spec.
+    It holds a collection of "wfs:member" objects.
+    """
 
     def __init__(
         self,
@@ -32,8 +40,22 @@ class SimpleFeatureCollection:
     def __iter__(self) -> Iterable[models.Model]:
         if self._result_cache is not None:
             return iter(self._result_cache)
+        elif self.start == self.stop == 0:
+            # resulttype=hits
+            return iter([])
         else:
             return self.queryset[self.start : self.stop].iterator()
+
+    def __getitem__(self, item):
+        """Take a specific item only from the results (e.g. the first)"""
+        self.fetch_results()
+        return self._result_cache[item]
+
+    def first(self):
+        try:
+            return self[0]
+        except IndexError:
+            return None
 
     def fetch_results(self):
         """Forcefully read the results early."""
@@ -74,7 +96,9 @@ class SimpleFeatureCollection:
 
 @dataclass
 class FeatureCollection:
-    """Main result type for GetFeature."""
+    """WFS object that holds the result type for GetFeature.
+    This object type is defined in the WFS spec.
+    """
 
     #: All retrieved feature collections (one per FeatureType)
     results: List[SimpleFeatureCollection]
