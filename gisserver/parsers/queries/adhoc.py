@@ -20,7 +20,7 @@ from gisserver.exceptions import (
 )
 from gisserver.features import FeatureType
 from gisserver.parsers import fes20
-from gisserver.parsers.fes20 import operators
+from gisserver.parsers.fes20 import ResourceId, operators
 from gisserver.types import BoundingBox
 from .base import QueryExpression
 
@@ -60,6 +60,10 @@ class AdhocQuery(QueryExpression):
     # Sorting Clause
     sortBy: Optional[List[str]] = None
 
+    # Officially part of the GetFeature/GetPropertyValue request object,
+    # but included here for ease of query implementation.
+    resourceId: Optional[ResourceId] = None
+
     # GetPropertyValue:
     # In the WFS spec, this is only part of the operation/presentation.
     # For Django, we'd like to make this part of the query too.
@@ -68,15 +72,37 @@ class AdhocQuery(QueryExpression):
     @classmethod
     def from_kvp_request(cls, **params):
         """Build this object from a HTTP GET (key-value-pair) request."""
-        # Allow filtering using a <fes:Filter>
+        # Validate optionally required parameters
+        if not params["typeNames"] and not params["resourceID"]:
+            raise MissingParameterValue("typeNames", "Empty TYPENAMES parameter")
+
+        # Validate mutually exclusive parameters
         if params["filter"] and (params["bbox"] or params["resourceID"]):
             raise InvalidParameterValue(
                 "filter",
                 "The FILTER parameter is mutually exclusive with BBOX and RESOURCEID",
             )
 
-        if not params["typeNames"]:
-            raise MissingParameterValue("typeNames", f"Empty TYPENAMES parameter")
+        # Validate mutually exclusive parameters
+        if params["resourceID"]:
+            if params["bbox"] or params["filter"]:
+                raise InvalidParameterValue(
+                    "resourceID",
+                    "The RESOURCEID parameter is mutually exclusive with BBOX and FILTER",
+                )
+
+            # When ResourceId + typenames is defined, it should be a value from typenames
+            # see WFS spec 7.9.2.4.1
+            if params["typeNames"]:
+                raw_type_names = [
+                    feature_type.name for feature_type in params["typeNames"]
+                ]
+                if params["resourceID"].type_name not in raw_type_names:
+                    raise InvalidParameterValue(
+                        "resourceID",
+                        "When TYPENAMES and RESOURCEID are combined, "
+                        "the RESOURCEID type should be included in TYPENAMES.",
+                    )
 
         return AdhocQuery(
             typeNames=params["typeNames"],
@@ -84,8 +110,23 @@ class AdhocQuery(QueryExpression):
             filter_language=params["filter_language"],
             bbox=params["bbox"],
             sortBy=params["sortBy"],
+            resourceId=params["resourceID"],
             value_reference=params.get("valueReference"),
         )
+
+    def bind(self, *args, **kwargs):
+        """Inform this quey object of the available feature types"""
+        super().bind(*args, **kwargs)
+
+        if self.resourceId:
+            # Early validation whether the selected resourceID type exists.
+            feature_type = self.resolve_type_name(
+                self.resourceId.type_name, locator="resourceID"
+            )
+
+            # Also make the behavior consistent, always supply the type name.
+            if not self.typeNames:
+                self.typeNames = [feature_type]
 
     def get_results(self, start_index=0, count=100) -> output.FeatureCollection:
         """Overwritten to improve error handling messages."""
@@ -95,7 +136,7 @@ class AdhocQuery(QueryExpression):
             # e.g. comparing datetime against integer
             self._log_filter_error(logging.WARNING, e)
             raise InvalidParameterValue(
-                "filter",
+                self._get_locator(),
                 "Invalid filter query, check the used datatypes and field names.",
             ) from e
 
@@ -110,10 +151,12 @@ class AdhocQuery(QueryExpression):
             # e.g. doing a LIKE on a foreign key
             self._log_filter_error(logging.ERROR, e)
             raise InvalidParameterValue(
-                "filter", f"Internal error when processing filter",
+                self._get_locator(), f"Internal error when processing filter",
             ) from e
         except (ValueError, TypeError) as e:
-            raise InvalidParameterValue("filter", f"Invalid filter query: {e}",) from e
+            raise InvalidParameterValue(
+                self._get_locator(), f"Invalid filter query: {e}",
+            ) from e
 
     def _log_filter_error(self, level, exc):
         """Report a filtering parsing error in the logging"""
@@ -131,6 +174,13 @@ class AdhocQuery(QueryExpression):
                 fes_xml,
             )
 
+    def _get_locator(self):
+        """Tell which field is likely causing the query error"""
+        if self.resourceId:
+            return "resourceId"
+        else:
+            return "filter"
+
     def get_fes_query(self, feature_type: FeatureType) -> fes20.FesQuery:
         """Return our internal FesQuery object that can be applied to the queryset."""
         if self.filter:
@@ -138,12 +188,16 @@ class AdhocQuery(QueryExpression):
             query = self.filter.get_query()
         else:
             # Generate the internal query object from the BBOX and sortBy args.
-            query = self._get_non_fes_query(feature_type)
+            query = self._get_non_filter_query(feature_type)
 
         return query
 
-    def _get_non_fes_query(self, feature_type):
-        """Generate the query based on the remaining parameters."""
+    def _get_non_filter_query(self, feature_type):
+        """Generate the query based on the remaining parameters.
+
+        This is slightly more efficient then generating the fes Filter object
+        from these KVP parameters (which could also be done within the request method).
+        """
         query = fes20.FesQuery()
 
         if self.bbox:
@@ -154,6 +208,9 @@ class AdhocQuery(QueryExpression):
                 f"{feature_type.geometry_field_name}__{lookup}": self.bbox.as_polygon(),
             }
             query.add_lookups(Q(**filters))
+
+        if self.resourceId:
+            self.resourceId.build_query(fesquery=query)
 
         if self.sortBy:
             query.add_sort_by(self.sortBy)

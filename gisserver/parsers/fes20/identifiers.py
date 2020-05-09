@@ -7,7 +7,6 @@ from enum import Enum
 from typing import Optional, Union
 
 from django.db.models import Q
-from django.utils.functional import cached_property
 
 from gisserver.parsers.base import BaseNode, FES20, tag_registry
 from gisserver.parsers.utils import auto_cast, get_attribute, parse_iso_datetime
@@ -28,12 +27,10 @@ class Id(BaseNode):
 
     xml_ns = FES20
 
-    def build_query(self, fesquery) -> Q:
-        raise NotImplementedError()
+    #: Tell which the type this ID belongs to, needs to be overwritten.
+    type_name = ...  # need to be defined by subclass!
 
-    @property
-    def type_name(self):
-        """Tell which typename this ID applies to"""
+    def build_query(self, fesquery) -> Q:
         raise NotImplementedError()
 
 
@@ -47,17 +44,11 @@ class ResourceId(Id):
     startTime: Optional[datetime] = None
     endTime: Optional[datetime] = None
 
-    @cached_property
-    def _rid_parts(self):
-        return self.rid.rsplit(".", 1)
-
-    @property
-    def type_name(self):
-        return self._rid_parts[0]
-
-    @property
-    def id(self):
-        return self._rid_parts[1]
+    def __post_init__(self):
+        try:
+            self.type_name, self.id = self.rid.rsplit(".", 1)
+        except ValueError:
+            raise ValueError("Expected typename.id format") from None
 
     @classmethod
     def from_xml(cls, element):
@@ -75,12 +66,17 @@ class ResourceId(Id):
             endTime=parse_iso_datetime(endTime) if endTime else None,
         )
 
-    def build_query(self, fesquery) -> Q:
+    def build_query(self, fesquery=None) -> Q:
         """Render the SQL filter"""
         if self.startTime or self.endTime or self.version:
             raise NotImplementedError(
                 "No support for <fes:ResourceId> startTime/endTime/version attributes"
             )
 
-        # NOTE: type_name is currently read by the IdOperator that contains this object.
-        return Q(pk=self.id)
+        lookup = Q(pk=self.id)
+        if fesquery is not None:
+            # When the
+            # NOTE: type_name is currently read by the IdOperator that contains this object,
+            # This code path only happens for stand-alone KVP invocation.
+            fesquery.add_lookups(lookup, type_name=self.type_name)
+        return lookup

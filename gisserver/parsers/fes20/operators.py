@@ -163,7 +163,7 @@ class IdOperator(Operator):
         ids = sorted(self.id, key=operator.attrgetter("rid"))
         for type_name, items in groupby(ids, key=operator.attrgetter("type_name")):
             ids_subset = reduce(
-                operator.or_, [id.build_query(fesquery) for id in items]
+                operator.or_, [id.build_query(fesquery=None) for id in items]
             )
             fesquery.add_lookups(ids_subset, type_name=type_name)
 

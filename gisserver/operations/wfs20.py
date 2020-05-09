@@ -214,7 +214,7 @@ class BaseWFSPresentationMethod(WFSTypeNamesMethod):
         ),
         Parameter("filter", parser=fes20.Filter.from_string),
         Parameter("sortBy", parser=parse_sort_by),
-        UnsupportedParameter("resourceID"),  # query on ID (called featureID in wfs 1.x)
+        Parameter("resourceID", parser=fes20.ResourceId),
         UnsupportedParameter("aliases"),
         queries.StoredQueryParameter(),
     ]

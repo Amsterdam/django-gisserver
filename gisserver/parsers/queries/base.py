@@ -24,6 +24,17 @@ class QueryExpression:
         self.all_feature_types = all_feature_types
         self.value_reference = value_reference
 
+    def resolve_type_name(self, type_name, locator="") -> FeatureType:
+        """Find the feature type for a given name."""
+        try:
+            return self.all_feature_types[type_name]
+        except KeyError:
+            raise InvalidParameterValue(
+                "typename",
+                f"Typename '{type_name}' doesn't exist in this server. "
+                f"Please check the capabilities and reformulate your request.",
+            ) from None
+
     def get_hits(self) -> FeatureCollection:
         """Run the query, return the number of hits only."""
         querysets = self.get_querysets()
