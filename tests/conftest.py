@@ -22,6 +22,7 @@ def pytest_configure():
     )
 
     if not XSD_ROOT.joinpath("schemas.opengis.net").exists():
+        print(f"Caching XML Schema definitions to {XSD_ROOT.absolute()}")
         download_schema("http://schemas.opengis.net/gml/3.2.1/gml.xsd")
         download_schema("http://schemas.opengis.net/wfs/2.0/wfs.xsd")
 
