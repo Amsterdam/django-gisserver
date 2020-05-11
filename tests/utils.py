@@ -9,7 +9,7 @@ from lxml.doctestcompare import PARSE_XML, LXMLOutputChecker
 # XSD schemas are downloaded from http://schemas.opengis.net/wfs/2.0/wfs.xsd
 # using https://github.com/n-a-t-e/xsd_download/blob/master/xsd_download.py
 # The download itself is really slow, hence these files are cached.
-XSD_ROOT = Path(__file__).parent.parent.joinpath("files/xsd")
+XSD_ROOT = Path(__file__).parent.joinpath("files/xsd")
 GML321_XSD = str(XSD_ROOT.joinpath("schemas.opengis.net/gml/3.2.1/gml.xsd"))
 WFS_20_XSD = str(XSD_ROOT.joinpath("schemas.opengis.net/wfs/2.0/wfs.xsd"))
 

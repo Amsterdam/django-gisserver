@@ -6,7 +6,7 @@ from django.contrib.gis.gdal import gdal_version
 from django.contrib.gis.geos import Point, geos_version
 from django.db import connection
 
-from tests.srid import RD_NEW_PROJ, RD_NEW_SRID, RD_NEW_WKT
+from tests.constants import RD_NEW_PROJ, RD_NEW_SRID, RD_NEW_WKT
 from tests.test_gisserver.models import City, Restaurant
 from tests.xsd_download import download_schema
 
@@ -21,10 +21,13 @@ def pytest_configure():
         f'Running with Django {django.__version__}, GDAL="{gdal_ver}" GEOS="{geos_ver}"'
     )
 
-    if not XSD_ROOT.joinpath("schemas.opengis.net").exists():
-        print(f"Caching XML Schema definitions to {XSD_ROOT.absolute()}")
-        download_schema("http://schemas.opengis.net/gml/3.2.1/gml.xsd")
-        download_schema("http://schemas.opengis.net/wfs/2.0/wfs.xsd")
+    for url in (
+        "http://schemas.opengis.net/wfs/2.0/wfs.xsd",
+        "http://schemas.opengis.net/gml/3.2.1/gml.xsd",
+    ):
+        if not XSD_ROOT.joinpath(url.replace("http://", "")).exists():
+            print(f"Caching {url} to {XSD_ROOT.absolute()}")
+            download_schema(url)
 
 
 @pytest.fixture()

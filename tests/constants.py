@@ -1,3 +1,18 @@
+from django.contrib.gis.gdal import SpatialReference
+
+from gisserver.types import CRS
+
+WFS_NS = "http://www.opengis.net/wfs/2.0"
+OWS_NS = "http://www.opengis.net/ows/1.1"
+XLINK_NS = "http://www.w3.org/1999/xlink"
+NAMESPACES = {
+    "app": "http://example.org/gisserver",
+    "gml": "http://www.opengis.net/gml/3.2",
+    "ows": "http://www.opengis.net/ows/1.1",
+    "wfs": "http://www.opengis.net/wfs/2.0",
+    "xsd": "http://www.w3.org/2001/XMLSchema",
+}
+
 RD_NEW_SRID = 28992  # https://epsg.io/28992
 
 # These values come from postgis 2.5.3 on homebrew
@@ -25,4 +40,8 @@ RD_NEW_WKT = (
     'AXIS["X",EAST],'
     'AXIS["Y",NORTH],'
     'AUTHORITY["EPSG","28992"]]'
+)
+
+RD_NEW = CRS.from_string(
+    "urn:ogc:def:crs:EPSG::28992", backend=SpatialReference(RD_NEW_PROJ),
 )
