@@ -186,7 +186,12 @@ class GML32Renderer(OutputRenderer):
             output.write(self.render_gml_bounds(member_bbox))
 
         for field in feature_type.fields:
-            value = getattr(instance, field)
+            try:
+                value = getattr(instance, field)
+            except AttributeError:
+                # E.g. Django foreign keys that point to a non-existing member.
+                value = None
+
             if isinstance(value, GEOSGeometry):
                 gml_seq += 1
                 output.write(

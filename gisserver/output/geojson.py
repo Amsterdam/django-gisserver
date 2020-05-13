@@ -157,8 +157,15 @@ class GeoJsonRenderer(OutputRenderer):
 
     def get_properties(self, feature_type: FeatureType, instance: models.Model) -> dict:
         """Collect the data for the 'properties' field"""
-        return {
-            name: self._format_geojson_value(getattr(instance, name))
-            for name in feature_type.fields
-            if name not in feature_type.geometry_field_names
-        }
+        props = {}
+        for name in feature_type.fields:
+            if name not in feature_type.geometry_field_names:
+                try:
+                    value = getattr(instance, name)
+                except AttributeError:
+                    # E.g. Django foreign keys that point to a non-existing member.
+                    props[name] = None
+                else:
+                    props[name] = self._format_geojson_value(value)
+
+        return props
