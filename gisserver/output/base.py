@@ -28,7 +28,7 @@ class OutputRenderer:
 
         :param method: The calling WFS Method (e.g. GetFeature class)
         :param source_query: The query that generated this output.
-        :type source_query: gisserver.parsers.queries.QueryExpression
+        :type source_query: gisserver.queries.QueryExpression
         :param collection: The collected data for rendering
         :param output_crs: The requested output projection.
         """

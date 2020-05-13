@@ -12,8 +12,9 @@ import re
 from typing import List
 from urllib.parse import urlencode
 
+from gisserver import output, queries
 from gisserver.exceptions import InvalidParameterValue, VersionNegotiationFailed
-from gisserver.parsers import fes20, queries
+from gisserver.parsers import fes20
 from gisserver.types import BoundingBox, CRS
 
 from .base import (
@@ -23,7 +24,6 @@ from .base import (
     WFSTypeNamesMethod,
     UnsupportedParameter,
 )
-from gisserver import output
 
 logger = logging.getLogger(__name__)
 

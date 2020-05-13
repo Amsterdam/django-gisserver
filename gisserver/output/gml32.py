@@ -41,7 +41,7 @@ class GML32Renderer(OutputRenderer):
 
     def get_response(self):
         """Render the output as streaming response."""
-        from gisserver.parsers.queries import GetFeatureById
+        from gisserver.queries import GetFeatureById
 
         if isinstance(self.source_query, GetFeatureById):
             # WFS spec requires that GetFeatureById output only returns the contents.
