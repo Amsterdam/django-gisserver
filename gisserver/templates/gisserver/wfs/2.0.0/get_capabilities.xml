@@ -145,7 +145,7 @@
         <fes:GeometryOperand name="gml:Box"/>
         <fes:GeometryOperand name="gml:Envelope"/>{% comment %}
           Also supported in mapserver:
-          <fes:GeometryOperand name="gml:Curve"/>
+          <fes:GeometryOperand name="gml:Curve"/>{# Arc unsupported (OGRwkbGeometryType type 8) #}
           <fes:GeometryOperand name="gml:MultiCurve"/>
           <fes:GeometryOperand name="gml:Surface"/>
           <fes:GeometryOperand name="gml:MultiSurface"/>
