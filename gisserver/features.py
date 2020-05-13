@@ -16,15 +16,18 @@ NoneType = type(None)
 
 
 XSD_TYPES = {
+    models.CharField: XsdTypes.string,
+    models.TextField: XsdTypes.string,
     models.BooleanField: XsdTypes.boolean,
     models.IntegerField: XsdTypes.integer,
     models.FloatField: XsdTypes.double,
     models.DecimalField: XsdTypes.decimal,
     models.TimeField: XsdTypes.time,
-    models.DateField: XsdTypes.date,
     models.DateTimeField: XsdTypes.dateTime,  # note: DateTimeField extends DateField!
+    models.DateField: XsdTypes.date,
     models.URLField: XsdTypes.anyURI,
 }
+DEFAULT_XSD_TYPE = XsdTypes.any
 
 
 @dataclass
@@ -154,7 +157,7 @@ class FeatureType:
                     return xsd_type
 
         # Default XML choice:
-        return XsdTypes.string
+        return DEFAULT_XSD_TYPE
 
     def _get_geometry_field(self) -> GeometryField:
         """Access the Django field"""

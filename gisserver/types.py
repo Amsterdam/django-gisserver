@@ -30,9 +30,11 @@ __all__ = [
 class XsdTypes(Enum):
     """Brief enumeration of basic XSD-types.
 
+    The default namespace is the "xs:" (XMLSchema).
     Based on https://www.w3.org/TR/xmlschema-2/#built-in-datatypes
     """
 
+    any = "any"
     string = "string"
     boolean = "boolean"
     decimal = "decimal"  # the base type for all numbers too.
