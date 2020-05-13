@@ -95,27 +95,17 @@ Use `FeatureType(..., fields=[...])` parameter to define which fields should be 
 
 ## Standards compliance
 
-Currently, the following 3 methods are implemented:
-
-* `GetCapabilities`
-* `DescribeFeatureType`
-* `GetFeature` with filtering and pagination support.
-
-This is sufficient to show results in [QGis](https://qgis.org/).
+Nearly all operations for the WFS simple conformance class are implemented.
+You should be able to view the WFS server [QGis](https://qgis.org/).
 The unit tests validate the output against WFS 2.0 XSD schema.
 
-Some parts for conformance to the "WFS simple" level are not implemented yet:
+Some remaining parts for the "WFS simple" conformance level are not implemented yet:
 
-* `GetPropertyValue`
-* `ListStoredQueries`
-* `DescribeStoredQueries`
-* Certain parameters:
-  * KVP filters: `resourceID`, `propertyName`, `aliases`.
-  * Remote resolving: `resolve`, `resolveDepth`, `resolveTimeout`.
-  * Output rewriting: `namespaces`.
-  * Some `GetCapabilities` features: `acceptFormats` and `sections`.
-  * Using `GetFeature` with only the `StoredQuery` action.
-  * Temporal filtering (high on todo)
+* KVP filters: `propertyName`, `aliases`.
+* Remote resolving: `resolve`, `resolveDepth`, `resolveTimeout`.
+* Output rewriting: `namespaces`.
+* Some `GetCapabilities` features: `acceptFormats` and `sections`.
+* Temporal filtering (high on todo)
 
 ### Low-prio items:
 
@@ -132,6 +122,9 @@ Anything outside WFS simple could be implemented, but is very low on the todo-li
 When you follow the source of the `WFSView`, `WFSMethod` and `Parameter` classes,
 you'll find that it's written with extensibility in mind. Extra parameters and operations
 can easily be added there. You could even do that within your own projects and implementations.
+
+A lot of the internal classes and object names are direct copies from the WFS spec.
+By following these type definitions, a lot of the logic and code structure follows naturally.
 
 The `Makefile` gives you all you need to start working on the project.
 Typing `make` gives an overview of all possible shortcut commands.
