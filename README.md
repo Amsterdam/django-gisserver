@@ -111,7 +111,7 @@ Some remaining parts for the "WFS simple" conformance level are not implemented 
 
 Anything outside WFS simple could be implemented, but is very low on the todo-list:
 
-* The methods for the WFS basic, transactional, locking and inheritance conformance classes.
+* The methods for the WFS transactional, locking and inheritance conformance classes.
 * HTTP POST requests.
 * SOAP requests.
 * Other protocols (WMS, WMTS, WCS)

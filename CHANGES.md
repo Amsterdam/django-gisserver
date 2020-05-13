@@ -1,3 +1,14 @@
+# 2020-05-14 (0.6)
+
+* Added `RESOURCEID` parameter support.
+* Added `GetFeatureById` support.
+* Added basic support for defining stored procedures.
+* Added GML rendering for Polygon / MultiGeometry / MultiLineString / MultiPoint / LineString / LinearRing data.
+* Fix `<fes:ResourceId>` parsing and type selection.
+* Fix output errors because of `AttributeError` in `ForeignKey` fields.
+* Fix `DateTimeField` being represented by an `xs:date` instead of `xs:dateTime`.
+* Internal code reorganizations/cleanups.
+
 # 2020-03-23 (0.5)
 
 * Added `GetPropertyValue` support.
