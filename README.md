@@ -140,7 +140,7 @@ Some deeplinks:
 * <https://www.opengeospatial.org/standards/wfs#downloads> (OGC WFS)
 * <https://portal.opengeospatial.org/files/09-025r2> (WFS 2.0 spec, PDF)
 * <https://portal.opengeospatial.org/files/09-026r1> (OpenGIS Filter Encoding 2.0, PDF)
-* <https://portal.opengeospatial.org/files/?artifact_id=20509> (GML 3.2.1)
+* <https://portal.opengeospatial.org/files/07-036> (GML 3.2.1)
 
 Other links:
 
