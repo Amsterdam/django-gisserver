@@ -1,7 +1,8 @@
 """Output rendering logic."""
+import itertools
 from datetime import date, datetime, time
 
-from django.contrib.gis.geos import GEOSGeometry, Point
+from django.contrib.gis import geos
 from django.db import models
 from django.http import HttpResponse
 from django.utils.html import escape, format_html
@@ -14,12 +15,22 @@ from gisserver.parsers.fes20 import ValueReference
 
 from .base import OutputRenderer, StringBuffer
 
+GML_RENDER_FUNCTIONS = {}
+
 
 def default_if_none(value, default):
     if value is None:
         return default
     else:
         return value
+
+
+def register_geos_type(geos_type):
+    def _inc(func):
+        GML_RENDER_FUNCTIONS[geos_type] = func
+        return func
+
+    return _inc
 
 
 class GML32Renderer(OutputRenderer):
@@ -192,7 +203,7 @@ class GML32Renderer(OutputRenderer):
                 # E.g. Django foreign keys that point to a non-existing member.
                 value = None
 
-            if isinstance(value, GEOSGeometry):
+            if isinstance(value, geos.GEOSGeometry):
                 gml_seq += 1
                 output.write(
                     self.render_gml_field(
@@ -214,7 +225,7 @@ class GML32Renderer(OutputRenderer):
         """Write the value of a single field."""
         if value is None:
             return format_html(
-                '    <app:{field} xsi:nil="true"{extra_xmlns} />\n',
+                '      <app:{field} xsi:nil="true"{extra_xmlns} />\n',
                 field=field,
                 extra_xmlns=extra_xmlns,
             )
@@ -226,7 +237,7 @@ class GML32Renderer(OutputRenderer):
             value = "true" if value else "false"
 
         return format_html(
-            "    <app:{field}{extra_xmlns}>{value}</app:{field}>\n",
+            "      <app:{field}{extra_xmlns}>{value}</app:{field}>\n",
             field=field,
             value=value,
             extra_xmlns=extra_xmlns,
@@ -243,37 +254,112 @@ class GML32Renderer(OutputRenderer):
             extra_xmlns=extra_xmlns,
         )
 
-    def render_gml_value(self, value: GEOSGeometry, gml_id: str, extra_xmlns="") -> str:
+    def render_gml_value(
+        self, value: geos.GEOSGeometry, gml_id: str, extra_xmlns=""
+    ) -> str:
         """Convert a Geometry into GML syntax."""
+        # TODO: consider using ST_AsGML()?
         self.output_crs.apply_to(value)
-        if isinstance(value, Point):
-            return format_html(
-                (
-                    '<gml:Point gml:id="{gml_id}" srsName="{srs_name}"{extra_xmlns}>'
-                    "<gml:pos>{coords}</gml:pos>"
-                    "</gml:Point>"
-                ),
-                gml_id=gml_id,
-                srs_name=str(self.output_crs),
-                coords=" ".join(map(str, value.coords)),
-                extra_xmlns=extra_xmlns,
-            )
+        base_attrs = format_html(
+            ' gml:id="{gml_id}" srsName="{srs_name}"{extra_xmlns}',
+            gml_id=gml_id,
+            srs_name=str(self.output_crs),
+            extra_xmlns=extra_xmlns,
+        )
+        return self._render_gml_type(value, base_attrs)
+
+    def _render_gml_type(self, value: geos.GEOSGeometry, base_attrs=""):
+        try:
+            # Avoid isinstance checks, do a direct lookup
+            method = GML_RENDER_FUNCTIONS[value.__class__]
+        except KeyError:
+            return mark_safe(f"<!-- No rendering implemented for {value.geom_type} -->")
+        else:
+            return method(self, value, base_attrs=base_attrs)
+
+    @register_geos_type(geos.Point)
+    def render_gml_point(self, value: geos.Point, base_attrs=""):
+        coords = " ".join(map(str, value.coords))
+        dim = ' srsDimension="3"' if value.hasz else ""
+        return mark_safe(
+            f"<gml:Point{base_attrs}><gml:pos{dim}>{coords}</gml:pos></gml:Point>"
+        )
+
+    @register_geos_type(geos.Polygon)
+    def render_gml_polygon(self, value: geos.Polygon, base_attrs=""):
+        # lol: http://erouault.blogspot.com/2014/04/gml-madness.html
+        ext_ring = self.render_gml_linear_ring(value.exterior_ring)
+        tags = [f"<gml:Polygon{base_attrs}><gml:exterior>{ext_ring}</gml:exterior>"]
+        for i in range(value.num_interior_rings):
+            tags.append("<gml:interior>")
+            tags.append(self.render_gml_linear_ring(value[i + 1]))
+            tags.append("</gml:interior>")
+        tags.append("</gml:Polygon>")
+        return mark_safe("".join(tags))
+
+    @register_geos_type(geos.MultiPolygon)
+    def render_gml_multi_geometry(self, value: geos.GeometryCollection, base_attrs):
+        children = "".join(self._render_gml_type(child) for child in value)
+        return mark_safe(
+            f"<gml:MultiGeometry{base_attrs}>{children}</gml:MultiGeometry>"
+        )
+
+    @register_geos_type(geos.MultiLineString)
+    def render_gml_multi_line_string(self, value: geos.MultiPoint, base_attrs):
+        children = "</gml:lineStringMember><gml:lineStringMember>".join(
+            self.render_gml_line_string(child) for child in value
+        )
+        return mark_safe(
+            f"<gml:MultiLineString{base_attrs}>"
+            f"<gml:lineStringMember>{children}</gml:lineStringMember>"
+            f"</gml:MultiLineString>"
+        )
+
+    @register_geos_type(geos.MultiPoint)
+    def render_gml_multi_point(self, value: geos.MultiPoint, base_attrs):
+        children = "</gml:pointMember><gml:pointMember>".join(
+            self.render_gml_point(child) for child in value
+        )
+        return mark_safe(
+            f"<gml:MultiPoint{base_attrs}>"
+            f"<gml:pointMember>{children}</gml:pointMember>"
+            f"</gml:MultiPoint>"
+        )
+
+    @register_geos_type(geos.LinearRing)
+    def render_gml_linear_ring(self, value: geos.LinearRing, base_attrs=""):
+        dim = ' srsDimension="3"' if value.hasz else ""
+        coords = " ".join(map(str, itertools.chain.from_iterable(value.tuple)))
+        # <gml:coordinates> is still valid in GML3, but deprecated (part of GML2).
+        return mark_safe(
+            f"<gml:LinearRing{base_attrs}>"
+            f"<gml:posList{dim}>{coords}</gml:posList>"
+            "</gml:LinearRing>"
+        )
+
+    @register_geos_type(geos.LineString)
+    def render_gml_line_string(self, value: geos.LineString, base_attrs=""):
+        dim = ' srsDimension="3"' if value.hasz else ""
+        coords = " ".join(map(str, itertools.chain.from_iterable(value.tuple)))
+        return mark_safe(
+            f"<gml:LineString{base_attrs}>"
+            f"<gml:posList{dim}>{coords}</gml:posList>"
+            "</gml:LineString>"
+        )
 
     def get_gml_id(self, feature_type: FeatureType, object_id, seq) -> str:
         """Generate the gml:id value, which is required for GML 3.2 objects."""
-        return "{prefix}.{id}.{seq}".format(
-            prefix=feature_type.name, id=object_id, seq=seq
-        )
+        return f"{feature_type.name}.{object_id}.{seq}"
 
     def render_gml_bounds(self, bbox) -> str:
         """Generate the <gml:boundedBy>> for an instance."""
         return format_html(
-            """    <gml:boundedBy>
+            """      <gml:boundedBy>
         <gml:Envelope srsName="{srs_name}">
-            <gml:lowerCorner>{lower}</gml:lowerCorner>
-            <gml:upperCorner>{upper}</gml:upperCorner>
+          <gml:lowerCorner>{lower}</gml:lowerCorner>
+          <gml:upperCorner>{upper}</gml:upperCorner>
         </gml:Envelope>
-    </gml:boundedBy>\n""",
+      </gml:boundedBy>\n""",
             srs_name=str(self.output_crs),
             lower=" ".join(map(str, bbox.lower_corner)),
             upper=" ".join(map(str, bbox.upper_corner)),
@@ -297,7 +383,7 @@ class GML32ValueRenderer(GML32Renderer):
         gml_seq = 0
         output = StringBuffer()
         value = instance["member"]
-        if isinstance(value, GEOSGeometry):
+        if isinstance(value, geos.GEOSGeometry):
             gml_seq += 1
             output.write(
                 self.render_gml_field(
