@@ -77,7 +77,7 @@ def auto_cast(value: str):
 def xsd_cast(value: str, type: str):
     if type == "xs:date":
         return date.fromisoformat(value)
-    elif type == "xs:datetime":
+    elif type == "xs:dateTime":
         return parse_iso_datetime(value)
     elif type == "xs:time":
         return time.fromisoformat(value)
