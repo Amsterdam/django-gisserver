@@ -1,6 +1,6 @@
 """Dataclasses that expose the metadata for the GetCapabilities call."""
 import html
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from math import inf
 from typing import List, Optional, Union
 
@@ -44,50 +44,57 @@ class ServiceDescription:
     contact_person: Optional[str] = None
 
 
-@dataclass
 class FeatureType:
     """Declare a feature that is exposed on the map.
 
     This corresponds with a single Django model.
     """
 
-    #: The queryset to retrieve the data.
-    queryset: models.QuerySet
-
-    #: Define which fields to show in the WFS data:
-    fields: Union[str, List[str], NoneType] = None
-
-    #: Name of the geometry field to expose (default = auto detect)
-    geometry_field_name: str = None
-
-    #: Name, also used as XML tag name
-    name: str = None
-
-    # WFS Metadata:
-    title: str = None
-    abstract: str = None
-    keywords: List[str] = field(default_factory=list)
-    crs: CRS = None
-    other_crs: List[CRS] = field(default_factory=list)
-    metadata_url: Optional[str] = None
-
-    def __post_init__(self):  # noqa: C901
-        if isinstance(self.queryset, models.QuerySet):
-            self.model = self.queryset.model
-        elif isinstance(self.queryset, type) and issubclass(
-            self.queryset, models.Model
-        ):
+    def __init__(
+        self,
+        queryset: models.QuerySet,
+        fields: Union[str, List[str], NoneType] = None,
+        geometry_field_name: str = None,
+        name: str = None,
+        # WFS Metadata:
+        title: str = None,
+        abstract: str = None,
+        keywords: List[str] = None,
+        crs: CRS = None,
+        other_crs: List[CRS] = None,
+        metadata_url: Optional[str] = None,
+    ):
+        """
+        :param queryset: The queryset to retrieve the data.
+        :param fields: Define which fields to show in the WFS data.
+        :param geometry_field_name: Name of the geometry field to expose (default = auto detect).
+        :param name: Name, also used as XML tag name.
+        :param title: Used in WFS metadata.
+        :param abstract: Used in WFS metadata.
+        :param keywords: Used in WFS metadata.
+        :param crs: Used in WFS metadata.
+        :param other_crs: Used in WFS metadata.
+        :param metadata_url: Used in WFS metadata.
+        """
+        if isinstance(queryset, models.QuerySet):
+            self.queryset = queryset
+            self.model = queryset.model
+        elif isinstance(queryset, type) and issubclass(queryset, models.Model):
             # In case a model is provided, fix that
-            self.model = self.queryset
+            self.model = queryset
             self.queryset = self.model.objects.all()
         else:
             raise TypeError("FeatureType expects a model or queryset")
 
-        # Add some defaults
-        if not self.name:
-            self.name = self.model._meta.model_name
-        if not self.title:
-            self.title = self.model._meta.verbose_name
+        self._fields = fields
+        self._geometry_field_name = geometry_field_name
+        self.name = name or self.model._meta.model_name
+        self.title = title or self.model._meta.verbose_name
+        self.abstract = abstract
+        self.keywords = keywords or []
+        self._crs = crs
+        self.other_crs = other_crs or []
+        self.metadata_url = metadata_url
 
         # Validate that the name doesn't require XML escaping.
         if html.escape(self.name) != self.name or " " in self.name:
@@ -97,24 +104,24 @@ class FeatureType:
         self.geometry_fields = [
             f for f in self.model._meta.get_fields() if isinstance(f, GeometryField)
         ]
-        self.geometry_field = self._get_geometry_field()
-
-        if self.fields is None:
-            self.fields = [self.geometry_field_name]
-        elif isinstance(self.fields, str):
-            if self.fields == "__all__":
-                self.fields = self._get_all_fields()
-            else:
-                raise TypeError('FeatureType.fields accepts lists and "__all__"')
-
-        # Default CRS
-        default_crs = self.geometry_field.srid  # checks lookup too
-        if not self.crs:
-            self.crs = CRS.from_string(default_crs)
 
     @cached_property
     def geometry_field_names(self):
         return [f.name for f in self.geometry_fields]
+
+    @cached_property
+    def fields(self) -> List[str]:
+        """Define which fields to render."""
+        # This lazy reading allows providing 'fields' as lazy value.
+        if self._fields is None:
+            return [self.geometry_field_name]
+        elif isinstance(self._fields, str):
+            if self._fields == "__all__":
+                return self._get_all_fields()
+            else:
+                raise TypeError('FeatureType.fields accepts lists and "__all__"')
+        else:
+            return list(self._fields)
 
     @cached_property
     def fields_with_type(self):
@@ -164,8 +171,9 @@ class FeatureType:
         # Default XML choice:
         return DEFAULT_XSD_TYPE
 
-    def _get_geometry_field(self) -> GeometryField:
-        """Access the Django field"""
+    @cached_property
+    def geometry_field(self) -> GeometryField:
+        """Give access to the Django field that holds the geometry."""
         if not self.geometry_fields:
             raise ImproperlyConfigured(
                 f"Django model {self.model.__name__} does not have to a geometry field."
@@ -174,8 +182,27 @@ class FeatureType:
         if self.geometry_field_name:
             return self.model._meta.get_field(self.geometry_field_name)
         else:
-            self.geometry_field_name = self.geometry_fields[0].name
             return self.geometry_fields[0]
+
+    @cached_property
+    def geometry_field_name(self) -> str:
+        if self._geometry_field_name:
+            return self._geometry_field_name
+        else:
+            if not self.geometry_fields:
+                raise ImproperlyConfigured(
+                    f"Django model {self.model.__name__} does not have to a geometry field."
+                ) from None
+            return self.geometry_fields[0].name
+
+    @cached_property
+    def crs(self) -> CRS:
+        """Tell which projection the data should be presented at."""
+        if self._crs is None:
+            # Default CRS
+            return CRS.from_srid(self.geometry_field.srid)  # checks lookup too
+        else:
+            return self._crs
 
     def get_queryset(self) -> models.QuerySet:
         """Return the queryset that is used as basis for this feature."""
