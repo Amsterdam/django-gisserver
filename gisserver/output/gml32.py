@@ -1,12 +1,15 @@
-"""Output rendering logic."""
+"""Output rendering logic.
+
+Note that the Django format_html() / mark_safe() logic is not used here,
+as it's quite a performance improvement to just use html.escape().
+"""
 import itertools
 from datetime import date, datetime, time
+from html import escape
 
 from django.contrib.gis import geos
 from django.db import models
 from django.http import HttpResponse
-from django.utils.html import escape, format_html
-from django.utils.safestring import mark_safe
 from django.utils.timezone import utc
 
 from gisserver.exceptions import NotFound
@@ -65,24 +68,22 @@ class GML32Renderer(OutputRenderer):
             "http://www.opengis.net/gml/3.2 http://schemas.opengis.net/gml/3.2.1/gml.xsd",
         ]
 
-        return mark_safe(
-            """
+        return """
      xmlns:app="{app_xml_namespace}"
      xmlns:gml="http://www.opengis.net/gml/3.2"
      xmlns:wfs="http://www.opengis.net/wfs/2.0"
      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
      xsi:schemaLocation="{schema_location}"
 """.format(
-                app_xml_namespace=escape(self.app_xml_namespace),
-                schema_location=escape(" ".join(schema_location)),
-            )
+            app_xml_namespace=escape(self.app_xml_namespace),
+            schema_location=escape(" ".join(schema_location)),
         )
 
     def render_xmlns_standalone(self):
         """Generate the xmlns block that the documente needs"""
-        return format_html(
-            ' xmlns:app="{app_xml_namespace}" xmlns:gml="http://www.opengis.net/gml/3.2"',
-            app_xml_namespace=self.app_xml_namespace,
+        return (
+            f' xmlns:app="{escape(self.app_xml_namespace)}"'
+            ' xmlns:gml="http://www.opengis.net/gml/3.2"'
         )
 
     def render_xml_standalone(self):
@@ -109,26 +110,29 @@ class GML32Renderer(OutputRenderer):
         """
         collection = self.collection
         output = StringBuffer()
-        output.write(
-            format_html(
-                """<?xml version='1.0' encoding="UTF-8" ?>
-<wfs:{xml_collection_tag}
-     {xmlns}
-     timeStamp="{timestamp}" numberMatched="{number_matched}" numberReturned="{number_returned}"{next}{previous}>\n""",  # noqa: E501
-                xml_collection_tag=self.xml_collection_tag,
-                xmlns=mark_safe(self.render_xmlns().strip()),
-                timestamp=collection.timestamp,
-                number_matched=default_if_none(collection.number_matched, "unknown"),
-                number_returned=collection.number_returned,
-                next=format_html(' next="{}"', collection.next)
-                if collection.next
-                else "",
-                previous=format_html(' previous="{}"', collection.previous)
-                if collection.previous
-                else "",
-            )
+        xmlns = self.render_xmlns().strip()
+
+        number_matched = collection.number_matched
+        number_matched = (
+            int(number_matched) if number_matched is not None else "unknown"
         )
-        if collection.number_returned:
+        number_returned = collection.number_returned
+        next = previous = ""
+        if collection.next:
+            next = f' next="{escape(collection.next)}'
+        if collection.previous:
+            previous = f' previous="{escape(collection.previous)}'
+
+        output.write(
+            f"""<?xml version='1.0' encoding="UTF-8" ?>\n"""
+            f"<wfs:{self.xml_collection_tag}\n"
+            f"     {xmlns}\n"
+            f'     timeStamp="{collection.timestamp}"'
+            f' numberMatched="{number_matched}"'
+            f' numberReturned="{int(number_returned)}"{next}{previous}>\n'
+        )
+
+        if number_returned:
             # <wfs:boundedBy>
             #   <gml:Envelope srsName="{{ bounding_box.crs|default:output_crs }}">
             #     <gml:lowerCorner>{{ bounding_box.lower_corner|join:" " }}</gml:lowerCorner>
@@ -140,17 +144,11 @@ class GML32Renderer(OutputRenderer):
             for sub_collection in collection.results:
                 if has_multiple_collections:
                     output.write(
-                        format_html(
-                            "  <wfs:member>\n"
-                            "    <wfs:{xml_collection_tag}"
-                            ' timeStamp="{timestamp}"'
-                            ' numberMatched="{number_matched}"'
-                            ' numberReturned="{number_returned}">\n',
-                            xml_collection_tag=self.xml_collection_tag,
-                            timestamp=collection.timestamp,
-                            number_returned=sub_collection.number_returned,
-                            number_matched=sub_collection.number_matched,
-                        )
+                        f"  <wfs:member>\n"
+                        f"    <wfs:{self.xml_collection_tag}"
+                        f' timeStamp="{collection.timestamp}"'
+                        f' numberMatched="{int(sub_collection.number_matched)}"'
+                        f' numberReturned="{int(sub_collection.number_returned)}">\n'
                     )
 
                 for instance in sub_collection:
@@ -181,14 +179,13 @@ class GML32Renderer(OutputRenderer):
         gml_seq = 0
         output = StringBuffer()
         output.write(
-            format_html(
-                '    <app:{name} gml:id="{name}.{pk}"{extra_xmlns}>\n'
-                "      <gml:name>{display}</gml:name>\n",
+            '    <app:{name} gml:id="{name}.{pk}"{extra_xmlns}>\n'
+            "      <gml:name>{display}</gml:name>\n".format(
                 name=feature_type.name,
-                pk=instance.pk,
-                display=str(instance),
+                pk=escape(str(instance.pk)),
+                display=escape(str(instance)),
                 extra_xmlns=extra_xmlns,
-            ),
+            )
         )
 
         # Add <gml:boundedBy>
@@ -216,7 +213,7 @@ class GML32Renderer(OutputRenderer):
             else:
                 output.write(self.render_xml_field(feature_type, field, value))
 
-        output.write(format_html("    </app:{name}>\n", name=feature_type.name))
+        output.write(f"    </app:{feature_type.name}>\n")
         return output.getvalue()
 
     def render_xml_field(
@@ -224,11 +221,7 @@ class GML32Renderer(OutputRenderer):
     ) -> str:
         """Write the value of a single field."""
         if value is None:
-            return format_html(
-                '      <app:{field} xsi:nil="true"{extra_xmlns} />\n',
-                field=field,
-                extra_xmlns=extra_xmlns,
-            )
+            return f'      <app:{field} xsi:nil="true"{extra_xmlns} />\n'
         elif isinstance(value, datetime):
             value = value.astimezone(utc).isoformat()
         elif isinstance(value, (date, time)):
@@ -236,23 +229,14 @@ class GML32Renderer(OutputRenderer):
         elif isinstance(value, bool):
             value = "true" if value else "false"
 
-        return format_html(
-            "      <app:{field}{extra_xmlns}>{value}</app:{field}>\n",
-            field=field,
-            value=value,
-            extra_xmlns=extra_xmlns,
-        )
+        return f"      <app:{field}{extra_xmlns}>{escape(str(value))}</app:{field}>\n"
 
     def render_gml_field(
         self, feature_type: FeatureType, name, value, gml_id, extra_xmlns=""
     ) -> str:
         """Write the value of an GML tag"""
-        return format_html(
-            "      <app:{name}{extra_xmlns}>{gml}</app:{name}>\n",
-            name=name,
-            gml=self.render_gml_value(value, gml_id=gml_id),
-            extra_xmlns=extra_xmlns,
-        )
+        gml = self.render_gml_value(value, gml_id=gml_id)
+        return f"      <app:{name}{extra_xmlns}>{gml}</app:{name}>\n"
 
     def render_gml_value(
         self, value: geos.GEOSGeometry, gml_id: str, extra_xmlns=""
@@ -260,11 +244,8 @@ class GML32Renderer(OutputRenderer):
         """Convert a Geometry into GML syntax."""
         # TODO: consider using ST_AsGML()?
         self.output_crs.apply_to(value)
-        base_attrs = format_html(
-            ' gml:id="{gml_id}" srsName="{srs_name}"{extra_xmlns}',
-            gml_id=gml_id,
-            srs_name=str(self.output_crs),
-            extra_xmlns=extra_xmlns,
+        base_attrs = (
+            f' gml:id="{escape(gml_id)}" srsName="{self.xml_srs_name}"{extra_xmlns}'
         )
         return self._render_gml_type(value, base_attrs)
 
@@ -273,7 +254,7 @@ class GML32Renderer(OutputRenderer):
             # Avoid isinstance checks, do a direct lookup
             method = GML_RENDER_FUNCTIONS[value.__class__]
         except KeyError:
-            return mark_safe(f"<!-- No rendering implemented for {value.geom_type} -->")
+            return f"<!-- No rendering implemented for {value.geom_type} -->"
         else:
             return method(self, value, base_attrs=base_attrs)
 
@@ -281,9 +262,7 @@ class GML32Renderer(OutputRenderer):
     def render_gml_point(self, value: geos.Point, base_attrs=""):
         coords = " ".join(map(str, value.coords))
         dim = ' srsDimension="3"' if value.hasz else ""
-        return mark_safe(
-            f"<gml:Point{base_attrs}><gml:pos{dim}>{coords}</gml:pos></gml:Point>"
-        )
+        return f"<gml:Point{base_attrs}><gml:pos{dim}>{coords}</gml:pos></gml:Point>"
 
     @register_geos_type(geos.Polygon)
     def render_gml_polygon(self, value: geos.Polygon, base_attrs=""):
@@ -295,21 +274,19 @@ class GML32Renderer(OutputRenderer):
             tags.append(self.render_gml_linear_ring(value[i + 1]))
             tags.append("</gml:interior>")
         tags.append("</gml:Polygon>")
-        return mark_safe("".join(tags))
+        return "".join(tags)
 
     @register_geos_type(geos.MultiPolygon)
     def render_gml_multi_geometry(self, value: geos.GeometryCollection, base_attrs):
         children = "".join(self._render_gml_type(child) for child in value)
-        return mark_safe(
-            f"<gml:MultiGeometry{base_attrs}>{children}</gml:MultiGeometry>"
-        )
+        return f"<gml:MultiGeometry{base_attrs}>{children}</gml:MultiGeometry>"
 
     @register_geos_type(geos.MultiLineString)
     def render_gml_multi_line_string(self, value: geos.MultiPoint, base_attrs):
         children = "</gml:lineStringMember><gml:lineStringMember>".join(
             self.render_gml_line_string(child) for child in value
         )
-        return mark_safe(
+        return (
             f"<gml:MultiLineString{base_attrs}>"
             f"<gml:lineStringMember>{children}</gml:lineStringMember>"
             f"</gml:MultiLineString>"
@@ -320,7 +297,7 @@ class GML32Renderer(OutputRenderer):
         children = "</gml:pointMember><gml:pointMember>".join(
             self.render_gml_point(child) for child in value
         )
-        return mark_safe(
+        return (
             f"<gml:MultiPoint{base_attrs}>"
             f"<gml:pointMember>{children}</gml:pointMember>"
             f"</gml:MultiPoint>"
@@ -331,7 +308,7 @@ class GML32Renderer(OutputRenderer):
         dim = ' srsDimension="3"' if value.hasz else ""
         coords = " ".join(map(str, itertools.chain.from_iterable(value.tuple)))
         # <gml:coordinates> is still valid in GML3, but deprecated (part of GML2).
-        return mark_safe(
+        return (
             f"<gml:LinearRing{base_attrs}>"
             f"<gml:posList{dim}>{coords}</gml:posList>"
             "</gml:LinearRing>"
@@ -341,7 +318,7 @@ class GML32Renderer(OutputRenderer):
     def render_gml_line_string(self, value: geos.LineString, base_attrs=""):
         dim = ' srsDimension="3"' if value.hasz else ""
         coords = " ".join(map(str, itertools.chain.from_iterable(value.tuple)))
-        return mark_safe(
+        return (
             f"<gml:LineString{base_attrs}>"
             f"<gml:posList{dim}>{coords}</gml:posList>"
             "</gml:LineString>"
@@ -353,17 +330,14 @@ class GML32Renderer(OutputRenderer):
 
     def render_gml_bounds(self, bbox) -> str:
         """Generate the <gml:boundedBy>> for an instance."""
-        return format_html(
-            """      <gml:boundedBy>
-        <gml:Envelope srsName="{srs_name}">
+        lower = " ".join(map(str, bbox.lower_corner))
+        upper = " ".join(map(str, bbox.upper_corner))
+        return f"""      <gml:boundedBy>
+        <gml:Envelope srsName="{self.xml_srs_name}">
           <gml:lowerCorner>{lower}</gml:lowerCorner>
           <gml:upperCorner>{upper}</gml:upperCorner>
         </gml:Envelope>
-      </gml:boundedBy>\n""",
-            srs_name=str(self.output_crs),
-            lower=" ".join(map(str, bbox.lower_corner)),
-            upper=" ".join(map(str, bbox.upper_corner)),
-        )
+      </gml:boundedBy>\n"""
 
 
 class GML32ValueRenderer(GML32Renderer):

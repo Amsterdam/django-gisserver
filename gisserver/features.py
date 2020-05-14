@@ -1,4 +1,5 @@
 """Dataclasses that expose the metadata for the GetCapabilities call."""
+import html
 from dataclasses import dataclass, field
 from math import inf
 from typing import List, Optional, Union
@@ -70,7 +71,7 @@ class FeatureType:
     other_crs: List[CRS] = field(default_factory=list)
     metadata_url: Optional[str] = None
 
-    def __post_init__(self):
+    def __post_init__(self):  # noqa: C901
         if isinstance(self.queryset, models.QuerySet):
             self.model = self.queryset.model
         elif isinstance(self.queryset, type) and issubclass(
@@ -87,6 +88,10 @@ class FeatureType:
             self.name = self.model._meta.model_name
         if not self.title:
             self.title = self.model._meta.verbose_name
+
+        # Validate that the name doesn't require XML escaping.
+        if html.escape(self.name) != self.name or " " in self.name:
+            raise ValueError(f"Invalid feature name for XML: <app:{self.name}>")
 
         # Auto-detect geometry fields (also fills geometry_field_name)
         self.geometry_fields = [

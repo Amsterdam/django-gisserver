@@ -1,6 +1,7 @@
 import io
 
 from django.http import StreamingHttpResponse
+from django.utils.html import escape
 
 from gisserver.operations.base import WFSMethod
 from gisserver.types import CRS
@@ -36,6 +37,7 @@ class OutputRenderer:
         self.source_query = source_query
         self.collection = collection
         self.output_crs = output_crs
+        self.xml_srs_name = escape(str(self.output_crs))
 
         # Common elements for output rendering:
         self.server_url = method.view.server_url
