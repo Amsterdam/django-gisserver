@@ -47,6 +47,10 @@ class ServiceDescription:
 class FeatureType:
     """Declare a feature that is exposed on the map.
 
+    All WFS operations use this class to read the feature ype.
+    You may subclass this class to provide extensions,
+    such as redefining :meth:`get_queryset`.
+
     This corresponds with a single Django model.
     """
 

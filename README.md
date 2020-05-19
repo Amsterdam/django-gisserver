@@ -93,6 +93,13 @@ By adding `&OUTPUTFORMAT=geojson` to the `GetFeature` request, the GeoJSON outpu
 NOTE: by default, the minimum number of model fields are exposed as WFS attributes.
 Use `FeatureType(..., fields=[...])` parameter to define which fields should be exposed.
 
+## Customization hooks
+
+There are a few places that allow to customize the WFS logic:
+
+* Overriding methods from ``WFSView``, such as ``get_feature_types()`` or ``dispatch()`` for authorization.
+* Subclassing the ``FeatureType`` class, to override it's ``get_queryset()`` method.
+
 ## Standards compliance
 
 Nearly all operations for the WFS simple conformance class are implemented.
