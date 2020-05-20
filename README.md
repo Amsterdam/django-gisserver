@@ -108,9 +108,8 @@ The unit tests validate the output against WFS 2.0 XSD schema.
 
 Some remaining parts for the "WFS simple" conformance level are not implemented yet:
 
-* KVP filters: `propertyName`, `aliases`.
+* KVP filters: `propertyName`, `aliases`, `namespaces`.
 * Remote resolving: `resolve`, `resolveDepth`, `resolveTimeout`.
-* Output rewriting: `namespaces`.
 * Some `GetCapabilities` features: `acceptFormats` and `sections`.
 * Temporal filtering (high on todo)
 
