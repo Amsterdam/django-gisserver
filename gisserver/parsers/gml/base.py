@@ -6,14 +6,14 @@ map to the GML implementations. These names are referenced by the FES spec.
 from gisserver.parsers.base import BaseNode
 
 
-class GM_Object(BaseNode):
+class AbstractGeometry(BaseNode):
     """Abstract base classes for all GML objects, regardless of their version.
 
     <gml:AbstractGeometry> implements the ISO 19107 GM_Object.
     """
 
 
-class GM_Envelope(BaseNode):
+class Envelope(BaseNode):
     """Abstract base classes for all GML objects, regardless of their version.
 
     <gml:Envelope> implements ISO 19107 GM_Envelope (see D.2.3.4 and ISO 19107:2003, 6.4.3).
@@ -27,7 +27,6 @@ class TM_Object(BaseNode):
     """
 
 
-# Instead of polluting the MRO with unneeded levels,
-# create aliases:
-AbstractGeometry = GM_Object
-Envelope = GM_Envelope
+# Instead of polluting the MRO with unneeded base classes, create aliases:
+GM_Object = AbstractGeometry
+GM_Envelope = Envelope
