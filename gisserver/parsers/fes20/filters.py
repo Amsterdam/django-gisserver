@@ -61,16 +61,16 @@ class Filter:
                 source=source,
             )
 
-    def get_query(self) -> query.FesQuery:
+    def compile_query(self) -> query.CompiledQuery:
         """Collect the data to perform a Django ORM query."""
-        fesquery = query.FesQuery()
+        compiler = query.CompiledQuery()
 
         # Function, Operator, IdList
-        q_object = self.predicate.build_query(fesquery)
+        q_object = self.predicate.build_query(compiler)
         if q_object is not None:
-            fesquery.add_lookups(q_object)
+            compiler.add_lookups(q_object)
 
-        return fesquery
+        return compiler
 
     def __repr__(self):
         return f"Filter(predicate={self.predicate!r}, source={self.source})"

@@ -39,7 +39,7 @@ from gisserver.parsers.fes20.operators import (
     UnaryLogicOperator,
     UnaryLogicType,
 )
-from gisserver.parsers.fes20.query import FesQuery
+from gisserver.parsers.fes20.query import CompiledQuery
 from gisserver.parsers.gml import geometries
 from gisserver.parsers.gml.geometries import GEOSGMLGeometry
 from gisserver.types import WGS84, XsdTypes
@@ -69,8 +69,8 @@ def test_fes20_c5_example1():
     assert result == expected, f"result={result!r}"
 
     # Test SQL generating
-    query = result.get_query()
-    assert query == FesQuery(lookups=[Q(SomeProperty__exact=100)]), repr(query)
+    query = result.compile_query()
+    assert query == CompiledQuery(lookups=[Q(SomeProperty__exact=100)]), repr(query)
 
 
 def test_fes20_c5_example2():
@@ -100,8 +100,8 @@ def test_fes20_c5_example2():
     assert result == expected, f"result={result!r}"
 
     # Test SQL generating
-    query = result.get_query()
-    assert query == FesQuery(lookups=[Q(DEPTH__lt=30)]), repr(query)
+    query = result.compile_query()
+    assert query == CompiledQuery(lookups=[Q(DEPTH__lt=30)]), repr(query)
 
 
 def test_fes20_c5_example3():
@@ -152,8 +152,8 @@ def test_fes20_c5_example3():
     assert result == expected, f"result={result!r}"
 
     # Test SQL generating
-    query = result.get_query()
-    assert query == FesQuery(
+    query = result.compile_query()
+    assert query == CompiledQuery(
         lookups=[
             ~Q(
                 Geometry__disjoint=GEOSGeometry(
@@ -204,8 +204,8 @@ def test_fes20_c5_example3_b():
     assert result == expected, f"result={result!r}"
 
     # Test SQL generating
-    query = result.get_query()
-    assert query == FesQuery(
+    query = result.compile_query()
+    assert query == CompiledQuery(
         lookups=[
             Q(
                 Geometry__intersects=GEOSGeometry(
@@ -285,8 +285,8 @@ def test_fes20_c5_example4():
     assert result == expected, f"result={result!r}"
 
     # Test SQL generating
-    query = result.get_query()
-    assert query == FesQuery(
+    query = result.compile_query()
+    assert query == CompiledQuery(
         lookups=[
             Q(DEPTH__lt=30)
             & ~Q(
@@ -339,8 +339,8 @@ def test_fes20_c5_example5():
     assert result == expected, f"result={result!r}"
 
     # Test SQL generating
-    query = result.get_query()
-    assert query == FesQuery(
+    query = result.compile_query()
+    assert query == CompiledQuery(
         typed_lookups={
             "BUILTUPA_1M": [Q(pk="4321")],
             "INWATERA_1M": [Q(pk="3456") | Q(pk="7890")],
@@ -392,8 +392,8 @@ def test_fes20_c5_example6():
     assert result == expected, f"result={result!r}"
 
     # Test SQL generating
-    query = result.get_query()
-    assert query == FesQuery(
+    query = result.compile_query()
+    assert query == CompiledQuery(
         annotations={"a1": Sin(F("DISPERSION_ANGLE"))}, lookups=[Q(a1__exact=1)]
     ), repr(query)
 
@@ -448,9 +448,9 @@ def test_fes20_c5_example7():
 
     # Test SQL generating
     # Testing against repr() because CombinedExpression / Value doesn't do __eq__ testing.
-    query = result.get_query()
+    query = result.compile_query()
     assert repr(query) == repr(
-        FesQuery(lookups=[Q(PROPA__exact=F("PROPB") + 100)])
+        CompiledQuery(lookups=[Q(PROPA__exact=F("PROPB") + 100)])
     ), repr(query)
 
 
@@ -485,8 +485,8 @@ def test_fes20_c5_example8():
     assert result == expected, f"result={result!r}"
 
     # Test SQL generating
-    query = result.get_query()
-    assert query == FesQuery(lookups=[Q(DEPTH__range=(100, 200))]), repr(query)
+    query = result.compile_query()
+    assert query == CompiledQuery(lookups=[Q(DEPTH__range=(100, 200))]), repr(query)
 
 
 def test_fes20_c5_example9():
@@ -521,8 +521,8 @@ def test_fes20_c5_example9():
     assert result == expected, f"result={result!r}"
 
     # Test SQL generating
-    query = result.get_query()
-    assert query == FesQuery(
+    query = result.compile_query()
+    assert query == CompiledQuery(
         lookups=[
             Q(SAMPLE_DATE__range=("2001-01-15T20:07:48.11", "2001-03-06T12:00:00.00"))
         ]
@@ -561,8 +561,8 @@ def test_fes20_c5_example10():
     assert result == expected, f"result={result!r}"
 
     # Test SQL generating
-    query = result.get_query()
-    assert query == FesQuery(lookups=[Q(LAST_NAME__fes_like="JOHN%")]), repr(query)
+    query = result.compile_query()
+    assert query == CompiledQuery(lookups=[Q(LAST_NAME__fes_like="JOHN%")]), repr(query)
 
 
 def test_fes20_c5_example11():
@@ -606,8 +606,8 @@ def test_fes20_c5_example11():
     assert result == expected, f"result={result!r}"
 
     # Test SQL generating
-    query = result.get_query()
-    assert query == FesQuery(
+    query = result.compile_query()
+    assert query == CompiledQuery(
         lookups=[
             Q(
                 Geometry__overlaps=GEOSGeometry(
@@ -662,8 +662,8 @@ def test_fes20_c5_example11_b():
     assert result == expected, f"result={result!r}"
 
     # Test SQL generating
-    query = result.get_query()
-    assert query == FesQuery(
+    query = result.compile_query()
+    assert query == CompiledQuery(
         lookups=[
             Q(
                 Geometry__overlaps=GEOSGeometry(
@@ -747,8 +747,8 @@ def test_fes20_c5_example12():
     assert result == expected, f"result={result!r}"
 
     # Test SQL generating
-    query = result.get_query()
-    assert query == FesQuery(
+    query = result.compile_query()
+    assert query == CompiledQuery(
         lookups=[(Q(FIELD1__exact=10) | Q(FIELD1__exact=20)) & Q(STATUS__exact="VALID")]
     ), repr(query)
 
@@ -821,8 +821,8 @@ def test_fes20_c5_example13():
     assert result == expected, f"result={result!r}"
 
     # Test SQL generating
-    query = result.get_query()
-    assert query == FesQuery(
+    query = result.compile_query()
+    assert query == CompiledQuery(
         lookups=[
             Q(
                 WKB_GEOM__within=GEOSGeometry(
@@ -884,8 +884,8 @@ def test_fes20_c5_example14():
     assert result == expected, f"result={result!r}"
 
     # Test SQL generating
-    query = result.get_query()
-    assert query == FesQuery(
+    query = result.compile_query()
+    assert query == CompiledQuery(
         lookups=[
             Q(Person__age__gt=50)
             & Q(Person__mailAddress__Address__city__exact="Toronto")
@@ -931,8 +931,8 @@ def test_fes20_c5_example15():
     assert result == expected, f"result={result!r}"
 
     # Test SQL generating
-    query = result.get_query()
-    assert query == FesQuery(
+    query = result.compile_query()
+    assert query == CompiledQuery(
         lookups=[
             Q(
                 geometry__dwithin=(
@@ -987,8 +987,8 @@ def test_fes20_c7_example1():
     assert result == expected, f"result={result!r}"
 
     # Test SQL generating
-    query = result.get_query()
-    assert query == FesQuery(
+    query = result.compile_query()
+    assert query == CompiledQuery(
         lookups=[
             Q(
                 geometry__dwithin=(
@@ -1024,7 +1024,7 @@ def test_fes20_c7_example2():
     result = Filter.from_string(xml_text)
     assert result == expected, f"result={result!r}"
 
-    print(result.get_query())
+    print(result.compile_query())
 
 
 @pytest.mark.skip(reason="GML Temporal support is incomplete")
@@ -1051,7 +1051,7 @@ def test_fes20_c7_example3():
     result = Filter.from_string(xml_text)
     assert result == expected, f"result={result!r}"
 
-    print(result.get_query())
+    print(result.compile_query())
 
 
 @pytest.mark.skip(reason="GML Temporal support is incomplete")
@@ -1087,7 +1087,7 @@ def test_fes20_c7_example4():
     result = Filter.from_string(xml_text)
     assert result == expected, f"result={result!r}"
 
-    print(result.get_query())
+    print(result.compile_query())
 
 
 @pytest.mark.skip(reason="GML Temporal support is incomplete")
@@ -1123,4 +1123,4 @@ def test_fes20_c7_example5():
     result = Filter.from_string(xml_text)
     assert result == expected, f"result={result!r}"
 
-    print(result.get_query())
+    print(result.compile_query())

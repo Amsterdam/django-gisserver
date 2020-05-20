@@ -43,7 +43,7 @@ class Expression(BaseNode):
 
     xml_ns = FES20
 
-    def build_lhs(self, fesquery) -> str:
+    def build_lhs(self, compiler) -> str:
         """Get the expression as the left-hand-side of the equation.
 
         This typically returns the expression as a 'field name' which can be
@@ -51,10 +51,10 @@ class Expression(BaseNode):
         expression is actually a Function/Literal, this should generate the
         name using a queryset annotation.
         """
-        value = _make_combinable(self.build_rhs(fesquery))
-        return fesquery.add_annotation(value)
+        value = _make_combinable(self.build_rhs(compiler))
+        return compiler.add_annotation(value)
 
-    def build_rhs(self, fesquery) -> RhsTypes:
+    def build_rhs(self, compiler) -> RhsTypes:
         """Get the expression as the right-hand-side of the equation.
 
         Typically, this can return the exact value.
@@ -88,15 +88,15 @@ class Literal(Expression):
 
         return cls(value=value, type=type)
 
-    def build_lhs(self, fesquery) -> str:
+    def build_lhs(self, compiler) -> str:
         """Alias the value when it's used in the left-hand-side.
 
         By aliasing the value using an annotation,
         it can be queried like a regular field name.
         """
-        return fesquery.add_annotation(Value(self.value))
+        return compiler.add_annotation(Value(self.value))
 
-    def build_rhs(self, fesquery) -> Union[Combinable, Q, str]:
+    def build_rhs(self, compiler) -> Union[Combinable, Q, str]:
         """Return the value when it's used in the right-hand-side"""
         return self.value
 
@@ -118,16 +118,16 @@ class ValueReference(Expression):
     def from_xml(cls, element: Element):
         return cls(xpath=element.text)
 
-    def build_lhs(self, fesquery) -> str:
+    def build_lhs(self, compiler) -> str:
         """Optimized LHS: there is no need to alias a field lookup through an annotation."""
         field, extra_q = self.parse_xpath()
         if extra_q:
-            fesquery.add_extra_lookup(extra_q)
+            compiler.add_extra_lookup(extra_q)
         return field
 
-    def build_rhs(self, fesquery) -> RhsTypes:
+    def build_rhs(self, compiler) -> RhsTypes:
         """Return the value as F-expression"""
-        return F(self.build_lhs(fesquery))
+        return F(self.build_lhs(compiler))
 
     def parse_xpath(self) -> Tuple[str, Optional[Q]]:
         """Return the value when it's used as left-hand side expression"""
@@ -170,10 +170,10 @@ class Function(Expression):
             arguments=[Expression.from_child_xml(child) for child in element],
         )
 
-    def build_rhs(self, fesquery) -> RhsTypes:
+    def build_rhs(self, compiler) -> RhsTypes:
         """Build the SQL function object"""
         db_function = function_registry.resolve_function(self.name)
-        args = [arg.build_rhs(fesquery) for arg in self.arguments]
+        args = [arg.build_rhs(compiler) for arg in self.arguments]
         return db_function.build_query(*args)
 
 
@@ -199,9 +199,9 @@ class BinaryOperator(Expression):
             ),
         )
 
-    def build_rhs(self, fesquery) -> RhsTypes:
-        value1 = _make_combinable(self.expression[0].build_rhs(fesquery))
-        value2 = _make_combinable(self.expression[1].build_rhs(fesquery))
+    def build_rhs(self, compiler) -> RhsTypes:
+        value1 = _make_combinable(self.expression[0].build_rhs(compiler))
+        value2 = _make_combinable(self.expression[1].build_rhs(compiler))
         return self._operatorType.value(value1, value2)
 
 

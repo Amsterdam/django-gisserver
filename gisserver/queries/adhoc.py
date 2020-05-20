@@ -181,24 +181,22 @@ class AdhocQuery(QueryExpression):
         else:
             return "filter"
 
-    def get_fes_query(self, feature_type: FeatureType) -> fes20.FesQuery:
-        """Return our internal FesQuery object that can be applied to the queryset."""
+    def compile_query(self, feature_type: FeatureType) -> fes20.CompiledQuery:
+        """Return our internal CompiledQuery object that can be applied to the queryset."""
         if self.filter:
             # Generate the internal query object from the <fes:Filter>
-            query = self.filter.get_query()
+            return self.filter.compile_query()
         else:
             # Generate the internal query object from the BBOX and sortBy args.
-            query = self._get_non_filter_query(feature_type)
+            return self._compile_non_filter_query(feature_type)
 
-        return query
-
-    def _get_non_filter_query(self, feature_type):
+    def _compile_non_filter_query(self, feature_type):
         """Generate the query based on the remaining parameters.
 
         This is slightly more efficient then generating the fes Filter object
         from these KVP parameters (which could also be done within the request method).
         """
-        query = fes20.FesQuery()
+        compiler = fes20.CompiledQuery()
 
         if self.bbox:
             # Using __within does not work with geometries
@@ -207,12 +205,12 @@ class AdhocQuery(QueryExpression):
             filters = {
                 f"{feature_type.geometry_field_name}__{lookup}": self.bbox.as_polygon(),
             }
-            query.add_lookups(Q(**filters))
+            compiler.add_lookups(Q(**filters))
 
         if self.resourceId:
-            self.resourceId.build_query(fesquery=query)
+            self.resourceId.build_query(compiler=compiler)
 
         if self.sortBy:
-            query.add_sort_by(self.sortBy)
+            compiler.add_sort_by(self.sortBy)
 
-        return query
+        return compiler

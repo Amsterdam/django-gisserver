@@ -30,7 +30,7 @@ class Id(BaseNode):
     #: Tell which the type this ID belongs to, needs to be overwritten.
     type_name = ...  # need to be defined by subclass!
 
-    def build_query(self, fesquery) -> Q:
+    def build_query(self, compiler) -> Q:
         raise NotImplementedError()
 
 
@@ -66,7 +66,7 @@ class ResourceId(Id):
             endTime=parse_iso_datetime(endTime) if endTime else None,
         )
 
-    def build_query(self, fesquery=None) -> Q:
+    def build_query(self, compiler=None) -> Q:
         """Render the SQL filter"""
         if self.startTime or self.endTime or self.version:
             raise NotImplementedError(
@@ -74,9 +74,9 @@ class ResourceId(Id):
             )
 
         lookup = Q(pk=self.id)
-        if fesquery is not None:
+        if compiler is not None:
             # When the
             # NOTE: type_name is currently read by the IdOperator that contains this object,
             # This code path only happens for stand-alone KVP invocation.
-            fesquery.add_lookups(lookup, type_name=self.type_name)
+            compiler.add_lookups(lookup, type_name=self.type_name)
         return lookup

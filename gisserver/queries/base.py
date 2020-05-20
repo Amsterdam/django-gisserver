@@ -82,7 +82,7 @@ class QueryExpression:
         queryset = feature_type.get_queryset()
 
         # Apply filters
-        fes_query = self.get_fes_query(feature_type)
+        compiler = self.compile_query(feature_type)
 
         if self.value_reference is not None:
             # TODO: for now only check direct field names, no xpath (while query support it)
@@ -93,11 +93,11 @@ class QueryExpression:
                 )
 
             # For GetPropertyValue, adjust the query so only that value is requested.
-            field = fes_query.add_value_reference(self.value_reference)
-            queryset = fes_query.filter_queryset(queryset, feature_type=feature_type)
+            field = compiler.add_value_reference(self.value_reference)
+            queryset = compiler.filter_queryset(queryset, feature_type=feature_type)
             return queryset.values("pk", member=field)
         else:
-            return fes_query.filter_queryset(queryset, feature_type=feature_type)
+            return compiler.filter_queryset(queryset, feature_type=feature_type)
 
-    def get_fes_query(self, feature_type: FeatureType):
+    def compile_query(self, feature_type: FeatureType) -> fes20.CompiledQuery:
         raise NotImplementedError()

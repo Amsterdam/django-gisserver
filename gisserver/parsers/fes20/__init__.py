@@ -2,11 +2,11 @@ from .expressions import ValueReference
 from .filters import Filter
 from .functions import function_registry
 from .identifiers import ResourceId
-from .query import FesQuery
+from .query import CompiledQuery
 
 __all__ = [
     "Filter",
-    "FesQuery",
+    "CompiledQuery",
     "ValueReference",
     "ResourceId",
     "function_registry",

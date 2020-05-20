@@ -12,8 +12,11 @@ from gisserver.features import FeatureType
 from . import expressions
 
 
-class FesQuery:
-    """Collect all data to query a Django queryset.
+class CompiledQuery:
+    """Intermediate data for translating FES queries to Django.
+
+    This class contains all data from the ``<fes:Filter>`` object in a model
+    that can be translated to a django QuerySet.
 
     This object is passed though all build_...() methods,
     so it can be used to add extra lookups and annotations.
@@ -107,7 +110,7 @@ class FesQuery:
 
     def __repr__(self):
         return (
-            "<FesQuery"
+            "<CompiledQuery"
             f" annotations={self.annotations!r},"
             f" lookups={self.lookups!r},"
             f" typed_lookups={self.typed_lookups!r}>"
@@ -115,7 +118,7 @@ class FesQuery:
 
     def __eq__(self, other):
         """For pytest comparisons."""
-        if isinstance(other, FesQuery):
+        if isinstance(other, CompiledQuery):
             return (
                 other.lookups == self.lookups
                 and other.typed_lookups == self.typed_lookups

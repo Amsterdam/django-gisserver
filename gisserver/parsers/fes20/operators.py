@@ -19,7 +19,7 @@ from gisserver.parsers.base import FES20, BaseNode, TagNameEnum, tag_registry
 from gisserver.parsers.utils import expect_tag, get_attribute, get_child
 from .identifiers import Id
 from .expressions import Expression, Literal, RhsTypes, ValueReference
-from .query import FesQuery
+from .query import CompiledQuery
 
 SpatialDescription = Union[gml.GM_Object, gml.GM_Envelope, ValueReference]
 TemporalOperand = Union[gml.TM_Object, ValueReference]
@@ -33,7 +33,7 @@ except ImportError:
 else:
 
     class HasBuildRhs(Protocol):
-        def build_rhs(self, fesquery) -> RhsTypes:
+        def build_rhs(self, compiler) -> RhsTypes:
             ...
 
 
@@ -132,7 +132,7 @@ class Measure(BaseNode):
     def from_xml(cls, element: Element):
         return cls(value=Decimal(element.text), uom=get_attribute(element, "uom"))
 
-    def build_rhs(self, fesquery) -> measure.Distance:
+    def build_rhs(self, compiler) -> measure.Distance:
         return measure.Distance(default_unit=self.uom, **{self.uom: self.value})
 
 
@@ -141,7 +141,7 @@ class Operator(BaseNode):
 
     xml_ns = FES20
 
-    def build_query(self, fesquery: FesQuery) -> Optional[Q]:
+    def build_query(self, compiler: CompiledQuery) -> Optional[Q]:
         raise NotImplementedError(
             f"Using {self.__class__.__name__} is not supported yet."
         )
@@ -153,7 +153,7 @@ class IdOperator(Operator):
 
     id: List[Id]
 
-    def build_query(self, fesquery):
+    def build_query(self, compiler):
         """Generate the ID lookup query.
 
         As these identifiers also reference the type name, no Q-object is
@@ -163,47 +163,47 @@ class IdOperator(Operator):
         ids = sorted(self.id, key=operator.attrgetter("rid"))
         for type_name, items in groupby(ids, key=operator.attrgetter("type_name")):
             ids_subset = reduce(
-                operator.or_, [id.build_query(fesquery=None) for id in items]
+                operator.or_, [id.build_query(compiler=None) for id in items]
             )
-            fesquery.add_lookups(ids_subset, type_name=type_name)
+            compiler.add_lookups(ids_subset, type_name=type_name)
 
 
 class NonIdOperator(Operator):
     """Abstract base class, as defined by FES spec."""
 
     def build_compare(
-        self, fesquery: FesQuery, lhs: Expression, lookup: str, rhs: RhsTypes
+        self, compiler: CompiledQuery, lhs: Expression, lookup: str, rhs: RhsTypes
     ) -> Q:
         """Use the value in comparison with some other expression.
 
         This calls build_lhs() and build_rhs() on the expressions.
         """
-        lhs = lhs.build_lhs(fesquery)
+        lhs = lhs.build_lhs(compiler)
 
         if isinstance(rhs, (Expression, gml.GM_Object)):
-            rhs = rhs.build_rhs(fesquery)
+            rhs = rhs.build_rhs(compiler)
 
         result = Q(**{f"{lhs}__{lookup}": rhs})
-        return fesquery.apply_extra_lookups(result)
+        return compiler.apply_extra_lookups(result)
 
     def build_compare_between(
         self,
-        fesquery: FesQuery,
+        compiler: CompiledQuery,
         lhs: Expression,
         lookup: str,
         rhs: Tuple[HasBuildRhs, HasBuildRhs],
     ) -> Q:
         """Use the value in comparison with 2 other values (e.g. between query)"""
-        field_name = lhs.build_lhs(fesquery)
+        field_name = lhs.build_lhs(compiler)
         result = Q(
             **{
                 f"{field_name}__{lookup}": (
-                    rhs[0].build_rhs(fesquery),
-                    rhs[1].build_rhs(fesquery),
+                    rhs[0].build_rhs(compiler),
+                    rhs[1].build_rhs(compiler),
                 )
             }
         )
-        return fesquery.apply_extra_lookups(result)
+        return compiler.apply_extra_lookups(result)
 
 
 class SpatialOperator(NonIdOperator):
@@ -237,9 +237,9 @@ class DistanceOperator(SpatialOperator):
             distance=Measure.from_xml(get_child(element, FES20, "Distance")),
         )
 
-    def build_query(self, fesquery: FesQuery) -> Q:
+    def build_query(self, compiler: CompiledQuery) -> Q:
         return self.build_compare_between(
-            fesquery,
+            compiler,
             lhs=self.valueReference,
             lookup=self.operatorType.value,
             rhs=(self.geometry, self.distance),
@@ -266,12 +266,12 @@ class BinarySpatialOperator(SpatialOperator):
             ),
         )
 
-    def build_query(self, fesquery: FesQuery) -> Q:
+    def build_query(self, compiler: CompiledQuery) -> Q:
         if self.operand1 is None:
             raise NotImplementedError()
 
         return self.build_compare(
-            fesquery,
+            compiler,
             lhs=self.operand1,
             lookup=self.operatorType.value,
             rhs=self.operand2,
@@ -330,10 +330,10 @@ class BinaryComparisonOperator(ComparisonOperator):
             ),
         )
 
-    def build_query(self, fesquery: FesQuery) -> Q:
+    def build_query(self, compiler: CompiledQuery) -> Q:
         lhs, rhs = self.expression
         return self.build_compare(
-            fesquery, lhs=lhs, lookup=self.operatorType.value, rhs=rhs
+            compiler, lhs=lhs, lookup=self.operatorType.value, rhs=rhs
         )
 
 
@@ -356,9 +356,9 @@ class BetweenComparisonOperator(ComparisonOperator):
             upperBoundary=Expression.from_child_xml(upper[0]),
         )
 
-    def build_query(self, fesquery: FesQuery) -> Q:
+    def build_query(self, compiler: CompiledQuery) -> Q:
         return self.build_compare_between(
-            fesquery,
+            compiler,
             lhs=self.expression,
             lookup="range",
             rhs=(self.lowerBoundary, self.upperBoundary),
@@ -387,7 +387,7 @@ class LikeOperator(ComparisonOperator):
             escapeChar=get_attribute(element, "escapeChar"),
         )
 
-    def build_query(self, fesquery: FesQuery) -> Q:
+    def build_query(self, compiler: CompiledQuery) -> Q:
         lhs, rhs = self.expression
         if isinstance(rhs, Literal):
             value = rhs.value
@@ -404,7 +404,7 @@ class LikeOperator(ComparisonOperator):
             raise NotImplementedError()
 
         # Use the FesLike lookup
-        return self.build_compare(fesquery, lhs=lhs, lookup="fes_like", rhs=rhs)
+        return self.build_compare(compiler, lhs=lhs, lookup="fes_like", rhs=rhs)
 
 
 @dataclass
@@ -424,9 +424,9 @@ class NilOperator(ComparisonOperator):
             nilReason=element.get("nilReason"),
         )
 
-    def build_query(self, fesquery: FesQuery) -> Q:
+    def build_query(self, compiler: CompiledQuery) -> Q:
         return self.build_compare(
-            fesquery, lhs=self.expression, lookup="isnull", rhs=True
+            compiler, lhs=self.expression, lookup="isnull", rhs=True
         )
 
 
@@ -443,7 +443,7 @@ class NullOperator(ComparisonOperator):
     def from_xml(cls, element: Element):
         return cls(expression=Expression.from_child_xml(element[0]))
 
-    def build_query(self, fesquery: FesQuery) -> Q:
+    def build_query(self, compiler: CompiledQuery) -> Q:
         raise NotImplementedError()
 
 
@@ -467,9 +467,9 @@ class BinaryLogicOperator(LogicalOperator):
             operatorType=BinaryLogicType.from_xml(element),
         )
 
-    def build_query(self, fesquery: FesQuery) -> Q:
+    def build_query(self, compiler: CompiledQuery) -> Q:
         """Apply the AND/OR operation to the Q-object"""
-        values = [q.build_query(fesquery) for q in self.operands]
+        values = [q.build_query(compiler) for q in self.operands]
         return reduce(self.operatorType.value, values)
 
 
@@ -488,9 +488,9 @@ class UnaryLogicOperator(LogicalOperator):
             operatorType=UnaryLogicType.from_xml(element),
         )
 
-    def build_query(self, fesquery: FesQuery) -> Q:
+    def build_query(self, compiler: CompiledQuery) -> Q:
         """Apply the NOT operation to the Q-object"""
-        return self.operatorType.value(self.operands.build_query(fesquery))
+        return self.operatorType.value(self.operands.build_query(compiler))
 
 
 class ExtensionOperator(NonIdOperator):

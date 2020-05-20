@@ -78,7 +78,7 @@ class GEOSGMLGeometry(AbstractGeometry):
     def json(self):
         return self.geos_data.json
 
-    def build_rhs(self, fesquery):
+    def build_rhs(self, compiler):
         return self.geos_data
 
 

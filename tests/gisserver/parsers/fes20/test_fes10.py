@@ -15,7 +15,7 @@ from gisserver.parsers.fes20.operators import (
     BinaryComparisonOperator,
     MatchAction,
 )
-from gisserver.parsers.fes20.query import FesQuery
+from gisserver.parsers.fes20.query import CompiledQuery
 
 
 def test_fes10_add_sub():
@@ -65,7 +65,7 @@ def test_fes10_add_sub():
     assert result == expected, f"result={result!r}"
 
     # Test SQL generating
-    query = result.get_query()
-    assert query == FesQuery(
+    query = result.compile_query()
+    assert query == CompiledQuery(
         lookups=[Q(SomeProperty__exact=Value(100) - Value(50) + Value(200))]
     ), repr(query)
