@@ -99,6 +99,13 @@ There are a few places that allow to customize the WFS logic:
 
 * Overriding methods from ``WFSView``, such as ``get_feature_types()`` or ``dispatch()`` for authorization.
 * Subclassing the ``FeatureType`` class, to override it's ``get_queryset()`` method.
+* Registering new FES functions to ``gisserver.parsers.fes_function_registry``.
+* Registering new stored procedures to ``gisserver.queries.stored_query_registry``.
+
+## Debugging questions
+
+* The error "Operation on mixed SRID geometries" often indicates the table SRID differs
+  from the ``GeometryField(srid=..)`` configuration in Django.
 
 ## Standards compliance
 

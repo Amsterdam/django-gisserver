@@ -1,6 +1,6 @@
 import operator
 from functools import reduce
-from typing import Optional, Union
+from typing import Dict, List, Optional, Union
 
 from django.contrib.gis.db.models.fields import BaseSpatialField
 from django.contrib.gis.db.models.lookups import DistanceLookupBase
@@ -22,7 +22,13 @@ class CompiledQuery:
     so it can be used to add extra lookups and annotations.
     """
 
-    def __init__(self, lookups=None, typed_lookups=None, annotations=None):
+    def __init__(
+        self,
+        lookups: Optional[List[Q]] = None,
+        typed_lookups: Optional[Dict[str, List[Q]]] = None,
+        annotations: Optional[Dict[str, Union[Combinable, Q]]] = None,
+    ):
+        """The init method is typically used only in unit tests."""
         self.lookups = lookups or []
         self.typed_lookups = typed_lookups or {}
         self.annotations = annotations or {}
@@ -58,7 +64,7 @@ class CompiledQuery:
             raise TypeError()
         self.extra_lookups.append(q_object)
 
-    def add_sort_by(self, sort_by: list):
+    def add_sort_by(self, sort_by: List[str]):
         self.sort_by += sort_by
 
     def add_value_reference(self, value_reference: expressions.ValueReference) -> str:

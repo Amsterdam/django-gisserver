@@ -47,6 +47,16 @@ class StoredQuery(QueryExpression):
     This represents all predefined queries on the server.
     A good description can be found at:
     https://mapserver.org/ogc/wfs_server.html#stored-queries-wfs-2-0
+
+    The implementation logic is fully defined by the :class:`QueryExpression`
+    base class. For a simple implementation, the following data should be
+    overwritten:
+
+    * :meth:`get_type_names` to define which type this query references.
+    * :meth:`compile_query` to define the queryset filter.
+
+    For advanced overriding, see the :class:`QueryExpression` base class,
+    or the :class:`GetFeatureById` implementation.
     """
 
     # Official WFS docs have an 'id' and 'parameters' property for the
