@@ -134,6 +134,38 @@ class TestGetPropertyValue:
         message = exception.find("ows:ExceptionText", NAMESPACES).text
         assert message == expect_msg
 
+    def test_pagination(self, client, restaurant, bad_restaurant):
+        """Prove that that parsing BBOX=... works"""
+        names = []
+        url = (
+            "/v1/wfs/?SERVICE=WFS&REQUEST=GetPropertyValue&VERSION=2.0.0&TYPENAMES=restaurant"
+            "&VALUEREFERENCE=name&SORTBY=name"
+        )
+        for _ in range(4):  # test whether last page stops
+            response = client.get(f"{url}&COUNT=1")
+            content = read_response(response)
+            assert response["content-type"] == "text/xml; charset=utf-8", content
+            assert response.status_code == 200, content
+            assert "</wfs:ValueCollection>" in content
+
+            # Validate against the WFS 2.0 XSD
+            xml_doc = validate_xsd(content, WFS_20_XSD)
+            assert xml_doc.attrib["numberMatched"] == "2"
+            assert xml_doc.attrib["numberReturned"] == "1"
+
+            # Collect the names
+            members = xml_doc.findall("wfs:member", namespaces=NAMESPACES)
+            names.extend(
+                res.find("app:name", namespaces=NAMESPACES).text for res in members
+            )
+            url = xml_doc.attrib.get("next")
+            if not url:
+                break
+
+        # Prove that both items were returned
+        assert len(names) == 2
+        assert names[0] != names[1]
+
     @pytest.mark.parametrize("ordering", list(TestGetFeature.SORT_BY.keys()))
     def test_get_sort_by(self, client, restaurant, bad_restaurant, ordering):
         """Prove that that parsing BBOX=... works"""

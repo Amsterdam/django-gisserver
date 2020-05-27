@@ -111,7 +111,6 @@ class GML32Renderer(OutputRenderer):
         collection = self.collection
         output = StringBuffer()
         xmlns = self.render_xmlns().strip()
-
         number_matched = collection.number_matched
         number_matched = (
             int(number_matched) if number_matched is not None else "unknown"
@@ -119,9 +118,9 @@ class GML32Renderer(OutputRenderer):
         number_returned = collection.number_returned
         next = previous = ""
         if collection.next:
-            next = f' next="{escape(collection.next)}'
+            next = f' next="{escape(collection.next)}"'
         if collection.previous:
-            previous = f' previous="{escape(collection.previous)}'
+            previous = f' previous="{escape(collection.previous)}"'
 
         output.write(
             f"""<?xml version='1.0' encoding="UTF-8" ?>\n"""
