@@ -19,7 +19,7 @@ class TestDescribeFeatureType:
         content = response.content.decode()
         assert response["content-type"] == "application/gml+xml; version=3.2", content
         assert response.status_code == 200, content
-        assert "gml:GeometryPropertyType" in content
+        assert "PropertyType" in content  # for element holding a GML field
 
         # The response is an XSD itself.
         # Only validate it's XML structure
@@ -52,7 +52,7 @@ class TestDescribeFeatureType:
           <element name="id" type="integer" minOccurs="0" />
           <element name="name" type="string" minOccurs="0" />
           <element name="city_id" type="integer" minOccurs="0" />
-          <element name="location" type="gml:GeometryPropertyType" minOccurs="0" maxOccurs="1"/>
+          <element name="location" type="gml:PointPropertyType" minOccurs="0" maxOccurs="1"/>
           <element name="rating" type="double" minOccurs="0" />
           <element name="created" type="dateTime" minOccurs="0" />
         </sequence>

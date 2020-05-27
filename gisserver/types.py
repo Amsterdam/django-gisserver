@@ -55,8 +55,15 @@ class XsdTypes(Enum):
     token = "token"
     language = "language"
 
-    # Field that contains a GML value:
+    # Types that contain a GML value as member:
     gmlGeometryPropertyType = "gml:GeometryPropertyType"
+    gmlPointPropertyType = "gml:PointPropertyType"
+    gmlCurvePropertyType = "gml:CurvePropertyType"  # curve is base for LineString
+    gmlSurfacePropertyType = "gml:SurfacePropertyType"  # GML2 had PolygonPropertyType
+    gmlMultiSurfacePropertyType = "gml:MultiSurfacePropertyType"
+    gmlMultiPointPropertyType = "gml:MultiPointPropertyType"
+    gmlMultiCurvePropertyType = "gml:MultiCurvePropertyType"
+    gmlMultiGeometryPropertyType = "gml:MultiGeometryPropertyType"
 
     #: A direct geometry value
     gmlAbstractGeometryType = "gml:AbstractGeometryType"

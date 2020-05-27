@@ -4,7 +4,8 @@ from dataclasses import dataclass
 from math import inf
 from typing import List, Optional, Union
 
-from django.contrib.gis.db.models import Extent, GeometryField
+from django.contrib.gis.db import models as gis_models
+from django.contrib.gis.db.models import Extent
 from django.contrib.gis.db.models.functions import Transform
 from django.core.exceptions import ImproperlyConfigured
 from django.db import models
@@ -27,6 +28,15 @@ XSD_TYPES = {
     models.DateTimeField: XsdTypes.dateTime,  # note: DateTimeField extends DateField!
     models.DateField: XsdTypes.date,
     models.URLField: XsdTypes.anyURI,
+    gis_models.PointField: XsdTypes.gmlPointPropertyType,
+    gis_models.PolygonField: XsdTypes.gmlSurfacePropertyType,
+    gis_models.LineStringField: XsdTypes.gmlCurvePropertyType,
+    gis_models.MultiPointField: XsdTypes.gmlMultiPointPropertyType,
+    gis_models.MultiPolygonField: XsdTypes.gmlMultiSurfacePropertyType,
+    gis_models.MultiLineStringField: XsdTypes.gmlMultiCurvePropertyType,
+    # Generic alternatives
+    gis_models.GeometryCollectionField: XsdTypes.gmlMultiGeometryPropertyType,
+    gis_models.GeometryField: XsdTypes.gmlGeometryPropertyType,
 }
 DEFAULT_XSD_TYPE = XsdTypes.any
 
@@ -106,7 +116,9 @@ class FeatureType:
 
         # Auto-detect geometry fields (also fills geometry_field_name)
         self.geometry_fields = [
-            f for f in self.model._meta.get_fields() if isinstance(f, GeometryField)
+            f
+            for f in self.model._meta.get_fields()
+            if isinstance(f, gis_models.GeometryField)
         ]
 
     @cached_property
@@ -172,11 +184,14 @@ class FeatureType:
                 if isinstance(model_field, field_cls):
                     return xsd_type
 
-        # Default XML choice:
-        return DEFAULT_XSD_TYPE
+        if model_field.name in self.geometry_field_names:
+            return XsdTypes.gmlAbstractGeometryType
+        else:
+            # Default XML choice:
+            return DEFAULT_XSD_TYPE
 
     @cached_property
-    def geometry_field(self) -> GeometryField:
+    def geometry_field(self) -> gis_models.GeometryField:
         """Give access to the Django field that holds the geometry."""
         if not self.geometry_fields:
             raise ImproperlyConfigured(
