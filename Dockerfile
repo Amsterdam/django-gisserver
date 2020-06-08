@@ -26,6 +26,7 @@ RUN apt-get update \
        libproj13 \
        postgresql-${POSTGRES_VERSION}-postgis-${POSTGIS_VERSION} \
        postgresql-${POSTGRES_VERSION}-postgis-${POSTGIS_VERSION}-scripts \
+ && echo "PostGIS is linked to:" \
  && ldd /usr/lib/postgresql/*/lib/postgis-*.so | grep -E '(libproj|libgeos)'
 
 # Install dependencies first (so layer is cached for fast rebuilds)
@@ -42,7 +43,7 @@ RUN mkdir gisserver \
 # Install app
 COPY . /host/
 RUN pip3 install --find-links=/wheelhouse/ -e .[test]
-ENV DATABASE_URL=postgresql://postgres@localhost/django-gisserver
+ENV LANG=C.UTF-8 DATABASE_URL=postgresql://postgres@localhost/django-gisserver
 
 # Make sure Postgres starts on startup
 RUN echo "" > ${PGDATA}/pg_ident.conf \
