@@ -46,17 +46,14 @@ RUN pip3 install --find-links=/wheelhouse/ -e .[test]
 ENV LANG=C.UTF-8 DATABASE_URL=postgresql://postgres@localhost/django-gisserver
 
 # Make sure Postgres starts on startup
-RUN echo "" > ${PGDATA}/pg_ident.conf \
- && printf "# postgresql.conf\n\
-listen_addresses '127.0.0.1'\n\
-" > ${PGDATA}/postgresql.conf \
- && printf "# host-based-access controls\n\
+RUN echo   > ${PGDATA}/pg_ident.conf   "" \
+ && echo   > ${PGDATA}/postgresql.conf "listen_addresses '127.0.0.1'" \
+ && printf > ${PGDATA}/pg_hba.conf     "# host-based-access controls\n\
 local  all  all                trust\n\
-host   all  all  127.0.0.1/32  trust\n\
-" > ${PGDATA}/pg_hba.conf \
- && printf "#!/bin/sh\n\
+host   all  all  127.0.0.1/32  trust\n" \
+ && printf > /entrypoint.sh "#!/bin/sh\n\
 su postgres -c '${PG_CTL} status || ${PG_CTL} start'\n\
-exec \"\$@\"\n\
-" > /entrypoint.sh \
+exec \"\$@\"\n" \
  && chmod +x /entrypoint.sh
+
 ENTRYPOINT ["/entrypoint.sh"]
