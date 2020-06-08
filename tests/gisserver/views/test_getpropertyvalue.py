@@ -2,8 +2,13 @@ import pytest
 from urllib.parse import quote_plus
 
 from tests.constants import NAMESPACES
+from tests.gisserver.views.input import (
+    FILTERS,
+    INVALID_FILTERS,
+    POINT1_XML_WGS84,
+    SORT_BY,
+)
 from tests.utils import WFS_20_XSD, assert_xml_equal, validate_xsd
-from .test_getfeature import POINT1_XML_WGS84, TestGetFeature
 
 # enable for all tests in this file
 pytestmark = [pytest.mark.urls("tests.test_gisserver.urls")]
@@ -89,10 +94,10 @@ class TestGetPropertyValue:
 </wfs:ValueCollection>""",  # noqa: E501
         )
 
-    @pytest.mark.parametrize("filter_name", list(TestGetFeature.FILTERS.keys()))
+    @pytest.mark.parametrize("filter_name", list(FILTERS.keys()))
     def test_get_filter(self, client, restaurant, bad_restaurant, filter_name):
         """Prove that that parsing FILTER=<fes:Filter>... works"""
-        filter = TestGetFeature.FILTERS[filter_name].strip()
+        filter = FILTERS[filter_name].strip()
 
         response = client.get(
             "/v1/wfs/?SERVICE=WFS&REQUEST=GetPropertyValue&VERSION=2.0.0&TYPENAMES=restaurant"
@@ -112,10 +117,10 @@ class TestGetPropertyValue:
         name = xml_doc.find("wfs:member/app:name", namespaces=NAMESPACES).text
         assert name == "Café Noir"
 
-    @pytest.mark.parametrize("filter_name", list(TestGetFeature.INVALID_FILTERS.keys()))
+    @pytest.mark.parametrize("filter_name", list(INVALID_FILTERS.keys()))
     def test_get_filter_invalid(self, client, restaurant, filter_name):
         """Prove that that parsing FILTER=<fes:Filter>... works"""
-        filter, expect_msg = TestGetFeature.INVALID_FILTERS[filter_name]
+        filter, expect_msg = INVALID_FILTERS[filter_name]
 
         response = client.get(
             "/v1/wfs/?SERVICE=WFS&REQUEST=GetPropertyValue&VERSION=2.0.0&TYPENAMES=restaurant"
@@ -166,10 +171,10 @@ class TestGetPropertyValue:
         assert len(names) == 2
         assert names[0] != names[1]
 
-    @pytest.mark.parametrize("ordering", list(TestGetFeature.SORT_BY.keys()))
+    @pytest.mark.parametrize("ordering", list(SORT_BY.keys()))
     def test_get_sort_by(self, client, restaurant, bad_restaurant, ordering):
         """Prove that that parsing BBOX=... works"""
-        sort_by, expect = TestGetFeature.SORT_BY[ordering]
+        sort_by, expect = SORT_BY[ordering]
         response = client.get(
             "/v1/wfs/?SERVICE=WFS&REQUEST=GetPropertyValue&VERSION=2.0.0&TYPENAMES=restaurant"
             f"&VALUEREFERENCE=name&SORTBY={sort_by}"
