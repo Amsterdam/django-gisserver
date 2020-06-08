@@ -1,3 +1,12 @@
+# 2020-06-08 (0.7)
+
+* Added database-based rendering for GML/GeoJSON (disable with `GISSERVER_USE_DB_RENDERING=False`).
+* Added `has_custom_backend` to CRS class.
+* Improved rendering performance for python-based GML output.
+* Improved `DescribeFeatureType` to show which geometry type is used in a geometry field.
+* Fixed XML output error for pagination.
+* Internal code reorganizations/cleanups.
+
 # 2020-05-14 (0.6)
 
 * Added `RESOURCEID` parameter support.
