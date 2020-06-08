@@ -1,8 +1,9 @@
 from pathlib import Path
+import ctypes
 
 import django
 import pytest
-from django.contrib.gis.gdal import gdal_version
+from django.contrib.gis.gdal import gdal_full_version, gdal_version
 from django.contrib.gis.geos import Point, geos_version
 from django.db import connection
 
@@ -15,7 +16,13 @@ XSD_ROOT = HERE.joinpath("files/xsd")
 
 
 def pytest_configure():
-    gdal_ver = gdal_version().decode()
+    try:
+        gdal_ver = gdal_full_version().decode()
+    except ctypes.ArgumentError:
+        # gdal_full_version() is broken in Django<3.1,
+        # see https://code.djangoproject.com/ticket/31292
+        gdal_ver = gdal_version().decode()
+
     geos_ver = geos_version().decode()
     print(
         f'Running with Django {django.__version__}, GDAL="{gdal_ver}" GEOS="{geos_ver}"'
