@@ -7,6 +7,7 @@ from django.contrib.gis.gdal import gdal_full_version, gdal_version
 from django.contrib.gis.geos import Point, geos_version
 from django.db import connection
 
+from gisserver import conf
 from tests.constants import RD_NEW_PROJ, RD_NEW_SRID, RD_NEW_WKT
 from tests.test_gisserver.models import City, Restaurant
 from tests.xsd_download import download_schema
@@ -27,6 +28,7 @@ def pytest_configure():
     print(
         f'Running with Django {django.__version__}, GDAL="{gdal_ver}" GEOS="{geos_ver}"'
     )
+    print(f"Using GISSERVER_USE_DB_RENDERING={conf.GISSERVER_USE_DB_RENDERING}")
 
     for url in (
         "http://schemas.opengis.net/wfs/2.0/wfs.xsd",
