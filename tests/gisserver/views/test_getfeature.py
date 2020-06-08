@@ -415,19 +415,23 @@ class TestGetFeature:
         ]
         assert names == expect
 
-    def test_get_geojson(self, client, restaurant, bad_restaurant):
+    def test_get_geojson(
+        self, client, restaurant, bad_restaurant, django_assert_num_queries
+    ):
         """Prove that the geojson export works.
 
         Including 2 objects to prove that the list rendering
         also includes comma's properly.
         """
-        response = client.get(
-            "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
-            "&outputformat=geojson"
-        )
-        assert response["content-type"] == "application/json; charset=utf-8"
-        content = read_response(response)
-        assert response.status_code == 200, content
+        with django_assert_num_queries(2):
+            response = client.get(
+                "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
+                "&outputformat=geojson"
+            )
+            assert response["content-type"] == "application/json; charset=utf-8"
+            content = read_response(response)
+            assert response.status_code == 200, content
+
         data = self.read_json(content)
 
         assert data["features"][0]["geometry"]["coordinates"] == POINT1_GEOJSON

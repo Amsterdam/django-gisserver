@@ -343,6 +343,16 @@ class BoundingBox:
             CRS.from_string(bbox[4]) if len(bbox) == 5 else None,
         )
 
+    @classmethod
+    def from_geometry(cls, geometry: GEOSGeometry, crs: Optional[CRS] = None):
+        """Construct the bounding box for a geometry"""
+        if crs is None:
+            crs = CRS.from_srid(geometry.srid)
+        elif geometry.srid != crs.srid:
+            geometry = crs.apply_to(geometry, clone=True)
+
+        return cls(*geometry.extent, crs=crs)
+
     @property
     def lower_corner(self):
         return [self.lower_lon, self.lower_lat]

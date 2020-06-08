@@ -43,6 +43,18 @@ class OutputRenderer:
         self.server_url = method.view.server_url
         self.app_xml_namespace = method.view.xml_namespace
 
+        # Perform presentation-layer logic enhancements on the output
+        for sub_collection in self.collection.results:
+            queryset = self.decorate_queryset(
+                sub_collection.feature_type, sub_collection.queryset
+            )
+            if queryset is not None:
+                sub_collection.queryset = queryset
+
+    def decorate_queryset(self, feature_type, queryset):
+        """Apply presentation layer logic to the queryset."""
+        return queryset
+
     def get_response(self):
         """Render the output as streaming response."""
         return StreamingHttpResponse(
@@ -71,6 +83,8 @@ class BaseBuffer:
         return self.size >= self.chunk_size
 
     def write(self, value):
+        if value is None:
+            return
         self.size += len(value)
         self.data.write(value)
 

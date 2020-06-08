@@ -46,14 +46,11 @@ class SimpleFeatureCollection:
         else:
             return self.queryset[self.start : self.stop].iterator()
 
-    def __getitem__(self, item):
-        """Take a specific item only from the results (e.g. the first)"""
-        self.fetch_results()
-        return self._result_cache[item]
-
     def first(self):
         try:
-            return self[0]
+            # Don't query a full page, return only one instance (for GetFeatureById)
+            # This also preserves the extra added annotations (like _as_gml_FIELD)
+            return self.queryset[self.start]
         except IndexError:
             return None
 
@@ -124,3 +121,6 @@ class FeatureCollection:
     def number_returned(self) -> int:
         """Return the total number of returned features"""
         return sum(c.number_returned for c in self.results)
+
+    def __iter__(self):
+        return iter(self.results)

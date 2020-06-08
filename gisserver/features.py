@@ -1,7 +1,9 @@
 """Dataclasses that expose the metadata for the GetCapabilities call."""
 import html
+from functools import reduce
+
+import operator
 from dataclasses import dataclass
-from math import inf
 from typing import List, Optional, Union
 
 from django.contrib.gis.db import models as gis_models
@@ -123,7 +125,7 @@ class FeatureType:
 
     @cached_property
     def geometry_field_names(self):
-        return [f.name for f in self.geometry_fields]
+        return {f.name for f in self.geometry_fields}
 
     @cached_property
     def fields(self) -> List[str]:
@@ -161,6 +163,10 @@ class FeatureType:
             fields.append(field_name)
 
         return fields
+
+    def get_field(self, field_name: str) -> models.Field:
+        """Return a single field from the model."""
+        return self.model._meta.get_field(field_name)
 
     def get_field_type(self, model_field: models.Field) -> XsdTypes:
         """Determine the XSD field type for a Django field."""
@@ -240,11 +246,18 @@ class FeatureType:
 
     def get_envelope(self, instance, crs: CRS) -> Optional[BoundingBox]:
         """Get the bounding box for a single instance"""
-        bbox = BoundingBox(inf, inf, -inf, -inf, crs=crs)
+        geometries = [
+            geom
+            for geom in (getattr(instance, f.name) for f in self.geometry_fields)
+            if geom is not None
+        ]
+        if not geometries:
+            return None
 
-        for model_field in self.geometry_fields:
-            geometry = getattr(instance, model_field.name)
-            if geometry is not None:
-                bbox.extend_to_geometry(geometry)
-
-        return bbox if bbox.lower_lat != inf else None
+        # Perform the combining of geometries inside libgeos
+        geometry = (
+            geometries[0] if len(geometries) == 1 else reduce(operator.or_, geometries)
+        )
+        if geometry.srid != crs.srid:
+            crs.apply_to(geometry)  # avoid clone
+        return BoundingBox.from_geometry(geometry, crs=crs)
