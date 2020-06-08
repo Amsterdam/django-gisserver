@@ -3,7 +3,7 @@
 This exposes helper classes to parse GEO data types.
 """
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from functools import lru_cache
 from typing import Optional, Union
@@ -142,6 +142,12 @@ class CRS:
 
     #: GDAL SpatialReference with PROJ.4 / WKT content to describe the exact transformation.
     backend: Optional[SpatialReference] = None
+
+    has_custom_backend: bool = field(init=False)
+
+    def __post_init__(self):
+        # Using __dict__ because of frozen=True
+        self.__dict__["has_custom_backend"] = self.backend is not None
 
     @classmethod
     def from_string(
