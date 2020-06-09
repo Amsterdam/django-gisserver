@@ -335,8 +335,10 @@ class GML32Renderer(OutputRenderer):
             value = value.isoformat()
         elif isinstance(value, bool):
             value = "true" if value else "false"
+        else:
+            value = escape(str(value))
 
-        return f"      <app:{field}{extra_xmlns}>{escape(str(value))}</app:{field}>\n"
+        return f"      <app:{field}{extra_xmlns}>{value}</app:{field}>\n"
 
     def render_db_gml_field(
         self, feature_type: FeatureType, field: str, value, gml_id, extra_xmlns=""
