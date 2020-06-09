@@ -233,7 +233,7 @@ class FeatureType:
         else:
             geo_expression = self.geometry_field.name
 
-        bbox = self.model.objects.aggregate(a=Extent(geo_expression))["a"]
+        bbox = self.get_queryset().aggregate(a=Extent(geo_expression))["a"]
         return BoundingBox(*bbox, crs=WGS84) if bbox else None
 
     def get_envelope(self, instance, crs: CRS) -> Optional[BoundingBox]:
