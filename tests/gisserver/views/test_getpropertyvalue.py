@@ -1,3 +1,4 @@
+import django
 import pytest
 from urllib.parse import quote_plus
 
@@ -315,9 +316,12 @@ class TestGetPropertyValue:
         assert exception.attrib["exceptionCode"] == "InvalidParameterValue"
 
         message = exception.find("ows:ExceptionText", NAMESPACES).text
-        assert (
-            message == "Invalid ID value: Field 'id' expected a number but got 'ABC'."
+        expect = (
+            "Invalid ID value: Field 'id' expected a number but got 'ABC'."
+            if django.VERSION >= (3, 0)
+            else "Invalid ID value: invalid literal for int() with base 10: 'ABC'"
         )
+        assert message == expect
 
     def test_get_feature_by_id_404(self, client, restaurant, bad_restaurant):
         """Prove that missing IDs are properly handled."""

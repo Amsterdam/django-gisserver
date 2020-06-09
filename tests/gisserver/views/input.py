@@ -1,3 +1,4 @@
+import django
 import sys
 from gisserver import conf
 
@@ -146,7 +147,11 @@ INVALID_FILTERS = {
             <fes:Literal>TEXT</fes:Literal>
         </fes:PropertyIsGreaterThanOrEqualTo>
     </fes:Filter>""",
-        "Invalid filter query: Field 'rating' expected a number but got 'TEXT'.",
+        (
+            "Invalid filter query: Field 'rating' expected a number but got 'TEXT'."
+            if django.VERSION >= (3, 0)
+            else "Invalid filter query: could not convert string to float: 'TEXT'"
+        ),
     ),
 }
 
