@@ -24,6 +24,7 @@ XSD_TYPES = {
     models.TextField: XsdTypes.string,
     models.BooleanField: XsdTypes.boolean,
     models.IntegerField: XsdTypes.integer,
+    models.AutoField: XsdTypes.integer,  # Only as of Django 3.0 this extends from IntegerField
     models.FloatField: XsdTypes.double,
     models.DecimalField: XsdTypes.decimal,
     models.TimeField: XsdTypes.time,
