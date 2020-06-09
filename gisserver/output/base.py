@@ -102,8 +102,14 @@ class BytesBuffer(BaseBuffer):
 
     buffer_class = io.BytesIO
 
+    def __bytes__(self):
+        return self.getvalue()
+
 
 class StringBuffer(BaseBuffer):
     """Collect the data as string"""
 
     buffer_class = io.StringIO
+
+    def __str__(self):
+        return self.getvalue()

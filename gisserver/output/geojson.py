@@ -6,7 +6,6 @@ import orjson
 from django.db import models
 from django.utils.timezone import utc
 from gisserver.features import FeatureType
-from gisserver import conf
 
 from .base import BytesBuffer, OutputRenderer
 
@@ -25,27 +24,6 @@ class GeoJsonRenderer(OutputRenderer):
     """
 
     content_type = "application/json; charset=utf-8"
-
-    def decorate_queryset(self, feature_type, queryset):
-        """Update the queryset to let the database render the GML output.
-        This is far more efficient then GeoDjango's logic, which performs a
-        C-API call for every single coordinate of a geometry.
-        """
-        if not conf.GISSERVER_USE_DB_RENDERING:
-            return queryset
-
-        # If desired, the entire FeatureCollection could be rendered
-        # in PostgreSQL as well: https://postgis.net/docs/ST_AsGeoJSON.html
-        return queryset.annotate(
-            _as_db_geojson=self.get_db_as_geojson(feature_type.geometry_field)
-        )
-
-    def get_db_as_geojson(self, field):
-        if field.srid != self.output_crs.srid:
-            value = Transform(field.name, self.output_crs.srid)
-        else:
-            value = field.name
-        return AsGeoJSON(value, precision=16)
 
     def render_stream(self):
         output = BytesBuffer()
@@ -126,19 +104,15 @@ class GeoJsonRenderer(OutputRenderer):
             return value
 
     def render_geometry(self, feature_type, instance: models.Model) -> bytes:
-        """Generate the proper GeoJSON notation for a geometry"""
-        if conf.GISSERVER_USE_DB_RENDERING:
-            # Database server rendering
-            geojson = instance._as_db_geojson
-            return b"null" if geojson is None else geojson.encode()
-        else:
-            # Local C-API rendering via GEOSGeometry.json
-            geometry = getattr(instance, feature_type.geometry_field_name)
-            if geometry is None:
-                return b"null"
+        """Generate the proper GeoJSON notation for a geometry.
+        This calls the GDAL C-API rendering found in 'GEOSGeometry.json'
+        """
+        geometry = getattr(instance, feature_type.geometry_field_name)
+        if geometry is None:
+            return b"null"
 
-            self.output_crs.apply_to(geometry)
-            return geometry.json.encode()
+        self.output_crs.apply_to(geometry)
+        return geometry.json.encode()
 
     def get_header(self) -> dict:
         """Generate the header fields.
@@ -194,3 +168,34 @@ class GeoJsonRenderer(OutputRenderer):
                     props[name] = self._format_geojson_value(value)
 
         return props
+
+
+class DBGeoJsonRenderer(GeoJsonRenderer):
+    """GeoJSON renderer that relays the geometry rendering to the database.
+
+    This is even more efficient then calling the C-API for each feature.
+    """
+
+    def decorate_queryset(self, feature_type, queryset):
+        """Update the queryset to let the database render the GML output.
+        This is far more efficient then GeoDjango's logic, which performs a
+        C-API call for every single coordinate of a geometry.
+        """
+        # If desired, the entire FeatureCollection could be rendered
+        # in PostgreSQL as well: https://postgis.net/docs/ST_AsGeoJSON.html
+        return queryset.annotate(
+            _as_db_geojson=self.get_db_as_geojson(feature_type.geometry_field)
+        )
+
+    def get_db_as_geojson(self, field):
+        if field.srid != self.output_crs.srid:
+            value = Transform(field.name, self.output_crs.srid)
+        else:
+            value = field.name
+        return AsGeoJSON(value, precision=16)
+
+    def render_geometry(self, feature_type, instance: models.Model) -> bytes:
+        """Generate the proper GeoJSON notation for a geometry"""
+        # Database server rendering
+        geojson = instance._as_db_geojson
+        return b"null" if geojson is None else geojson.encode()

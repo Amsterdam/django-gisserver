@@ -3,6 +3,8 @@
 Note that the Django format_html() / mark_safe() logic is not used here,
 as it's quite a performance improvement to just use html.escape().
 """
+from typing import Optional
+
 from functools import reduce
 
 import re
@@ -22,7 +24,6 @@ from gisserver.features import FeatureType
 from gisserver.parsers.fes20 import ValueReference
 
 from .base import OutputRenderer, StringBuffer
-from .. import conf
 
 GML_RENDER_FUNCTIONS = {}
 RE_GML_ID = re.compile(r'gml:id="[^"]+"')
@@ -90,61 +91,6 @@ class GML32Renderer(OutputRenderer):
             # Use default streaming response, with render_stream()
             return super().get_response()
 
-    def decorate_queryset(self, feature_type, queryset):
-        """Update the queryset to let the database render the GML output.
-        This is far more efficient then GeoDjango's logic, which performs a
-        C-API call for every single coordinate of a geometry.
-        """
-        if not conf.GISSERVER_USE_DB_RENDERING:
-            return queryset
-
-        return queryset.annotate(
-            _as_envelope_gml=self.get_db_envelope_as_gml(feature_type, queryset),
-            **{
-                f"_as_gml_{field.name}": self.get_db_as_gml(field)
-                for field in feature_type.geometry_fields
-            },
-        )
-
-    def get_db_as_gml(self, field) -> AsGML:
-        """Offload the GML rendering to the database.
-
-        This gives a better performance, as Django GML rendering is slow.
-        Django calls the C-api for every single coordinate of a polygon.
-        """
-        if field.srid != self.output_crs.srid:
-            value = Transform(field.name, self.output_crs.srid)
-        else:
-            value = field.name
-        return _AsGML(value)
-
-    def get_db_envelope_as_gml(self, feature_type, queryset) -> AsGML:
-        """Offload the GML rendering of the envelope to the database.
-
-        This also avoids offloads the geometry union calculation to the DB.
-        """
-        geo_fields_union = self._get_geometries_union(feature_type, queryset)
-        return _AsGML(geo_fields_union, envelope=True)
-
-    def _get_geometries_union(self, feature_type: FeatureType, queryset):
-        """Combine all geometries of the model in a single SQL function."""
-        field_names = feature_type.geometry_field_names
-        if len(field_names) == 1:
-            union = next(iter(field_names))  # fastest in set data type
-        elif len(field_names) == 2:
-            union = Union(*field_names)
-        elif connections[queryset.db].vendor == "postgresql":
-            # postgres can handle multiple field names
-            union = ST_Union(field_names)
-        else:
-            # other databases do Union(Union(1, 2), 3)
-            union = reduce(Union, field_names)
-
-        if feature_type.geometry_field.srid != self.output_crs.srid:
-            union = Transform(union, self.output_crs.srid)
-
-        return union
-
     def render_xmlns(self):
         """Generate the xmlns block that the documente needs"""
         xsd_typenames = ",".join(
@@ -185,7 +131,7 @@ class GML32Renderer(OutputRenderer):
         output = StringBuffer()
         output.write("""<?xml version='1.0' encoding="UTF-8" ?>\n""")
         output.write(
-            self.render_xml_member(
+            self.render_wfs_member(
                 feature_type=sub_collection.feature_type,
                 instance=instance,
                 extra_xmlns=self.render_xmlns_standalone(),
@@ -236,7 +182,7 @@ class GML32Renderer(OutputRenderer):
                 for instance in sub_collection:
                     output.write("  <wfs:member>\n")
                     output.write(
-                        self.render_xml_member(sub_collection.feature_type, instance)
+                        self.render_wfs_member(sub_collection.feature_type, instance)
                     )
                     output.write("  </wfs:member>\n")
 
@@ -254,11 +200,15 @@ class GML32Renderer(OutputRenderer):
         output.write(f"</wfs:{self.xml_collection_tag}>\n")
         yield output.getvalue()
 
-    def render_xml_member(
+    def render_wfs_member(
         self, feature_type: FeatureType, instance: models.Model, extra_xmlns=""
     ) -> str:
-        """Write the contents of the object value."""
-        gml_seq = 0
+        """Write the contents of the object value.
+
+        This output is typically wrapped in <wfs:member> tags
+        unless it's used for a GetPropertyById response.
+        """
+        self.gml_seq = 0  # need to increment this between render_xml_field cals
         output = StringBuffer()
         output.write(
             '    <app:{name} gml:id="{name}.{pk}"{extra_xmlns}>\n'
@@ -271,57 +221,48 @@ class GML32Renderer(OutputRenderer):
         )
 
         # Add <gml:boundedBy>
-        output.write(self._select_render_gml_bounds(feature_type, instance))
+        gml = self.render_bounds(feature_type, instance)
+        if gml is not None:
+            output.write(gml)
 
+        # Add all members
         for field, xsd_type in feature_type.fields_with_type:
-            if conf.GISSERVER_USE_DB_RENDERING and xsd_type.prefix == "gml":
-                # Optimized path, pre-rendered GML
-                value = getattr(instance, f"_as_gml_{field}")
-                gml_seq += 1
-                output.write(
-                    self.render_db_gml_field(
-                        feature_type,
-                        field,
-                        value,
-                        gml_id=self.get_gml_id(feature_type, instance.pk, seq=gml_seq),
-                    )
-                )
-            else:
-                # Regular path, locally rendered XML/GML
-                try:
-                    value = getattr(instance, field)
-                except AttributeError:
-                    # E.g. Django foreign keys that point to a non-existing member.
-                    value = None
-
-                if isinstance(value, geos.GEOSGeometry):
-                    gml_seq += 1
-                    output.write(
-                        self.render_gml_field(
-                            feature_type,
-                            field,
-                            value,
-                            gml_id=self.get_gml_id(
-                                feature_type, instance.pk, seq=gml_seq
-                            ),
-                        )
-                    )
-                else:
-                    output.write(self.render_xml_field(feature_type, field, value))
+            output.write(self.render_field(feature_type, instance, field, xsd_type))
 
         output.write(f"    </app:{feature_type.name}>\n")
         return output.getvalue()
 
-    def _select_render_gml_bounds(self, feature_type, instance):
-        """See which function should render the <gml:boundedBy> for a single instance."""
-        if conf.GISSERVER_USE_DB_RENDERING:
-            envelope_db = instance._as_envelope_gml
-            if envelope_db is not None:
-                return self.render_db_gml_bounds(envelope_db)
+    def render_bounds(self, feature_type, instance) -> Optional[str]:
+        """Render the GML bounds for the complete instance"""
+        envelope = feature_type.get_envelope(instance, self.output_crs)
+        if envelope is not None:
+            lower = " ".join(map(str, envelope.lower_corner))
+            upper = " ".join(map(str, envelope.upper_corner))
+            return f"""      <gml:boundedBy>
+              <gml:Envelope srsName="{self.xml_srs_name}">
+                <gml:lowerCorner>{lower}</gml:lowerCorner>
+                <gml:upperCorner>{upper}</gml:upperCorner>
+              </gml:Envelope>
+            </gml:boundedBy>\n"""
+
+    def render_field(self, feature_type, instance, field, xsd_type):
+        """Rendering of a single field."""
+        try:
+            value = getattr(instance, field)
+        except AttributeError:
+            # E.g. Django foreign keys that point to a non-existing member.
+            value = None
+
+        if isinstance(value, geos.GEOSGeometry):
+            self.gml_seq += 1
+            return self.render_gml_field(
+                feature_type,
+                field,
+                value,
+                gml_id=self.get_gml_id(feature_type, instance.pk, seq=self.gml_seq),
+            )
         else:
-            envelope = feature_type.get_envelope(instance, self.output_crs)
-            if envelope is not None:
-                return self.render_gml_bounds(envelope)
+            return self.render_xml_field(feature_type, field, value)
 
     def render_xml_field(
         self, feature_type: FeatureType, field: str, value, extra_xmlns=""
@@ -339,29 +280,6 @@ class GML32Renderer(OutputRenderer):
             value = escape(str(value))
 
         return f"      <app:{field}{extra_xmlns}>{value}</app:{field}>\n"
-
-    def render_db_gml_field(
-        self, feature_type: FeatureType, field: str, value, gml_id, extra_xmlns=""
-    ) -> str:
-        """Write the value of an GML tag"""
-        if value is None:
-            return f'      <app:{field} xsi:nil="true"{extra_xmlns} />\n'
-
-        # Write the gml:id inside the first tag
-        pos = value.find(">")
-        first_tag = value[:pos]
-        if "gml:id" in first_tag:
-            first_tag = RE_GML_ID.sub(f'gml:id="{escape(gml_id)}"', first_tag, 1)
-        else:
-            first_tag += f' gml:id="{escape(gml_id)}"'
-
-        gml = first_tag + value[pos:].replace(' srsDimension="2"', "")
-        return f"      <app:{field}{extra_xmlns}>{gml}</app:{field}>\n"
-
-    def render_db_gml_bounds(self, gml) -> str:
-        """Generate the <gml:boundedBy> from DB prerendering."""
-        gml = gml.replace(' srsDimension="2"', "")
-        return f"      <gml:boundedBy>{gml}</gml:boundedBy>\n"
 
     def render_gml_field(
         self, feature_type: FeatureType, field: str, value, gml_id, extra_xmlns=""
@@ -459,16 +377,100 @@ class GML32Renderer(OutputRenderer):
         """Generate the gml:id value, which is required for GML 3.2 objects."""
         return f"{feature_type.name}.{object_id}.{seq}"
 
-    def render_gml_bounds(self, bbox) -> str:
-        """Generate the <gml:boundedBy> for an instance."""
-        lower = " ".join(map(str, bbox.lower_corner))
-        upper = " ".join(map(str, bbox.upper_corner))
-        return f"""      <gml:boundedBy>
-        <gml:Envelope srsName="{self.xml_srs_name}">
-          <gml:lowerCorner>{lower}</gml:lowerCorner>
-          <gml:upperCorner>{upper}</gml:upperCorner>
-        </gml:Envelope>
-      </gml:boundedBy>\n"""
+
+class DBGML32Renderer(GML32Renderer):
+    """Faster GetFeature renderer that uses the database to render GML 3.2"""
+
+    def decorate_queryset(self, feature_type, queryset):
+        """Update the queryset to let the database render the GML output.
+        This is far more efficient then GeoDjango's logic, which performs a
+        C-API call for every single coordinate of a geometry.
+        """
+        return queryset.annotate(
+            _as_envelope_gml=self.get_db_envelope_as_gml(feature_type, queryset),
+            **{
+                f"_as_gml_{field.name}": self.get_db_as_gml(field)
+                for field in feature_type.geometry_fields
+            },
+        )
+
+    def get_db_as_gml(self, field) -> AsGML:
+        """Offload the GML rendering to the database.
+
+        This gives a better performance, as Django GML rendering is slow.
+        Django calls the C-api for every single coordinate of a polygon.
+        """
+        if field.srid != self.output_crs.srid:
+            value = Transform(field.name, self.output_crs.srid)
+        else:
+            value = field.name
+        return _AsGML(value)
+
+    def get_db_envelope_as_gml(self, feature_type, queryset) -> AsGML:
+        """Offload the GML rendering of the envelope to the database.
+
+        This also avoids offloads the geometry union calculation to the DB.
+        """
+        geo_fields_union = self._get_geometries_union(feature_type, queryset)
+        return _AsGML(geo_fields_union, envelope=True)
+
+    def _get_geometries_union(self, feature_type: FeatureType, queryset):
+        """Combine all geometries of the model in a single SQL function."""
+        field_names = feature_type.geometry_field_names
+        if len(field_names) == 1:
+            union = next(iter(field_names))  # fastest in set data type
+        elif len(field_names) == 2:
+            union = Union(*field_names)
+        elif connections[queryset.db].vendor == "postgresql":
+            # postgres can handle multiple field names
+            union = ST_Union(field_names)
+        else:
+            # other databases do Union(Union(1, 2), 3)
+            union = reduce(Union, field_names)
+
+        if feature_type.geometry_field.srid != self.output_crs.srid:
+            union = Transform(union, self.output_crs.srid)
+
+        return union
+
+    def render_field(self, feature_type, instance, field, xsd_type):
+        if xsd_type.prefix == "gml":
+            # Optimized path, pre-rendered GML
+            value = getattr(instance, f"_as_gml_{field}")
+            self.gml_seq += 1
+            return self.render_db_gml_field(
+                feature_type,
+                field,
+                value,
+                gml_id=self.get_gml_id(feature_type, instance.pk, seq=self.gml_seq),
+            )
+        else:
+            return super().render_field(feature_type, instance, field, xsd_type)
+
+    def render_db_gml_field(
+        self, feature_type: FeatureType, field: str, value, gml_id, extra_xmlns=""
+    ) -> str:
+        """Write the value of an GML tag"""
+        if value is None:
+            return f'      <app:{field} xsi:nil="true"{extra_xmlns} />\n'
+
+        # Write the gml:id inside the first tag
+        pos = value.find(">")
+        first_tag = value[:pos]
+        if "gml:id" in first_tag:
+            first_tag = RE_GML_ID.sub(f'gml:id="{escape(gml_id)}"', first_tag, 1)
+        else:
+            first_tag += f' gml:id="{escape(gml_id)}"'
+
+        gml = first_tag + value[pos:].replace(' srsDimension="2"', "")
+        return f"      <app:{field}{extra_xmlns}>{gml}</app:{field}>\n"
+
+    def render_bounds(self, feature_type, instance):
+        """Generate the <gml:boundedBy> from DB prerendering."""
+        gml = instance._as_envelope_gml
+        if gml is not None:
+            gml = gml.replace(' srsDimension="2"', "")
+            return f"      <gml:boundedBy>{gml}</gml:boundedBy>\n"
 
 
 class GML32ValueRenderer(GML32Renderer):
@@ -482,11 +484,33 @@ class GML32ValueRenderer(GML32Renderer):
         self.element_name = self.value_reference.element_name
         super().__init__(*args, **kwargs)
 
+    def render_wfs_member(
+        self, feature_type: FeatureType, instance: dict, extra_xmlns=""
+    ) -> str:
+        """Write the XML for a single object."""
+        gml_seq = 0
+        value = instance["member"]
+        if isinstance(value, geos.GEOSGeometry):
+            gml_seq += 1
+            gml_id = self.get_gml_id(feature_type, instance["pk"], seq=1)
+            return self.render_gml_field(
+                feature_type,
+                field=self.element_name,
+                value=value,
+                gml_id=gml_id,
+                extra_xmlns=extra_xmlns,
+            )
+        else:
+            return self.render_xml_field(
+                feature_type, self.element_name, value, extra_xmlns=extra_xmlns
+            )
+
+
+class DBGML32ValueRenderer(DBGML32Renderer, GML32ValueRenderer):
+    """Faster GetPropertyValue renderer that uses the database to render GML 3.2"""
+
     def decorate_queryset(self, feature_type: FeatureType, queryset):
         """Update the queryset to let the database render the GML output."""
-        if not conf.GISSERVER_USE_DB_RENDERING:
-            return queryset
-
         if self.element_name in feature_type.geometry_field_names:
             # Add 'gml_member' to point to the pre-rendered GML version.
             geo_field = feature_type.get_field(self.element_name)
@@ -494,42 +518,16 @@ class GML32ValueRenderer(GML32Renderer):
         else:
             return queryset
 
-    def render_xml_member(
+    def render_wfs_member(
         self, feature_type: FeatureType, instance: dict, extra_xmlns=""
     ) -> str:
         """Write the XML for a single object."""
-        gml_seq = 0
-        output = StringBuffer()
-        if conf.GISSERVER_USE_DB_RENDERING and "gml_member" in instance:
-            gml_seq += 1
-            gml_id = self.get_gml_id(feature_type, instance["pk"], seq=gml_seq)
-            output.write(
-                self.render_db_gml_field(
-                    feature_type,
-                    self.element_name,
-                    instance["gml_member"],
-                    gml_id=gml_id,
-                )
+        if "gml_member" in instance:
+            gml_id = self.get_gml_id(feature_type, instance["pk"], seq=1)
+            return self.render_db_gml_field(
+                feature_type, self.element_name, instance["gml_member"], gml_id=gml_id,
             )
         else:
-            value = instance["member"]
-            if isinstance(value, geos.GEOSGeometry):
-                gml_seq += 1
-                gml_id = self.get_gml_id(feature_type, instance["pk"], seq=gml_seq)
-                output.write(
-                    self.render_gml_field(
-                        feature_type,
-                        field=self.element_name,
-                        value=value,
-                        gml_id=gml_id,
-                        extra_xmlns=extra_xmlns,
-                    )
-                )
-            else:
-                output.write(
-                    self.render_xml_field(
-                        feature_type, self.element_name, value, extra_xmlns=extra_xmlns
-                    )
-                )
-
-        return output.getvalue()
+            return super().render_wfs_member(
+                feature_type, instance, extra_xmlns=extra_xmlns
+            )

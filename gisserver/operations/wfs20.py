@@ -305,14 +305,14 @@ class GetFeature(BaseWFSPresentationMethod):
 
     output_formats = [
         OutputFormat(
-            "text/xml", subtype="gml/3.2", renderer_class=output.GML32Renderer
+            "text/xml", subtype="gml/3.2", renderer_class=output.gml32_renderer
         ),
         # OutputFormat("gml"),
         OutputFormat(
             "application/json",
             subtype="geojson",
             charset="utf-8",
-            renderer_class=output.GeoJsonRenderer,
+            renderer_class=output.geojson_renderer,
         ),
         # OutputFormat("text/csv"),
         # OutputFormat("shapezip"),
@@ -327,7 +327,7 @@ class GetPropertyValue(BaseWFSPresentationMethod):
 
     output_formats = [
         OutputFormat(
-            "text/xml", subtype="gml/3.2", renderer_class=output.GML32ValueRenderer
+            "text/xml", subtype="gml/3.2", renderer_class=output.gml32_value_renderer
         ),
     ]
 
