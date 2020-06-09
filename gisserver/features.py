@@ -40,7 +40,7 @@ XSD_TYPES = {
     gis_models.GeometryCollectionField: XsdTypes.gmlMultiGeometryPropertyType,
     gis_models.GeometryField: XsdTypes.gmlGeometryPropertyType,
 }
-DEFAULT_XSD_TYPE = XsdTypes.any
+DEFAULT_XSD_TYPE = XsdTypes.anyType
 
 
 @dataclass

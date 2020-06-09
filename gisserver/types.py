@@ -34,7 +34,7 @@ class XsdTypes(Enum):
     Based on https://www.w3.org/TR/xmlschema-2/#built-in-datatypes
     """
 
-    any = "any"
+    anyType = "anyType"  # Needs to be anyType, as "xsd:any" is an element, not a type.
     string = "string"
     boolean = "boolean"
     decimal = "decimal"  # the base type for all numbers too.
