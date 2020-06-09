@@ -9,6 +9,7 @@ from .gml32 import (
     GML32Renderer,
     GML32ValueRenderer,
 )
+from .xmlschema import XMLSchemaRenderer
 from .results import FeatureCollection, SimpleFeatureCollection
 
 __all__ = [
@@ -21,6 +22,7 @@ __all__ = [
     "GeoJsonRenderer",
     "GML32Renderer",
     "GML32ValueRenderer",
+    "XMLSchemaRenderer",
     "geojson_renderer",
     "gml32_renderer",
     "gml32_value_renderer",

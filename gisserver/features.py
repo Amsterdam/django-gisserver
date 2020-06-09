@@ -7,14 +7,14 @@ from dataclasses import dataclass
 from typing import List, Optional, Union
 
 from django.contrib.gis.db import models as gis_models
-from django.contrib.gis.db.models import Extent
+from django.contrib.gis.db.models import Extent, GeometryField
 from django.contrib.gis.db.models.functions import Transform
 from django.core.exceptions import ImproperlyConfigured
 from django.db import models
 from django.db.models.fields.reverse_related import ForeignObjectRel
 from django.utils.functional import cached_property  # py3.8: functools
 
-from gisserver.types import CRS, WGS84, BoundingBox, XsdTypes
+from gisserver.types import CRS, WGS84, BoundingBox, XsdElement, XsdTypes
 
 NoneType = type(None)
 
@@ -142,15 +142,6 @@ class FeatureType:
         else:
             return list(self._fields)
 
-    @cached_property
-    def fields_with_type(self):
-        fields = []
-        for name in self.fields:
-            field = self.model._meta.get_field(name)
-            fields.append((name, self.get_field_type(field)))
-
-        return fields
-
     def _get_all_fields(self) -> List[str]:
         """Return all fields that can be queried."""
         fields = []
@@ -262,3 +253,22 @@ class FeatureType:
         if geometry.srid != crs.srid:
             crs.apply_to(geometry)  # avoid clone
         return BoundingBox.from_geometry(geometry, crs=crs)
+
+    @cached_property
+    def xsd_fields(self) -> List[XsdElement]:
+        """Return the definition of this feature as a list of XSD elements."""
+        return [self.get_xsd_field(name) for name in self.fields]
+
+    def get_xsd_field(self, name):
+        """Define the XMLSchema definition for a model field.
+        This is used in DescribeFeatureType.
+        """
+        field = self.get_field(name)
+        return XsdElement(
+            name=name,
+            type=self.get_field_type(field),
+            nillable=field.null,
+            min_occurs=0,
+            max_occurs=1 if isinstance(field, GeometryField) else None,
+            source=field,
+        )

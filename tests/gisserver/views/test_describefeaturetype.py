@@ -51,8 +51,8 @@ class TestDescribeFeatureType:
         <sequence>
           <element name="id" type="integer" minOccurs="0" />
           <element name="name" type="string" minOccurs="0" />
-          <element name="city_id" type="integer" minOccurs="0" />
-          <element name="location" type="gml:PointPropertyType" minOccurs="0" maxOccurs="1"/>
+          <element name="city_id" type="integer" nillable="true" minOccurs="0" />
+          <element name="location" type="gml:PointPropertyType" nillable="true" minOccurs="0" maxOccurs="1"/>
           <element name="rating" type="double" minOccurs="0" />
           <element name="created" type="dateTime" minOccurs="0" />
         </sequence>

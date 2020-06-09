@@ -5,11 +5,15 @@ This exposes helper classes to parse GEO data types.
 import re
 from dataclasses import dataclass, field
 from enum import Enum
+
+from django.contrib.gis.db.models import GeometryField
+from django.db import models
 from functools import lru_cache
 from typing import Optional, Union
 
 from django.contrib.gis.gdal import CoordTransform, SpatialReference
 from django.contrib.gis.geos import GEOSGeometry, Polygon
+from django.utils.functional import cached_property
 
 CRS_URN_REGEX = re.compile(
     r"^urn:(?P<domain>[a-z]+)"
@@ -81,6 +85,55 @@ class XsdTypes(Enum):
             return self.value
         else:
             return f"{prefix}:{self.value}"
+
+
+@dataclass(frozen=True)
+class XsdElement:
+    """Declare an XSD element"""
+
+    name: str
+    type: XsdTypes
+    nillable: Optional[bool] = None
+    min_occurs: Optional[int] = None
+    max_occurs: Optional[int] = None
+    source: Optional[models.Field] = None
+
+    #: Which field to read from the model to get the value
+    model_attribute: Optional[str] = None
+
+    def __post_init__(self):
+        if self.model_attribute is None:
+            object.__setattr__(self, "model_attribute", self.name)
+
+    @cached_property
+    def is_gml(self):
+        return isinstance(self.source, GeometryField) or self.type.prefix == "gml"
+
+    @cached_property
+    def as_xml(self):
+        attributes = [f'name="{self.name}" type="{self.type}"']
+        if self.min_occurs is not None:
+            attributes.append(f'minOccurs="{self.min_occurs}"')
+        if self.max_occurs is not None:
+            attributes.append(f'maxOccurs="{self.max_occurs}"')
+        if self.nillable:
+            str_bool = "true" if self.nillable else "false"
+            attributes.append(f'nillable="{str_bool}"')
+
+        return "<element {} />".format(" ".join(attributes))
+
+    def __str__(self):
+        return self.as_xml
+
+    def get_value(self, instance: models.Model):
+        """Provide the value for the """
+        # For foreign keys, it's not possible to use the model value,
+        # as that would conflict with the field type in the XSD schema.
+        try:
+            return getattr(instance, self.model_attribute)
+        except AttributeError:
+            # E.g. Django foreign keys that point to a non-existing member.
+            return None
 
 
 @lru_cache(maxsize=100)

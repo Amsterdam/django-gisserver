@@ -129,11 +129,9 @@ class DescribeFeatureType(WFSTypeNamesMethod):
 
     require_type_names = True
     output_formats = [
-        OutputFormat("XMLSCHEMA"),
+        OutputFormat("XMLSCHEMA", renderer_class=output.XMLSchemaRenderer),
         # OutputFormat("text/xml", subtype="gml/3.1.1"),
     ]
-    xml_template_name = "describe_feature_type.xml"
-    xml_content_type = "application/gml+xml; version=3.2"  # mandatory for WFS
 
     def get_context_data(self, typeNames, **params):
         return {"feature_types": typeNames}

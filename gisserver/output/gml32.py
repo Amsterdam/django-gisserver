@@ -22,6 +22,7 @@ from django.utils.timezone import utc
 from gisserver.exceptions import NotFound
 from gisserver.features import FeatureType
 from gisserver.parsers.fes20 import ValueReference
+from gisserver.types import XsdElement
 
 from .base import OutputRenderer, StringBuffer
 
@@ -226,8 +227,8 @@ class GML32Renderer(OutputRenderer):
             output.write(gml)
 
         # Add all members
-        for field, xsd_type in feature_type.fields_with_type:
-            output.write(self.render_field(feature_type, instance, field, xsd_type))
+        for xsd_element in feature_type.xsd_fields:
+            output.write(self.render_element(feature_type, xsd_element, instance))
 
         output.write(f"    </app:{feature_type.name}>\n")
         return output.getvalue()
@@ -245,31 +246,28 @@ class GML32Renderer(OutputRenderer):
               </gml:Envelope>
             </gml:boundedBy>\n"""
 
-    def render_field(self, feature_type, instance, field, xsd_type):
+    def render_element(
+        self, feature_type, xsd_element: XsdElement, instance: models.Model
+    ):
         """Rendering of a single field."""
-        try:
-            value = getattr(instance, field)
-        except AttributeError:
-            # E.g. Django foreign keys that point to a non-existing member.
-            value = None
-
+        value = xsd_element.get_value(instance)
         if isinstance(value, geos.GEOSGeometry):
             self.gml_seq += 1
             return self.render_gml_field(
                 feature_type,
-                field,
+                xsd_element.name,
                 value,
                 gml_id=self.get_gml_id(feature_type, instance.pk, seq=self.gml_seq),
             )
         else:
-            return self.render_xml_field(feature_type, field, value)
+            return self.render_xml_field(feature_type, xsd_element.name, value)
 
     def render_xml_field(
-        self, feature_type: FeatureType, field: str, value, extra_xmlns=""
+        self, feature_type: FeatureType, name: str, value, extra_xmlns=""
     ) -> str:
         """Write the value of a single field."""
         if value is None:
-            return f'      <app:{field} xsi:nil="true"{extra_xmlns} />\n'
+            return f'      <app:{name} xsi:nil="true"{extra_xmlns} />\n'
         elif isinstance(value, datetime):
             value = value.astimezone(utc).isoformat()
         elif isinstance(value, (date, time)):
@@ -279,14 +277,14 @@ class GML32Renderer(OutputRenderer):
         else:
             value = escape(str(value))
 
-        return f"      <app:{field}{extra_xmlns}>{value}</app:{field}>\n"
+        return f"      <app:{name}{extra_xmlns}>{value}</app:{name}>\n"
 
     def render_gml_field(
-        self, feature_type: FeatureType, field: str, value, gml_id, extra_xmlns=""
+        self, feature_type: FeatureType, name: str, value, gml_id, extra_xmlns=""
     ) -> str:
         """Write the value of an GML tag"""
         gml = self.render_gml_value(value, gml_id=gml_id)
-        return f"      <app:{field}{extra_xmlns}>{gml}</app:{field}>\n"
+        return f"      <app:{name}{extra_xmlns}>{gml}</app:{name}>\n"
 
     def render_gml_value(
         self, value: geos.GEOSGeometry, gml_id: str, extra_xmlns=""
@@ -389,8 +387,9 @@ class DBGML32Renderer(GML32Renderer):
         return queryset.annotate(
             _as_envelope_gml=self.get_db_envelope_as_gml(feature_type, queryset),
             **{
-                f"_as_gml_{field.name}": self.get_db_as_gml(field)
-                for field in feature_type.geometry_fields
+                f"_as_gml_{xsd_element.name}": self.get_db_as_gml(xsd_element.source)
+                for xsd_element in feature_type.xsd_fields
+                if xsd_element.is_gml
             },
         )
 
@@ -433,26 +432,28 @@ class DBGML32Renderer(GML32Renderer):
 
         return union
 
-    def render_field(self, feature_type, instance, field, xsd_type):
-        if xsd_type.prefix == "gml":
+    def render_element(
+        self, feature_type, xsd_element: XsdElement, instance: models.Model
+    ):
+        if xsd_element.is_gml:
             # Optimized path, pre-rendered GML
-            value = getattr(instance, f"_as_gml_{field}")
+            value = getattr(instance, f"_as_gml_{xsd_element.name}")
             self.gml_seq += 1
             return self.render_db_gml_field(
                 feature_type,
-                field,
+                xsd_element.name,
                 value,
                 gml_id=self.get_gml_id(feature_type, instance.pk, seq=self.gml_seq),
             )
         else:
-            return super().render_field(feature_type, instance, field, xsd_type)
+            return super().render_element(feature_type, xsd_element, instance)
 
     def render_db_gml_field(
-        self, feature_type: FeatureType, field: str, value, gml_id, extra_xmlns=""
+        self, feature_type: FeatureType, name: str, value, gml_id, extra_xmlns=""
     ) -> str:
         """Write the value of an GML tag"""
         if value is None:
-            return f'      <app:{field} xsi:nil="true"{extra_xmlns} />\n'
+            return f'      <app:{name} xsi:nil="true"{extra_xmlns} />\n'
 
         # Write the gml:id inside the first tag
         pos = value.find(">")
@@ -463,7 +464,7 @@ class DBGML32Renderer(GML32Renderer):
             first_tag += f' gml:id="{escape(gml_id)}"'
 
         gml = first_tag + value[pos:].replace(' srsDimension="2"', "")
-        return f"      <app:{field}{extra_xmlns}>{gml}</app:{field}>\n"
+        return f"      <app:{name}{extra_xmlns}>{gml}</app:{name}>\n"
 
     def render_bounds(self, feature_type, instance):
         """Generate the <gml:boundedBy> from DB prerendering."""
@@ -495,7 +496,7 @@ class GML32ValueRenderer(GML32Renderer):
             gml_id = self.get_gml_id(feature_type, instance["pk"], seq=1)
             return self.render_gml_field(
                 feature_type,
-                field=self.element_name,
+                name=self.element_name,
                 value=value,
                 gml_id=gml_id,
                 extra_xmlns=extra_xmlns,

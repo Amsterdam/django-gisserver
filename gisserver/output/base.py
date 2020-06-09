@@ -1,6 +1,6 @@
 import io
 
-from django.http import StreamingHttpResponse
+from django.http import HttpResponse, StreamingHttpResponse
 from django.utils.html import escape
 
 from gisserver.operations.base import WFSMethod
@@ -57,9 +57,13 @@ class OutputRenderer:
 
     def get_response(self):
         """Render the output as streaming response."""
-        return StreamingHttpResponse(
-            self.render_stream(), content_type=self.content_type,
-        )
+        stream = self.render_stream()
+        if isinstance(stream, (str, bytes)):
+            return HttpResponse(content=stream, content_type=self.content_type,)
+        else:
+            return StreamingHttpResponse(
+                streaming_content=stream, content_type=self.content_type,
+            )
 
     def render_stream(self):
         """Implement this in subclasses to implement a custom output format."""
