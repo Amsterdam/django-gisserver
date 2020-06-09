@@ -124,6 +124,12 @@ class FeatureType:
             if isinstance(f, gis_models.GeometryField)
         ]
 
+    def check_permission(self, request):
+        """Hook that allows subclasses to reject access for datasets.
+        It may raise a Django PermissionDenied error.
+        """
+        pass
+
     @cached_property
     def geometry_field_names(self):
         return {f.name for f in self.geometry_fields}

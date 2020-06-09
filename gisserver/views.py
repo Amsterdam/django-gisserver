@@ -2,7 +2,11 @@
 import re
 from typing import List, Optional, Type
 
-from django.core.exceptions import ImproperlyConfigured, SuspiciousOperation
+from django.core.exceptions import (
+    ImproperlyConfigured,
+    PermissionDenied as Django_PermissionDenied,
+    SuspiciousOperation,
+)
 from django.http import HttpResponse
 from django.views import View
 
@@ -11,6 +15,7 @@ from gisserver.exceptions import (
     MissingParameterValue,
     OWSException,
     OperationNotSupported,
+    PermissionDenied,
 )
 from gisserver.features import FeatureType, ServiceDescription
 from gisserver.operations import base, wfs20
@@ -83,7 +88,25 @@ class GISView(View):
         """Render proper XML errors for exceptions on all request types."""
         try:
             return super().dispatch(request, *args, **kwargs)
-        except OWSException as exc:
+        except Exception as e:
+            response = self.handle_exception(e)
+            if response is not None:
+                return response
+            raise
+
+    def handle_exception(self, exc):
+        """Transform an exception into a WFS response.
+        When nothing is returned, the exception is raised instead.
+        """
+        if isinstance(exc, Django_PermissionDenied):
+            exc = PermissionDenied("typeNames", text=str(exc) or None)
+            return HttpResponse(
+                exc.as_xml().encode("utf-8"),
+                content_type="text/xml; charset=utf-8",
+                status=exc.status_code,
+                reason=exc.reason,
+            )
+        elif isinstance(exc, OWSException):
             # Wrap our XML-based exception into a response.
             exc.version = self.version  # Use negotiated version
             return HttpResponse(

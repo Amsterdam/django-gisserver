@@ -35,6 +35,11 @@ class QueryExpression:
         self.all_feature_types = all_feature_types
         self.value_reference = value_reference
 
+    def check_permissions(self, request):
+        """Verify whether the user has access to view these data sources"""
+        for feature_type in self.get_type_names():
+            feature_type.check_permission(request)
+
     def resolve_type_name(self, type_name, locator="") -> FeatureType:
         """Find the feature type for a given name.
         This is an utility that cusstom subclasses can use.

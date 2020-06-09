@@ -36,6 +36,7 @@ class TestListStoredQueries:
     <Title>Get feature by identifier</Title>
     <ReturnFeatureType>restaurant</ReturnFeatureType>
     <ReturnFeatureType>mini-restaurant</ReturnFeatureType>
+    <ReturnFeatureType>denied-feature</ReturnFeatureType>
   </StoredQuery>
 </wfs:ListStoredQueriesResponse>""",  # noqa: E501
         )

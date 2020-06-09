@@ -89,6 +89,15 @@ class TestGetCapabilities:
         </ows:WGS84BoundingBox>
         <MetadataURL xlink:href="http://testserver/v1/wfs/" />
       </FeatureType>
+      <FeatureType>
+        <Name>denied-feature</Name>
+        <Title>restaurant</Title>
+        <DefaultCRS>urn:ogc:def:crs:EPSG::4326</DefaultCRS>
+        <OutputFormats>
+          <Format>text/xml; subtype=gml/3.2</Format>
+          <Format>application/json; subtype=geojson; charset=utf-8</Format>
+        </OutputFormats>
+      </FeatureType>
     </FeatureTypeList>""",
         )
 

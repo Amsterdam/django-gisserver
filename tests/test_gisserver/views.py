@@ -1,7 +1,14 @@
+from django.core.exceptions import PermissionDenied
+
 from gisserver.features import FeatureType, ServiceDescription
 from gisserver.views import WFSView
 from tests.constants import RD_NEW
 from tests.test_gisserver.models import Restaurant
+
+
+class DeniedFeatureType(FeatureType):
+    def check_permission(self, request):
+        raise PermissionDenied("No access to this feature.")
 
 
 class PlacesWFSView(WFSView):
@@ -32,4 +39,5 @@ class PlacesWFSView(WFSView):
             other_crs=[RD_NEW],
             metadata_url="/feature/restaurants-limit/",
         ),
+        DeniedFeatureType(Restaurant.objects.none(), name="denied-feature"),
     ]

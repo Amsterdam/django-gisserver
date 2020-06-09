@@ -219,6 +219,7 @@ class BaseWFSPresentationMethod(WFSTypeNamesMethod):
 
     def get_context_data(self, resultType, **params):
         query = self.get_query(**params)
+        query.check_permissions(self.view.request)
 
         if resultType == "HITS":
             collection = self.get_hits(query)

@@ -108,3 +108,16 @@ class OptionNotSupported(WFSException):
     reason = "Not Implemented"
     code = "OptionNotSupported"
     text_template = "Option is not implemented."
+
+
+class PermissionDenied(WFSException):
+    """Permission denied (custom error).
+
+    Note this error is not part of the spec,
+    but it's still useful to have access controls.
+    """
+
+    status_code = 403
+    reason = "Permission Denied"
+    code = "PermissionDenied"
+    text_template = "You do not have permission to perform this action."
