@@ -1,5 +1,7 @@
 .PHONY: help install test retest coverage dist docs format
 
+ROOT_DIR := $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
+
 help:
 	@fgrep -h "##" $(MAKEFILE_LIST) | fgrep -v fgrep | sed -e 's/##//'
 
@@ -13,7 +15,8 @@ test:          ## Run the tests
 
 docker-test:   ## Run the tests against Linux GIS library versions
 	docker build . -t django-gisserver
-	docker run --rm -it django-gisserver make test
+	docker run -v $(ROOT_DIT):/host/ -e GISSERVER_USE_DB_RENDERING=1 --rm -it django-gisserver make test
+	docker run -v $(ROOT_DIT):/host/ -e GISSERVER_USE_DB_RENDERING=0 --rm -it django-gisserver make test
 
 retest:        ## Rerun the last failed tests.
 	pytest -vs --lf
