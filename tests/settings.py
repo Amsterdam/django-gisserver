@@ -2,10 +2,6 @@ from environ import Env
 
 env = Env()
 
-SECRET_KEY = "insecure-tests-only"
-
-TIME_ZONE = "Europe/Amsterdam"
-
 DATABASES = {
     "default": env.db_url(
         "DATABASE_URL",
@@ -14,15 +10,23 @@ DATABASES = {
     )
 }
 
+GISSERVER_USE_DB_RENDERING = env.bool("GISSERVER_USE_DB_RENDERING", default=True)
+
 INSTALLED_APPS = [
     "gisserver",
     "tests.test_gisserver",
 ]
 
+# Test session requirements
+
+SECRET_KEY = "insecure-tests-only"
+
+TIME_ZONE = "Europe/Amsterdam"
+
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "OPTIONS": {"loaders": ["django.template.loaders.app_directories.Loader",],},
+        "OPTIONS": {"loaders": ["django.template.loaders.app_directories.Loader"]},
     },
 ]
 
@@ -35,8 +39,3 @@ ROOT_URLCONF = __name__
 
 # urls.py part:
 urlpatterns = []
-
-
-# App settings
-
-GISSERVER_USE_DB_RENDERING = env.bool("GISSERVER_USE_DB_RENDERING", default=True)
