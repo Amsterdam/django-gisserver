@@ -112,8 +112,8 @@ class GetCapabilities(WFSMethod):
             "accept_operations": {
                 name: operation(view) for name, operation in service_operations.items()
             },
-            "service_constraints": self.view.service_constraints,
-            "filter_capabilities": self.view.filter_capabilities,
+            "service_constraints": self.view.wfs_service_constraints,
+            "filter_capabilities": self.view.wfs_filter_capabilities,
             "function_registry": fes20.function_registry,
             "accept_versions": self.view.accept_versions,
             "feature_types": self.view.get_feature_types(),

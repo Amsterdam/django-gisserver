@@ -44,46 +44,6 @@ class GISView(View):
     #: Metadata of the service:
     service_description: Optional[ServiceDescription] = None
 
-    #: Metadata of the capabilities:
-    service_constraints = {
-        "ImplementsBasicWFS": False,  # only simple WFS
-        # "ImplementsTransactionalWFS": False,  # only simple WFS
-        # "ImplementsLockingWFS": False,  # only simple WFS
-        "KVPEncoding": True,  # HTTP GET support
-        "XMLEncoding": False,  # HTTP POST requests
-        "SOAPEncoding": False,  # no SOAP requests
-        # 'ImplementsInheritance': False,
-        # 'ImplementsRemoteResolve': False,
-        "ImplementsResultPaging": True,  # missing next/previous for START / COUNT
-        # 'ImplementsStandardJoins': False,  # returns records as wfs:Tuple in GetFeature
-        # 'ImplementsSpatialJoins': False,
-        # 'ImplementsTemporalJoins': False,
-        # 'ImplementsFeatureVersioning': False,
-        # 'ManageStoredQueries': False,
-        #
-        # Mentioned as operation constraint in WFS spec:
-        "PagingIsTransactionSafe": False,
-    }
-
-    #: Metadata of filtering capabilities
-    filter_capabilities = {
-        "ImplementsQuery": False,  # mapserver: true
-        "ImplementsAdHocQuery": False,  # mapserver: true
-        "ImplementsFunctions": True,  # <fes:Function> support
-        "ImplementsResourceId": True,  # <fes:ResourceId> support
-        "ImplementsMinStandardFilter": True,  # <fes:PropertyIs...> support
-        "ImplementsStandardFilter": True,  # <fes:And>, <fes:Or> and advanced functions
-        "ImplementsMinSpatialFilter": True,  # <fes:BBOX>
-        "ImplementsSpatialFilter": True,  # Other spatial functions
-        "ImplementsMinTemporalFilter": False,  # mapserver: true (During)
-        "ImplementsTemporalFilter": False,
-        "ImplementsVersionNav": False,  # <fes:ResourceId version="..">
-        "ImplementsSorting": True,  # SORTBY parameter
-        "ImplementsExtendedOperators": False,
-        "ImplementsMinimumXPath": False,  # mapserver: True
-        "ImplementsSchemaElementFunc": False,
-    }
-
     def dispatch(self, request, *args, **kwargs):
         """Render proper XML errors for exceptions on all request types."""
         try:
@@ -95,7 +55,7 @@ class GISView(View):
             raise
 
     def handle_exception(self, exc):
-        """Transform an exception into a WFS response.
+        """Transform an exception into a OGC response.
         When nothing is returned, the exception is raised instead.
         """
         if isinstance(exc, Django_PermissionDenied):
@@ -216,6 +176,46 @@ class WFSView(GISView):
             "ListStoredQueries": wfs20.ListStoredQueries,
             "DescribeStoredQueries": wfs20.DescribeStoredQueries,
         }
+    }
+
+    #: Metadata of the capabilities:
+    wfs_service_constraints = {
+        "ImplementsBasicWFS": False,  # only simple WFS
+        # "ImplementsTransactionalWFS": False,  # only simple WFS
+        # "ImplementsLockingWFS": False,  # only simple WFS
+        "KVPEncoding": True,  # HTTP GET support
+        "XMLEncoding": False,  # HTTP POST requests
+        "SOAPEncoding": False,  # no SOAP requests
+        # 'ImplementsInheritance': False,
+        # 'ImplementsRemoteResolve': False,
+        "ImplementsResultPaging": True,  # missing next/previous for START / COUNT
+        # 'ImplementsStandardJoins': False,  # returns records as wfs:Tuple in GetFeature
+        # 'ImplementsSpatialJoins': False,
+        # 'ImplementsTemporalJoins': False,
+        # 'ImplementsFeatureVersioning': False,
+        # 'ManageStoredQueries': False,
+        #
+        # Mentioned as operation constraint in WFS spec:
+        "PagingIsTransactionSafe": False,
+    }
+
+    #: Metadata of filtering capabilities
+    wfs_filter_capabilities = {
+        "ImplementsQuery": False,  # mapserver: true
+        "ImplementsAdHocQuery": False,  # mapserver: true
+        "ImplementsFunctions": True,  # <fes:Function> support
+        "ImplementsResourceId": True,  # <fes:ResourceId> support
+        "ImplementsMinStandardFilter": True,  # <fes:PropertyIs...> support
+        "ImplementsStandardFilter": True,  # <fes:And>, <fes:Or> and advanced functions
+        "ImplementsMinSpatialFilter": True,  # <fes:BBOX>
+        "ImplementsSpatialFilter": True,  # Other spatial functions
+        "ImplementsMinTemporalFilter": False,  # mapserver: true (During)
+        "ImplementsTemporalFilter": False,
+        "ImplementsVersionNav": False,  # <fes:ResourceId version="..">
+        "ImplementsSorting": True,  # SORTBY parameter
+        "ImplementsExtendedOperators": False,
+        "ImplementsMinimumXPath": False,  # mapserver: True
+        "ImplementsSchemaElementFunc": False,
     }
 
     def get_feature_types(self) -> List[FeatureType]:
