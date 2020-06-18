@@ -88,7 +88,7 @@ class TestGetPropertyValue:
   <wfs:member>
     <app:location>
       <gml:Point gml:id="restaurant.{restaurant.id}.1" srsName="urn:ogc:def:crs:EPSG::4326">
-        <gml:pos>{POINT1_XML_WGS84}</gml:pos>
+        <gml:pos srsDimension="2">{POINT1_XML_WGS84}</gml:pos>
       </gml:Point>
     </app:location>
   </wfs:member>

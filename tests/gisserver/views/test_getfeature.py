@@ -77,17 +77,17 @@ class TestGetFeature:
       <app:restaurant gml:id="restaurant.{restaurant.id}">
         <gml:name>Café Noir</gml:name>
         <gml:boundedBy>
-            <gml:Envelope srsName="urn:ogc:def:crs:EPSG::4326">
-                <gml:lowerCorner>{POINT1_XML_WGS84}</gml:lowerCorner>
-                <gml:upperCorner>{POINT1_XML_WGS84}</gml:upperCorner>
-            </gml:Envelope>
+          <gml:Envelope srsDimension="2" srsName="urn:ogc:def:crs:EPSG::4326">
+            <gml:lowerCorner>{POINT1_XML_WGS84}</gml:lowerCorner>
+            <gml:upperCorner>{POINT1_XML_WGS84}</gml:upperCorner>
+          </gml:Envelope>
         </gml:boundedBy>
         <app:id>{restaurant.id}</app:id>
         <app:name>Café Noir</app:name>
         <app:city_id>{restaurant.city_id}</app:city_id>
         <app:location>
           <gml:Point gml:id="restaurant.{restaurant.id}.1" srsName="urn:ogc:def:crs:EPSG::4326">
-            <gml:pos>{POINT1_XML_WGS84}</gml:pos>
+            <gml:pos srsDimension="2">{POINT1_XML_WGS84}</gml:pos>
           </gml:Point>
         </app:location>
         <app:rating>5.0</app:rating>
@@ -173,14 +173,14 @@ class TestGetFeature:
       <app:mini-restaurant gml:id="mini-restaurant.{restaurant.id}">
         <gml:name>Café Noir</gml:name>
         <gml:boundedBy>
-            <gml:Envelope srsName="urn:ogc:def:crs:EPSG::4326">
-                <gml:lowerCorner>{POINT1_XML_WGS84}</gml:lowerCorner>
-                <gml:upperCorner>{POINT1_XML_WGS84}</gml:upperCorner>
-            </gml:Envelope>
+          <gml:Envelope srsDimension="2" srsName="urn:ogc:def:crs:EPSG::4326">
+            <gml:lowerCorner>{POINT1_XML_WGS84}</gml:lowerCorner>
+            <gml:upperCorner>{POINT1_XML_WGS84}</gml:upperCorner>
+          </gml:Envelope>
         </gml:boundedBy>
         <app:location>
           <gml:Point gml:id="mini-restaurant.{restaurant.id}.1" srsName="urn:ogc:def:crs:EPSG::4326">
-            <gml:pos>{POINT1_XML_WGS84}</gml:pos>
+            <gml:pos srsDimension="2">{POINT1_XML_WGS84}</gml:pos>
           </gml:Point>
         </app:location>
       </app:mini-restaurant>
@@ -224,7 +224,7 @@ class TestGetFeature:
           <app:restaurant gml:id="restaurant.{restaurant.id}">
             <gml:name>Café Noir</gml:name>
             <gml:boundedBy>
-              <gml:Envelope srsName="urn:ogc:def:crs:EPSG::28992">
+              <gml:Envelope srsDimension="2" srsName="urn:ogc:def:crs:EPSG::28992">
                 <gml:lowerCorner>{POINT1_XML_RD}</gml:lowerCorner>
                 <gml:upperCorner>{POINT1_XML_RD}</gml:upperCorner>
               </gml:Envelope>
@@ -234,7 +234,7 @@ class TestGetFeature:
             <app:city_id>{restaurant.city_id}</app:city_id>
             <app:location>
               <gml:Point gml:id="restaurant.{restaurant.id}.1" srsName="urn:ogc:def:crs:EPSG::28992">
-                <gml:pos>{POINT1_XML_RD}</gml:pos>
+                <gml:pos srsDimension="2">{POINT1_XML_RD}</gml:pos>
               </gml:Point>
             </app:location>
             <app:rating>5.0</app:rating>
@@ -637,7 +637,7 @@ class TestGetFeature:
    xmlns:app="http://example.org/gisserver" xmlns:gml="http://www.opengis.net/gml/3.2">
     <gml:name>Café Noir</gml:name>
     <gml:boundedBy>
-        <gml:Envelope srsName="urn:ogc:def:crs:EPSG::4326">
+        <gml:Envelope srsDimension="2" srsName="urn:ogc:def:crs:EPSG::4326">
             <gml:lowerCorner>{POINT1_XML_WGS84}</gml:lowerCorner>
             <gml:upperCorner>{POINT1_XML_WGS84}</gml:upperCorner>
         </gml:Envelope>
@@ -647,7 +647,7 @@ class TestGetFeature:
     <app:city_id>{restaurant.city_id}</app:city_id>
     <app:location>
         <gml:Point gml:id="restaurant.{restaurant.id}.1" srsName="urn:ogc:def:crs:EPSG::4326">
-            <gml:pos>{POINT1_XML_WGS84}</gml:pos>
+            <gml:pos srsDimension="2">{POINT1_XML_WGS84}</gml:pos>
         </gml:Point>
     </app:location>
     <app:rating>5.0</app:rating>

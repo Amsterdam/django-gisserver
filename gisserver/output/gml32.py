@@ -240,7 +240,7 @@ class GML32Renderer(OutputRenderer):
             lower = " ".join(map(str, envelope.lower_corner))
             upper = " ".join(map(str, envelope.upper_corner))
             return f"""      <gml:boundedBy>
-              <gml:Envelope srsName="{self.xml_srs_name}">
+              <gml:Envelope srsDimension="2" srsName="{self.xml_srs_name}">
                 <gml:lowerCorner>{lower}</gml:lowerCorner>
                 <gml:upperCorner>{upper}</gml:upperCorner>
               </gml:Envelope>
@@ -308,8 +308,12 @@ class GML32Renderer(OutputRenderer):
     @register_geos_type(geos.Point)
     def render_gml_point(self, value: geos.Point, base_attrs=""):
         coords = " ".join(map(str, value.coords))
-        dim = ' srsDimension="3"' if value.hasz else ""
-        return f"<gml:Point{base_attrs}><gml:pos{dim}>{coords}</gml:pos></gml:Point>"
+        dim = 3 if value.hasz else 2
+        return (
+            f"<gml:Point{base_attrs}>"
+            f'<gml:pos srsDimension="{dim}">{coords}</gml:pos>'
+            f"</gml:Point>"
+        )
 
     @register_geos_type(geos.Polygon)
     def render_gml_polygon(self, value: geos.Polygon, base_attrs=""):
@@ -352,22 +356,22 @@ class GML32Renderer(OutputRenderer):
 
     @register_geos_type(geos.LinearRing)
     def render_gml_linear_ring(self, value: geos.LinearRing, base_attrs=""):
-        dim = ' srsDimension="3"' if value.hasz else ""
         coords = " ".join(map(str, itertools.chain.from_iterable(value.tuple)))
+        dim = "3" if value.hasz else "2"
         # <gml:coordinates> is still valid in GML3, but deprecated (part of GML2).
         return (
             f"<gml:LinearRing{base_attrs}>"
-            f"<gml:posList{dim}>{coords}</gml:posList>"
+            f'<gml:posList srsDimension="{dim}">{coords}</gml:posList>'
             "</gml:LinearRing>"
         )
 
     @register_geos_type(geos.LineString)
     def render_gml_line_string(self, value: geos.LineString, base_attrs=""):
-        dim = ' srsDimension="3"' if value.hasz else ""
         coords = " ".join(map(str, itertools.chain.from_iterable(value.tuple)))
+        dim = "3" if value.hasz else "2"
         return (
             f"<gml:LineString{base_attrs}>"
-            f"<gml:posList{dim}>{coords}</gml:posList>"
+            f'<gml:posList srsDimension="{dim}">{coords}</gml:posList>'
             "</gml:LineString>"
         )
 
@@ -463,14 +467,13 @@ class DBGML32Renderer(GML32Renderer):
         else:
             first_tag += f' gml:id="{escape(gml_id)}"'
 
-        gml = first_tag + value[pos:].replace(' srsDimension="2"', "")
+        gml = first_tag + value[pos:]
         return f"      <app:{name}{extra_xmlns}>{gml}</app:{name}>\n"
 
     def render_bounds(self, feature_type, instance):
         """Generate the <gml:boundedBy> from DB prerendering."""
         gml = instance._as_envelope_gml
         if gml is not None:
-            gml = gml.replace(' srsDimension="2"', "")
             return f"      <gml:boundedBy>{gml}</gml:boundedBy>\n"
 
 
