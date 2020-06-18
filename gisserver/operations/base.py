@@ -7,7 +7,6 @@ This introspection data is also parsed by the GetCapabilities call.
 import re
 from dataclasses import dataclass, field
 
-from django.utils.functional import cached_property
 from typing import Any, Callable, Dict, List, Union
 
 from django.core.exceptions import ImproperlyConfigured, SuspiciousOperation
@@ -276,6 +275,17 @@ class WFSTypeNamesMethod(WFSMethod):
 
     require_type_names = False
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # Retrieve the feature types directly, as these are needed during parsing.
+        # This is not delayed until _parse_type_names() as that wraps any TypeError
+        # from view.get_feature_types() as an InvalidParameterValue exception.
+        self.all_feature_types = self.view.get_feature_types()
+        self.all_feature_types_by_name = _get_feature_types_by_name(
+            self.all_feature_types
+        )
+
     def get_parameters(self):
         return super().get_parameters() + [
             # QGis sends both TYPENAME (wfs 1.x) and TYPENAMES (wfs 2.0) for DescribeFeatureType
@@ -286,14 +296,6 @@ class WFSTypeNamesMethod(WFSMethod):
                 parser=self._parse_type_names,
             )
         ]
-
-    @cached_property
-    def all_feature_types(self) -> List[FeatureType]:
-        return self.view.get_feature_types()
-
-    @cached_property
-    def all_feature_types_by_name(self) -> Dict[str, FeatureType]:
-        return _get_feature_types_by_name(self.all_feature_types)
 
     def _parse_type_names(self, type_names) -> List[FeatureType]:
         """Find the requested feature types by name"""
