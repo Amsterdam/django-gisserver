@@ -80,15 +80,14 @@ class QueryExpression:
         """
         stop = start_index + count
 
-        # The querysets are not executed until the very end.
+        # The querysets are not executed yet, until the output is reading them.
         querysets = self.get_querysets()
-        results = [
-            SimpleFeatureCollection(feature_type, qs, start=start_index, stop=stop)
-            for feature_type, qs in querysets
-        ]
-
-        number_matched = sum(collection.number_matched for collection in results)
-        return FeatureCollection(results=results, number_matched=number_matched)
+        return FeatureCollection(
+            results=[
+                SimpleFeatureCollection(feature_type, qs, start=start_index, stop=stop)
+                for feature_type, qs in querysets
+            ]
+        )
 
     def get_querysets(self) -> List[Tuple[FeatureType, QuerySet]]:
         """Construct the querysets that return the database results."""

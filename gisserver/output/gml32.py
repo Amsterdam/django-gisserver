@@ -383,41 +383,49 @@ class GML32Renderer(OutputRenderer):
 class DBGML32Renderer(GML32Renderer):
     """Faster GetFeature renderer that uses the database to render GML 3.2"""
 
-    def decorate_queryset(self, feature_type, queryset):
+    @classmethod
+    def decorate_queryset(cls, feature_type, queryset, output_crs, **params):
         """Update the queryset to let the database render the GML output.
         This is far more efficient then GeoDjango's logic, which performs a
         C-API call for every single coordinate of a geometry.
         """
         return queryset.annotate(
-            _as_envelope_gml=self.get_db_envelope_as_gml(feature_type, queryset),
+            _as_envelope_gml=cls.get_db_envelope_as_gml(
+                feature_type, queryset, output_crs
+            ),
             **{
-                f"_as_gml_{xsd_element.name}": self.get_db_as_gml(xsd_element.source)
+                f"_as_gml_{xsd_element.name}": cls.get_db_as_gml(
+                    xsd_element.source, output_crs
+                )
                 for xsd_element in feature_type.xsd_fields
                 if xsd_element.is_gml
             },
         )
 
-    def get_db_as_gml(self, field) -> AsGML:
+    @classmethod
+    def get_db_as_gml(cls, field, output_crs) -> AsGML:
         """Offload the GML rendering to the database.
 
         This gives a better performance, as Django GML rendering is slow.
         Django calls the C-api for every single coordinate of a polygon.
         """
-        if field.srid != self.output_crs.srid:
-            value = Transform(field.name, self.output_crs.srid)
+        if field.srid != output_crs.srid:
+            value = Transform(field.name, output_crs.srid)
         else:
             value = field.name
         return _AsGML(value)
 
-    def get_db_envelope_as_gml(self, feature_type, queryset) -> AsGML:
+    @classmethod
+    def get_db_envelope_as_gml(cls, feature_type, queryset, output_crs) -> AsGML:
         """Offload the GML rendering of the envelope to the database.
 
         This also avoids offloads the geometry union calculation to the DB.
         """
-        geo_fields_union = self._get_geometries_union(feature_type, queryset)
+        geo_fields_union = cls._get_geometries_union(feature_type, queryset, output_crs)
         return _AsGML(geo_fields_union, envelope=True)
 
-    def _get_geometries_union(self, feature_type: FeatureType, queryset):
+    @classmethod
+    def _get_geometries_union(cls, feature_type: FeatureType, queryset, output_crs):
         """Combine all geometries of the model in a single SQL function."""
         field_names = feature_type.geometry_field_names
         if len(field_names) == 1:
@@ -431,8 +439,8 @@ class DBGML32Renderer(GML32Renderer):
             # other databases do Union(Union(1, 2), 3)
             union = reduce(Union, field_names)
 
-        if feature_type.geometry_field.srid != self.output_crs.srid:
-            union = Transform(union, self.output_crs.srid)
+        if feature_type.geometry_field.srid != output_crs.srid:
+            union = Transform(union, output_crs.srid)
 
         return union
 
@@ -513,12 +521,18 @@ class GML32ValueRenderer(GML32Renderer):
 class DBGML32ValueRenderer(DBGML32Renderer, GML32ValueRenderer):
     """Faster GetPropertyValue renderer that uses the database to render GML 3.2"""
 
-    def decorate_queryset(self, feature_type: FeatureType, queryset):
+    @classmethod
+    def decorate_queryset(
+        cls, feature_type: FeatureType, queryset, output_crs, **params
+    ):
         """Update the queryset to let the database render the GML output."""
-        if self.element_name in feature_type.geometry_field_names:
+        element_name = params["valueReference"].element_name
+        if element_name in feature_type.geometry_field_names:
             # Add 'gml_member' to point to the pre-rendered GML version.
-            geo_field = feature_type.get_field(self.element_name)
-            return queryset.values("pk", gml_member=self.get_db_as_gml(geo_field))
+            geo_field = feature_type.get_field(element_name)
+            return queryset.values(
+                "pk", gml_member=cls.get_db_as_gml(geo_field, output_crs)
+            )
         else:
             return queryset
 

@@ -268,7 +268,7 @@ class BaseWFSPresentationMethod(WFSTypeNamesMethod):
         return query.get_results(start, count=count)
 
     def get_paginated_results(
-        self, query: queries.QueryExpression, **params
+        self, query: queries.QueryExpression, outputFormat, **params
     ) -> output.FeatureCollection:
         """Handle pagination settings."""
         max_page_size = self.view.max_page_size
@@ -278,6 +278,16 @@ class BaseWFSPresentationMethod(WFSTypeNamesMethod):
 
         # Perform query
         collection = self.get_results(query, start=start, count=page_size)
+
+        # Allow presentation-layer to add extra logic.
+        if outputFormat.renderer_class is not None:
+            output_crs = params["srsName"]
+            if not output_crs and collection.results:
+                output_crs = collection.results[0].feature_type.crs
+
+            outputFormat.renderer_class.decorate_collection(
+                collection, output_crs, **params
+            )
 
         if start > 0:
             collection.previous = self._replace_url_params(

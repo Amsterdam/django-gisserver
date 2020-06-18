@@ -34,13 +34,22 @@ def select_renderer(native_renderer_class, db_renderer_class):
     This allows changing the settings within the app.
     """
 
-    def _dec(*args, **kwargs):
-        if conf.GISSERVER_USE_DB_RENDERING:
-            return db_renderer_class(*args, **kwargs)
-        else:
-            return native_renderer_class(*args, **kwargs)
+    class SelectRenderer:
+        def __new__(cls, *args, **kwargs):
+            # Return the actual class instead
+            if conf.GISSERVER_USE_DB_RENDERING:
+                return db_renderer_class(*args, **kwargs)
+            else:
+                return native_renderer_class(*args, **kwargs)
 
-    return _dec
+        @classmethod
+        def decorate_collection(cls, *args, **kwargs):
+            if conf.GISSERVER_USE_DB_RENDERING:
+                return db_renderer_class.decorate_collection(*args, **kwargs)
+            else:
+                return native_renderer_class.decorate_collection(*args, **kwargs)
+
+    return SelectRenderer
 
 
 gml32_renderer = select_renderer(GML32Renderer, DBGML32Renderer)

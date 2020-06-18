@@ -43,15 +43,21 @@ class OutputRenderer:
         self.server_url = method.view.server_url
         self.app_xml_namespace = method.view.xml_namespace
 
-        # Perform presentation-layer logic enhancements on the output
-        for sub_collection in self.collection.results:
-            queryset = self.decorate_queryset(
-                sub_collection.feature_type, sub_collection.queryset
+    @classmethod
+    def decorate_collection(cls, collection: FeatureCollection, output_crs, **params):
+        """Perform presentation-layer logic enhancements on the queryset."""
+        for sub_collection in collection.results:
+            queryset = cls.decorate_queryset(
+                sub_collection.feature_type,
+                sub_collection.queryset,
+                output_crs,
+                **params
             )
             if queryset is not None:
                 sub_collection.queryset = queryset
 
-    def decorate_queryset(self, feature_type, queryset):
+    @classmethod
+    def decorate_queryset(cls, feature_type, queryset, output_crs, **params):
         """Apply presentation layer logic to the queryset."""
         return queryset
 

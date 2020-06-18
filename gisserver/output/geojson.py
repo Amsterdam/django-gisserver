@@ -176,7 +176,8 @@ class DBGeoJsonRenderer(GeoJsonRenderer):
     This is even more efficient then calling the C-API for each feature.
     """
 
-    def decorate_queryset(self, feature_type, queryset):
+    @classmethod
+    def decorate_queryset(self, feature_type, queryset, output_crs, **params):
         """Update the queryset to let the database render the GML output.
         This is far more efficient then GeoDjango's logic, which performs a
         C-API call for every single coordinate of a geometry.
@@ -184,12 +185,15 @@ class DBGeoJsonRenderer(GeoJsonRenderer):
         # If desired, the entire FeatureCollection could be rendered
         # in PostgreSQL as well: https://postgis.net/docs/ST_AsGeoJSON.html
         return queryset.annotate(
-            _as_db_geojson=self.get_db_as_geojson(feature_type.geometry_field)
+            _as_db_geojson=self.get_db_as_geojson(
+                feature_type.geometry_field, output_crs
+            )
         )
 
-    def get_db_as_geojson(self, field):
-        if field.srid != self.output_crs.srid:
-            value = Transform(field.name, self.output_crs.srid)
+    @classmethod
+    def get_db_as_geojson(self, field, output_crs):
+        if field.srid != output_crs.srid:
+            value = Transform(field.name, output_crs.srid)
         else:
             value = field.name
         return AsGeoJSON(value, precision=16)

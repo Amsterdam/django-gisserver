@@ -5,7 +5,6 @@ properties match the WFS 2.0 spec closely.
 """
 import math
 import operator
-from dataclasses import dataclass
 from functools import reduce
 from typing import List, Optional, Iterable
 
@@ -63,16 +62,36 @@ class SimpleFeatureCollection:
     @cached_property
     def number_returned(self) -> int:
         """Return the number of results for this page."""
-        # Count by fetching all data. Otherwise the results are queried twice.
-        # For GML/XML, it's not possible the stream the queryset results
-        # as the first tag needs to describe the number of results.
-        self.fetch_results()
-        return len(self._result_cache)
+        if self.start == self.stop == 0:
+            return 0  # resulttype=hits
+        else:
+            # Count by fetching all data. Otherwise the results are queried twice.
+            # For GML/XML, it's not possible the stream the queryset results
+            # as the first tag needs to describe the number of results.
+            self.fetch_results()
+            return len(self._result_cache)
 
     @cached_property
     def number_matched(self) -> int:
         """Return the total number of matches across all pages."""
-        return self.queryset.count()
+        page_size = self.stop - self.start
+        if page_size and self.number_returned < page_size:
+            # For resulttype=results, an expensive COUNT query can be avoided
+            # when this is the first and only page or the last page.
+            return self.start + self.number_returned
+
+        qs = self.queryset
+        clean_annotations = {
+            # HACK: remove database optimizations from output renderer.
+            # Otherwise it becomes SELECT COUNT(*) FROM (SELECT AsGML(..), ...)
+            key: value
+            for key, value in qs.query.annotations.items()
+            if not key.startswith("_as_")
+        }
+        if clean_annotations != qs.query.annotations:
+            qs = self.queryset.all()  # make a clone to allow editing
+            qs.query.annotations = clean_annotations
+        return qs.count()
 
     def get_bounding_box(self) -> BoundingBox:
         """Determine bounding box of all items."""
@@ -91,25 +110,31 @@ class SimpleFeatureCollection:
         return bbox
 
 
-@dataclass
+CALCULATE = -9999999
+
+
 class FeatureCollection:
     """WFS object that holds the result type for GetFeature.
     This object type is defined in the WFS spec.
     """
 
-    #: All retrieved feature collections (one per FeatureType)
-    results: List[SimpleFeatureCollection]
-
-    #: Total number of features across all pages
-    number_matched: Optional[int] = None
-
-    #: URL of the next page
-    next: Optional[str] = None
-
-    #: URL of the previous page
-    previous: Optional[str] = None
-
-    def __post_init__(self):
+    def __init__(
+        self,
+        results: List[SimpleFeatureCollection],
+        number_matched: Optional[int] = CALCULATE,
+        next: Optional[str] = None,
+        previous: Optional[str] = None,
+    ):
+        """
+        :param results: All retrieved feature collections (one per FeatureType)
+        :param number_matched: Total number of features across all pages
+        :param next: URL of the next page
+        :param previous: URL of the previous page
+        """
+        self.results = results
+        self._number_matched = number_matched
+        self.next = next
+        self.previous = previous
         self.timestamp = now().astimezone(utc).isoformat()
 
     def get_bounding_box(self) -> BoundingBox:
@@ -121,6 +146,20 @@ class FeatureCollection:
     def number_returned(self) -> int:
         """Return the total number of returned features"""
         return sum(c.number_returned for c in self.results)
+
+    @cached_property
+    def number_matched(self) -> Optional[int]:
+        """The number of features matched, None means "unknown"."""
+        if self._number_matched is None:
+            return None  # WFS allows returning this as "unknown"
+        elif self._number_matched == CALCULATE:
+            # By making the number_matched lazy, the calling method has a chance to
+            # decorate the results with extra annotations before they are evaluated.
+            # This is needed since SimpleCollection.number_matched already evaluates the queryset.
+            return sum(c.number_matched for c in self.results)
+        else:
+            # Evaluate any lazy attributes
+            return int(self._number_matched)
 
     def __iter__(self):
         return iter(self.results)

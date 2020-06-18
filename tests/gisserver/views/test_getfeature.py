@@ -437,14 +437,14 @@ class TestGetFeature:
         assert names == expect
 
     def test_get_geojson(
-        self, client, restaurant, bad_restaurant, django_assert_num_queries
+        self, client, restaurant, bad_restaurant, django_assert_max_num_queries
     ):
         """Prove that the geojson export works.
 
         Including 2 objects to prove that the list rendering
         also includes comma's properly.
         """
-        with django_assert_num_queries(2):
+        with django_assert_max_num_queries(2):
             response = client.get(
                 "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
                 "&outputformat=geojson"
