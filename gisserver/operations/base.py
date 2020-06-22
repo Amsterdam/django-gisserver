@@ -13,7 +13,11 @@ from django.core.exceptions import ImproperlyConfigured, SuspiciousOperation
 from django.http import HttpResponse
 from django.template.loader import render_to_string
 
-from gisserver.exceptions import InvalidParameterValue, MissingParameterValue
+from gisserver.exceptions import (
+    InvalidParameterValue,
+    MissingParameterValue,
+    OperationParsingFailed,
+)
 from gisserver.features import FeatureType
 
 NoneType = type(None)
@@ -307,13 +311,21 @@ class WFSTypeNamesMethod(WFSMethod):
 
     def _parse_type_names(self, type_names) -> List[FeatureType]:
         """Find the requested feature types by name"""
+        if "(" in type_names:
+            # This allows to perform multiple queries in a single request:
+            # TYPENAMES=(A)(B)&FILTER=(filter for A)(filter for B)
+            raise OperationParsingFailed(
+                "typenames",
+                "Parameter lists to perform multiple queries are not supported yet.",
+            )
+
         features = []
         for name in type_names.split(","):
             try:
                 feature = self.all_feature_types_by_name[name]
             except KeyError:
                 raise InvalidParameterValue(
-                    "typename",
+                    "typenames",
                     f"Typename '{name}' doesn't exist in this server. "
                     f"Please check the capabilities and reformulate your request.",
                 ) from None
