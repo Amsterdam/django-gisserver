@@ -72,7 +72,8 @@ class CompiledQuery:
 
         This includes the XPath expression to the query, in case that adds
         extra lookups. The name (or alias) is returned that can be used in the
-         ``queryset.values()`` result
+         ``queryset.values()`` result. This is needed to support cases like
+        these in the future: ``addresses/Address[street="Oxfordstrasse"]/number``
         """
         return value_reference.build_rhs(self)
 

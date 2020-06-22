@@ -118,6 +118,8 @@ class QueryExpression:
                 )
 
             # For GetPropertyValue, adjust the query so only that value is requested.
+            # This makes sure XPath attribute selectors are already handled by the
+            # database query, instead of being a presentation-layer handling.
             field = compiler.add_value_reference(self.value_reference)
             queryset = compiler.filter_queryset(queryset, feature_type=feature_type)
             return queryset.values("pk", member=field)
