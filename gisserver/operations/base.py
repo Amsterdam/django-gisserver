@@ -130,6 +130,9 @@ class OutputFormat:
         extra = "".join(f"; {name}={value}" for name, value in self.extra.items())
         return f"{self.content_type}{extra}"
 
+    def __repr__(self):
+        return f"<OutputFormat: {self}>"
+
 
 class WFSMethod:
     """Basic interface to implement an WFS method.
