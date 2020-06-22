@@ -70,6 +70,7 @@ class FeatureType:
     def __init__(
         self,
         queryset: models.QuerySet,
+        *,
         fields: Union[str, List[str], NoneType] = None,
         geometry_field_name: str = None,
         name: str = None,
