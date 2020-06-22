@@ -189,7 +189,7 @@ class FeatureType:
                     return xsd_type
 
         if model_field.name in self.geometry_field_names:
-            return XsdTypes.gmlAbstractGeometryType
+            return XsdTypes.gmlGeometryPropertyType
         else:
             # Default XML choice:
             return DEFAULT_XSD_TYPE
