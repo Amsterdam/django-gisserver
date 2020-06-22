@@ -217,7 +217,12 @@ class WFSMethod:
         if param_values.get("version"):
             self.view.set_version(param_values["version"])
 
+        self.validate(**param_values)
         return param_values
+
+    def validate(self, **params):
+        """Perform final request parameter validation before the method is called"""
+        pass
 
     def __call__(self, **params):
         """Default call implementation: render an XML template."""
