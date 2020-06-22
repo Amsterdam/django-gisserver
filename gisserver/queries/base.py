@@ -38,7 +38,7 @@ class QueryExpression:
     def check_permissions(self, request):
         """Verify whether the user has access to view these data sources"""
         for feature_type in self.get_type_names():
-            feature_type.check_permission(request)
+            feature_type.check_permissions(request)
 
     def resolve_type_name(self, type_name, locator="") -> FeatureType:
         """Find the feature type for a given name.

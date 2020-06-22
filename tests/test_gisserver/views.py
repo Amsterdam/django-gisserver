@@ -7,7 +7,7 @@ from tests.test_gisserver.models import Restaurant
 
 
 class DeniedFeatureType(FeatureType):
-    def check_permission(self, request):
+    def check_permissions(self, request):
         raise PermissionDenied("No access to this feature.")
 
 
