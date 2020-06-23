@@ -6,7 +6,7 @@ import re
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal as D
-from django.db import models
+from django.utils.functional import cached_property
 from typing import List, Optional, Tuple, Union
 from xml.etree.ElementTree import Element
 
@@ -14,7 +14,6 @@ from django.contrib.gis.geos import GEOSGeometry
 from django.db.models import F, Func, Q, Value
 from django.db.models.expressions import Combinable
 
-from gisserver.features import FeatureType
 from gisserver.parsers.base import FES20, BaseNode, TagNameEnum, tag_registry
 from gisserver.parsers.fes20.functions import function_registry
 from gisserver.parsers.utils import auto_cast, expect_tag, get_attribute, xsd_cast
@@ -145,21 +144,7 @@ class ValueReference(Expression):
 
         return orm_field, None
 
-    def resolve_field(self, feature_type: FeatureType) -> models.Field:
-        """Find the model field that this value reference points to."""
-        model = feature_type.model
-        fields = [word.strip() for word in self.xpath.split("/")]
-        field: models.Field = model._meta.get_field(fields[0])
-
-        # Walk relations
-        for name in fields[1:]:
-            if not field.is_relation:
-                raise ValueError(f"invalid xpath: {self.xpath}")
-            field = field.remote_field.model._meta.get_field(name)
-
-        return field
-
-    @property
+    @cached_property
     def element_name(self):
         """Tell which element this reference points to."""
         try:

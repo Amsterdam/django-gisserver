@@ -43,7 +43,8 @@ class SimpleFeatureCollection:
             # resulttype=hits
             return iter([])
         else:
-            return self.queryset[self.start : self.stop].iterator()
+            # Not using .iterator() here, as that breaks prefetch_related()
+            return iter(self.queryset[self.start : self.stop])
 
     def first(self):
         try:

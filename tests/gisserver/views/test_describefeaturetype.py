@@ -43,9 +43,9 @@ class TestDescribeFeatureType:
    elementFormDefault="qualified" version="0.1" >
 
   <import namespace="http://www.opengis.net/gml/3.2" schemaLocation="http://schemas.opengis.net/gml/3.2.1/gml.xsd" />
-  <element name="restaurant" type="app:restaurantType" substitutionGroup="gml:AbstractFeature" />
+  <element name="restaurant" type="app:RestaurantType" substitutionGroup="gml:AbstractFeature" />
 
-  <complexType name="restaurantType">
+  <complexType name="RestaurantType">
     <complexContent>
       <extension base="gml:AbstractFeatureType">
         <sequence>
@@ -59,6 +59,7 @@ class TestDescribeFeatureType:
       </extension>
     </complexContent>
   </complexType>
+
 </schema>""",  # noqa: E501
         )
 

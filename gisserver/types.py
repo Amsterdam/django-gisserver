@@ -9,7 +9,7 @@ from enum import Enum
 from django.contrib.gis.db.models import GeometryField
 from django.db import models
 from functools import lru_cache
-from typing import Optional, Union
+from typing import List, Optional, Type, Union
 
 from django.contrib.gis.gdal import CoordTransform, SpatialReference
 from django.contrib.gis.geos import GEOSGeometry, Polygon
@@ -28,10 +28,26 @@ __all__ = [
     "BoundingBox",
     "CRS",
     "WGS84",
+    "XsdAnyType",
+    "XsdTypes",
+    "XsdComplexType",
 ]
 
 
-class XsdTypes(Enum):
+class XsdAnyType:
+    """Base class for all types used in the XML definition"""
+
+    prefix = None
+    is_complex_type = False
+
+    def __str__(self):
+        raise NotImplementedError()
+
+    def with_prefix(self, prefix="xs"):
+        raise NotImplementedError()
+
+
+class XsdTypes(XsdAnyType, Enum):
     """Brief enumeration of basic XSD-types.
 
     The default namespace is the "xs:" (XMLSchema).
@@ -72,6 +88,9 @@ class XsdTypes(Enum):
     #: A direct geometry value
     gmlAbstractGeometryType = "gml:AbstractGeometryType"
 
+    #: A feature that has an gml:name and gml:boundedBy as posible child element.
+    gmlAbstractFeatureType = "gml:AbstractFeatureType"
+
     def __str__(self):
         return self.value
 
@@ -92,7 +111,7 @@ class XsdElement:
     """Declare an XSD element"""
 
     name: str
-    type: XsdTypes
+    type: XsdAnyType  # Both XsdComplexType and XsdType are allowed
     nillable: Optional[bool] = None
     min_occurs: Optional[int] = None
     max_occurs: Optional[int] = None
@@ -134,6 +153,57 @@ class XsdElement:
         except AttributeError:
             # E.g. Django foreign keys that point to a non-existing member.
             return None
+
+
+@dataclass(frozen=True)
+class XsdComplexType(XsdAnyType):
+    """Define an <xsd:complexType> that represents a whole class definition.
+
+    By default, The type is declared as subclass of <gml:AbstractFeatureType>,
+    which allows child elements like <gml:name> and <gml:boundedBy>.
+    """
+
+    name: str
+    elements: List[XsdElement]
+    base: XsdTypes = XsdTypes.gmlAbstractFeatureType
+    source: Optional[Type[models.Model]] = None
+
+    def __str__(self):
+        return f"{self.prefix}:{self.name}"
+
+    @property
+    def is_complex_type(self):
+        return True
+
+    @property
+    def prefix(self):
+        # mimic API of XsdTypes
+        return "app"
+
+    def with_prefix(self, prefix="xs"):
+        # mimic API of XsdTypes
+        return str(self)
+
+    def resolve_element(self, xpath: str) -> Optional[XsdElement]:
+        """Resolve an xpath reference to the actual node."""
+        try:
+            pos = xpath.rindex("/")
+            node_name = xpath[:pos]
+        except ValueError:
+            node_name = xpath
+            pos = 0
+
+        for element in self.elements:
+            if element.name == node_name:
+                if pos:
+                    if not element.type.is_complex_type:
+                        return None
+                    else:
+                        return element.type.resolve_element(xpath[pos + 1 :])
+                else:
+                    return element
+
+        return None
 
 
 @lru_cache(maxsize=100)

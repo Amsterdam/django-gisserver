@@ -1,9 +1,9 @@
-import django
 import json
-import pytest
 from urllib.parse import quote_plus
 from xml.etree.ElementTree import QName
 
+import django
+import pytest
 from gisserver.types import WGS84
 from tests.constants import NAMESPACES
 from tests.gisserver.views.input import (
@@ -13,6 +13,7 @@ from tests.gisserver.views.input import (
     POINT1_XML_RD,
     POINT1_XML_WGS84,
     POINT2_GEOJSON,
+    POINT2_XML_WGS84,
     SORT_BY,
 )
 from tests.test_gisserver.models import Restaurant
@@ -185,6 +186,85 @@ class TestGetFeature:
         </app:location>
       </app:mini-restaurant>
     </wfs:member>
+</wfs:FeatureCollection>""",  # noqa: E501
+        )
+
+    def test_get_complex(self, client, restaurant, bad_restaurant):
+        """Prove that rendering complex types works."""
+        response = client.get(
+            "/v1/wfs-complextypes/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
+            "&TYPENAMES=restaurant"
+        )
+        content = read_response(response)
+        assert response["content-type"] == "text/xml; charset=utf-8", content
+        assert response.status_code == 200, content
+        assert "</wfs:FeatureCollection>" in content
+
+        # Validate against the WFS 2.0 XSD
+        xml_doc = validate_xsd(content, WFS_20_XSD)
+        assert xml_doc.attrib["numberMatched"] == "2"
+        assert xml_doc.attrib["numberReturned"] == "2"
+
+        # See whether our feature is rendered
+        timestamp = xml_doc.attrib["timeStamp"]
+
+        assert_xml_equal(
+            content,
+            f"""<wfs:FeatureCollection
+   xmlns:app="http://example.org/gisserver"
+   xmlns:gml="http://www.opengis.net/gml/3.2"
+   xmlns:wfs="http://www.opengis.net/wfs/2.0"
+   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+   xsi:schemaLocation="http://example.org/gisserver http://testserver/v1/wfs-complextypes/?SERVICE=WFS&amp;VERSION=2.0.0&amp;REQUEST=DescribeFeatureType&amp;TYPENAMES=restaurant http://www.opengis.net/wfs/2.0 http://schemas.opengis.net/wfs/2.0/wfs.xsd http://www.opengis.net/gml/3.2 http://schemas.opengis.net/gml/3.2.1/gml.xsd"
+   timeStamp="{timestamp}" numberMatched="2" numberReturned="2">
+
+    <wfs:member>
+      <app:restaurant gml:id="restaurant.{restaurant.id}">
+        <gml:name>Café Noir</gml:name>
+        <gml:boundedBy>
+          <gml:Envelope srsDimension="2" srsName="urn:ogc:def:crs:EPSG::4326">
+            <gml:lowerCorner>{POINT1_XML_WGS84}</gml:lowerCorner>
+            <gml:upperCorner>{POINT1_XML_WGS84}</gml:upperCorner>
+          </gml:Envelope>
+        </gml:boundedBy>
+        <app:id>{restaurant.id}</app:id>
+        <app:name>Café Noir</app:name>
+        <app:city>
+          <app:id>{restaurant.city_id}</app:id>
+          <app:name>CloudCity</app:name>
+        </app:city>
+        <app:location>
+          <gml:Point gml:id="restaurant.{restaurant.id}.1" srsName="urn:ogc:def:crs:EPSG::4326">
+            <gml:pos srsDimension="2">{POINT1_XML_WGS84}</gml:pos>
+          </gml:Point>
+        </app:location>
+        <app:rating>5.0</app:rating>
+        <app:created>2020-04-05T12:11:10+00:00</app:created>
+      </app:restaurant>
+    </wfs:member>
+
+    <wfs:member>
+      <app:restaurant gml:id="restaurant.{bad_restaurant.id}">
+        <gml:name>Foo Bar</gml:name>
+        <gml:boundedBy>
+          <gml:Envelope srsDimension="2" srsName="urn:ogc:def:crs:EPSG::4326">
+            <gml:lowerCorner>{POINT2_XML_WGS84}</gml:lowerCorner>
+            <gml:upperCorner>{POINT2_XML_WGS84}</gml:upperCorner>
+          </gml:Envelope>
+        </gml:boundedBy>
+        <app:id>{bad_restaurant.id}</app:id>
+        <app:name>Foo Bar</app:name>
+        <app:city xsi:nil="true" />
+        <app:location>
+          <gml:Point gml:id="restaurant.{bad_restaurant.id}.1" srsName="urn:ogc:def:crs:EPSG::4326">
+            <gml:pos srsDimension="2">{POINT2_XML_WGS84}</gml:pos>
+          </gml:Point>
+        </app:location>
+        <app:rating>1.0</app:rating>
+        <app:created>2020-04-05T12:11:10+00:00</app:created>
+      </app:restaurant>
+    </wfs:member>
+
 </wfs:FeatureCollection>""",  # noqa: E501
         )
 
@@ -516,6 +596,69 @@ class TestGetFeature:
         assert len(data["features"]) == 1000
         assert data["numberReturned"] == 1000
         assert data["numberMatched"] == 1500
+
+    def test_get_geojson_complex(
+        self, client, restaurant, bad_restaurant, django_assert_max_num_queries
+    ):
+        """Prove that the geojson export works for complex field types.
+
+        Including 2 objects to prove that the list rendering
+        also includes comma's properly.
+        """
+        with django_assert_max_num_queries(2):
+            response = client.get(
+                "/v1/wfs-complextypes/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
+                "&TYPENAMES=restaurant&outputformat=geojson"
+            )
+            assert response["content-type"] == "application/json; charset=utf-8"
+            content = read_response(response)
+            assert response.status_code == 200, content
+
+        data = self.read_json(content)
+
+        assert data == {
+            "type": "FeatureCollection",
+            "links": [],
+            "timeStamp": data["timeStamp"],
+            "numberMatched": 2,
+            "numberReturned": 2,
+            "crs": {
+                "type": "name",
+                "properties": {"name": "urn:ogc:def:crs:EPSG::4326"},
+            },
+            "features": [
+                {
+                    "type": "Feature",
+                    "id": f"restaurant.{restaurant.id}",
+                    "geometry_name": "Café Noir",
+                    "geometry": {"type": "Point", "coordinates": POINT1_GEOJSON},
+                    "properties": {
+                        "id": restaurant.id,
+                        "name": "Café Noir",
+                        "city": {
+                            # City is expanded, following the type definition
+                            "id": restaurant.city_id,
+                            "name": "CloudCity",
+                        },
+                        "rating": 5.0,
+                        "created": "2020-04-05T12:11:10+00:00",
+                    },
+                },
+                {
+                    "type": "Feature",
+                    "id": f"restaurant.{bad_restaurant.id}",
+                    "geometry_name": "Foo Bar",
+                    "geometry": {"type": "Point", "coordinates": POINT2_GEOJSON},
+                    "properties": {
+                        "id": bad_restaurant.id,
+                        "name": "Foo Bar",
+                        "city": None,
+                        "rating": 1.0,
+                        "created": "2020-04-05T12:11:10+00:00",
+                    },
+                },
+            ],
+        }
 
     def test_resource_id(self, client, restaurant, bad_restaurant):
         """Prove that fetching objects by ID works."""

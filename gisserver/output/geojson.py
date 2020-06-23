@@ -1,4 +1,6 @@
 """Output rendering logic for GeoJSON."""
+from typing import cast
+
 from datetime import datetime
 
 import orjson
@@ -7,6 +9,7 @@ from django.contrib.gis.db.models.functions import AsGeoJSON, Transform
 from django.db import models
 from django.utils.timezone import utc
 from gisserver.features import FeatureType
+from gisserver.types import XsdComplexType
 
 from .base import BytesBuffer, OutputRenderer
 
@@ -88,7 +91,7 @@ class GeoJsonRenderer(OutputRenderer):
         """Render the output of a single feature"""
 
         # Get all instance attributes:
-        properties = self.get_properties(feature_type, instance)
+        properties = self.get_properties(feature_type.xsd_type, instance)
 
         return (
             b"    {"
@@ -108,6 +111,9 @@ class GeoJsonRenderer(OutputRenderer):
     def _format_geojson_value(self, value):
         if isinstance(value, datetime):
             return value.astimezone(utc)
+        elif isinstance(value, models.Model):
+            # ForeignKey, not defined as complex type.
+            return str(value)
         else:
             return value
 
@@ -162,18 +168,26 @@ class GeoJsonRenderer(OutputRenderer):
             )
         return links
 
-    def get_properties(self, feature_type: FeatureType, instance: models.Model) -> dict:
-        """Collect the data for the 'properties' field"""
+    def get_properties(self, xsd_type: XsdComplexType, instance: models.Model) -> dict:
+        """Collect the data for the 'properties' field.
+
+        This is based on the original XSD definition,
+        so the rendering is consistent with other output formats.
+        """
         props = {}
-        for name in feature_type.fields:
-            if name not in feature_type.geometry_field_names:
-                try:
-                    value = getattr(instance, name)
-                except AttributeError:
-                    # E.g. Django foreign keys that point to a non-existing member.
-                    props[name] = None
+        for xsd_element in xsd_type.elements:
+            if not xsd_element.is_gml:
+                value = xsd_element.get_value(instance)
+                if xsd_element.type.is_complex_type:
+                    # Nested object data
+                    if value is None:
+                        props[xsd_element.name] = None
+                    else:
+                        xsd_type = cast(XsdComplexType, xsd_element.type)
+                        props[xsd_element.name] = self.get_properties(xsd_type, value)
                 else:
-                    props[name] = self._format_geojson_value(value)
+                    # Scalar value
+                    props[xsd_element.name] = self._format_geojson_value(value)
 
         return props
 
@@ -190,6 +204,9 @@ class DBGeoJsonRenderer(GeoJsonRenderer):
         This is far more efficient then GeoDjango's logic, which performs a
         C-API call for every single coordinate of a geometry.
         """
+        queryset = super().decorate_queryset(
+            feature_type, queryset, output_crs, **params
+        )
         # If desired, the entire FeatureCollection could be rendered
         # in PostgreSQL as well: https://postgis.net/docs/ST_AsGeoJSON.html
         return queryset.annotate(

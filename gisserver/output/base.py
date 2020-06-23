@@ -1,11 +1,13 @@
 import io
 
 from django.conf import settings
+from django.db.models import Prefetch
 from django.http import HttpResponse, StreamingHttpResponse
 from django.utils.html import escape
 
 from gisserver.operations.base import WFSMethod
-from gisserver.types import CRS
+from gisserver.types import CRS, XsdElement
+
 from .results import FeatureCollection
 
 
@@ -52,7 +54,7 @@ class OutputRenderer:
                 sub_collection.feature_type,
                 sub_collection.queryset,
                 output_crs,
-                **params
+                **params,
             )
             if queryset is not None:
                 sub_collection.queryset = queryset
@@ -60,7 +62,23 @@ class OutputRenderer:
     @classmethod
     def decorate_queryset(cls, feature_type, queryset, output_crs, **params):
         """Apply presentation layer logic to the queryset."""
+        # Avoid fetching relations, fetch these within the same query,
+        related = [
+            Prefetch(
+                xsd_element.name,
+                queryset=cls.get_prefetch_queryset(xsd_element, output_crs),
+            )
+            for xsd_element in feature_type.xsd_type.elements
+            if xsd_element.type.is_complex_type
+        ]
+        if related:
+            queryset = queryset.prefetch_related(*related)
+
         return queryset
+
+    @classmethod
+    def get_prefetch_queryset(cls, xsd_element: XsdElement, output_crs: CRS):
+        return None
 
     def get_response(self):
         """Render the output as streaming response."""

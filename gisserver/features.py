@@ -1,9 +1,8 @@
 """Dataclasses that expose the metadata for the GetCapabilities call."""
 import html
-from functools import reduce
-
 import operator
 from dataclasses import dataclass
+from functools import lru_cache, reduce
 from typing import List, Optional, Union
 
 from django.contrib.gis.db import models as gis_models
@@ -14,7 +13,15 @@ from django.db import models
 from django.db.models.fields.reverse_related import ForeignObjectRel
 from django.utils.functional import cached_property  # py3.8: functools
 
-from gisserver.types import CRS, WGS84, BoundingBox, XsdElement, XsdTypes
+from gisserver.types import (
+    CRS,
+    WGS84,
+    BoundingBox,
+    XsdAnyType,
+    XsdComplexType,
+    XsdElement,
+    XsdTypes,
+)
 
 NoneType = type(None)
 
@@ -125,6 +132,8 @@ class FeatureType:
             if isinstance(f, gis_models.GeometryField)
         ]
 
+        self.resolve_element = lru_cache(100)(self.resolve_element)
+
     def check_permissions(self, request):
         """Hook that allows subclasses to reject access for datasets.
         It may raise a Django PermissionDenied error.
@@ -167,7 +176,7 @@ class FeatureType:
         """Return a single field from the model."""
         return self.model._meta.get_field(field_name)
 
-    def get_field_type(self, model_field: models.Field) -> XsdTypes:
+    def get_field_type(self, field_name: str, model_field: models.Field) -> XsdAnyType:
         """Determine the XSD field type for a Django field."""
         try:
             # Direct instance, quickly resolved!
@@ -177,10 +186,12 @@ class FeatureType:
 
         if isinstance(model_field, models.ForeignKey):
             # Don't let it query on the relation value yet
-            return self.get_field_type(model_field.target_field)
+            return self.get_field_type(field_name, model_field.target_field)
         elif isinstance(model_field, ForeignObjectRel):
             # e.g. ManyToOneRel descriptor of a foreignkey_id field.
-            return self.get_field_type(model_field.remote_field.target_field)
+            return self.get_field_type(
+                field_name, model_field.remote_field.target_field
+            )
         elif model_field.name == self.geometry_field_name:
             return XsdTypes.gmlGeometryPropertyType
         else:
@@ -262,20 +273,28 @@ class FeatureType:
         return BoundingBox.from_geometry(geometry, crs=crs)
 
     @cached_property
-    def xsd_fields(self) -> List[XsdElement]:
-        """Return the definition of this feature as a list of XSD elements."""
-        return [self.get_xsd_field(name) for name in self.fields]
+    def xsd_type(self) -> XsdComplexType:
+        """Return the definition of this feature as an XSD Complex Type."""
+        return XsdComplexType(
+            name=f"{self.name.title()}Type",
+            elements=[self.get_xsd_element(name) for name in self.fields],
+            source=self.model,
+        )
 
-    def get_xsd_field(self, name):
+    def get_xsd_element(self, name) -> XsdElement:
         """Define the XMLSchema definition for a model field.
         This is used in DescribeFeatureType.
         """
         field = self.get_field(name)
         return XsdElement(
             name=name,
-            type=self.get_field_type(field),
+            type=self.get_field_type(name, field),
             nillable=field.null,
             min_occurs=0,
             max_occurs=1 if isinstance(field, GeometryField) else None,
             source=field,
         )
+
+    def resolve_element(self, xpath: str):
+        """Resolve the element"""
+        return self.xsd_type.resolve_element(xpath)

@@ -3,17 +3,15 @@
 Note that the Django format_html() / mark_safe() logic is not used here,
 as it's quite a performance improvement to just use html.escape().
 """
-from typing import Optional
-
-from functools import reduce
-
-import re
-
 import itertools
+import re
 from datetime import date, datetime, time
+from functools import reduce
 from html import escape
+from typing import Optional, cast
 
 from django.contrib.gis import geos
+from django.contrib.gis.db.models import GeometryField
 from django.contrib.gis.db.models.functions import AsGML, Transform, Union
 from django.db import connections, models
 from django.http import HttpResponse
@@ -22,7 +20,7 @@ from django.utils.timezone import utc
 from gisserver.exceptions import NotFound
 from gisserver.features import FeatureType
 from gisserver.parsers.fes20 import ValueReference
-from gisserver.types import XsdElement
+from gisserver.types import CRS, XsdComplexType, XsdElement
 
 from .base import OutputRenderer, StringBuffer
 
@@ -227,7 +225,7 @@ class GML32Renderer(OutputRenderer):
             output.write(gml)
 
         # Add all members
-        for xsd_element in feature_type.xsd_fields:
+        for xsd_element in feature_type.xsd_type.elements:
             output.write(self.render_element(feature_type, xsd_element, instance))
 
         output.write(f"    </app:{feature_type.name}>\n")
@@ -251,7 +249,8 @@ class GML32Renderer(OutputRenderer):
     ):
         """Rendering of a single field."""
         value = xsd_element.get_value(instance)
-        if isinstance(value, geos.GEOSGeometry):
+        if xsd_element.is_gml and value is not None:
+            # None check happens here to avoid incrementing for none values
             self.gml_seq += 1
             return self.render_gml_field(
                 feature_type,
@@ -260,14 +259,26 @@ class GML32Renderer(OutputRenderer):
                 gml_id=self.get_gml_id(feature_type, instance.pk, seq=self.gml_seq),
             )
         else:
-            return self.render_xml_field(feature_type, xsd_element.name, value)
+            return self.render_xml_field(feature_type, xsd_element, value)
 
     def render_xml_field(
-        self, feature_type: FeatureType, name: str, value, extra_xmlns=""
+        self, feature_type: FeatureType, xsd_element: XsdElement, value, extra_xmlns=""
     ) -> str:
         """Write the value of a single field."""
+        name = xsd_element.name
         if value is None:
             return f'      <app:{name} xsi:nil="true"{extra_xmlns} />\n'
+        elif xsd_element.type.is_complex_type:
+            # Expanded foreign relation / dictionary
+            xsd_type = cast(XsdComplexType, xsd_element.type)
+            output = StringBuffer()
+            output.write(f"      <app:{name}>\n")
+            for sub_element in xsd_type.elements:
+                output.write(
+                    self.render_element(feature_type, sub_element, instance=value)
+                )
+            output.write(f"      </app:{name}>\n")
+            return output.getvalue()
         elif isinstance(value, datetime):
             value = value.astimezone(utc).isoformat()
         elif isinstance(value, (date, time)):
@@ -389,18 +400,32 @@ class DBGML32Renderer(GML32Renderer):
         This is far more efficient then GeoDjango's logic, which performs a
         C-API call for every single coordinate of a geometry.
         """
+        queryset = super().decorate_queryset(
+            feature_type, queryset, output_crs, **params
+        )
         return queryset.annotate(
             _as_envelope_gml=cls.get_db_envelope_as_gml(
                 feature_type, queryset, output_crs
             ),
-            **{
-                f"_as_gml_{xsd_element.name}": cls.get_db_as_gml(
-                    xsd_element.source, output_crs
-                )
-                for xsd_element in feature_type.xsd_fields
-                if xsd_element.is_gml
-            },
+            **cls.get_db_as_annotations(feature_type.xsd_type, output_crs),
         )
+
+    @classmethod
+    def get_prefetch_queryset(cls, xsd_element: XsdElement, output_crs: CRS):
+        """Perform DB annotations for the prefetched relation too."""
+        xsd_type: XsdComplexType = cast(XsdComplexType, xsd_element.type)
+        model = xsd_type.source
+        return model.objects.annotate(**cls.get_db_as_annotations(xsd_type, output_crs))
+
+    @classmethod
+    def get_db_as_annotations(cls, xsd_type: XsdComplexType, output_crs) -> dict:
+        return {
+            f"_as_gml_{xsd_element.name}": cls.get_db_as_gml(
+                cast(GeometryField, xsd_element.source), output_crs
+            )
+            for xsd_element in xsd_type.elements
+            if xsd_element.is_gml
+        }
 
     @classmethod
     def get_db_as_gml(cls, field, output_crs) -> AsGML:
@@ -450,6 +475,10 @@ class DBGML32Renderer(GML32Renderer):
         if xsd_element.is_gml:
             # Optimized path, pre-rendered GML
             value = getattr(instance, f"_as_gml_{xsd_element.name}")
+            if value is None:
+                # Avoid incrementing gml_seq
+                return f'      <app:{xsd_element.name} xsi:nil="true" />\n'
+
             self.gml_seq += 1
             return self.render_db_gml_field(
                 feature_type,
@@ -493,28 +522,27 @@ class GML32ValueRenderer(GML32Renderer):
 
     def __init__(self, *args, value_reference: ValueReference, **kwargs):
         self.value_reference = value_reference
-        self.element_name = self.value_reference.element_name
         super().__init__(*args, **kwargs)
 
     def render_wfs_member(
         self, feature_type: FeatureType, instance: dict, extra_xmlns=""
     ) -> str:
         """Write the XML for a single object."""
-        gml_seq = 0
         value = instance["member"]
         if isinstance(value, geos.GEOSGeometry):
-            gml_seq += 1
             gml_id = self.get_gml_id(feature_type, instance["pk"], seq=1)
             return self.render_gml_field(
                 feature_type,
-                name=self.element_name,
+                name=self.value_reference.element_name,
                 value=value,
                 gml_id=gml_id,
                 extra_xmlns=extra_xmlns,
             )
         else:
+            # The xsd_element is needed so render_xml_field() can render complex types.
+            xsd_element = feature_type.resolve_element(self.value_reference.xpath)
             return self.render_xml_field(
-                feature_type, self.element_name, value, extra_xmlns=extra_xmlns
+                feature_type, xsd_element, value, extra_xmlns=extra_xmlns
             )
 
 
@@ -526,12 +554,13 @@ class DBGML32ValueRenderer(DBGML32Renderer, GML32ValueRenderer):
         cls, feature_type: FeatureType, queryset, output_crs, **params
     ):
         """Update the queryset to let the database render the GML output."""
-        element_name = params["valueReference"].element_name
-        if element_name in feature_type.geometry_field_names:
+        value_reference = params["valueReference"]
+        xsd_element = feature_type.xsd_type.resolve_element(value_reference.xpath)
+        if xsd_element.is_gml:
             # Add 'gml_member' to point to the pre-rendered GML version.
-            geo_field = feature_type.get_field(element_name)
+            geometry_field = cast(GeometryField, xsd_element.source)
             return queryset.values(
-                "pk", gml_member=cls.get_db_as_gml(geo_field, output_crs)
+                "pk", gml_member=cls.get_db_as_gml(geometry_field, output_crs),
             )
         else:
             return queryset
@@ -543,7 +572,10 @@ class DBGML32ValueRenderer(DBGML32Renderer, GML32ValueRenderer):
         if "gml_member" in instance:
             gml_id = self.get_gml_id(feature_type, instance["pk"], seq=1)
             return self.render_db_gml_field(
-                feature_type, self.element_name, instance["gml_member"], gml_id=gml_id,
+                feature_type,
+                self.value_reference.element_name,
+                instance["gml_member"],
+                gml_id=gml_id,
             )
         else:
             return super().render_wfs_member(

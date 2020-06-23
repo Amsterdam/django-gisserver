@@ -1,7 +1,10 @@
+from collections import deque
+
 from typing import List
 
 from gisserver.features import FeatureType
 from gisserver.operations.base import WFSMethod
+from gisserver.types import XsdComplexType
 from .base import OutputRenderer, StringBuffer
 
 
@@ -47,33 +50,68 @@ class XMLSchemaRenderer(OutputRenderer):
             ' schemaLocation="http://schemas.opengis.net/gml/3.2.1/gml.xsd" />\n'
         )
 
-    def render_feature_type(self, feature_type):
+    def render_feature_type(self, feature_type: FeatureType):
         output = StringBuffer()
-        class_name = f"{feature_type.name}Type"
+        xsd_type: XsdComplexType = feature_type.xsd_type
 
-        # This declares the that the <app:featureName> is a class of a type.
+        # This declares the that a top-level <app:featureName> is a class of a type.
         output.write(
             f'  <element name="{feature_type.name}"'
-            f' type="app:{class_name}" substitutionGroup="gml:AbstractFeature" />\n\n'
+            f' type="{xsd_type}" substitutionGroup="gml:AbstractFeature" />\n\n'
         )
 
         # Next, the complexType is rendered that defines the element contents.
-        # The type is declared as subclass of <gml:AbstractFeatureType>,
-        # which allows child elements like <gml:name> and <gml:boundedBy>.
+        # Next, the complexType(s) are rendered that defines the element contents.
+        # In case any fields are expanded (hence become sub-types), these are also included.
+        output.write(self.render_complex_type(xsd_type))
+        for complex_type in self._get_complex_types(xsd_type):
+            output.write(self.render_complex_type(complex_type))
+
+        return output.getvalue()
+
+    def render_complex_type(self, complex_type: XsdComplexType):
+        """Write the definition of a single class."""
+        class_name = complex_type.name
+        if class_name.startswith("app:"):
+            # This might not be the official XML way (this should compare namespace URI's)
+            # but for now this is good enough. Since "app" is our targetNamespace, this
+            # prefix can be removed.
+            class_name = class_name[4:]
+
+        output = StringBuffer()
         output.write(
             f'  <complexType name="{class_name}">\n'
             "    <complexContent>\n"
-            '      <extension base="gml:AbstractFeatureType">\n'
+            f'      <extension base="{complex_type.base}">\n'
             "        <sequence>\n"
         )
 
-        for xsd_element in feature_type.xsd_fields:
+        for xsd_element in complex_type.elements:
             output.write(f"          {xsd_element}\n")
 
         output.write(
             "        </sequence>\n"
             "      </extension>\n"
             "    </complexContent>\n"
-            "  </complexType>\n"
+            "  </complexType>\n\n"
         )
         return output.getvalue()
+
+    def _get_complex_types(self, root: XsdComplexType) -> List[XsdComplexType]:
+        """Find which fields of the XSDElements reference to complex types."""
+        worklist = deque(root.elements)
+        complex_types = {}
+
+        # Walk through next types, unless they are already seen.
+        # No recursion is used here to handle circular loops of types.
+        while worklist:
+            element = worklist.popleft()
+            element_type = element.type
+            if element_type.is_complex_type and element_type.name not in complex_types:
+                # ComplexType was not seen before, register it.
+                # It's members are added to the worklist.
+                complex_types[element_type.name] = element_type
+                worklist.extend(element_type.elements)
+
+        # Present in a consistent order
+        return complex_types.values()
