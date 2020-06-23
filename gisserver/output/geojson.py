@@ -1,8 +1,9 @@
 """Output rendering logic for GeoJSON."""
 from datetime import datetime
-from django.contrib.gis.db.models.functions import AsGeoJSON, Transform
 
 import orjson
+from django.conf import settings
+from django.contrib.gis.db.models.functions import AsGeoJSON, Transform
 from django.db import models
 from django.utils.timezone import utc
 from gisserver.features import FeatureType
@@ -73,6 +74,13 @@ class GeoJsonRenderer(OutputRenderer):
         output.write(b'  "numberReturned": %d' % number_returned)
         output.write(b"}\n")
         yield output.getvalue()
+
+    def render_exception(self, exception: Exception):
+        """Render the exception in a format that fits with the output."""
+        if settings.DEBUG:
+            return f"/* {exception.__class__.__name__}: {exception} */\n"
+        else:
+            return f"/* {exception.__class__.__name__} during rendering! */\n"
 
     def render_feature(
         self, feature_type: FeatureType, instance: models.Model

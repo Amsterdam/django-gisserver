@@ -1,5 +1,6 @@
 import io
 
+from django.conf import settings
 from django.http import HttpResponse, StreamingHttpResponse
 from django.utils.html import escape
 
@@ -65,11 +66,29 @@ class OutputRenderer:
         """Render the output as streaming response."""
         stream = self.render_stream()
         if isinstance(stream, (str, bytes)):
-            return HttpResponse(content=stream, content_type=self.content_type,)
+            return HttpResponse(content=stream, content_type=self.content_type)
         else:
+            stream = self._trap_exceptions(stream)
             return StreamingHttpResponse(
                 streaming_content=stream, content_type=self.content_type,
             )
+
+    def _trap_exceptions(self, stream):
+        """Decorate the generator to show exceptions"""
+        try:
+            yield from stream
+        except Exception as e:
+            # Can't return 500 at this point,
+            # but can still tell the client what happened.
+            yield self.render_exception(e)
+            raise
+
+    def render_exception(self, exception: Exception):
+        """Render the exception in a format that fits with the output."""
+        if settings.DEBUG:
+            return f"<!-- {exception.__class__.__name__}: {exception} -->\n"
+        else:
+            return f"<!-- {exception.__class__.__name__} during rendering! -->\n"
 
     def render_stream(self):
         """Implement this in subclasses to implement a custom output format."""
