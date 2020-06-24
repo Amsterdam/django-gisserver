@@ -21,6 +21,10 @@ class OutputRenderer:
     It receives the collected 'context' data of the WFSMethod.
     """
 
+    #: Allow to override the maximum page size.
+    #: This value can be 'math.inf' to support endless pages by default.
+    max_page_size = None
+
     #: Define the content type for rendering the output
     content_type = "application/octet-stream"
 

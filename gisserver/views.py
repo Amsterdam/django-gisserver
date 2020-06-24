@@ -10,6 +10,7 @@ from django.core.exceptions import (
 from django.http import HttpResponse
 from django.views import View
 
+from gisserver import conf
 from gisserver.exceptions import (
     InvalidParameterValue,
     MissingParameterValue,
@@ -161,7 +162,7 @@ class WFSView(GISView):
     """
 
     #: Maximum number of features to return
-    max_page_size = 1000
+    max_page_size = conf.GISSERVER_DEFAULT_MAX_PAGE_SIZE
 
     #: Define the features (=tables) in this dataset.
     feature_types: List[FeatureType] = []

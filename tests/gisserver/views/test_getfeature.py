@@ -9,9 +9,11 @@ from tests.constants import NAMESPACES
 from tests.gisserver.views.input import (
     FILTERS,
     INVALID_FILTERS,
+    POINT1_EWKT,
     POINT1_GEOJSON,
     POINT1_XML_RD,
     POINT1_XML_WGS84,
+    POINT2_EWKT,
     POINT2_GEOJSON,
     POINT2_XML_WGS84,
     SORT_BY,
@@ -659,6 +661,30 @@ class TestGetFeature:
                 },
             ],
         }
+
+    def test_get_csv(
+        self, client, restaurant, bad_restaurant, django_assert_max_num_queries
+    ):
+        """Prove that the geojson export works.
+
+        Including 2 objects to prove that the list rendering
+        also includes comma's properly.
+        """
+        with django_assert_max_num_queries(1):
+            response = client.get(
+                "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
+                "&outputformat=csv"
+            )
+            assert response["content-type"] == "text/csv; charset=utf-8"
+            content = read_response(response)
+            assert response.status_code == 200, content
+
+        expect = f"""
+"id","name","city_id","location","rating","created"
+"{restaurant.id}","Café Noir","{restaurant.city_id}","SRID=4326;{POINT1_EWKT}","5.0","2020-04-05 14:11:10"
+"{bad_restaurant.id}","Foo Bar","","SRID=4326;{POINT2_EWKT}","1.0","2020-04-05 14:11:10"
+""".lstrip()  # noqa: E501
+        assert content == expect
 
     def test_resource_id(self, client, restaurant, bad_restaurant):
         """Prove that fetching objects by ID works."""

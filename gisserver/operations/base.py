@@ -4,6 +4,8 @@ All operations extend from an WFSMethod class.
 This defines the parameters and output formats of the method.
 This introspection data is also parsed by the GetCapabilities call.
 """
+import math
+
 import re
 from dataclasses import dataclass, field
 
@@ -119,16 +121,32 @@ class OutputFormat:
     """
 
     def __init__(
-        self, content_type, renderer_class=None, **extra,
+        self, content_type, renderer_class=None, max_page_size=None, **extra,
     ):
         self.content_type = content_type
         self.extra = extra
         self.subtype = self.extra.get("subtype")
         self.renderer_class = renderer_class
+        self._max_page_size = max_page_size
 
     def matches(self, value):
         """Test whether the 'value' is matched by this object."""
         return self.content_type == value or self.subtype == value
+
+    @property
+    def max_page_size(self):
+        """Override the default max page size"""
+        if self._max_page_size:
+            return self._max_page_size
+        elif self.renderer_class is not None:
+            return self.renderer_class.max_page_size
+        else:
+            return None
+
+    @property
+    def has_infinite_page_size(self):
+        """Return whether the output format can be unpaginated."""
+        return self.max_page_size == math.inf
 
     def __str__(self):
         extra = "".join(f"; {name}={value}" for name, value in self.extra.items())

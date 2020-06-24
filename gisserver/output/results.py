@@ -35,6 +35,7 @@ class SimpleFeatureCollection:
         self.start = start
         self.stop = stop
         self._result_cache = None
+        self._used_iterator = False
 
     def __iter__(self) -> Iterable[models.Model]:
         if self._result_cache is not None:
@@ -43,8 +44,32 @@ class SimpleFeatureCollection:
             # resulttype=hits
             return iter([])
         else:
-            # Not using .iterator() here, as that breaks prefetch_related()
+            # This still allows prefetch_related() to work,
+            # since QuerySet.iterator() is avoided.
             return iter(self.queryset[self.start : self.stop])
+
+    def iterator(self):
+        """Explicitly request the results to be streamed.
+
+        This can be used by output formats that stream may results, and don't
+        access `number_returned`. Note this is not compatible with prefetch_related().
+        """
+        self._used_iterator = True
+        if self._result_cache is not None:
+            # In case the results were read already, reuse that.
+            return iter(self._result_cache)
+        elif self.start == self.stop == 0:
+            # resulttype=hits
+            return iter([])
+        else:
+            if self.stop == math.inf:
+                # Infinite page requested
+                if self.start:
+                    return self.queryset[self.start :].iterator()
+                else:
+                    return self.queryset.iterator()
+            else:
+                return self.queryset[self.start : self.stop].iterator()
 
     def first(self):
         try:
@@ -56,6 +81,12 @@ class SimpleFeatureCollection:
 
     def fetch_results(self):
         """Forcefully read the results early."""
+        if self._used_iterator:
+            raise RuntimeError(
+                "Results for feature collection are read twice. "
+                "Avoid using SimpleFeatureCollection.iterator()."
+            )
+
         if self._result_cache is None:
             self._result_cache = list(self)
         return len(self._result_cache)

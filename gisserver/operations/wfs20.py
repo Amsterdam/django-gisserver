@@ -7,6 +7,8 @@ Useful docs:
 * https://mapserver.org/development/rfc/ms-rfc-105.html
 * https://enonline.supermap.com/iExpress9D/API/WFS/WFS200/WFS_2.0.0_introduction.htm
 """
+import math
+
 import logging
 import re
 from typing import List
@@ -271,8 +273,11 @@ class BaseWFSPresentationMethod(WFSTypeNamesMethod):
         self, query: queries.QueryExpression, outputFormat, **params
     ) -> output.FeatureCollection:
         """Handle pagination settings."""
-        max_page_size = self.view.max_page_size
         start = max(0, params["startIndex"])
+
+        # outputFormat.max_page_size can be math.inf to enable endless scrolling.
+        # this only works when the COUNT parameter is not given.
+        max_page_size = outputFormat.max_page_size or self.view.max_page_size
         page_size = min(max_page_size, params["count"] or max_page_size)
         stop = start + page_size
 
@@ -289,13 +294,16 @@ class BaseWFSPresentationMethod(WFSTypeNamesMethod):
                 collection, output_crs, **params
             )
 
-        if start > 0:
-            collection.previous = self._replace_url_params(
-                STARTINDEX=max(0, start - page_size)
-            )
-        if stop < collection.number_matched:
-            # TODO: fix this when returning multiple typeNames:
-            collection.next = self._replace_url_params(STARTINDEX=start + page_size)
+        if stop != math.inf:
+            if start > 0:
+                collection.previous = self._replace_url_params(
+                    STARTINDEX=max(0, start - page_size), COUNT=page_size,
+                )
+            if stop < collection.number_matched:
+                # TODO: fix this when returning multiple typeNames:
+                collection.next = self._replace_url_params(
+                    STARTINDEX=start + page_size, COUNT=page_size
+                )
 
         return collection
 
@@ -323,7 +331,12 @@ class GetFeature(BaseWFSPresentationMethod):
             charset="utf-8",
             renderer_class=output.geojson_renderer,
         ),
-        # OutputFormat("text/csv"),
+        OutputFormat(
+            "text/csv",
+            subtype="csv",
+            charset="utf-8",
+            renderer_class=output.csv_renderer,
+        ),
         # OutputFormat("shapezip"),
         # OutputFormat("application/zip"),
     ]
