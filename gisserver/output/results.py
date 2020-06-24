@@ -13,7 +13,7 @@ from django.utils.functional import cached_property
 from django.utils.timezone import now, utc
 
 from gisserver.features import FeatureType
-from gisserver.types import BoundingBox
+from gisserver.geometries import BoundingBox
 
 
 class SimpleFeatureCollection:

@@ -1,4 +1,4 @@
-from gisserver.features import BoundingBox
+from gisserver.geometries import BoundingBox
 
 
 class TestBoundingBox:

@@ -38,7 +38,7 @@ Write a view that exposes this model as a WFS feature:
 
 ```python
 from gisserver.features import FeatureType, ServiceDescription
-from gisserver.types import CRS, WGS84
+from gisserver.geometries import CRS, WGS84
 from gisserver.views import WFSView
 from .models import Restaurant
 

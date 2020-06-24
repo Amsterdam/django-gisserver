@@ -1,6 +1,6 @@
 from django.contrib.gis.gdal import SpatialReference
 
-from gisserver.types import CRS
+from gisserver.geometries import CRS
 
 WFS_NS = "http://www.opengis.net/wfs/2.0"
 OWS_NS = "http://www.opengis.net/ows/1.1"

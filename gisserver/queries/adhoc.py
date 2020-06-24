@@ -19,9 +19,9 @@ from gisserver.exceptions import (
     MissingParameterValue,
 )
 from gisserver.features import FeatureType
+from gisserver.geometries import BoundingBox
 from gisserver.parsers import fes20
 from gisserver.parsers.fes20 import ResourceId, operators
-from gisserver.types import BoundingBox
 from .base import QueryExpression
 
 logger = logging.getLogger(__name__)

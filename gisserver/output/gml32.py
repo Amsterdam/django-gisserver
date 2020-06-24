@@ -18,8 +18,9 @@ from django.utils.timezone import utc
 
 from gisserver.exceptions import NotFound
 from gisserver.features import FeatureType
+from gisserver.geometries import CRS
 from gisserver.parsers.fes20 import ValueReference
-from gisserver.types import CRS, XsdComplexType, XsdElement
+from gisserver.types import XsdComplexType, XsdElement
 
 from .base import (
     OutputRenderer,

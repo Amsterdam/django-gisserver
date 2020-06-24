@@ -10,7 +10,7 @@ from django.contrib.gis.geos import GEOSGeometry
 
 from gisserver.parsers.base import tag_registry
 from gisserver.parsers.utils import get_attribute
-from gisserver.types import CRS
+from gisserver.geometries import CRS
 
 from .base import AbstractGeometry, TM_Object
 

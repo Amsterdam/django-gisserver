@@ -1,4 +1,4 @@
-from gisserver.types import CRS, WGS84
+from gisserver.geometries import CRS, WGS84
 
 
 class TestCRS:

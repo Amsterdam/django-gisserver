@@ -16,8 +16,8 @@ from urllib.parse import urlencode
 
 from gisserver import output, queries
 from gisserver.exceptions import InvalidParameterValue, VersionNegotiationFailed
+from gisserver.geometries import BoundingBox, CRS
 from gisserver.parsers import fes20
-from gisserver.types import BoundingBox, CRS
 
 from .base import (
     OutputFormat,

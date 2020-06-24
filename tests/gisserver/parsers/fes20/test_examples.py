@@ -42,7 +42,8 @@ from gisserver.parsers.fes20.operators import (
 from gisserver.parsers.fes20.query import CompiledQuery
 from gisserver.parsers.gml import geometries
 from gisserver.parsers.gml.geometries import GEOSGMLGeometry
-from gisserver.types import WGS84, XsdTypes
+from gisserver.geometries import WGS84
+from gisserver.types import XsdTypes
 
 
 def test_fes20_c5_example1():

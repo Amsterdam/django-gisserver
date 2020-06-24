@@ -14,14 +14,12 @@ from django.db.models.fields.reverse_related import ForeignObjectRel
 from django.utils.functional import cached_property  # py3.8: functools
 
 from gisserver.types import (
-    CRS,
-    WGS84,
-    BoundingBox,
     XsdAnyType,
     XsdComplexType,
     XsdElement,
     XsdTypes,
 )
+from gisserver.geometries import BoundingBox, CRS, WGS84
 
 NoneType = type(None)
 

@@ -10,7 +10,8 @@ from django.http import HttpResponse, StreamingHttpResponse
 from django.utils.html import escape
 
 from gisserver.operations.base import WFSMethod
-from gisserver.types import CRS, XsdComplexType, XsdElement
+from gisserver.geometries import CRS
+from gisserver.types import XsdComplexType, XsdElement
 
 from .results import FeatureCollection
 
