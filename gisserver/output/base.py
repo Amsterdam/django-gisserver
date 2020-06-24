@@ -1,3 +1,7 @@
+from django.contrib.gis.db.models import GeometryField
+from django.contrib.gis.db.models.functions import Transform
+from typing import cast
+
 import io
 
 from django.conf import settings
@@ -6,7 +10,7 @@ from django.http import HttpResponse, StreamingHttpResponse
 from django.utils.html import escape
 
 from gisserver.operations.base import WFSMethod
-from gisserver.types import CRS, XsdElement
+from gisserver.types import CRS, XsdComplexType, XsdElement
 
 from .results import FeatureCollection
 
@@ -160,3 +164,33 @@ class StringBuffer(BaseBuffer):
 
     def __str__(self):
         return self.getvalue()
+
+
+def build_db_annotations(selects: dict, name_template: str, wrapper_func) -> dict:
+    """Utility to build annotations for all geometry fields for an XSD type.
+    This is used by various DB-optimized rendering methods.
+    """
+    return {
+        name_template.format(name=name): wrapper_func(target)
+        for name, target in selects.items()
+    }
+
+
+def get_db_geometry_selects(xsd_type: XsdComplexType, output_crs: CRS) -> dict:
+    """Utility to generate select clauses for the geometry fields of a type."""
+    return {
+        xsd_element.name: get_db_geometry_target(xsd_element, output_crs)
+        for xsd_element in xsd_type.elements
+        if xsd_element.is_gml and xsd_element.source is not None
+    }
+
+
+def get_db_geometry_target(xsd_element: XsdElement, output_crs: CRS):
+    """Wrap the selection of a geometry field in a CRS Transform if needed."""
+    field = cast(GeometryField, xsd_element.source)
+
+    target = xsd_element.name
+    if field.srid != output_crs.srid:
+        target = Transform(target, output_crs.srid)
+
+    return target

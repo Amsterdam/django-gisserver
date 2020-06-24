@@ -13,8 +13,6 @@ from gisserver.types import XsdComplexType
 
 from .base import BytesBuffer, OutputRenderer
 
-WRITE_BUFFER_SIZE = 4096
-
 
 class GeoJsonRenderer(OutputRenderer):
     """Fast GeoJSON renderer, using a stream response.
@@ -199,7 +197,9 @@ class DBGeoJsonRenderer(GeoJsonRenderer):
     """
 
     @classmethod
-    def decorate_queryset(self, feature_type, queryset, output_crs, **params):
+    def decorate_queryset(
+        self, feature_type: FeatureType, queryset, output_crs, **params
+    ):
         """Update the queryset to let the database render the GML output.
         This is far more efficient then GeoDjango's logic, which performs a
         C-API call for every single coordinate of a geometry.
@@ -209,7 +209,7 @@ class DBGeoJsonRenderer(GeoJsonRenderer):
         )
         # If desired, the entire FeatureCollection could be rendered
         # in PostgreSQL as well: https://postgis.net/docs/ST_AsGeoJSON.html
-        return queryset.annotate(
+        return queryset.defer(*feature_type.geometry_field_names).annotate(
             _as_db_geojson=self.get_db_as_geojson(
                 feature_type.geometry_field, output_crs
             )
@@ -217,11 +217,10 @@ class DBGeoJsonRenderer(GeoJsonRenderer):
 
     @classmethod
     def get_db_as_geojson(self, field, output_crs):
+        target = field.name
         if field.srid != output_crs.srid:
-            value = Transform(field.name, output_crs.srid)
-        else:
-            value = field.name
-        return AsGeoJSON(value, precision=16)
+            target = Transform(target, output_crs.srid)
+        return AsGeoJSON(target, precision=16)
 
     def render_geometry(self, feature_type, instance: models.Model) -> bytes:
         """Generate the proper GeoJSON notation for a geometry"""

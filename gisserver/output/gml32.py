@@ -11,7 +11,6 @@ from html import escape
 from typing import Optional, cast
 
 from django.contrib.gis import geos
-from django.contrib.gis.db.models import GeometryField
 from django.contrib.gis.db.models.functions import AsGML, Transform, Union
 from django.db import connections, models
 from django.http import HttpResponse
@@ -22,7 +21,13 @@ from gisserver.features import FeatureType
 from gisserver.parsers.fes20 import ValueReference
 from gisserver.types import CRS, XsdComplexType, XsdElement
 
-from .base import OutputRenderer, StringBuffer
+from .base import (
+    OutputRenderer,
+    StringBuffer,
+    build_db_annotations,
+    get_db_geometry_selects,
+    get_db_geometry_target,
+)
 
 GML_RENDER_FUNCTIONS = {}
 RE_GML_ID = re.compile(r'gml:id="[^"]+"')
@@ -403,11 +408,13 @@ class DBGML32Renderer(GML32Renderer):
         queryset = super().decorate_queryset(
             feature_type, queryset, output_crs, **params
         )
-        return queryset.annotate(
+
+        geometries = get_db_geometry_selects(feature_type.xsd_type, output_crs)
+        return queryset.defer(*geometries.keys()).annotate(
             _as_envelope_gml=cls.get_db_envelope_as_gml(
                 feature_type, queryset, output_crs
             ),
-            **cls.get_db_as_annotations(feature_type.xsd_type, output_crs),
+            **build_db_annotations(geometries, "_as_gml_{name}", _AsGML),
         )
 
     @classmethod
@@ -415,30 +422,12 @@ class DBGML32Renderer(GML32Renderer):
         """Perform DB annotations for the prefetched relation too."""
         xsd_type: XsdComplexType = cast(XsdComplexType, xsd_element.type)
         model = xsd_type.source
-        return model.objects.annotate(**cls.get_db_as_annotations(xsd_type, output_crs))
 
-    @classmethod
-    def get_db_as_annotations(cls, xsd_type: XsdComplexType, output_crs) -> dict:
-        return {
-            f"_as_gml_{xsd_element.name}": cls.get_db_as_gml(
-                cast(GeometryField, xsd_element.source), output_crs
+        geometries = get_db_geometry_selects(xsd_type, output_crs)
+        if geometries:
+            return model.objects.defer(*geometries.keys()).annotate(
+                **build_db_annotations(geometries, "_as_gml_{name}", _AsGML),
             )
-            for xsd_element in xsd_type.elements
-            if xsd_element.is_gml
-        }
-
-    @classmethod
-    def get_db_as_gml(cls, field, output_crs) -> AsGML:
-        """Offload the GML rendering to the database.
-
-        This gives a better performance, as Django GML rendering is slow.
-        Django calls the C-api for every single coordinate of a polygon.
-        """
-        if field.srid != output_crs.srid:
-            value = Transform(field.name, output_crs.srid)
-        else:
-            value = field.name
-        return _AsGML(value)
 
     @classmethod
     def get_db_envelope_as_gml(cls, feature_type, queryset, output_crs) -> AsGML:
@@ -558,9 +547,9 @@ class DBGML32ValueRenderer(DBGML32Renderer, GML32ValueRenderer):
         xsd_element = feature_type.xsd_type.resolve_element(value_reference.xpath)
         if xsd_element.is_gml:
             # Add 'gml_member' to point to the pre-rendered GML version.
-            geometry_field = cast(GeometryField, xsd_element.source)
             return queryset.values(
-                "pk", gml_member=cls.get_db_as_gml(geometry_field, output_crs),
+                "pk",
+                gml_member=_AsGML(get_db_geometry_target(xsd_element, output_crs)),
             )
         else:
             return queryset
