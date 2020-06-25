@@ -77,8 +77,7 @@ class OutputRenderer:
                 xsd_element.name,
                 queryset=cls.get_prefetch_queryset(xsd_element, output_crs),
             )
-            for xsd_element in feature_type.xsd_type.elements
-            if xsd_element.type.is_complex_type
+            for xsd_element in feature_type.xsd_type.complex_elements
         ]
         if related:
             queryset = queryset.prefetch_related(*related)
@@ -185,8 +184,8 @@ def get_db_geometry_selects(xsd_type: XsdComplexType, output_crs: CRS) -> dict:
     """Utility to generate select clauses for the geometry fields of a type."""
     return {
         xsd_element.name: get_db_geometry_target(xsd_element, output_crs)
-        for xsd_element in xsd_type.elements
-        if xsd_element.is_gml and xsd_element.source is not None
+        for xsd_element in xsd_type.gml_elements
+        if xsd_element.source is not None
     }
 
 

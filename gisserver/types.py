@@ -171,6 +171,16 @@ class XsdComplexType(XsdAnyType):
         # mimic API of XsdTypes
         return str(self)
 
+    @cached_property
+    def gml_elements(self) -> List[XsdElement]:
+        """Shortcut to get all geometry elements"""
+        return [e for e in self.elements if e.is_gml]
+
+    @cached_property
+    def complex_elements(self) -> List[XsdElement]:
+        """Shortcut to get all elements with a complex type"""
+        return [e for e in self.elements if e.type.is_complex_type]
+
     def resolve_element(self, xpath: str) -> Optional[XsdElement]:
         """Resolve an xpath reference to the actual node."""
         try:

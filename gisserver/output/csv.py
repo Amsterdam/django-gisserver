@@ -38,9 +38,7 @@ class CSVRenderer(OutputRenderer):
         Using prefetch_related() isn't possible with .iterator().
         """
         related = [
-            xsd_element.name
-            for xsd_element in feature_type.xsd_type.elements
-            if xsd_element.type.is_complex_type
+            xsd_element.name for xsd_element in feature_type.xsd_type.complex_elements
         ]
         if related:
             queryset = queryset.select_related(*related)
