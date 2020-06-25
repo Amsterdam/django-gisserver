@@ -29,6 +29,18 @@ class GeoJsonRenderer(OutputRenderer):
     content_type = "application/json; charset=utf-8"
     max_page_size = conf.GISSERVER_GEOJSON_MAX_PAGE_SIZE
 
+    @classmethod
+    def decorate_queryset(cls, feature_type, queryset, output_crs, **params):
+        # Other geometries can be excluded as these are not rendered by 'properties'
+        other_geometries = [
+            n
+            for n in feature_type.geometry_field_names
+            if n != feature_type.geometry_field_name
+        ]
+        queryset = queryset.defer(*other_geometries)
+
+        return super().decorate_queryset(feature_type, queryset, output_crs, **params)
+
     def render_stream(self):
         output = BytesBuffer()
 
@@ -212,7 +224,7 @@ class DBGeoJsonRenderer(GeoJsonRenderer):
         # If desired, the entire FeatureCollection could be rendered
         # in PostgreSQL as well: https://postgis.net/docs/ST_AsGeoJSON.html
         geometry_field = feature_type.resolve_element(feature_type.geometry_field_name)
-        return queryset.defer(*feature_type.geometry_field_names).annotate(
+        return queryset.defer(feature_type.geometry_field_name).annotate(
             _as_db_geojson=AsGeoJSON(
                 get_db_geometry_target(geometry_field, output_crs), precision=16
             )
