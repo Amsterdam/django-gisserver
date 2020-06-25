@@ -110,8 +110,7 @@ class QueryExpression:
         compiler = self.compile_query(feature_type)
 
         if self.value_reference is not None:
-            # TODO: for now only check direct field names, no xpath (while query support it)
-            if self.value_reference.element_name not in feature_type.fields:
+            if feature_type.resolve_element(self.value_reference.xpath) is None:
                 raise InvalidParameterValue(
                     "valueReference",
                     f"Field '{self.value_reference.xpath}' does not exist.",

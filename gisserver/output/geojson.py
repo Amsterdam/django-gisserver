@@ -5,13 +5,13 @@ from datetime import datetime
 
 import orjson
 from django.conf import settings
-from django.contrib.gis.db.models.functions import AsGeoJSON, Transform
+from django.contrib.gis.db.models.functions import AsGeoJSON
 from django.db import models
 from django.utils.timezone import utc
 from gisserver.features import FeatureType
 from gisserver.types import XsdComplexType
 
-from .base import BytesBuffer, OutputRenderer
+from .base import BytesBuffer, OutputRenderer, get_db_geometry_target
 
 
 class GeoJsonRenderer(OutputRenderer):
@@ -209,18 +209,12 @@ class DBGeoJsonRenderer(GeoJsonRenderer):
         )
         # If desired, the entire FeatureCollection could be rendered
         # in PostgreSQL as well: https://postgis.net/docs/ST_AsGeoJSON.html
+        geometry_field = feature_type.resolve_element(feature_type.geometry_field_name)
         return queryset.defer(*feature_type.geometry_field_names).annotate(
-            _as_db_geojson=self.get_db_as_geojson(
-                feature_type.geometry_field, output_crs
+            _as_db_geojson=AsGeoJSON(
+                get_db_geometry_target(geometry_field, output_crs), precision=16
             )
         )
-
-    @classmethod
-    def get_db_as_geojson(self, field, output_crs):
-        target = field.name
-        if field.srid != output_crs.srid:
-            target = Transform(target, output_crs.srid)
-        return AsGeoJSON(target, precision=16)
 
     def render_geometry(self, feature_type, instance: models.Model) -> bytes:
         """Generate the proper GeoJSON notation for a geometry"""

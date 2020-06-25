@@ -3,7 +3,7 @@ import html
 import operator
 from dataclasses import dataclass
 from functools import lru_cache, reduce
-from typing import List, Optional, Union
+from typing import List, Optional, Union, TYPE_CHECKING
 
 from django.contrib.gis.db import models as gis_models
 from django.contrib.gis.db.models import Extent, GeometryField
@@ -130,7 +130,8 @@ class FeatureType:
             if isinstance(f, gis_models.GeometryField)
         ]
 
-        self.resolve_element = lru_cache(100)(self.resolve_element)
+        if not TYPE_CHECKING:
+            self.resolve_element = lru_cache(100)(self.resolve_element)
 
     def check_permissions(self, request):
         """Hook that allows subclasses to reject access for datasets.
@@ -293,6 +294,6 @@ class FeatureType:
             source=field,
         )
 
-    def resolve_element(self, xpath: str):
-        """Resolve the element"""
+    def resolve_element(self, xpath: str) -> Optional[XsdElement]:
+        """Resolve the element. This method is wrapped inside an lru_cache."""
         return self.xsd_type.resolve_element(xpath)

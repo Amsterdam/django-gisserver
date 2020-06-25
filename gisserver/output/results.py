@@ -132,8 +132,11 @@ class SimpleFeatureCollection:
         # Start with an obviously invalid bbox,
         # which corrects at the first extend_to_geometry call.
         bbox = BoundingBox(math.inf, math.inf, -math.inf, -math.inf)
+        geometry_field = self.feature_type.resolve_element(
+            self.feature_type.geometry_field_name
+        )
         for instance in self:
-            geomery_value = getattr(instance, self.feature_type.geometry_field_name)
+            geomery_value = geometry_field.get_value(instance)
             if geomery_value is None:
                 continue
 
