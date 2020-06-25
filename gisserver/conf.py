@@ -16,7 +16,7 @@ GISSERVER_DEFAULT_MAX_PAGE_SIZE = getattr(
 
 # CSV exports have a higher default page size, as these results can be streamed.
 GISSERVER_GEOJSON_MAX_PAGE_SIZE = getattr(
-    settings, "GISSERVER_GEOJSON_MAX_PAGE_SIZE", 50_000
+    settings, "GISSERVER_GEOJSON_MAX_PAGE_SIZE", math.inf
 )
 GISSERVER_CSV_MAX_PAGE_SIZE = getattr(settings, "GISSERVER_CSV_MAX_PAGE_SIZE", math.inf)
 
