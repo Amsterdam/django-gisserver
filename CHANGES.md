@@ -1,3 +1,26 @@
+# 2020-06-25 (0.8)
+
+* Added preliminary support to render complex field types (e.g. relations).
+* Added `FeatureType.check_permissions()` hook to allow permission checking by subclasses.
+* Added `WFSMethod.validate()` hook that allows request validation.
+* Added CSV output format support.
+* Added infinite pagination support.
+* Added pagination size settings: `GISSERVER_DEFAULT_MAX_PAGE_SIZE`, `GISSERVER_CSV_MAX_PAGE_SIZE`.
+* Added internal `XsdComplexType` class to support complex data schema definitions.
+* Replaced many `FeatureType` methods to create a stable fields definition API.
+* Replaced `FeatureType.fields_with_type` with `FeatureType.xsd_type` that returns an `XsdComplexType`.
+* Optimized `GetFeature` responses by omitting a `COUNT` query for the last page.
+* Optimized `GetFeature` responses by omitting the binary geometry data for DB-optimized rendering.
+* Changed default page size / `DefaultMaxFeatures` to 5000.
+* Fixed detecting `AutoField` as integer for Django 2.2.
+* Fixed fallback datatype for unknown model fields (should be `xsd:anyType`, not `xsd:any` which is an element).
+* Fixed fallback datatype for unknown geometry fields (should be `gml:GeometryPropertyType`, not gml:AbstractGeometryType).
+* Fixed error messages for currently unsupported multiple-query KVP requests (e.g. `TYPENAMES=(A)(B)`).
+* Fixed raising `InvalidParameterValue` for runtime errors in a custom `WFSView.get_feature_types()` implementation.
+* Enforce using keyword-arguments on `FeatureType(...)`
+* Internal code reorganizations/cleanups.
+
+
 # 2020-06-08 (0.7)
 
 * Added database-based rendering for GML/GeoJSON (disable with `GISSERVER_USE_DB_RENDERING=False`).
