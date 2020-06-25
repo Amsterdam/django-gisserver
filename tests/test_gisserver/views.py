@@ -1,8 +1,10 @@
 from django.core.exceptions import PermissionDenied
-from django.db import models
 
-from gisserver.features import FeatureType, ServiceDescription
-from gisserver.types import XsdComplexType, XsdElement
+from gisserver.features import (
+    FeatureType,
+    ServiceDescription,
+    field,
+)
 from gisserver.views import WFSView
 from tests.constants import RD_NEW
 from tests.test_gisserver.models import Restaurant
@@ -45,38 +47,20 @@ class PlacesWFSView(WFSView):
     ]
 
 
-class ComplexFeatureType(FeatureType):
-    def get_field_type(self, field_name: str, model_field: models.Field):
-        """Generate a XsdComplexType for an related field."""
-        if isinstance(model_field, models.ForeignKey):
-            model = model_field.remote_field.model
-            return XsdComplexType(
-                name=f"{model._meta.object_name}Type",
-                elements=[
-                    XsdElement(
-                        f.name,
-                        type=self.get_field_type(f.name, f),
-                        min_occurs=0,
-                        max_occurs=1,
-                        nillable=f.null,
-                        source=f,
-                    )
-                    for f in model._meta.get_fields()
-                    if not f.is_relation
-                ],
-                source=model,
-            )
-        else:
-            return super().get_field_type(field_name, model_field)
-
-
 class ComplexTypesWFSView(PlacesWFSView):
     """An advanced view that has a custom type definition for a foreign key."""
 
     feature_types = [
-        ComplexFeatureType(
+        FeatureType(
             Restaurant.objects.all(),
-            fields=["id", "name", "city", "location", "rating", "created"],
+            fields=[
+                "id",
+                "name",
+                field("city", fields=["id", "name"]),
+                "location",
+                "rating",
+                "created",
+            ],
             other_crs=[RD_NEW],
         ),
     ]

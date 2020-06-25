@@ -3,7 +3,7 @@ import html
 import operator
 from dataclasses import dataclass
 from functools import lru_cache, reduce
-from typing import List, Optional, Union, TYPE_CHECKING
+from typing import List, Optional, TYPE_CHECKING, Type, Union
 
 from django.contrib.gis.db import models as gis_models
 from django.contrib.gis.db.models import Extent, GeometryField
@@ -21,8 +21,20 @@ from gisserver.types import (
 )
 from gisserver.geometries import BoundingBox, CRS, WGS84
 
-NoneType = type(None)
+try:
+    from typing import Literal  # Python 3.8
 
+    _all_ = Literal["__all__"]
+except ImportError:
+    _all_ = str
+
+
+__all__ = [
+    "FeatureType",
+    "field",
+    "FeatureField",
+    "ComplexFeatureField",
+]
 
 XSD_TYPES = {
     models.CharField: XsdTypes.string,
@@ -49,6 +61,52 @@ XSD_TYPES = {
 DEFAULT_XSD_TYPE = XsdTypes.anyType
 
 
+def _get_basic_field_type(field_name: str, model_field: models.Field) -> XsdAnyType:
+    """Determine the XSD field type for a Django field."""
+    try:
+        # Direct instance, quickly resolved!
+        return XSD_TYPES[model_field.__class__]
+    except KeyError:
+        pass
+
+    if isinstance(model_field, models.ForeignKey):
+        # Don't let it query on the relation value yet
+        return _get_basic_field_type(field_name, model_field.target_field)
+    elif isinstance(model_field, ForeignObjectRel):
+        # e.g. ManyToOneRel descriptor of a foreignkey_id field.
+        return _get_basic_field_type(field_name, model_field.remote_field.target_field)
+    else:
+        # Subclass checks:
+        for field_cls, xsd_type in XSD_TYPES.items():
+            if isinstance(model_field, field_cls):
+                return xsd_type
+
+    # Default:
+    if isinstance(model_field, GeometryField):
+        return XsdTypes.gmlGeometryPropertyType
+    else:
+        # Default XML choice:
+        return DEFAULT_XSD_TYPE
+
+
+def _get_model_fields(model, fields):
+    if fields == "__all__":
+        # All regular fields
+        return [
+            FeatureField(
+                name=f.attname if isinstance(f, models.ForeignKey) else f.name,
+                model=model,
+            )
+            for f in model._meta.get_fields()
+        ]
+    else:
+        # Only defined fields
+        fields = [f if isinstance(f, FeatureField) else FeatureField(f) for f in fields]
+        for field in fields:
+            field.bind(model)
+        return fields
+
+
 @dataclass
 class ServiceDescription:
     """Basic metadata for an exposed GIS service."""
@@ -60,6 +118,115 @@ class ServiceDescription:
     provider_name: Optional[str] = None
     provider_site: Optional[str] = None
     contact_person: Optional[str] = None
+
+
+class FeatureField:
+    """The configuration for an field inside a WFS Feature.
+
+    This defines how a Django model field is mapped into
+    an XSD definition that the remaining application uses.
+    """
+
+    model: Optional[Type[models.Model]]
+    model_field: Optional[models.Field]
+
+    def __init__(self, name, model=None):
+        self.name = name
+        self.model = None
+        self.model_field = None
+        if model is not None:
+            self.bind(model)
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__}: {self.name}>"
+
+    def _get_xsd_type(self):
+        return _get_basic_field_type(self.name, self.model_field)
+
+    def bind(self, model: Type[models.Model]):
+        """Late-binding for the model"""
+        if self.model is not None:
+            raise RuntimeError(f"Feature field '{self.name}' cannot be reused")
+        self.model = model
+        self.model_field = self.model._meta.get_field(self.name)
+
+    @cached_property
+    def xsd_element(self) -> XsdElement:
+        """Define the XMLSchema definition for a model field.
+        This is used in DescribeFeatureType.
+        """
+        return XsdElement(
+            name=self.name,
+            type=self._get_xsd_type(),
+            nillable=self.model_field.null,
+            min_occurs=0,
+            max_occurs=1 if isinstance(self.model_field, GeometryField) else None,
+            source=self.model_field,
+        )
+
+
+_FieldDefinition = Union[str, FeatureField]
+_FieldDefinitions = Union[_all_, List[_FieldDefinition]]
+
+
+class ComplexFeatureField(FeatureField):
+    """The configuration for an embedded foreign-key field.
+
+    This translates the foreign key into an embedded XSD complex type.
+    """
+
+    def __init__(self, name: str, fields: _FieldDefinitions):
+        """
+        :param name: Name of the model field.
+        :param fields: List of fields to expose for the target model. This can
+            be a list of :class:`FeatureField` objects, or plain field names.
+            Using ``__all__`` also works but is not recommended outside testing.
+        """
+        super().__init__(name)
+        self._fields = fields
+
+    def _get_xsd_type(self) -> XsdComplexType:
+        """Generate the XSD description for the field with an object relation."""
+        fields = _get_model_fields(self.target_model, self._fields)
+        return XsdComplexType(
+            name=f"{self.target_model._meta.object_name}Type",
+            elements=[field.xsd_element for field in fields],
+            source=self.target_model,
+        )
+
+    @property
+    def target_model(self):
+        """Detect which model the relation points to."""
+        if self.model_field is None:
+            raise RuntimeError("FeatureField.bind() is not called yet")
+
+        if isinstance(self.model_field, models.ForeignKey):
+            return self.model_field.target_field.model
+        elif isinstance(self.model_field, ForeignObjectRel):
+            # e.g. ManyToOneRel descriptor of a foreignkey_id field.
+            return self.model_field.remote_field.model
+        else:
+            raise ImproperlyConfigured(
+                f"{self.__class__.__name__} does not support fields of "
+                f"type {self.model_field.__class__.__name__}."
+            )
+
+
+def field(name: str, fields: Optional[_FieldDefinitions] = None) -> FeatureField:
+    """Shortcut to define a WFS field.
+
+    This automatically selects the proper field class,
+    so little knowledge is needed about the internal working.
+
+    :param name: Name of the model field.
+    :param fields: If the field exposes a foreign key, provide it's child element names.
+        This can be a list of :func:`field` elements, or plain field names.
+        Using ``__all__`` also works but is not recommended outside testing.
+    """
+    if fields is not None:
+        return ComplexFeatureField(name=name, fields=fields)
+    else:
+        return FeatureField(name)
 
 
 class FeatureType:
@@ -76,7 +243,7 @@ class FeatureType:
         self,
         queryset: models.QuerySet,
         *,
-        fields: Union[str, List[str], NoneType] = None,
+        fields: Optional[_FieldDefinitions] = None,
         geometry_field_name: str = None,
         name: str = None,
         # WFS Metadata:
@@ -90,6 +257,7 @@ class FeatureType:
         """
         :param queryset: The queryset to retrieve the data.
         :param fields: Define which fields to show in the WFS data.
+            This can be a list of field names, or :class:`FeatureField` objects.
         :param geometry_field_name: Name of the geometry field to expose (default = auto detect).
         :param name: Name, also used as XML tag name.
         :param title: Used in WFS metadata.
@@ -144,66 +312,13 @@ class FeatureType:
         return {f.name for f in self.geometry_fields}
 
     @cached_property
-    def fields(self) -> List[str]:
+    def fields(self) -> List[FeatureField]:
         """Define which fields to render."""
         # This lazy reading allows providing 'fields' as lazy value.
         if self._fields is None:
-            return [self.geometry_field_name]
-        elif isinstance(self._fields, str):
-            if self._fields == "__all__":
-                return self._get_all_fields()
-            else:
-                raise TypeError('FeatureType.fields accepts lists and "__all__"')
+            return [FeatureField(self.geometry_field_name, self.model)]
         else:
-            return list(self._fields)
-
-    def _get_all_fields(self) -> List[str]:
-        """Return all fields that can be queried."""
-        fields = []
-        for model_field in self.model._meta.get_fields():
-            if isinstance(model_field, models.ForeignKey):
-                # Don't let it query on the relation value yet
-                field_name = model_field.attname
-            else:
-                field_name = model_field.name
-
-            fields.append(field_name)
-
-        return fields
-
-    def get_field(self, field_name: str) -> models.Field:
-        """Return a single field from the model."""
-        return self.model._meta.get_field(field_name)
-
-    def get_field_type(self, field_name: str, model_field: models.Field) -> XsdAnyType:
-        """Determine the XSD field type for a Django field."""
-        try:
-            # Direct instance, quickly resolved!
-            return XSD_TYPES[model_field.__class__]
-        except KeyError:
-            pass
-
-        if isinstance(model_field, models.ForeignKey):
-            # Don't let it query on the relation value yet
-            return self.get_field_type(field_name, model_field.target_field)
-        elif isinstance(model_field, ForeignObjectRel):
-            # e.g. ManyToOneRel descriptor of a foreignkey_id field.
-            return self.get_field_type(
-                field_name, model_field.remote_field.target_field
-            )
-        elif model_field.name == self.geometry_field_name:
-            return XsdTypes.gmlGeometryPropertyType
-        else:
-            # Subclass checks:
-            for field_cls, xsd_type in XSD_TYPES.items():
-                if isinstance(model_field, field_cls):
-                    return xsd_type
-
-        if model_field.name in self.geometry_field_names:
-            return XsdTypes.gmlGeometryPropertyType
-        else:
-            # Default XML choice:
-            return DEFAULT_XSD_TYPE
+            return _get_model_fields(self.model, self._fields)
 
     @cached_property
     def geometry_field(self) -> gis_models.GeometryField:
@@ -276,22 +391,8 @@ class FeatureType:
         """Return the definition of this feature as an XSD Complex Type."""
         return XsdComplexType(
             name=f"{self.name.title()}Type",
-            elements=[self.get_xsd_element(name) for name in self.fields],
+            elements=[field.xsd_element for field in self.fields],
             source=self.model,
-        )
-
-    def get_xsd_element(self, name) -> XsdElement:
-        """Define the XMLSchema definition for a model field.
-        This is used in DescribeFeatureType.
-        """
-        field = self.get_field(name)
-        return XsdElement(
-            name=name,
-            type=self.get_field_type(name, field),
-            nillable=field.null,
-            min_occurs=0,
-            max_occurs=1 if isinstance(field, GeometryField) else None,
-            source=field,
         )
 
     def resolve_element(self, xpath: str) -> Optional[XsdElement]:
