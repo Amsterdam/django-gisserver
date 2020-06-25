@@ -12,7 +12,7 @@ Django speaking WFS 2.0 to expose geo data.
 * WFS 2.0 simple implementation.
 * GML 3.2 output.
 * Standard and spatial filtering (FES 2.0)
-* GeoJSON export support.
+* GeoJSON and CSV export formats.
 * Extensible view/operations.
 * Uses GeoDjango queries for filtering.
 * Streaming responses for large datasets.
@@ -93,12 +93,37 @@ By adding `&OUTPUTFORMAT=geojson` to the `GetFeature` request, the GeoJSON outpu
 NOTE: by default, the minimum number of model fields are exposed as WFS attributes.
 Use `FeatureType(..., fields=[...])` parameter to define which fields should be exposed.
 
+It's possible to expose foreign key relations too as complex fields:
+
+```python
+from gisserver.features import FeatureType, field
+
+
+class CustomWFSView(WFSView):
+    ...
+
+    feature_types = [
+        FeatureType(
+            Restaurant.objects.all(),
+            fields=[
+                "id",
+                "name",
+                "location",
+                field("owner", fields=["id", "name", "phonenumber"])
+                "created"
+            ],
+        ),
+    ]
+```
+
+
 ## Customization hooks
 
 There are a few places that allow to customize the WFS logic:
 
 * Overriding methods from ``WFSView``, such as ``get_feature_types()`` or ``dispatch()`` for authorization.
 * Subclassing the ``FeatureType`` class, to override it's ``get_queryset()`` method.
+* Subclassing the ``FeatureField`` class for the ``FeatureType(fields=...)`` parameter.
 * Registering new FES functions to ``gisserver.parsers.fes_function_registry``.
 * Registering new stored procedures to ``gisserver.queries.stored_query_registry``.
 
