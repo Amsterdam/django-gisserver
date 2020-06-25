@@ -8,6 +8,7 @@ from django.conf import settings
 from django.contrib.gis.db.models.functions import AsGeoJSON
 from django.db import models
 from django.utils.timezone import utc
+from gisserver import conf
 from gisserver.features import FeatureType
 from gisserver.types import XsdComplexType
 
@@ -26,6 +27,7 @@ class GeoJsonRenderer(OutputRenderer):
     """
 
     content_type = "application/json; charset=utf-8"
+    max_page_size = conf.GISSERVER_GEOJSON_MAX_PAGE_SIZE
 
     def render_stream(self):
         output = BytesBuffer()

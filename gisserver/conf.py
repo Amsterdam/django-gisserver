@@ -9,11 +9,15 @@ from django.dispatch import receiver
 GISSERVER_USE_DB_RENDERING = getattr(settings, "GISSERVER_USE_DB_RENDERING", True)
 
 # Allow tuning the page size without having to override code.
+# This corresponds with the "DefaultMaxFeatures" setting.
 GISSERVER_DEFAULT_MAX_PAGE_SIZE = getattr(
     settings, "GISSERVER_DEFAULT_MAX_PAGE_SIZE", 5000
 )
 
 # CSV exports have a higher default page size, as these results can be streamed.
+GISSERVER_GEOJSON_MAX_PAGE_SIZE = getattr(
+    settings, "GISSERVER_GEOJSON_MAX_PAGE_SIZE", 50_000
+)
 GISSERVER_CSV_MAX_PAGE_SIZE = getattr(settings, "GISSERVER_CSV_MAX_PAGE_SIZE", math.inf)
 
 
