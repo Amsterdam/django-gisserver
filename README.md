@@ -88,10 +88,13 @@ It will perform requests such as:
 * <http://localhost:8000/wfs/places/?SERVICE=WFS&REQUEST=DescribeFeatureType&VERSION=2.0.0&TYPENAMES=restaurant>
 * <http://localhost:8000/wfs/places/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant&STARTINDEX=0&COUNT=1000&SRSNAME=urn:ogc:def:crs:EPSG::28992>
 
-By adding `&OUTPUTFORMAT=geojson` to the `GetFeature` request, the GeoJSON output is returned.
+By adding `&OUTPUTFORMAT=geojson` or `&OUTPUTFORMAT=csv` to the `GetFeature` request, the GeoJSON and CSV outputs are returned.
+The CSV output has an unlimited page size, as it's quite performant.
 
-NOTE: by default, the minimum number of model fields are exposed as WFS attributes.
-Use `FeatureType(..., fields=[...])` parameter to define which fields should be exposed.
+## Configuring fields
+
+By default, only the geometry field is exposed as WFS attribute.
+Use the `FeatureType(..., fields=[...])` parameter to define which fields should be exposed.
 
 It's possible to expose foreign key relations too as complex fields:
 
