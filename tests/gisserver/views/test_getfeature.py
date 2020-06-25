@@ -586,7 +586,7 @@ class TestGetFeature:
 
         response = client.get(
             "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
-            "&outputformat=geojson"
+            "&outputformat=geojson&COUNT=1000"
         )
         assert response["content-type"] == "application/json; charset=utf-8"
         content = read_response(response)

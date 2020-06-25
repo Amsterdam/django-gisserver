@@ -10,7 +10,7 @@ GISSERVER_USE_DB_RENDERING = getattr(settings, "GISSERVER_USE_DB_RENDERING", Tru
 
 # Allow tuning the page size without having to override code.
 GISSERVER_DEFAULT_MAX_PAGE_SIZE = getattr(
-    settings, "GISSERVER_DEFAULT_MAX_PAGE_SIZE", 1000
+    settings, "GISSERVER_DEFAULT_MAX_PAGE_SIZE", 5000
 )
 
 # CSV exports have a higher default page size, as these results can be streamed.
