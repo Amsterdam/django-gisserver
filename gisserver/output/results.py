@@ -3,6 +3,7 @@
 The "SimpleFeatureCollection" and "FeatureCollection" and their
 properties match the WFS 2.0 spec closely.
 """
+import django
 import math
 import operator
 from functools import reduce
@@ -122,7 +123,11 @@ class SimpleFeatureCollection:
         }
         if clean_annotations != qs.query.annotations:
             qs = self.queryset.all()  # make a clone to allow editing
-            qs.query.annotations = clean_annotations
+            if django.VERSION >= (3, 0):
+                qs.query.annotations = clean_annotations
+            else:
+                qs.query._annotations = clean_annotations
+
         return qs.count()
 
     def get_bounding_box(self) -> BoundingBox:
