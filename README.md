@@ -156,7 +156,7 @@ Anything outside WFS simple could be implemented, but is very low on the todo-li
 * HTTP POST requests.
 * SOAP requests.
 * Other protocols (WMS, WMTS, WCS)
-* Other output formats (shapefile, CSV, KML, GML 3.1) - but easy to add.
+* Other output formats (shapefile, KML, GML 3.1) - but easy to add.
 
 ## Development
 
