@@ -42,7 +42,7 @@ from gisserver.geometries import CRS, WGS84
 from gisserver.views import WFSView
 from .models import Restaurant
 
-RD_NEW = CRS.from_string("urn:ogc:def:crs:EPSG::28992")
+RD_NEW = CRS.from_srid(28992)
 
 
 class PlacesWFSView(WFSView):
