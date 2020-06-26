@@ -148,7 +148,7 @@ class AdhocQuery(QueryExpression):
         try:
             return super().get_queryset(feature_type)
         except FieldError as e:
-            # e.g. doing a LIKE on a foreign key
+            # e.g. doing a LIKE on a foreign key, or requesting an unknown field.
             self._log_filter_error(logging.ERROR, e)
             raise InvalidParameterValue(
                 self._get_locator(), f"Internal error when processing filter",
@@ -185,7 +185,7 @@ class AdhocQuery(QueryExpression):
         """Return our internal CompiledQuery object that can be applied to the queryset."""
         if self.filter:
             # Generate the internal query object from the <fes:Filter>
-            return self.filter.compile_query()
+            return self.filter.compile_query(feature_type)
         else:
             # Generate the internal query object from the BBOX and sortBy args.
             return self._compile_non_filter_query(feature_type)
@@ -196,7 +196,7 @@ class AdhocQuery(QueryExpression):
         This is slightly more efficient then generating the fes Filter object
         from these KVP parameters (which could also be done within the request method).
         """
-        compiler = fes20.CompiledQuery()
+        compiler = fes20.CompiledQuery(feature_type=feature_type)
 
         if self.bbox:
             # Using __within does not work with geometries

@@ -4,6 +4,7 @@ These types are the internal definition on which all output is generated.
 It's constructed from the model metadata by the `FeatureType` / `FeatureField`
 classes. Custom field types could also generate these field types.
 """
+import re
 from dataclasses import dataclass
 from enum import Enum
 from typing import List, Optional, Type
@@ -19,6 +20,8 @@ __all__ = [
     "XsdTypes",
     "XsdComplexType",
 ]
+
+RE_XPATH_ATTR = re.compile(r"\[[^\]]+\]$")
 
 
 class XsdAnyType:
@@ -181,8 +184,10 @@ class XsdComplexType(XsdAnyType):
         """Shortcut to get all elements with a complex type"""
         return [e for e in self.elements if e.type.is_complex_type]
 
-    def resolve_element(self, xpath: str) -> Optional[XsdElement]:
-        """Resolve an xpath reference to the actual node."""
+    def resolve_element_path(self, xpath: str) -> Optional[List[XsdElement]]:
+        """Resolve an xpath reference to the actual node.
+        This returns the list of all levels if a match was found.
+        """
         try:
             pos = xpath.rindex("/")
             node_name = xpath[:pos]
@@ -190,14 +195,21 @@ class XsdComplexType(XsdAnyType):
             node_name = xpath
             pos = 0
 
+        # Strip any [@attr=..] conditions
+        node_name = RE_XPATH_ATTR.sub("", node_name)
+
         for element in self.elements:
             if element.name == node_name:
                 if pos:
                     if not element.type.is_complex_type:
                         return None
                     else:
-                        return element.type.resolve_element(xpath[pos + 1 :])
+                        child_path = element.type.resolve_element_path(xpath[pos + 1 :])
+                        if child_path is None:
+                            return None
+                        else:
+                            return [element] + child_path
                 else:
-                    return element
+                    return [element]
 
         return None

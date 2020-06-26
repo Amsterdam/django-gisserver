@@ -130,7 +130,7 @@ class ValueReference(Expression):
 
     def build_lhs(self, compiler) -> str:
         """Optimized LHS: there is no need to alias a field lookup through an annotation."""
-        field, extra_q = self.parse_xpath()
+        field, extra_q = self.parse_xpath(compiler)
         if extra_q:
             compiler.add_extra_lookup(extra_q)
         return field
@@ -139,10 +139,16 @@ class ValueReference(Expression):
         """Return the value as F-expression"""
         return F(self.build_lhs(compiler))
 
-    def parse_xpath(self) -> Tuple[str, Optional[Q]]:
+    def parse_xpath(self, compiler) -> Tuple[str, Optional[Q]]:
         """Return the value when it's used as left-hand side expression"""
-        parts = [word.strip() for word in self.xpath.split("/")]
-        orm_field = "__".join(parts)
+        if compiler.feature_type is not None:
+            # Can resolve against XSD paths, find the correct DB field name
+            path = compiler.feature_type.resolve_element_path(self.xpath)
+            orm_field = "__".join(xsd_element.model_attribute for xsd_element in path)
+        else:
+            # Only used by unit testing (when feature_type is not given).
+            parts = [word.strip() for word in self.xpath.split("/")]
+            orm_field = "__".join(parts)
 
         if RE_NON_NAME.match(orm_field):
             # If there is an element[@attr=...]/field tag,

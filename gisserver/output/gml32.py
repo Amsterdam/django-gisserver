@@ -545,7 +545,7 @@ class DBGML32ValueRenderer(DBGML32Renderer, GML32ValueRenderer):
     ):
         """Update the queryset to let the database render the GML output."""
         value_reference = params["valueReference"]
-        xsd_element = feature_type.xsd_type.resolve_element(value_reference.xpath)
+        xsd_element = feature_type.resolve_element(value_reference.xpath)
         if xsd_element.is_gml:
             # Add 'gml_member' to point to the pre-rendered GML version.
             return queryset.values(

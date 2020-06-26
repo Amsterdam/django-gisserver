@@ -3,7 +3,7 @@ import html
 import operator
 from dataclasses import dataclass
 from functools import lru_cache, reduce
-from typing import List, Optional, TYPE_CHECKING, Type, Union
+from typing import List, Optional, Type, Union
 
 from django.contrib.gis.db import models as gis_models
 from django.contrib.gis.db.models import Extent, GeometryField
@@ -297,9 +297,7 @@ class FeatureType:
             for f in self.model._meta.get_fields()
             if isinstance(f, gis_models.GeometryField)
         ]
-
-        if not TYPE_CHECKING:
-            self.resolve_element = lru_cache(100)(self.resolve_element)
+        self._cached_resolver = None
 
     def check_permissions(self, request):
         """Hook that allows subclasses to reject access for datasets.
@@ -396,5 +394,18 @@ class FeatureType:
         )
 
     def resolve_element(self, xpath: str) -> Optional[XsdElement]:
-        """Resolve the element. This method is wrapped inside an lru_cache."""
-        return self.xsd_type.resolve_element(xpath)
+        """Resolve the element, only returns the final node."""
+        return self.resolve_element_path(xpath)[-1]
+
+    def resolve_element_path(self, xpath: str) -> Optional[List[XsdElement]]:
+        """Resolve the element, and return the whole path.
+        This method is wrapped inside an lru_cache.
+        """
+        if self._cached_resolver is None:
+            self._cached_resolver = lru_cache(100)(self.xsd_type.resolve_element_path)
+
+        path = self._cached_resolver(xpath)
+        if path is None:
+            raise ValueError(f"Field '{xpath}' does not exist.")
+
+        return path
