@@ -61,6 +61,13 @@ FILTERS = {
                 <fes:Literal>3.0</fes:Literal>
             </fes:PropertyIsGreaterThanOrEqualTo>
         </fes:Filter>""",
+    "fes1": """
+        <Filter>
+            <PropertyIsGreaterThanOrEqualTo>
+                <PropertyName>rating</PropertyName>
+                <Literal>3.0</Literal>
+            </PropertyIsGreaterThanOrEqualTo>
+        </Filter>""",
     "like": """
         <?xml version="1.0"?>
         <fes:Filter

@@ -104,9 +104,13 @@ class Literal(Expression):
 
 @dataclass
 @tag_registry.register("ValueReference")
+@tag_registry.register("PropertyName")  # FES 1.0 name, some clients still use this.
 class ValueReference(Expression):
     """The <fes:ValueReference> element that holds an XPath string.
     In the fes XSD, this is declared as a subclass of xsd:string.
+
+    The old WFS1/FES1 "PropertyName" is allowed as an alias.
+    Various clients still send this, and mapserver/geoserver support this.
     """
 
     xpath: str
@@ -115,7 +119,7 @@ class ValueReference(Expression):
         return self.xpath
 
     @classmethod
-    @expect_tag(FES20, "ValueReference")
+    @expect_tag(FES20, "ValueReference", "PropertyName")
     def from_xml(cls, element: Element):
         return cls(xpath=element.text)
 

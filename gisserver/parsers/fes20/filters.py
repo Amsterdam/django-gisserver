@@ -6,6 +6,7 @@ from defusedxml.ElementTree import ParseError, fromstring
 from gisserver.parsers.base import FES20, tag_registry
 from gisserver.parsers.utils import expect_tag
 from . import expressions, identifiers, operators, query
+from ..gml import GML32
 
 FilterPredicates = Union[expressions.Function, operators.Operator]
 
@@ -34,6 +35,15 @@ class Filter:
         :raises ValueError: When data is incorrect, or XML has syntax errors.
         :raises NotImplementedError: When unsupported features are called.
         """
+        if isinstance(text, str):
+            end_first = text.index(">")
+            first_tag = text[:end_first]
+            if "xmlns" not in first_tag:
+                # Allow KVP requests without a namespace
+                # Both geoserver and mapserver support this.
+                if "<Filter" in first_tag:
+                    text = f'{first_tag} xmlns="{FES20}" xmlns:gml="{GML32}">{text[end_first:]}'
+
         try:
             root_element = fromstring(text)
         except ParseError as e:

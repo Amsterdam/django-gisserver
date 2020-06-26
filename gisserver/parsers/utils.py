@@ -8,16 +8,17 @@ from xml.etree.ElementTree import Element, QName
 RE_FLOAT = re.compile(r"\A[0-9]+(\.[0-9]+)\Z")
 
 
-def expect_tag(namespace, tag_name):
+def expect_tag(namespace, *tag_names):
     """Validate whether a given tag is need"""
+    valid_tags = set(str(QName(namespace, name)) for name in tag_names)
+    expect0 = str(QName(namespace, tag_names[0]))
 
     def _wrapper(func):
         @wraps(func)
         def _from_xml_expect(cls, element, *args, **kwargs):
-            qname = QName(namespace, tag_name)
-            if element.tag != qname:
+            if element.tag not in valid_tags:
                 raise ValueError(
-                    f"{cls.__name__}.{func.__name__}(element) expects an <{qname}> node, "
+                    f"{cls.__name__}.{func.__name__}(element) expects an <{expect0}> node, "
                     f"got <{element.tag}>"
                 )
 
