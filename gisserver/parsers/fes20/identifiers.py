@@ -9,7 +9,12 @@ from typing import Optional, Union
 from django.db.models import Q
 
 from gisserver.parsers.base import BaseNode, FES20, tag_registry
-from gisserver.parsers.utils import auto_cast, get_attribute, parse_iso_datetime
+from gisserver.parsers.utils import (
+    auto_cast,
+    get_attribute,
+    expect_tag,
+    parse_iso_datetime,
+)
 
 NoneType = type(None)
 
@@ -51,6 +56,7 @@ class ResourceId(Id):
             raise ValueError("Expected typename.id format") from None
 
     @classmethod
+    @expect_tag(FES20, "ResourceId", leaf=True)
     def from_xml(cls, element):
         version = element.get("version")
         startTime = element.get("startTime")

@@ -8,7 +8,7 @@ from xml.etree.ElementTree import Element, QName
 RE_FLOAT = re.compile(r"\A[0-9]+(\.[0-9]+)\Z")
 
 
-def expect_tag(namespace, *tag_names):
+def expect_tag(namespace, *tag_names, leaf=False):
     """Validate whether a given tag is need"""
     valid_tags = set(str(QName(namespace, name)) for name in tag_names)
     expect0 = str(QName(namespace, tag_names[0]))
@@ -21,6 +21,8 @@ def expect_tag(namespace, *tag_names):
                     f"{cls.__name__}.{func.__name__}(element) expects an <{expect0}> node, "
                     f"got <{element.tag}>"
                 )
+            if leaf and len(element):
+                raise ValueError(f"{element.tag} elements should not have child nodes.")
 
             return func(cls, element, *args, **kwargs)
 

@@ -16,7 +16,12 @@ from django.db.models.expressions import Combinable
 
 from gisserver.parsers.base import FES20, BaseNode, TagNameEnum, tag_registry
 from gisserver.parsers.fes20.functions import function_registry
-from gisserver.parsers.utils import auto_cast, expect_tag, get_attribute, xsd_cast
+from gisserver.parsers.utils import (
+    auto_cast,
+    expect_tag,
+    get_attribute,
+    xsd_cast,
+)
 
 NoneType = type(None)
 RE_NON_NAME = re.compile(r"[^a-zA-Z0-9_/]")
@@ -75,7 +80,7 @@ class Literal(Expression):
         return self.value
 
     @classmethod
-    @expect_tag(FES20, "Literal")
+    @expect_tag(FES20, "Literal", leaf=True)
     def from_xml(cls, element: Element):
         type = element.get("type")
         value = element.text
@@ -119,7 +124,7 @@ class ValueReference(Expression):
         return self.xpath
 
     @classmethod
-    @expect_tag(FES20, "ValueReference", "PropertyName")
+    @expect_tag(FES20, "ValueReference", "PropertyName", leaf=True)
     def from_xml(cls, element: Element):
         return cls(xpath=element.text)
 
