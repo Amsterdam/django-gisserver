@@ -137,6 +137,18 @@ COMPLEX_FILTERS = {
                 <fes:Literal>CloudCity</fes:Literal>
             </fes:PropertyIsEqualTo>
         </fes:Filter>""",
+    "equal_xmlns": """
+        <?xml version="1.0"?>
+        <fes:Filter
+             xmlns:fes="http://www.opengis.net/fes/2.0"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xsi:schemaLocation="http://www.opengis.net/fes/2.0
+             http://schemas.opengis.net/filter/2.0/filterAll.xsd">
+            <fes:PropertyIsEqualTo>
+                <fes:ValueReference>app:city/app:name</fes:ValueReference>
+                <fes:Literal>CloudCity</fes:Literal>
+            </fes:PropertyIsEqualTo>
+        </fes:Filter>""",
     "not_nil": """
         <?xml version="1.0"?>
         <fes:Filter

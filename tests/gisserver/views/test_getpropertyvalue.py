@@ -25,11 +25,14 @@ def read_response(response) -> str:
 class TestGetPropertyValue:
     """All tests for the GetPropertyValue method."""
 
-    def test_get(self, client, restaurant, bad_restaurant):
+    @pytest.mark.parametrize(
+        "xpath", ["name", "app:name", "app:restaurant/app:name", "/restaurant/name"]
+    )
+    def test_get(self, client, restaurant, bad_restaurant, xpath):
         """Prove that the happy flow works"""
         response = client.get(
             "/v1/wfs/?SERVICE=WFS&REQUEST=GetPropertyValue&VERSION=2.0.0&TYPENAMES=restaurant"
-            "&VALUEREFERENCE=name"
+            f"&VALUEREFERENCE={xpath}"
         )
         content = read_response(response)
         assert response["content-type"] == "text/xml; charset=utf-8", content

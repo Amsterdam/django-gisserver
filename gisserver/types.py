@@ -198,6 +198,11 @@ class XsdComplexType(XsdAnyType):
             node_name = xpath
             pos = 0
 
+        # Strip current app namespace. Note this should actually
+        # compare the xmlns URI's, but this will suffice for now.
+        if node_name.startswith("app:"):
+            node_name = node_name[4:]
+
         # Strip any [@attr=..] conditions
         node_name = RE_XPATH_ATTR.sub("", node_name)
 

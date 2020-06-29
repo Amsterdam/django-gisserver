@@ -298,7 +298,7 @@ class FeatureType:
             for f in self.model._meta.get_fields()
             if isinstance(f, gis_models.GeometryField)
         ]
-        self._cached_resolver = None
+        self._cached_resolver = lru_cache(100)(self._inner_resolve_element)
 
     def check_permissions(self, request):
         """Hook that allows subclasses to reject access for datasets.
@@ -398,11 +398,41 @@ class FeatureType:
         """Resolve the element, and the matching object.
         This method is wrapped inside an lru_cache.
         """
-        if self._cached_resolver is None:
-            self._cached_resolver = lru_cache(100)(self.xsd_type.resolve_element_path)
-
-        path = self._cached_resolver(xpath)
+        path = self._cached_resolver(xpath)  # calls _inner_resolve_element
         if path is None:
             raise ValueError(f"Field '{xpath}' does not exist.")
 
         return XPathMatch(path, query=xpath)
+
+    def _inner_resolve_element(self, xpath: str):
+        """Inner part of resolve_element() that is cached.
+        This performs any additional checks that happen at the root-level only.
+        """
+        # Avoid complex XPath features for now. Only element/child works.
+        # The attribute selector is not fully implemented, but tested elsewhere.
+        if "//" in xpath:
+            raise NotImplementedError(
+                f"XPath selectors with deeper descendant selectors are not supported: {xpath}"
+            )
+        elif "::" in xpath:
+            raise NotImplementedError(
+                f"XPath selectors with expanded syntax are not supported: {xpath}"
+            )
+        elif "(" in xpath:
+            raise NotImplementedError(
+                f"XPath selectors with functions are not supported: {xpath}"
+            )
+
+        # Allow /app:ElementName/.. as "absolute" path.
+        # Given our internal resolver logic, simple solution is to strip it.
+        for root_prefix in (
+            f"{self.name}/",
+            f"/{self.name}/",
+            f"app:{self.name}/",
+            f"/app:{self.name}/",
+        ):
+            if xpath.startswith(root_prefix):
+                xpath = xpath[len(root_prefix) :]
+                break
+
+        return self.xsd_type.resolve_element_path(xpath)
