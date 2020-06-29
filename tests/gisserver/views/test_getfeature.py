@@ -7,6 +7,7 @@ import pytest
 from gisserver.geometries import WGS84
 from tests.constants import NAMESPACES
 from tests.gisserver.views.input import (
+    COMPLEX_FILTERS,
     FILTERS,
     INVALID_FILTERS,
     POINT1_EWKT,
@@ -365,6 +366,34 @@ class TestGetFeature:
         response = client.get(
             "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
             "&FILTER=" + quote_plus(filter)
+        )
+        content = read_response(response)
+        assert response["content-type"] == "text/xml; charset=utf-8", content
+        assert response.status_code == 200, content
+        assert "</wfs:FeatureCollection>" in content
+
+        # Validate against the WFS 2.0 XSD
+        xml_doc = validate_xsd(content, WFS_20_XSD)
+        assert xml_doc.attrib["numberMatched"] == "1"
+        assert xml_doc.attrib["numberReturned"] == "1"
+
+        # Prove that the output is still rendered in WGS84
+        feature = xml_doc.find("wfs:member/app:restaurant", namespaces=NAMESPACES)
+        geometry = feature.find("app:location/gml:Point", namespaces=NAMESPACES)
+        assert geometry.attrib["srsName"] == WGS84.urn
+
+        # Assert that the correct object was matched
+        name = feature.find("app:name", namespaces=NAMESPACES).text
+        assert name == "Café Noir"
+
+    @pytest.mark.parametrize("filter_name", list(COMPLEX_FILTERS.keys()))
+    def test_get_filter_complex(self, client, restaurant, bad_restaurant, filter_name):
+        """Prove that that parsing FILTER=<fes:Filter>... works"""
+        filter = COMPLEX_FILTERS[filter_name].strip()
+
+        response = client.get(
+            "/v1/wfs-complextypes/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
+            "&TYPENAMES=restaurant&FILTER=" + quote_plus(filter)
         )
         content = read_response(response)
         assert response["content-type"] == "text/xml; charset=utf-8", content

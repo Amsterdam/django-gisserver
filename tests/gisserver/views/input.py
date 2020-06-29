@@ -99,29 +99,57 @@ FILTERS = {
             </fes:BBOX>
         </fes:Filter>""",
     "and": """
-    <?xml version="1.0"?>
-    <fes:Filter
-        xmlns:fes="http://www.opengis.net/fes/2.0"
-        xmlns:gml="http://www.opengis.net/gml/3.2"
-        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xsi:schemaLocation="http://www.opengis.net/fes/2.0
-        http://schemas.opengis.net/filter/2.0/filterAll.xsd
-        http://www.opengis.net/gml/3.2
-        http://schemas.opengis.net/gml/3.2.1/gml.xsd">
-        <fes:And>
-            <fes:PropertyIsGreaterThanOrEqualTo>
-                <fes:ValueReference>rating</fes:ValueReference>
-                <fes:Literal>3.0</fes:Literal>
-            </fes:PropertyIsGreaterThanOrEqualTo>
-            <fes:BBOX>
-                <fes:ValueReference>location</fes:ValueReference>
-                <gml:Envelope srsName="urn:ogc:def:crs:EPSG::28992">
-                    <gml:lowerCorner>122410 486240</gml:lowerCorner>
-                    <gml:upperCorner>122412 486260</gml:upperCorner>
-                </gml:Envelope>
-            </fes:BBOX>
-        </fes:And>
-    </fes:Filter>""",
+        <?xml version="1.0"?>
+        <fes:Filter
+            xmlns:fes="http://www.opengis.net/fes/2.0"
+            xmlns:gml="http://www.opengis.net/gml/3.2"
+            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+            xsi:schemaLocation="http://www.opengis.net/fes/2.0
+            http://schemas.opengis.net/filter/2.0/filterAll.xsd
+            http://www.opengis.net/gml/3.2
+            http://schemas.opengis.net/gml/3.2.1/gml.xsd">
+            <fes:And>
+                <fes:PropertyIsGreaterThanOrEqualTo>
+                    <fes:ValueReference>rating</fes:ValueReference>
+                    <fes:Literal>3.0</fes:Literal>
+                </fes:PropertyIsGreaterThanOrEqualTo>
+                <fes:BBOX>
+                    <fes:ValueReference>location</fes:ValueReference>
+                    <gml:Envelope srsName="urn:ogc:def:crs:EPSG::28992">
+                        <gml:lowerCorner>122410 486240</gml:lowerCorner>
+                        <gml:upperCorner>122412 486260</gml:upperCorner>
+                    </gml:Envelope>
+                </fes:BBOX>
+            </fes:And>
+        </fes:Filter>""",
+}
+
+COMPLEX_FILTERS = {
+    "equal": """
+        <?xml version="1.0"?>
+        <fes:Filter
+             xmlns:fes="http://www.opengis.net/fes/2.0"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xsi:schemaLocation="http://www.opengis.net/fes/2.0
+             http://schemas.opengis.net/filter/2.0/filterAll.xsd">
+            <fes:PropertyIsEqualTo>
+                <fes:ValueReference>city/name</fes:ValueReference>
+                <fes:Literal>CloudCity</fes:Literal>
+            </fes:PropertyIsEqualTo>
+        </fes:Filter>""",
+    "not_nil": """
+        <?xml version="1.0"?>
+        <fes:Filter
+             xmlns:fes="http://www.opengis.net/fes/2.0"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xsi:schemaLocation="http://www.opengis.net/fes/2.0
+             http://schemas.opengis.net/filter/2.0/filterAll.xsd">
+            <fes:Not>
+                <fes:PropertyIsNil>
+                    <fes:ValueReference>city/name</fes:ValueReference>
+                </fes:PropertyIsNil>
+            </fes:Not>
+        </fes:Filter>""",
 }
 
 INVALID_FILTERS = {
