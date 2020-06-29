@@ -1,3 +1,14 @@
+# 2020-06-29 (0.8.1)
+
+* Added unpaginated GeoJSON support (performance is good enough).
+* Added basic support for non-namespaced `FILTER` queries, and `PropertyName` tags (though being WFS2 attributes, clients still use them).
+* Added extra strict check that `ValueReference`/`Literal`/`ResourceId` nodes don't have child nodes.
+* Fixed allowing filtering on unknown or undefined fields (XPaths are now resolved to known elements).
+* Optimized results streaming by automatically using a queryset-iterator if possible.
+* Optimized GeoJSON output by no longer selecting the other geometry fields.
+* Added shortcut properties to `XsdComplexType`: `gml_elements` and `complex_elements`.
+
+
 # 2020-06-25 (0.8)
 
 * Added preliminary support to render complex field types (e.g. relations).
