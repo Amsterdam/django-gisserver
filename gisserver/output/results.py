@@ -176,7 +176,7 @@ class SimpleFeatureCollection:
         bbox = BoundingBox(math.inf, math.inf, -math.inf, -math.inf)
         geometry_field = self.feature_type.resolve_element(
             self.feature_type.geometry_field_name
-        )
+        ).child
         for instance in self:
             geomery_value = geometry_field.get_value(instance)
             if geomery_value is None:

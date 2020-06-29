@@ -7,6 +7,8 @@ classes. Custom field types could also generate these field types.
 import re
 from dataclasses import dataclass
 from enum import Enum
+
+from django.db.models import Q
 from typing import List, Optional, Type
 
 from django.contrib.gis.db.models import GeometryField
@@ -22,6 +24,7 @@ __all__ = [
 ]
 
 RE_XPATH_ATTR = re.compile(r"\[[^\]]+\]$")
+RE_NON_NAME = re.compile(r"[^a-zA-Z0-9_/]")
 
 
 class XsdAnyType:
@@ -211,5 +214,50 @@ class XsdComplexType(XsdAnyType):
                             return [element] + child_path
                 else:
                     return [element]
+
+        return None
+
+
+class XPathMatch:
+    """Wrapper class to provide XPath results."""
+
+    #: The matched element, with all it's parents.
+    elements: List[XsdElement]
+
+    #: The source XPath query
+    query: str
+
+    def __init__(self, elements: List[XsdElement], query: str):
+        self.elements = elements
+        self.query = query
+
+    def __iter__(self):
+        return iter(self.elements)
+
+    def __getitem__(self, item) -> XsdElement:
+        return self.elements[item]
+
+    def __repr__(self):
+        return f"XPathMatch(elements={self.elements!r}, query={self.query!r})"
+
+    @property
+    def child(self) -> XsdElement:
+        """Return only the final element"""
+        return self.elements[-1]
+
+    @property
+    def orm_path(self) -> str:
+        """Tell which ORM path should be targetted."""
+        return "__".join(xsd_element.model_attribute for xsd_element in self.elements)
+
+    @property
+    def orm_filters(self) -> Optional[Q]:
+        """Tell which additional filters are needed (due to [@attr=..] syntax)."""
+        if RE_NON_NAME.match(self.query):
+            # If there is an element[@attr=...]/field tag,
+            # the build_...() logic should return a Q() object.
+            raise NotImplementedError(
+                f"Complex XPath queries are not supported yet: {self.query}"
+            )
 
         return None

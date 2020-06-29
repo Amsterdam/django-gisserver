@@ -2,7 +2,6 @@
 The class names are identical to those in the FES spec.
 """
 import operator
-import re
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal as D
@@ -24,7 +23,6 @@ from gisserver.parsers.utils import (
 )
 
 NoneType = type(None)
-RE_NON_NAME = re.compile(r"[^a-zA-Z0-9_/]")
 
 RhsTypes = Union[
     Combinable, Func, Q, GEOSGeometry, bool, int, str, date, datetime, tuple
@@ -143,21 +141,12 @@ class ValueReference(Expression):
         """Return the value when it's used as left-hand side expression"""
         if compiler.feature_type is not None:
             # Can resolve against XSD paths, find the correct DB field name
-            path = compiler.feature_type.resolve_element_path(self.xpath)
-            orm_field = "__".join(xsd_element.model_attribute for xsd_element in path)
+            match = compiler.feature_type.resolve_element(self.xpath)
+            return match.orm_path, match.orm_filters
         else:
             # Only used by unit testing (when feature_type is not given).
             parts = [word.strip() for word in self.xpath.split("/")]
-            orm_field = "__".join(parts)
-
-        if RE_NON_NAME.match(orm_field):
-            # If there is an element[@attr=...]/field tag,
-            # the get_filter() part should return a Q() object.
-            raise NotImplementedError(
-                f"Complex XPath queries are not supported yet: {self.xpath}"
-            )
-
-        return orm_field, None
+            return "__".join(parts), None
 
     @cached_property
     def element_name(self):

@@ -530,7 +530,7 @@ class GML32ValueRenderer(GML32Renderer):
             )
         else:
             # The xsd_element is needed so render_xml_field() can render complex types.
-            xsd_element = feature_type.resolve_element(self.value_reference.xpath)
+            xsd_element = feature_type.resolve_element(self.value_reference.xpath).child
             return self.render_xml_field(
                 feature_type, xsd_element, value, extra_xmlns=extra_xmlns
             )
@@ -545,12 +545,11 @@ class DBGML32ValueRenderer(DBGML32Renderer, GML32ValueRenderer):
     ):
         """Update the queryset to let the database render the GML output."""
         value_reference = params["valueReference"]
-        xsd_element = feature_type.resolve_element(value_reference.xpath)
-        if xsd_element.is_gml:
+        match = feature_type.resolve_element(value_reference.xpath)
+        if match.child.is_gml:
             # Add 'gml_member' to point to the pre-rendered GML version.
             return queryset.values(
-                "pk",
-                gml_member=_AsGML(get_db_geometry_target(xsd_element, output_crs)),
+                "pk", gml_member=_AsGML(get_db_geometry_target(match, output_crs)),
             )
         else:
             return queryset

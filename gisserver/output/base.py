@@ -11,7 +11,7 @@ from django.utils.html import escape
 
 from gisserver.operations.base import WFSMethod
 from gisserver.geometries import CRS
-from gisserver.types import XsdComplexType, XsdElement
+from gisserver.types import XPathMatch, XsdComplexType, XsdElement
 
 from .results import FeatureCollection
 
@@ -183,17 +183,28 @@ def build_db_annotations(selects: dict, name_template: str, wrapper_func) -> dic
 def get_db_geometry_selects(xsd_type: XsdComplexType, output_crs: CRS) -> dict:
     """Utility to generate select clauses for the geometry fields of a type."""
     return {
-        xsd_element.name: get_db_geometry_target(xsd_element, output_crs)
+        xsd_element.name: _get_db_geometry_target(xsd_element, output_crs)
         for xsd_element in xsd_type.gml_elements
         if xsd_element.source is not None
     }
 
 
-def get_db_geometry_target(xsd_element: XsdElement, output_crs: CRS):
+def _get_db_geometry_target(xsd_element: XsdElement, output_crs: CRS):
     """Wrap the selection of a geometry field in a CRS Transform if needed."""
     field = cast(GeometryField, xsd_element.source)
 
-    target = xsd_element.name
+    target = xsd_element.model_attribute
+    if field.srid != output_crs.srid:
+        target = Transform(target, output_crs.srid)
+
+    return target
+
+
+def get_db_geometry_target(xpath_match: XPathMatch, output_crs: CRS):
+    """Based on a resolved element, build the proper geometry field select clause."""
+    field = cast(GeometryField, xpath_match.child.source)
+
+    target = xpath_match.orm_path
     if field.srid != output_crs.srid:
         target = Transform(target, output_crs.srid)
 

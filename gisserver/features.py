@@ -14,6 +14,7 @@ from django.db.models.fields.reverse_related import ForeignObjectRel
 from django.utils.functional import cached_property  # py3.8: functools
 
 from gisserver.types import (
+    XPathMatch,
     XsdAnyType,
     XsdComplexType,
     XsdElement,
@@ -393,12 +394,8 @@ class FeatureType:
             source=self.model,
         )
 
-    def resolve_element(self, xpath: str) -> Optional[XsdElement]:
-        """Resolve the element, only returns the final node."""
-        return self.resolve_element_path(xpath)[-1]
-
-    def resolve_element_path(self, xpath: str) -> Optional[List[XsdElement]]:
-        """Resolve the element, and return the whole path.
+    def resolve_element(self, xpath: str) -> XPathMatch:
+        """Resolve the element, and the matching object.
         This method is wrapped inside an lru_cache.
         """
         if self._cached_resolver is None:
@@ -408,4 +405,4 @@ class FeatureType:
         if path is None:
             raise ValueError(f"Field '{xpath}' does not exist.")
 
-        return path
+        return XPathMatch(path, query=xpath)
