@@ -14,7 +14,7 @@ import re
 from typing import List
 from urllib.parse import urlencode
 
-from gisserver import output, queries
+from gisserver import conf, output, queries
 from gisserver.exceptions import (
     InvalidParameterValue,
     MissingParameterValue,
@@ -125,6 +125,7 @@ class GetCapabilities(WFSMethod):
             "feature_types": self.view.get_feature_types(),
             "feature_output_formats": feature_output_formats,
             "default_max_features": self.view.max_page_size,
+            "BOUNDING_BOX": conf.GISSERVER_CAPABILITIES_BOUNDING_BOX,
         }
 
 

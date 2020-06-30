@@ -358,7 +358,12 @@ class FeatureType:
         return self.queryset.all()
 
     def get_bounding_box(self) -> Optional[BoundingBox]:
-        """Returns a WGS84 BoundingBox."""
+        """Returns a WGS84 BoundingBox for the complete feature.
+
+        This is used by the GetCapabilities request. It may return ``None``
+        when the database table is empty, or the custom queryset doesn't
+        return any results.
+        """
         if self.geometry_field.srid != WGS84.srid:
             geo_expression = Transform(self.geometry_field.name, WGS84.srid)
         else:

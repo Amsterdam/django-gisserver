@@ -14,6 +14,12 @@ GISSERVER_DEFAULT_MAX_PAGE_SIZE = getattr(
     settings, "GISSERVER_DEFAULT_MAX_PAGE_SIZE", 5000
 )
 
+# Configure whether the <ows:WGS84BoundingBox> should be included in GetCapabilities.
+# This is an expensive operation to calculate, hence it reduces the overall performance.
+GISSERVER_CAPABILITIES_BOUNDING_BOX = getattr(
+    settings, "GISSERVER_CAPABILITIES_BOUNDING_BOX", True
+)
+
 # CSV exports have a higher default page size, as these results can be streamed.
 GISSERVER_GEOJSON_MAX_PAGE_SIZE = getattr(
     settings, "GISSERVER_GEOJSON_MAX_PAGE_SIZE", math.inf

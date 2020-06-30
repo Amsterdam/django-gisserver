@@ -100,10 +100,10 @@
       <OutputFormats>{% for output in feature_output_formats %}
         <Format>{{ output }}</Format>{% endfor %}
       </OutputFormats>
-      {% with bbox=feature_type.get_bounding_box %}{% if bbox %}<ows:WGS84BoundingBox dimensions="2">
+      {% if BOUNDING_BOX %}{% with bbox=feature_type.get_bounding_box %}{% if bbox %}<ows:WGS84BoundingBox dimensions="2">
         <ows:LowerCorner>{{ bbox.lower_corner|join:" " }}</ows:LowerCorner>
         <ows:UpperCorner>{{ bbox.upper_corner|join:" " }}</ows:UpperCorner>
-      </ows:WGS84BoundingBox>{% endif %}{% endwith %}{% if feature_type.metadata_url %}
+      </ows:WGS84BoundingBox>{% endif %}{% endwith %}{% endif %}{% if feature_type.metadata_url %}
       <MetadataURL xlink:href="{{ metadata_url|urljoin:server_url }}"/>{% endif %}
     </FeatureType>
     {% endfor %}
