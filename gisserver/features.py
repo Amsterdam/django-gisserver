@@ -131,8 +131,9 @@ class FeatureField:
     model: Optional[Type[models.Model]]
     model_field: Optional[models.Field]
 
-    def __init__(self, name, model=None):
+    def __init__(self, name, model_attribute=None, model=None):
         self.name = name
+        self.model_attribute = model_attribute
         self.model = None
         self.model_field = None
         if model is not None:
@@ -149,19 +150,23 @@ class FeatureField:
         if self.model is not None:
             raise RuntimeError(f"Feature field '{self.name}' cannot be reused")
         self.model = model
-        self.model_field = self.model._meta.get_field(self.name)
+        self.model_field = self.model._meta.get_field(self.model_attribute or self.name)
 
     @cached_property
     def xsd_element(self) -> XsdElement:
         """Define the XMLSchema definition for a model field.
         This is used in DescribeFeatureType.
         """
+        if self.model_field is None:
+            raise RuntimeError(f"bind() was not called for {self!r}")
+
         return XsdElement(
             name=self.name,
             type=self._get_xsd_type(),
             nillable=self.model_field.null,
             min_occurs=0,
             max_occurs=1 if isinstance(self.model_field, GeometryField) else None,
+            model_attribute=self.model_attribute,
             source=self.model_field,
         )
 
@@ -176,14 +181,16 @@ class ComplexFeatureField(FeatureField):
     This translates the foreign key into an embedded XSD complex type.
     """
 
-    def __init__(self, name: str, fields: _FieldDefinitions):
+    def __init__(
+        self, name: str, fields: _FieldDefinitions, model_attribute=None, model=None
+    ):
         """
         :param name: Name of the model field.
         :param fields: List of fields to expose for the target model. This can
             be a list of :class:`FeatureField` objects, or plain field names.
             Using ``__all__`` also works but is not recommended outside testing.
         """
-        super().__init__(name)
+        super().__init__(name, model_attribute=model_attribute, model=model)
         self._fields = fields
 
     def _get_xsd_type(self) -> XsdComplexType:
@@ -213,7 +220,9 @@ class ComplexFeatureField(FeatureField):
             )
 
 
-def field(name: str, fields: Optional[_FieldDefinitions] = None) -> FeatureField:
+def field(
+    name: str, *, model_attribute=None, fields: Optional[_FieldDefinitions] = None
+) -> FeatureField:
     """Shortcut to define a WFS field.
 
     This automatically selects the proper field class,
@@ -225,9 +234,11 @@ def field(name: str, fields: Optional[_FieldDefinitions] = None) -> FeatureField
         Using ``__all__`` also works but is not recommended outside testing.
     """
     if fields is not None:
-        return ComplexFeatureField(name=name, fields=fields)
+        return ComplexFeatureField(
+            name=name, model_attribute=model_attribute, fields=fields
+        )
     else:
-        return FeatureField(name)
+        return FeatureField(name, model_attribute=model_attribute)
 
 
 class FeatureType:
@@ -315,7 +326,7 @@ class FeatureType:
         """Define which fields to render."""
         # This lazy reading allows providing 'fields' as lazy value.
         if self._fields is None:
-            return [FeatureField(self.geometry_field_name, self.model)]
+            return [FeatureField(self.geometry_field_name, model=self.model)]
         else:
             return _get_model_fields(self.model, self._fields)
 

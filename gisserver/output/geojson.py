@@ -44,9 +44,9 @@ class GeoJsonRenderer(OutputRenderer):
             # Geometry fields are again excluded as 'properties' doesn't render these.
             relations = feature_type.xsd_type.complex_elements
             if relations:
-                related = [e.name for e in relations]
+                related = [e.model_attribute for e in relations]
                 defer_related = [
-                    f"{e.name}__{child.name}"
+                    f"{e.model_attribute}__{child.model_attribute}"
                     for e in relations
                     for child in e.type.gml_elements
                 ]
