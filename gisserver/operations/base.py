@@ -303,8 +303,6 @@ class WFSMethod:
 class WFSTypeNamesMethod(WFSMethod):
     """A base method that also resolved the TYPENAMES parameter."""
 
-    require_type_names = False
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -322,7 +320,7 @@ class WFSTypeNamesMethod(WFSMethod):
             # typeNames is not required when a ResourceID / GetFeatureById is specified.
             Parameter(
                 "typeNames",
-                required=self.require_type_names,
+                required=False,  # sometimes required, depends on other parameters
                 parser=self._parse_type_names,
             )
         ]

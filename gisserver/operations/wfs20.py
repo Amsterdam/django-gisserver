@@ -15,7 +15,11 @@ from typing import List
 from urllib.parse import urlencode
 
 from gisserver import output, queries
-from gisserver.exceptions import InvalidParameterValue, VersionNegotiationFailed
+from gisserver.exceptions import (
+    InvalidParameterValue,
+    MissingParameterValue,
+    VersionNegotiationFailed,
+)
 from gisserver.geometries import BoundingBox, CRS
 from gisserver.parsers import fes20
 
@@ -129,13 +133,19 @@ class DescribeFeatureType(WFSTypeNamesMethod):
     Each feature is exposed as an XSD definition with it's fields.
     """
 
-    require_type_names = True
     output_formats = [
         OutputFormat("XMLSCHEMA", renderer_class=output.XMLSchemaRenderer),
         # OutputFormat("text/xml", subtype="gml/3.1.1"),
     ]
 
     def get_context_data(self, typeNames, **params):
+        if self.view.KVP.get("TYPENAMES") == "":
+            # Using TYPENAMES= does result in an error.
+            raise MissingParameterValue("typeNames", f"Empty TYPENAMES parameter")
+        elif typeNames is None:
+            # Not given, all types are returned
+            typeNames = self.all_feature_types
+
         return {"feature_types": typeNames}
 
 
