@@ -1,3 +1,9 @@
+# 2020-06-30 (0.8.2)
+
+* Improve XPath matching support, allow "app:" prefix and root elements.
+* Refactored `FeatureType.resolve_element()` to return an `XPathMatch` object
+
+
 # 2020-06-29 (0.8.1)
 
 * Added unpaginated GeoJSON support (performance is good enough).
