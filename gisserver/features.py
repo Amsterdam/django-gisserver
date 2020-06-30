@@ -373,7 +373,12 @@ class FeatureType:
         return BoundingBox(*bbox, crs=WGS84) if bbox else None
 
     def get_envelope(self, instance, crs: CRS) -> Optional[BoundingBox]:
-        """Get the bounding box for a single instance"""
+        """Get the bounding box for a single instance.
+
+        This is only used for native Python rendering. When the database
+        rendering is enabled (GISSERVER_USE_DB_RENDERING=True), the calculation
+        is entirely performed within the query.
+        """
         geometries = [
             geom
             for geom in (getattr(instance, f.name) for f in self.geometry_fields)
@@ -401,7 +406,7 @@ class FeatureType:
 
     def resolve_element(self, xpath: str) -> XPathMatch:
         """Resolve the element, and the matching object.
-        This method is wrapped inside an lru_cache.
+        Internally, this method caches results.
         """
         path = self._cached_resolver(xpath)  # calls _inner_resolve_element
         if path is None:
