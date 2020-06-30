@@ -425,6 +425,7 @@ class NilOperator(ComparisonOperator):
         )
 
     def build_query(self, compiler: CompiledQuery) -> Q:
+        # Any value that evaluates to None is returned as 'xs:nil' in our output.
         return self.build_compare(
             compiler, lhs=self.expression, lookup="isnull", rhs=True
         )
@@ -444,7 +445,12 @@ class NullOperator(ComparisonOperator):
         return cls(expression=Expression.from_child_xml(element[0]))
 
     def build_query(self, compiler: CompiledQuery) -> Q:
-        raise NotImplementedError()
+        # For now, the implementation is identical to PropertyIsNil.
+        # According to the WFS spec, this should only be true when the element
+        # is not returned at all (minOccurs=0).
+        return self.build_compare(
+            compiler, lhs=self.expression, lookup="isnull", rhs=True
+        )
 
 
 class LogicalOperator(NonIdOperator):

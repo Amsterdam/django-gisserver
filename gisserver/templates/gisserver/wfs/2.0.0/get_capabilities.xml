@@ -128,10 +128,8 @@
         <fes:ComparisonOperator name="PropertyIsGreaterThanOrEqualTo"/>
         <fes:ComparisonOperator name="PropertyIsLike"/>
         <fes:ComparisonOperator name="PropertyIsBetween"/>
-        <fes:ComparisonOperator name="PropertyIsNil"/>{% comment %}
-          Not implemented:
-          <fes:ComparisonOperator name="PropertyIsNull"/>
-        {% endcomment %}
+        <fes:ComparisonOperator name="PropertyIsNil"/>
+        <fes:ComparisonOperator name="PropertyIsNull"/>
       </fes:ComparisonOperators>
     </fes:Scalar_Capabilities>
     <fes:Spatial_Capabilities>
