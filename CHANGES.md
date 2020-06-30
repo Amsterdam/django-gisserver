@@ -1,3 +1,11 @@
+# 2020-06-30 (0.8.3)
+
+* Added `GISSERVER_CAPABILITIES_BOUNDING_BOX` setting.
+* Added `PropertyIsNull` support (though currently identical to `PropertyIsNil`).
+* Fixed `DescribeFeatureType` to return all types when TYPENAMES is not provided.
+* Advertise `ImplementsMinimumXPath` in `GetCapabilities` for cite testing (other servers also do this while being incomplete).
+
+
 # 2020-06-30 (0.8.2)
 
 * Improve XPath matching support, allow "app:" prefix and root elements.
