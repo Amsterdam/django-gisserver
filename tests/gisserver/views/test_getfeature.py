@@ -522,11 +522,43 @@ class TestGetFeature:
 
     @pytest.mark.parametrize("ordering", list(SORT_BY.keys()))
     def test_get_sort_by(self, client, restaurant, bad_restaurant, ordering):
-        """Prove that that parsing BBOX=... works"""
+        """Prove that that sorting with SORTBY=... works"""
         sort_by, expect = SORT_BY[ordering]
         response = client.get(
             "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
             f"&SORTBY={sort_by}"
+        )
+        content = read_response(response)
+        assert response["content-type"] == "text/xml; charset=utf-8", content
+        assert response.status_code == 200, content
+        assert "</wfs:FeatureCollection>" in content
+
+        # Validate against the WFS 2.0 XSD
+        xml_doc = validate_xsd(content, WFS_20_XSD)
+        assert xml_doc.attrib["numberMatched"] == "2"
+        assert xml_doc.attrib["numberReturned"] == "2"
+
+        # Test sort ordering.
+        restaurants = xml_doc.findall(
+            "wfs:member/app:restaurant", namespaces=NAMESPACES
+        )
+        names = [
+            res.find("app:name", namespaces=NAMESPACES).text for res in restaurants
+        ]
+        assert names == expect
+
+    SORT_BY_COMPLEX = {
+        "city/name": ("city/name", ["Café Noir", "Foo Bar"]),
+        "city/name-desc": ("city/name DESC", ["Foo Bar", "Café Noir"]),
+    }
+
+    @pytest.mark.parametrize("ordering", list(SORT_BY_COMPLEX.keys()))
+    def test_get_sort_by_complex(self, client, restaurant, bad_restaurant, ordering):
+        """Prove that sorting on XPath works"""
+        sort_by, expect = self.SORT_BY_COMPLEX[ordering]
+        response = client.get(
+            "/v1/wfs-complextypes/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
+            f"&TYPENAMES=restaurant&SORTBY={sort_by}"
         )
         content = read_response(response)
         assert response["content-type"] == "text/xml; charset=utf-8", content

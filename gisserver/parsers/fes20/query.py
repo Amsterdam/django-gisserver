@@ -9,7 +9,7 @@ from django.db.models import Q, QuerySet, lookups
 from django.db.models.expressions import Combinable
 
 from gisserver.features import FeatureType
-from . import expressions
+from . import expressions, sorting
 
 
 class CompiledQuery:
@@ -36,7 +36,7 @@ class CompiledQuery:
         self.annotations = annotations or {}
         self.aliases = 0
         self.extra_lookups = []
-        self.sort_by = []
+        self.ordering = []
 
     def add_annotation(self, value: Union[Combinable, Q]) -> str:
         """Create an named-alias for a function/Q object.
@@ -66,8 +66,8 @@ class CompiledQuery:
             raise TypeError()
         self.extra_lookups.append(q_object)
 
-    def add_sort_by(self, sort_by: List[str]):
-        self.sort_by += sort_by
+    def add_sort_by(self, sort_by: sorting.SortBy):
+        self.ordering += sort_by.build_ordering(self.feature_type)
 
     def add_value_reference(self, value_reference: expressions.ValueReference) -> str:
         """Add a reference that should be returned by the query.
@@ -112,8 +112,8 @@ class CompiledQuery:
         if lookups:
             queryset = queryset.filter(*lookups)
 
-        if self.sort_by:
-            queryset = queryset.order_by(*self.sort_by)
+        if self.ordering:
+            queryset = queryset.order_by(*self.ordering)
 
         return queryset
 

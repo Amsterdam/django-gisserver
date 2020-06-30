@@ -218,7 +218,9 @@ INVALID_FILTERS = {
 
 SORT_BY = {
     "name": ("name", ["Café Noir", "Foo Bar"]),
+    "name-a": ("name A", ["Café Noir", "Foo Bar"]),
     "name-asc": ("name ASC", ["Café Noir", "Foo Bar"]),
+    "name-d": ("name D", ["Foo Bar", "Café Noir"]),
     "name-desc": ("name DESC", ["Foo Bar", "Café Noir"]),
     "rating-desc": ("rating DESC", ["Café Noir", "Foo Bar"]),
     "rating,name-asc": ("rating,name ASC", ["Foo Bar", "Café Noir"]),

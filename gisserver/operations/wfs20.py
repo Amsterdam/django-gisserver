@@ -11,7 +11,6 @@ import math
 
 import logging
 import re
-from typing import List
 from urllib.parse import urlencode
 
 from gisserver import conf, output, queries
@@ -176,23 +175,6 @@ class DescribeStoredQueries(WFSMethod):
         return {"feature_types": self.view.get_feature_types()}
 
 
-def parse_sort_by(value) -> List[str]:
-    """Parse the SORTBY parameter."""
-    result = []
-    for field in value.split(","):
-        if " " in field:
-            field, direction = field.split(" ", 1)
-            # Also supporting WFS 1.0 A/D format for clients that use this.
-            if direction not in {"A", "ASC", "D", "DESC"}:
-                raise InvalidParameterValue(
-                    "sortby", "Expect ASC/DESC ordering direction"
-                )
-            if direction in {"D", "DESC"}:
-                field = f"-{field}"
-        result.append(field)
-    return result
-
-
 class BaseWFSPresentationMethod(WFSTypeNamesMethod):
     """Base class for GetFeature / GetPropertyValue"""
 
@@ -224,7 +206,7 @@ class BaseWFSPresentationMethod(WFSTypeNamesMethod):
             allowed_values=[fes20.Filter.query_language],
         ),
         Parameter("filter", parser=fes20.Filter.from_string),
-        Parameter("sortBy", parser=parse_sort_by),
+        Parameter("sortBy", parser=fes20.SortBy.from_string),
         Parameter("resourceID", parser=fes20.ResourceId),
         UnsupportedParameter("aliases"),
         queries.StoredQueryParameter(),

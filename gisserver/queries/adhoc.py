@@ -21,7 +21,7 @@ from gisserver.exceptions import (
 from gisserver.features import FeatureType
 from gisserver.geometries import BoundingBox
 from gisserver.parsers import fes20
-from gisserver.parsers.fes20 import ResourceId, operators
+from gisserver.parsers.fes20 import operators
 from .base import QueryExpression
 
 logger = logging.getLogger(__name__)
@@ -58,11 +58,11 @@ class AdhocQuery(QueryExpression):
     bbox: Optional[BoundingBox] = None
 
     # Sorting Clause
-    sortBy: Optional[List[str]] = None
+    sortBy: Optional[fes20.SortBy] = None
 
     # Officially part of the GetFeature/GetPropertyValue request object,
     # but included here for ease of query implementation.
-    resourceId: Optional[ResourceId] = None
+    resourceId: Optional[fes20.ResourceId] = None
 
     # GetPropertyValue:
     # In the WFS spec, this is only part of the operation/presentation.
