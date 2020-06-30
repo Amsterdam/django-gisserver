@@ -215,7 +215,7 @@ class WFSView(GISView):
         "ImplementsVersionNav": False,  # <fes:ResourceId version="..">
         "ImplementsSorting": True,  # SORTBY parameter
         "ImplementsExtendedOperators": False,
-        "ImplementsMinimumXPath": False,  # mapserver: True
+        "ImplementsMinimumXPath": True,  # incomplete like mapserver, needed for cite
         "ImplementsSchemaElementFunc": False,
     }
 
