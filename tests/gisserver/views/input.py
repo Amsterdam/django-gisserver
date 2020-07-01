@@ -98,6 +98,19 @@ FILTERS = {
                 </gml:Envelope>
             </fes:BBOX>
         </fes:Filter>""",
+    "bbox_default": """
+        <fes:Filter
+            xmlns:ns16="http://example.org/gisserver"
+            xmlns:wfs="http://www.opengis.net/wfs/2.0"
+            xmlns:fes="http://www.opengis.net/fes/2.0">
+            <fes:BBOX>
+                <gml:Envelope xmlns:gml="http://www.opengis.net/gml/3.2"
+                              srsName="urn:ogc:def:crs:EPSG::28992">
+                    <gml:lowerCorner>122410 486240</gml:lowerCorner>
+                    <gml:upperCorner>122412 486260</gml:upperCorner>
+                </gml:Envelope>
+            </fes:BBOX>
+        </fes:Filter>""",
     "and": """
         <?xml version="1.0"?>
         <fes:Filter

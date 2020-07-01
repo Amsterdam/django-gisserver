@@ -257,24 +257,31 @@ class BinarySpatialOperator(SpatialOperator):
 
     @classmethod
     def from_xml(cls, element: Element):
+        operator_type = SpatialOperatorName.from_xml(element)
+        if operator_type is SpatialOperatorName.BBOX and len(element) == 1:
+            # For BBOX, the geometry operator is optional
+            ref = None
+            geo = element[0]
+        else:
+            if len(element) != 2:
+                raise ValueError(f"{element.tag} should have 2 operators")
+            ref, geo = list(element)
+
         return cls(
-            operatorType=SpatialOperatorName.from_xml(element),
-            operand1=ValueReference.from_xml(element[0]),
+            operatorType=operator_type,
+            operand1=ValueReference.from_xml(ref) if ref is not None else None,
             operand2=tag_registry.from_child_xml(
-                element[1],
-                allowed_types=SpatialDescription.__args__,  # get_args() in 3.8
+                geo, allowed_types=SpatialDescription.__args__,  # get_args() in 3.8
             ),
         )
 
     def build_query(self, compiler: CompiledQuery) -> Q:
-        if self.operand1 is None:
-            raise NotImplementedError()
+        operant1 = self.operand1
+        if operant1 is None:
+            operant1 = ValueReference(xpath=compiler.feature_type.geometry_field_name)
 
         return self.build_compare(
-            compiler,
-            lhs=self.operand1,
-            lookup=self.operatorType.value,
-            rhs=self.operand2,
+            compiler, lhs=operant1, lookup=self.operatorType.value, rhs=self.operand2,
         )
 
 
