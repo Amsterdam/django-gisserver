@@ -9,7 +9,7 @@ import math
 import re
 from dataclasses import dataclass, field
 
-from typing import Any, Callable, Dict, List, Union
+from typing import Any, Callable, Dict, List, Optional, Union
 
 from django.core.exceptions import ImproperlyConfigured, SuspiciousOperation
 from django.http import HttpResponse
@@ -41,6 +41,9 @@ class Parameter:
     #: Name of the parameter (using the XML casing style)
     name: str
 
+    #: Alias name (e.g. typenames/typename)
+    alias: Optional[str] = None
+
     #: Whether the parameter is required
     required: bool = False
 
@@ -67,6 +70,8 @@ class Parameter:
         # URL-based key-value-pair parameters use uppercase.
         kvp_name = self.name.upper()
         value = KVP.get(kvp_name)
+        if not value and self.alias:
+            value = KVP.get(self.alias.upper())
 
         # Check required field settings, both empty and missing value are treated the same.
         if not value:
@@ -367,9 +372,10 @@ class WFSTypeNamesMethod(WFSMethod):
             # typeNames is not required when a ResourceID / GetFeatureById is specified.
             Parameter(
                 "typeNames",
+                alias="typeName",  # WFS 1.0 name, but still needed for CITE tests
                 required=False,  # sometimes required, depends on other parameters
                 parser=self._parse_type_names,
-            )
+            ),
         ]
 
     def _parse_type_names(self, type_names) -> List[FeatureType]:
@@ -382,25 +388,27 @@ class WFSTypeNamesMethod(WFSMethod):
                 "Parameter lists to perform multiple queries are not supported yet.",
             )
 
-        features = []
+        return [
+            self._parse_type_name(name, locator="typenames")
+            for name in type_names.split(",")
+        ]
+
+    def _parse_type_name(self, name, locator="typename") -> FeatureType:
+        """Find the requested feature type for a type name"""
         app_prefix = self.namespaces[self.view.xml_namespace]
-        for name in type_names.split(","):
-            if name.startswith(f"{app_prefix}:"):
-                local_name = name[len(app_prefix) + 1 :]  # strip our XML prefix
-            else:
-                local_name = name
+        if name.startswith(f"{app_prefix}:"):
+            local_name = name[len(app_prefix) + 1 :]  # strip our XML prefix
+        else:
+            local_name = name
 
-            try:
-                feature = self.all_feature_types_by_name[local_name]
-            except KeyError:
-                raise InvalidParameterValue(
-                    "typenames",
-                    f"Typename '{name}' doesn't exist in this server. "
-                    f"Please check the capabilities and reformulate your request.",
-                ) from None
-
-            features.append(feature)
-        return features
+        try:
+            return self.all_feature_types_by_name[local_name]
+        except KeyError:
+            raise InvalidParameterValue(
+                locator,
+                f"Typename '{name}' doesn't exist in this server. "
+                f"Please check the capabilities and reformulate your request.",
+            ) from None
 
 
 def _get_feature_types_by_name(feature_types) -> Dict[str, FeatureType]:

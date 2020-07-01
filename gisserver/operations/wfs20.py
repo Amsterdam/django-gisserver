@@ -140,7 +140,7 @@ class DescribeFeatureType(WFSTypeNamesMethod):
     ]
 
     def get_context_data(self, typeNames, **params):
-        if self.view.KVP.get("TYPENAMES") == "":
+        if self.view.KVP.get("TYPENAMES") == "" or self.view.KVP.get("TYPENAME") == "":
             # Using TYPENAMES= does result in an error.
             raise MissingParameterValue("typeNames", f"Empty TYPENAMES parameter")
         elif typeNames is None:
