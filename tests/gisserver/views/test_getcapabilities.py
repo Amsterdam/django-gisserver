@@ -53,7 +53,7 @@ class TestGetCapabilities:
             etree.tostring(feature_type_list, inclusive_ns_prefixes=True).decode(),
             f"""<FeatureTypeList xmlns="{WFS_NS}" xmlns:ows="{OWS_NS}" xmlns:xlink="{XLINK_NS}">
       <FeatureType>
-        <Name>restaurant</Name>
+        <Name>app:restaurant</Name>
         <Title>restaurant</Title>
         <ows:Keywords>
           <ows:Keyword>unittest</ows:Keyword>
@@ -72,7 +72,7 @@ class TestGetCapabilities:
         <MetadataURL xlink:href="http://testserver/v1/wfs/" />
       </FeatureType>
       <FeatureType>
-        <Name>mini-restaurant</Name>
+        <Name>app:mini-restaurant</Name>
         <Title>restaurant</Title>
         <ows:Keywords>
           <ows:Keyword>unittest</ows:Keyword>
@@ -92,7 +92,7 @@ class TestGetCapabilities:
         <MetadataURL xlink:href="http://testserver/v1/wfs/" />
       </FeatureType>
       <FeatureType>
-        <Name>denied-feature</Name>
+        <Name>app:denied-feature</Name>
         <Title>restaurant</Title>
         <DefaultCRS>urn:ogc:def:crs:EPSG::4326</DefaultCRS>
         <OutputFormats>

@@ -300,7 +300,7 @@ class FeatureType:
         self.metadata_url = metadata_url
 
         # Validate that the name doesn't require XML escaping.
-        if html.escape(self.name) != self.name or " " in self.name:
+        if html.escape(self.name) != self.name or " " in self.name or ":" in self.name:
             raise ValueError(f"Invalid feature name for XML: <app:{self.name}>")
 
         # Auto-detect geometry fields (also fills geometry_field_name)
@@ -316,6 +316,11 @@ class FeatureType:
         It may raise a Django PermissionDenied error.
         """
         pass
+
+    @cached_property
+    def xml_name(self):
+        """Return the feature name with xml namespace prefix."""
+        return f"app:{self.name}"
 
     @cached_property
     def geometry_field_names(self):

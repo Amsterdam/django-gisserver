@@ -89,7 +89,7 @@
   <FeatureTypeList>
     {% for feature_type in feature_types %}
     <FeatureType>
-      <Name>{{ feature_type.name }}</Name>
+      <Name>{{ feature_type.xml_name }}</Name>
       <Title>{{ feature_type.title }}</Title>{% if feature_type.abstract %}
       <Abstract>{{ feature_type.abstract }}</Abstract>{% endif %}
       {% if feature_type.keywords %}<ows:Keywords>{% for keyword in feature_type.keywords %}

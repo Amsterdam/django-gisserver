@@ -21,7 +21,9 @@ __all__ = [
     "XsdAnyType",
     "XsdTypes",
     "XsdComplexType",
+    "strip_namespace_prefix",
 ]
+
 
 RE_XPATH_ATTR = re.compile(r"\[[^\]]+\]$")
 RE_NON_NAME = re.compile(r"[^a-zA-Z0-9_/]")
@@ -198,10 +200,12 @@ class XsdComplexType(XsdAnyType):
             node_name = xpath
             pos = 0
 
-        # Strip current app namespace. Note this should actually
-        # compare the xmlns URI's, but this will suffice for now.
-        if node_name.startswith("app:"):
-            node_name = node_name[4:]
+        # Strip current app namespace. Note this should actually compare the
+        # xmlns URI's, but this will suffice for now. The ElementTree parser
+        # doesn't provide access to 'xmlns' definitions on the element (or it's
+        # parents), so a tag like this is essentially not parsable for us:
+        # <ValueReference xmlns:tns="http://example.org/gisserver">tns:fieldname</ValueReference>
+        node_name = strip_namespace_prefix(node_name)
 
         # Strip any [@attr=..] conditions
         node_name = RE_XPATH_ATTR.sub("", node_name)
@@ -221,6 +225,15 @@ class XsdComplexType(XsdAnyType):
                     return [element]
 
         return None
+
+
+def strip_namespace_prefix(value: str):
+    """Remove the namespace prefix from an element."""
+    try:
+        ns_pos = value.index(":")
+        return value[ns_pos + 1 :]
+    except ValueError:
+        return value
 
 
 class XPathMatch:

@@ -5,6 +5,7 @@ from gisserver.exceptions import InvalidParameterValue
 from gisserver.features import FeatureType
 from gisserver.output import FeatureCollection, SimpleFeatureCollection
 from gisserver.parsers import fes20
+from gisserver.types import strip_namespace_prefix
 
 
 class QueryExpression:
@@ -44,13 +45,16 @@ class QueryExpression:
         """Find the feature type for a given name.
         This is an utility that cusstom subclasses can use.
         """
+        # Strip the namespace prefix. The Python ElementTree parser does
+        # not expose the used namespace prefixes, so text-values can't be
+        # mapped against it. As we expose just one namespace, just strip it.
+        type_name = strip_namespace_prefix(type_name)
+
         try:
             return self.all_feature_types[type_name]
         except KeyError:
             raise InvalidParameterValue(
-                "typename",
-                f"Typename '{type_name}' doesn't exist in this server. "
-                f"Please check the capabilities and reformulate your request.",
+                "typename", f"Typename '{type_name}' doesn't exist in this server."
             ) from None
 
     def get_hits(self) -> FeatureCollection:

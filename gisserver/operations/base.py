@@ -179,6 +179,13 @@ class WFSMethod:
 
     def __init__(self, view):
         self.view = view  # an gisserver.views.GISView
+        self.namespaces = {
+            # Default namespaces for the incoming request:
+            "http://www.w3.org/XML/1998/namespace": "xml",
+            "http://www.opengis.net/wfs/2.0": "wfs",
+            "http://www.opengis.net/gml/3.2": "gml",
+            self.view.xml_namespace: "app",
+        }
 
     def get_parameters(self):
         """Dynamically return the supported parameters for this method."""
@@ -200,8 +207,6 @@ class WFSMethod:
                     "invalid": "WFS Server does not support VERSION {value}.",
                 },
             ),
-            # Common for all WFS methods:
-            UnsupportedParameter("namespaces"),  # define output namespaces
         ] + self.parameters
 
         if self.output_formats:
@@ -228,11 +233,53 @@ class WFSMethod:
                 f"'{value}' is not a permitted output format for this operation.",
             ) from None
 
+    def _parse_namespaces(self, value) -> Dict[str, str]:
+        """Parse the namespaces definition.
+
+        The NAMESPACES parameter defines which namespaces are used in the KVP request.
+        When this parameter is not given, the default namespaces are assumed.
+        """
+        if not value:
+            return {}
+
+        # example single value: xmlns(http://example.org)
+        # or: namespaces=xmlns(xml,http://www.w3.org/...),xmlns(wfs,http://www.opengis.net/...)
+        tokens = value.split(",")
+
+        namespaces = {}
+        tokens = iter(tokens)
+        for prefix in tokens:
+            if not prefix.startswith("xmlns("):
+                raise InvalidParameterValue(
+                    "namespaces", f"Expected xmlns(...) format: {value}"
+                )
+            if prefix.endswith(")"):
+                # xmlns(http://...)
+                prefix = ""
+                uri = prefix[6:-1]
+            else:
+                uri = next(tokens, "")
+                if not uri.endswith(")"):
+                    raise InvalidParameterValue(
+                        "namespaces", f"Expected xmlns(prefix,uri) format: {value}"
+                    )
+                prefix = prefix[6:]
+                uri = uri[:-1]
+
+            namespaces[uri] = prefix
+
+        return namespaces
+
     def parse_request(self, KVP: dict) -> Dict[str, Any]:
         """Parse the parameters of the request"""
+        self.namespaces.update(self._parse_namespaces(KVP.get("NAMESPACES")))
         param_values = {
             param.name: param.value_from_query(KVP) for param in self.get_parameters()
         }
+        param_values["NAMESPACES"] = self.namespaces
+
+        for param in self.get_parameters():
+            param_values[param.name] = param.value_from_query(KVP)
 
         # Update version if requested.
         # This is stored on the view, so exceptions also use it.
@@ -336,9 +383,15 @@ class WFSTypeNamesMethod(WFSMethod):
             )
 
         features = []
+        app_prefix = self.namespaces[self.view.xml_namespace]
         for name in type_names.split(","):
+            if name.startswith(f"{app_prefix}:"):
+                local_name = name[len(app_prefix) + 1 :]  # strip our XML prefix
+            else:
+                local_name = name
+
             try:
-                feature = self.all_feature_types_by_name[name]
+                feature = self.all_feature_types_by_name[local_name]
             except KeyError:
                 raise InvalidParameterValue(
                     "typenames",
