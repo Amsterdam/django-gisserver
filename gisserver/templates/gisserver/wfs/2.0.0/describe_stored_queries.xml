@@ -7,11 +7,14 @@
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:schemaLocation="http://www.opengis.net/wfs/2.0 http://schemas.opengis.net/wfs/2.0/wfs.xsd">
 
-  <StoredQueryDescription id="urn:ogc:def:query:OGC-WFS::GetFeatureById">
-    <Title>Get feature by identifier</Title>
-    <Abstract>Returns the single feature whose value is equal to the specified value of the ID argument</Abstract>
-    <Parameter name="ID" type="xs:string"/>
+{% for query_meta in stored_queries %}
+  <StoredQueryDescription id="{{ query_meta.id }}">
+    <Title>{{ query_meta.title }}</Title>
+    <Abstract>{{ query_meta.abstract }}</Abstract>
+    {% for name, type in query_meta.parameters.items %}
+    <Parameter name="{{ name }}" type="{{ type.with_prefix }}"/>{% endfor %}
     <QueryExpressionText isPrivate="true" language="urn:ogc:def:queryLanguage:OGC-WFS::WFS_QueryExpression" returnFeatureTypes="{% for feature in feature_types %}{% if not forloop.first %} {% endif %}{{ feature.name }}{% endfor %}"/>
   </StoredQueryDescription>
+{% endfor %}
 
 </wfs:DescribeStoredQueriesResponse>

@@ -34,7 +34,7 @@ class TestDescribeStoredQueries:
     xsi:schemaLocation="http://www.opengis.net/wfs/2.0 http://schemas.opengis.net/wfs/2.0/wfs.xsd">
   <StoredQueryDescription id="urn:ogc:def:query:OGC-WFS::GetFeatureById">
     <Title>Get feature by identifier</Title>
-    <Abstract>Returns the single feature whose value is equal to the specified value of the ID argument</Abstract>
+    <Abstract>Returns the single feature that corresponds with the ID argument</Abstract>
     <Parameter name="ID" type="xs:string"/>
     <QueryExpressionText isPrivate="true" language="urn:ogc:def:queryLanguage:OGC-WFS::WFS_QueryExpression" returnFeatureTypes="restaurant mini-restaurant denied-feature"/>
   </StoredQueryDescription>

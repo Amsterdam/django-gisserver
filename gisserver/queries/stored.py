@@ -99,6 +99,9 @@ class StoredQueryRegistry:
     def __bool__(self):
         return bool(self.stored_queries)
 
+    def __iter__(self):
+        return iter(self.stored_queries.values())
+
     def register(self, meta: Optional[StoredQueryDescription] = None, **meta_kwargs):
         """Register a custom class that handles a stored query"""
 

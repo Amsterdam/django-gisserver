@@ -21,6 +21,7 @@ from gisserver.exceptions import (
 )
 from gisserver.geometries import BoundingBox, CRS
 from gisserver.parsers import fes20
+from gisserver.queries import stored_query_registry
 
 from .base import (
     OutputFormat,
@@ -166,13 +167,18 @@ class DescribeStoredQueries(WFSMethod):
     parameters = [
         Parameter(
             "STOREDQUERY_ID",
-            parser=lambda v: v.split(","),
-            allowed_values=["urn:ogc:def:query:OGC-WFS::GetFeatureById"],
+            parser=lambda value: [
+                stored_query_registry.resolve_query(name) for name in value.split(",")
+            ],
         )
     ]
 
     def get_context_data(self, **params):
-        return {"feature_types": self.view.get_feature_types()}
+        queries = params["STOREDQUERY_ID"] or list(stored_query_registry)
+        return {
+            "feature_types": self.view.get_feature_types(),
+            "stored_queries": [q.meta for q in queries],
+        }
 
 
 class BaseWFSGetDataMethod(WFSTypeNamesMethod):
