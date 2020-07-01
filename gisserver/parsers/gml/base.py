@@ -12,6 +12,10 @@ class AbstractGeometry(BaseNode):
     <gml:AbstractGeometry> implements the ISO 19107 GM_Object.
     """
 
+    def build_rhs(self, compiler):
+        # Allow the value to be used in an binary operator
+        raise NotImplementedError()
+
 
 class Envelope(BaseNode):
     """Abstract base classes for all GML objects, regardless of their version.
