@@ -61,7 +61,8 @@ class TestGetCapabilities:
         <DefaultCRS>urn:ogc:def:crs:EPSG::4326</DefaultCRS>
         <OtherCRS>urn:ogc:def:crs:EPSG::28992</OtherCRS>
         <OutputFormats>
-          <Format>text/xml; subtype=gml/3.2</Format>
+          <Format>application/gml+xml; version=3.2</Format>
+          <Format>text/xml; subtype=gml/3.2.1</Format>
           <Format>application/json; subtype=geojson; charset=utf-8</Format>
           <Format>text/csv; subtype=csv; charset=utf-8</Format>
         </OutputFormats>
@@ -81,7 +82,8 @@ class TestGetCapabilities:
         <DefaultCRS>urn:ogc:def:crs:EPSG::4326</DefaultCRS>
         <OtherCRS>urn:ogc:def:crs:EPSG::28992</OtherCRS>
         <OutputFormats>
-          <Format>text/xml; subtype=gml/3.2</Format>
+          <Format>application/gml+xml; version=3.2</Format>
+          <Format>text/xml; subtype=gml/3.2.1</Format>
           <Format>application/json; subtype=geojson; charset=utf-8</Format>
           <Format>text/csv; subtype=csv; charset=utf-8</Format>
         </OutputFormats>
@@ -96,7 +98,8 @@ class TestGetCapabilities:
         <Title>restaurant</Title>
         <DefaultCRS>urn:ogc:def:crs:EPSG::4326</DefaultCRS>
         <OutputFormats>
-          <Format>text/xml; subtype=gml/3.2</Format>
+          <Format>application/gml+xml; version=3.2</Format>
+          <Format>text/xml; subtype=gml/3.2.1</Format>
           <Format>application/json; subtype=geojson; charset=utf-8</Format>
           <Format>text/csv; subtype=csv; charset=utf-8</Format>
         </OutputFormats>
