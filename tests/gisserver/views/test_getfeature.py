@@ -487,7 +487,7 @@ class TestGetFeature:
         )
 
     def test_pagination(self, client, restaurant, bad_restaurant):
-        """Prove that that parsing BBOX=... works"""
+        """Prove that that pagination works"""
         names = []
         url = (
             "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
