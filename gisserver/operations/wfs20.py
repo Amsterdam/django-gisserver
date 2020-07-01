@@ -175,7 +175,7 @@ class DescribeStoredQueries(WFSMethod):
         return {"feature_types": self.view.get_feature_types()}
 
 
-class BaseWFSPresentationMethod(WFSTypeNamesMethod):
+class BaseWFSGetDataMethod(WFSTypeNamesMethod):
     """Base class for GetFeature / GetPropertyValue"""
 
     parameters = [
@@ -307,7 +307,7 @@ class BaseWFSPresentationMethod(WFSTypeNamesMethod):
         return f"{self.view.server_url}?{urlencode(new_params)}"
 
 
-class GetFeature(BaseWFSPresentationMethod):
+class GetFeature(BaseWFSGetDataMethod):
     """This returns all properties of the feature.
 
     Various query parameters allow limiting the data.
@@ -335,7 +335,7 @@ class GetFeature(BaseWFSPresentationMethod):
     ]
 
 
-class GetPropertyValue(BaseWFSPresentationMethod):
+class GetPropertyValue(BaseWFSGetDataMethod):
     """This returns a limited set of properties of the feature.
     It works almost identical to GetFeature, except that it returns a single field.
     """
@@ -346,7 +346,7 @@ class GetPropertyValue(BaseWFSPresentationMethod):
         ),
     ]
 
-    parameters = BaseWFSPresentationMethod.parameters + [
+    parameters = BaseWFSGetDataMethod.parameters + [
         Parameter("valueReference", required=True, parser=fes20.ValueReference)
     ]
 
