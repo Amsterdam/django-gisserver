@@ -121,8 +121,10 @@ class GML32Renderer(OutputRenderer):
 
     def render_xmlns_standalone(self):
         """Generate the xmlns block that the documente needs"""
+        # xsi is needed for "xsi:nil="true"' attributes.
         return (
             f' xmlns:app="{escape(self.app_xml_namespace)}"'
+            ' xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"'
             ' xmlns:gml="http://www.opengis.net/gml/3.2"'
         )
 
