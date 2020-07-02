@@ -197,8 +197,8 @@ class BaseWFSGetDataMethod(WFSTypeNamesMethod):
         Parameter("count", alias="maxFeatures", parser=int),  # maxFeatures is WFS 1.x
         # outputFormat will be added by the base class.
         # StandardResolveParameters
-        UnsupportedParameter("resolve"),  # subresource settings
-        UnsupportedParameter("resolveDepth"),
+        Parameter("resolve", allowed_values=["local"], in_capabilities=True),
+        UnsupportedParameter("resolveDepth"),  # subresource settings
         UnsupportedParameter("resolveTimeout"),
         # StandardInputParameters
         Parameter("srsName", parser=CRS.from_string),
