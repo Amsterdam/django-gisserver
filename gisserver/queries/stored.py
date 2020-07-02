@@ -167,9 +167,8 @@ class GetFeatureById(StoredQuery):
         try:
             type_name, id = ID.rsplit(".", 1)
         except ValueError:
-            raise InvalidParameterValue(
-                "ID", "Expected typeName.id for ID parameter"
-            ) from None
+            # Always report this as 404
+            raise NotFound("ID", "Expected typeName.id for ID parameter") from None
 
         self.type_name = type_name
         self.id = id
