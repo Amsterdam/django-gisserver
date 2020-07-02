@@ -10,7 +10,7 @@ from gisserver.types import strip_namespace_prefix
 
 class QueryExpression:
     """WFS base class for all queries.
-    This object type is defined in the WFS spec.
+    This object type is defined in the WFS spec (as <fes:AbstractQueryExpression>).
 
     The subclasses can override the following logic:
 

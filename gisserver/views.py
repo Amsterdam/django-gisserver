@@ -182,19 +182,19 @@ class WFSView(GISView):
     #: Metadata of the capabilities:
     wfs_service_constraints = {
         "ImplementsBasicWFS": False,  # only simple WFS
-        # "ImplementsTransactionalWFS": False,  # only simple WFS
-        # "ImplementsLockingWFS": False,  # only simple WFS
+        "ImplementsTransactionalWFS": False,  # only simple WFS
+        "ImplementsLockingWFS": False,  # only simple WFS
         "KVPEncoding": True,  # HTTP GET support
         "XMLEncoding": False,  # HTTP POST requests
         "SOAPEncoding": False,  # no SOAP requests
-        # 'ImplementsInheritance': False,
-        # 'ImplementsRemoteResolve': False,
+        "ImplementsInheritance": False,
+        "ImplementsRemoteResolve": False,
         "ImplementsResultPaging": True,  # missing next/previous for START / COUNT
-        # 'ImplementsStandardJoins': False,  # returns records as wfs:Tuple in GetFeature
-        # 'ImplementsSpatialJoins': False,
-        # 'ImplementsTemporalJoins': False,
-        # 'ImplementsFeatureVersioning': False,
-        # 'ManageStoredQueries': False,
+        "ImplementsStandardJoins": False,  # returns records as wfs:Tuple in GetFeature
+        "ImplementsSpatialJoins": False,
+        "ImplementsTemporalJoins": False,
+        "ImplementsFeatureVersioning": False,
+        "ManageStoredQueries": False,
         #
         # Mentioned as operation constraint in WFS spec:
         "PagingIsTransactionSafe": False,
@@ -202,8 +202,8 @@ class WFSView(GISView):
 
     #: Metadata of filtering capabilities
     wfs_filter_capabilities = {
-        "ImplementsQuery": False,  # mapserver: true
-        "ImplementsAdHocQuery": False,  # mapserver: true
+        "ImplementsQuery": True,  # <fes:AbstractQueryElement> needed for WFS simple
+        "ImplementsAdHocQuery": True,  # <fes:AbstractAdhocQueryElement> needed for WFS simple
         "ImplementsFunctions": True,  # <fes:Function> support
         "ImplementsResourceId": True,  # <fes:ResourceId> support
         "ImplementsMinStandardFilter": True,  # <fes:PropertyIs...> support
