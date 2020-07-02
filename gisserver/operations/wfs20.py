@@ -194,7 +194,7 @@ class BaseWFSGetDataMethod(WFSTypeNamesMethod):
             default="RESULTS",
         ),
         Parameter("startIndex", parser=int, default=0),
-        Parameter("count", parser=int),  # was called maxFeatures in WFS 1.x
+        Parameter("count", alias="maxFeatures", parser=int),  # maxFeatures is WFS 1.x
         # outputFormat will be added by the base class.
         # StandardResolveParameters
         UnsupportedParameter("resolve"),  # subresource settings
