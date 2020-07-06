@@ -8,6 +8,7 @@ import re
 from dataclasses import dataclass
 from enum import Enum
 
+from django.core.exceptions import ValidationError
 from django.db.models import Q
 from typing import List, Optional, Type
 
@@ -148,6 +149,18 @@ class XsdElement:
         except AttributeError:
             # E.g. Django foreign keys that point to a non-existing member.
             return None
+
+    def validate_comparison(self, value):
+        """Validate whether the input value can be used in a comparison.
+        This avoids comparing a database DATETIME object to an integer.
+        """
+        if self.source is not None:
+            # Not calling self.source.validate() as that checks for allowed choices,
+            # which shouldn't be checked against for a filter query.
+            try:
+                self.source.get_prep_value(value)
+            except (ValueError, TypeError) as e:
+                raise ValidationError(str(e)) from e
 
 
 @dataclass(frozen=True)

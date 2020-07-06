@@ -179,6 +179,16 @@ class NonIdOperator(Operator):
 
         This calls build_lhs() and build_rhs() on the expressions.
         """
+        if (
+            compiler.feature_type is not None
+            and isinstance(lhs, ValueReference)
+            and isinstance(rhs, Literal)
+        ):
+            # When a common case of value comparison is done, the inputs
+            # can be validated before the ORM query is constructed.
+            xsd_element = compiler.feature_type.resolve_element(lhs.xpath).child
+            xsd_element.validate_comparison(rhs.value)
+
         lhs = lhs.build_lhs(compiler)
 
         if isinstance(rhs, (Expression, gml.GM_Object)):

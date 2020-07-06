@@ -11,7 +11,7 @@ import math
 
 import logging
 import re
-from django.core.exceptions import FieldError
+from django.core.exceptions import FieldError, ValidationError
 from django.db import InternalError, ProgrammingError
 from urllib.parse import urlencode
 
@@ -239,6 +239,13 @@ class BaseWFSGetDataMethod(WFSTypeNamesMethod):
             raise InvalidParameterValue(
                 self._get_locator(**params), f"Invalid filter query: {e}",
             ) from e
+        except ValidationError as e:
+            # Bad input data
+            self._log_filter_error(query, logging.ERROR, e)
+            msg = "\n".join(map(str, e.messages))
+            raise InvalidParameterValue(
+                self._get_locator(**params), f"Invalid filter query: {msg}",
+            ) from e
         except FieldError as e:
             # e.g. doing a LIKE on a foreign key, or requesting an unknown field.
             self._log_filter_error(query, logging.ERROR, e)
@@ -255,7 +262,8 @@ class BaseWFSGetDataMethod(WFSTypeNamesMethod):
             raise InvalidParameterValue(locator, f"Invalid request: {msg}") from e
         except (TypeError, ValueError) as e:
             # TypeError/ValueError could reference a datatype mismatch in an
-            # ORM query, but it could also be an internal bug.
+            # ORM query, but it could also be an internal bug. In most cases,
+            # this is already caught by XsdElement.validate_comparison().
             if self._is_orm_error(e):
                 raise InvalidParameterValue(
                     self._get_locator(**params), f"Invalid filter query: {e}",
