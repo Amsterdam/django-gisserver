@@ -1,4 +1,5 @@
 """Output rendering logic for GeoJSON."""
+import decimal
 from typing import cast
 
 from datetime import datetime
@@ -13,6 +14,12 @@ from gisserver.features import FeatureType
 from gisserver.types import XsdComplexType
 
 from .base import BytesBuffer, OutputRenderer, get_db_geometry_target
+
+
+def default(obj):
+    if isinstance(obj, decimal.Decimal):
+        return str(obj)
+    raise TypeError
 
 
 class GeoJsonRenderer(OutputRenderer):
@@ -129,7 +136,7 @@ class GeoJsonRenderer(OutputRenderer):
             orjson.dumps(f"{feature_type.name}.{instance.pk}"),
             orjson.dumps(str(instance)),
             self.render_geometry(feature_type, instance),
-            orjson.dumps(properties),
+            orjson.dumps(properties, default=default),
         )
 
     def _format_geojson_value(self, value):
