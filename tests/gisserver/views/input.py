@@ -227,6 +227,40 @@ INVALID_FILTERS = {
             else "Invalid filter query: could not convert string to float: 'TEXT'"
         ),
     ),
+    "date_number": (
+        """
+    <fes:Filter
+         xmlns:fes="http://www.opengis.net/fes/2.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://www.opengis.net/fes/2.0
+         http://schemas.opengis.net/filter/2.0/filterAll.xsd">
+        <fes:PropertyIsEqualTo>
+            <fes:ValueReference>created</fes:ValueReference>
+            <fes:Literal>21</fes:Literal>
+        </fes:PropertyIsEqualTo>
+    </fes:Filter>""",
+        "Invalid filter query: expected string or bytes-like object",
+    ),
+    "date_text": (
+        """
+    <fes:Filter
+         xmlns:fes="http://www.opengis.net/fes/2.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://www.opengis.net/fes/2.0
+         http://schemas.opengis.net/filter/2.0/filterAll.xsd">
+        <fes:PropertyIsGreaterThanOrEqualTo>
+            <fes:ValueReference>created</fes:ValueReference>
+            <fes:Literal>abc</fes:Literal>
+        </fes:PropertyIsGreaterThanOrEqualTo>
+    </fes:Filter>""",
+        (
+            "Invalid filter query: “abc” value has an invalid format. "
+            "It must be in YYYY-MM-DD HH:MM[:ss[.uuuuuu]][TZ] format."
+            if django.VERSION >= (3, 0)
+            else "Invalid filter query: 'abc' value has an invalid format. "
+            "It must be in YYYY-MM-DD HH:MM[:ss[.uuuuuu]][TZ] format."
+        ),
+    ),
 }
 
 SORT_BY = {

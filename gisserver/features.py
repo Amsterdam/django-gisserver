@@ -13,6 +13,7 @@ from django.db import models
 from django.db.models.fields.reverse_related import ForeignObjectRel
 from django.utils.functional import cached_property  # py3.8: functools
 
+from gisserver.exceptions import ExternalValueError
 from gisserver.types import (
     XPathMatch,
     XsdAnyType,
@@ -426,7 +427,7 @@ class FeatureType:
         """
         path = self._cached_resolver(xpath)  # calls _inner_resolve_element
         if path is None:
-            raise ValueError(f"Field '{xpath}' does not exist.")
+            raise ExternalValueError(f"Field '{xpath}' does not exist.")
 
         return XPathMatch(path, query=xpath)
 

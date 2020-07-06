@@ -6,6 +6,7 @@ from typing import List, Union
 from xml.etree.ElementTree import Element
 
 from defusedxml.ElementTree import fromstring
+from gisserver.exceptions import ExternalValueError
 from gisserver.parsers.base import tag_registry
 
 from .base import AbstractGeometry, GM_Envelope, GM_Object, TM_Object
@@ -36,7 +37,7 @@ def parse_gml(text: Union[str, bytes]) -> Union[FES_GML_NODES]:
 def parse_gml_node(element: Element) -> Union[FES_GML_NODES]:
     """Parse the element"""
     if not is_gml_element(element):
-        raise ValueError(f"Expected GML namespace for {element.tag}")
+        raise ExternalValueError(f"Expected GML namespace for {element.tag}")
 
     return tag_registry.from_child_xml(element, allowed_types=FES_GML_NODES)
 

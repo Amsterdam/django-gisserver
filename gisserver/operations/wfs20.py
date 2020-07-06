@@ -11,10 +11,13 @@ import math
 
 import logging
 import re
+from django.core.exceptions import FieldError
+from django.db import InternalError, ProgrammingError
 from urllib.parse import urlencode
 
 from gisserver import conf, output, queries
 from gisserver.exceptions import (
+    ExternalValueError,
     InvalidParameterValue,
     MissingParameterValue,
     VersionNegotiationFailed,
@@ -218,17 +221,46 @@ class BaseWFSGetDataMethod(WFSTypeNamesMethod):
         queries.StoredQueryParameter(),
     ]
 
-    def get_context_data(self, resultType, **params):
+    def get_context_data(self, resultType, **params):  # noqa: C901
         query = self.get_query(**params)
         query.check_permissions(self.view.request)
 
-        if resultType == "HITS":
-            collection = self.get_hits(query)
-        elif resultType == "RESULTS":
-            # Validate StandardPresentationParameters
-            collection = self.get_paginated_results(query, **params)
-        else:
-            raise NotImplementedError()
+        try:
+            if resultType == "HITS":
+                collection = self.get_hits(query)
+            elif resultType == "RESULTS":
+                # Validate StandardPresentationParameters
+                collection = self.get_paginated_results(query, **params)
+            else:
+                raise NotImplementedError()
+        except ExternalValueError as e:
+            # Bad input data
+            self._log_filter_error(query, logging.ERROR, e)
+            raise InvalidParameterValue(
+                self._get_locator(**params), f"Invalid filter query: {e}",
+            ) from e
+        except FieldError as e:
+            # e.g. doing a LIKE on a foreign key, or requesting an unknown field.
+            self._log_filter_error(query, logging.ERROR, e)
+            raise InvalidParameterValue(
+                self._get_locator(**params), f"Internal error when processing filter",
+            ) from e
+        except (InternalError, ProgrammingError) as e:
+            # e.g. comparing datetime against integer
+            logger.error("WFS request failed: %s\nParams: %r", e, params)
+            msg = str(e)
+            locator = (
+                "srsName" if "Cannot find SRID" in msg else self._get_locator(**params)
+            )
+            raise InvalidParameterValue(locator, f"Invalid request: {msg}") from e
+        except (TypeError, ValueError) as e:
+            # TypeError/ValueError could reference a datatype mismatch in an
+            # ORM query, but it could also be an internal bug.
+            if self._is_orm_error(e):
+                raise InvalidParameterValue(
+                    self._get_locator(**params), f"Invalid filter query: {e}",
+                ) from e
+            raise
 
         output_crs = params["srsName"]
         if not output_crs and collection.results:
@@ -311,6 +343,40 @@ class BaseWFSGetDataMethod(WFSTypeNamesMethod):
         new_params = self.view.KVP.copy()
         new_params.update(updates)
         return f"{self.view.server_url}?{urlencode(new_params)}"
+
+    def _is_orm_error(self, exception: Exception):
+        traceback = exception.__traceback__
+        while traceback.tb_next is not None:
+            traceback = traceback.tb_next
+            if "/django/db/models/query" in traceback.tb_frame.f_code.co_filename:
+                return True
+        return False
+
+    def _log_filter_error(self, query, level, exc):
+        """Report a filtering parsing error in the logging"""
+        filter = getattr(query, "filter", None)  # AdhocQuery only
+        fes_xml = filter.source if filter is not None else "(not provided)"
+        try:
+            sql = exc.__cause__.cursor.query.decode()
+        except AttributeError:
+            logger.log(level, "WFS query failed: %s\nFilter:\n%s", exc, fes_xml)
+        else:
+            logger.log(
+                level,
+                "WFS query failed: %s\nSQL Query: %s\n\nFilter:\n%s",
+                exc,
+                sql,
+                fes_xml,
+            )
+
+    def _get_locator(self, **params):
+        """Tell which field is likely causing the query error"""
+        if params["resourceID"]:
+            return "resourceId"
+        elif params["STOREDQUERY_ID"]:
+            return "STOREDQUERY_ID"
+        else:
+            return "filter"
 
 
 class GetFeature(BaseWFSGetDataMethod):

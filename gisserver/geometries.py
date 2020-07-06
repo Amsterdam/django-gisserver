@@ -12,6 +12,8 @@ from typing import Optional, Union
 from django.contrib.gis.gdal import CoordTransform, SpatialReference
 from functools import lru_cache
 
+from gisserver.exceptions import ExternalValueError
+
 CRS_URN_REGEX = re.compile(
     r"^urn:(?P<domain>[a-z]+)"
     r":def:crs:(?P<authority>[a-z]+)"
@@ -138,7 +140,7 @@ class CRS:
         """Instantiate this class using an URN format."""
         urn_match = CRS_URN_REGEX.match(urn)
         if not urn_match:
-            raise ValueError(
+            raise ExternalValueError(
                 f"Unknown CRS URN [{urn}] specified: {CRS_URN_REGEX.pattern}"
             )
 
@@ -146,7 +148,9 @@ class CRS:
         authority = urn_match.group("authority").upper()
 
         if domain not in ("ogc", "opengis"):
-            raise ValueError(f"CRS URI [{urn}] contains unknown domain [{domain}]")
+            raise ExternalValueError(
+                f"CRS URI [{urn}] contains unknown domain [{domain}]"
+            )
 
         if authority == "EPSG":
             crsid = urn_match.group("id")
@@ -159,10 +163,12 @@ class CRS:
         elif authority == "OGC":
             crsid = urn_match.group("id").upper()
             if crsid != "CRS84":
-                raise ValueError(f"OGC CRS URI from [{urn}] contains unknown id [{id}]")
+                raise ExternalValueError(
+                    f"OGC CRS URI from [{urn}] contains unknown id [{id}]"
+                )
             srid = 4326
         else:
-            raise ValueError(
+            raise ExternalValueError(
                 f"CRS URI [{urn}] contains unknown authority [{authority}]"
             )
 
@@ -202,7 +208,7 @@ class CRS:
                     backend=backend,
                 )
 
-        raise ValueError(f"Unknown CRS URI [{uri}] specified")
+        raise ExternalValueError(f"Unknown CRS URI [{uri}] specified")
 
     @property
     def legacy(self):
@@ -276,7 +282,7 @@ class BoundingBox:
         """
         bbox = bbox.split(",")
         if not (4 <= len(bbox) <= 5):
-            raise ValueError(
+            raise ExternalValueError(
                 f"Input does not contain bounding box, "
                 f"expected 4 or 5 values, not {bbox}."
             )

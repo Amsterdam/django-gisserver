@@ -8,6 +8,7 @@ from typing import Optional, Union
 
 from django.db.models import Q
 
+from gisserver.exceptions import ExternalValueError
 from gisserver.parsers.base import BaseNode, FES20, tag_registry
 from gisserver.parsers.utils import (
     auto_cast,
@@ -53,7 +54,7 @@ class ResourceId(Id):
         try:
             self.type_name, self.id = self.rid.rsplit(".", 1)
         except ValueError:
-            raise ValueError("Expected typename.id format") from None
+            raise ExternalValueError("Expected typename.id format") from None
 
     @classmethod
     @expect_tag(FES20, "ResourceId", leaf=True)

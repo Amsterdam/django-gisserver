@@ -5,6 +5,8 @@ from functools import wraps
 from typing import List, Optional, Tuple
 from xml.etree.ElementTree import Element, QName
 
+from gisserver.exceptions import ExternalValueError
+
 RE_FLOAT = re.compile(r"\A[0-9]+(\.[0-9]+)\Z")
 
 
@@ -17,12 +19,14 @@ def expect_tag(namespace, *tag_names, leaf=False):
         @wraps(func)
         def _from_xml_expect(cls, element, *args, **kwargs):
             if element.tag not in valid_tags:
-                raise ValueError(
+                raise ExternalValueError(
                     f"{cls.__name__}.{func.__name__}(element) expects an <{expect0}> node, "
                     f"got <{element.tag}>"
                 )
             if leaf and len(element):
-                raise ValueError(f"{element.tag} elements should not have child nodes.")
+                raise ExternalValueError(
+                    f"{element.tag} elements should not have child nodes."
+                )
 
             return func(cls, element, *args, **kwargs)
 
@@ -46,7 +50,7 @@ def get_attribute(element: Element, name) -> str:
     try:
         return element.attrib[name]
     except KeyError:
-        raise ValueError(
+        raise ExternalValueError(
             f"Element {element.tag} misses required attribute '{name}'"
         ) from None
 

@@ -10,6 +10,13 @@ https://docs.opengeospatial.org/is/09-025r2/09-025r2.html#411
 from django.template.loader import render_to_string
 
 
+class ExternalValueError(ValueError):
+    """Raise a ValueError for external input.
+    This helps to distinguish between internal bugs
+    (e.g. unpacking values) and misformed external input.
+    """
+
+
 class OWSException(Exception):
     """Base class for XML based exceptions in this module."""
 

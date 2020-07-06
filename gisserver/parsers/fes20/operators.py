@@ -14,6 +14,7 @@ from xml.etree.ElementTree import Element
 from django.contrib.gis import measure
 from django.db.models import Q
 
+from gisserver.exceptions import ExternalValueError
 from gisserver.parsers import gml
 from gisserver.parsers.base import FES20, BaseNode, TagNameEnum, tag_registry
 from gisserver.parsers.utils import expect_tag, get_attribute, get_child
@@ -224,9 +225,9 @@ class DistanceOperator(SpatialOperator):
     def from_xml(cls, element: Element):
         geometries = gml.find_gml_nodes(element)
         if not geometries:
-            raise ValueError(f"Missing gml element in <{element.tag}>")
+            raise ExternalValueError(f"Missing gml element in <{element.tag}>")
         elif len(geometries) > 1:
-            raise ValueError(f"Multiple gml elements found in <{element.tag}>")
+            raise ExternalValueError(f"Multiple gml elements found in <{element.tag}>")
 
         return cls(
             valueReference=ValueReference.from_xml(
@@ -264,7 +265,7 @@ class BinarySpatialOperator(SpatialOperator):
             geo = element[0]
         else:
             if len(element) != 2:
-                raise ValueError(f"{element.tag} should have 2 operators")
+                raise ExternalValueError(f"{element.tag} should have 2 operators")
             ref, geo = list(element)
 
         return cls(

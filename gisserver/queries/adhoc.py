@@ -8,12 +8,9 @@ These definitions follow the WFS spec.
 import logging
 from dataclasses import dataclass
 
-from django.core.exceptions import FieldError
-from django.db import ProgrammingError
 from django.db.models import Q
 from typing import List, Optional
 
-from gisserver import output
 from gisserver.exceptions import (
     InvalidParameterValue,
     MissingParameterValue,
@@ -128,58 +125,8 @@ class AdhocQuery(QueryExpression):
             if not self.typeNames:
                 self.typeNames = [feature_type]
 
-    def get_results(self, start_index=0, count=100) -> output.FeatureCollection:
-        """Overwritten to improve error handling messages."""
-        try:
-            return super().get_results(start_index=start_index, count=count)
-        except ProgrammingError as e:
-            # e.g. comparing datetime against integer
-            self._log_filter_error(logging.WARNING, e)
-            raise InvalidParameterValue(
-                self._get_locator(),
-                "Invalid filter query, check the used datatypes and field names.",
-            ) from e
-
     def get_type_names(self):
         return self.typeNames
-
-    def get_queryset(self, feature_type: FeatureType):
-        """Overwritten to improve error handling messages."""
-        try:
-            return super().get_queryset(feature_type)
-        except FieldError as e:
-            # e.g. doing a LIKE on a foreign key, or requesting an unknown field.
-            self._log_filter_error(logging.ERROR, e)
-            raise InvalidParameterValue(
-                self._get_locator(), f"Internal error when processing filter",
-            ) from e
-        except (ValueError, TypeError) as e:
-            raise InvalidParameterValue(
-                self._get_locator(), f"Invalid filter query: {e}",
-            ) from e
-
-    def _log_filter_error(self, level, exc):
-        """Report a filtering parsing error in the logging"""
-        fes_xml = self.filter.source if self.filter is not None else "(not provided)"
-        try:
-            sql = exc.__cause__.cursor.query.decode()
-        except AttributeError:
-            logger.log(level, "WFS query failed: %s\nFilter:\n%s", exc, fes_xml)
-        else:
-            logger.log(
-                level,
-                "WFS query failed: %s\nSQL Query: %s\n\nFilter:\n%s",
-                exc,
-                sql,
-                fes_xml,
-            )
-
-    def _get_locator(self):
-        """Tell which field is likely causing the query error"""
-        if self.resourceId:
-            return "resourceId"
-        else:
-            return "filter"
 
     def compile_query(self, feature_type: FeatureType) -> fes20.CompiledQuery:
         """Return our internal CompiledQuery object that can be applied to the queryset."""
