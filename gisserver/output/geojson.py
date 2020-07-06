@@ -1,5 +1,8 @@
 """Output rendering logic for GeoJSON."""
-import decimal
+from django.utils.functional import Promise
+from uuid import UUID
+
+from decimal import Decimal
 from typing import cast
 
 from datetime import datetime
@@ -16,10 +19,11 @@ from gisserver.types import XsdComplexType
 from .base import BytesBuffer, OutputRenderer, get_db_geometry_target
 
 
-def default(obj):
-    if isinstance(obj, decimal.Decimal):
+def _json_default(obj):
+    """Serialize non-built in values to JSON"""
+    if isinstance(obj, (Decimal, UUID, Promise)):
         return str(obj)
-    raise TypeError
+    raise TypeError(f"Unable to serialize {obj.__class__.__name__} to JSON")
 
 
 class GeoJsonRenderer(OutputRenderer):
@@ -136,7 +140,7 @@ class GeoJsonRenderer(OutputRenderer):
             orjson.dumps(f"{feature_type.name}.{instance.pk}"),
             orjson.dumps(str(instance)),
             self.render_geometry(feature_type, instance),
-            orjson.dumps(properties, default=default),
+            orjson.dumps(properties, default=_json_default),
         )
 
     def _format_geojson_value(self, value):
