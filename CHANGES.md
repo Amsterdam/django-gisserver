@@ -1,3 +1,23 @@
+# 2020-07-06 (0.8.4)
+
+* Added field renaming support with `field(..., model_attribute=...)`.
+* Added support for WFS 1 parameters TYPENAME and MAXFEATURES.
+* Improved error handling for FES filters with invalid comparisons.
+* Fixed GeoJSON support for Decimal/UUID/gettext\_lazy values.
+* Fixes for CITE compliance testing for WFS Basic conformance:
+  * Handle `NAMESPACES` parameter.
+  * Fix missing "application/gml+xml" output format for `GetFeature`.
+  * Fix namespace prefix support in filters (by stripping them).
+  * Fix support for `<fes:BBOX>` with a single operand.
+  * Fix `DescribeStoredQueries` to show the actual requested queries.
+  * Fix `DescribeFeatureType` compliance testing by supporting the WFS 1 TYPENAME parameter.
+  * Fix `GetFeatureById` response, which missed an xmlns:xsi to parse responses with "xsi:nil" values.
+  * Fix `GetFeatureById` to return a 404 instead of 400 for any ID syntax, including unexpected formats.
+  * Fix `GetCapabilities` by exposing "resolve=local" parameter.
+  * Fix exposed WFS capabilities to pass cite WFS Simple conformance
+* Fixed SORTBY parameter to handle renamed fields.
+
+
 # 2020-06-30 (0.8.3)
 
 * Added `GISSERVER_CAPABILITIES_BOUNDING_BOX` setting.
