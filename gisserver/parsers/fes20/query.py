@@ -138,6 +138,7 @@ class CompiledQuery:
 
 
 @models.Field.register_lookup
+@models.ForeignObject.register_lookup
 class FesLike(lookups.Lookup):
     """Allow fieldname__fes_like=... lookups in querysets."""
 
@@ -159,6 +160,7 @@ class FesLike(lookups.Lookup):
 
 
 @models.Field.register_lookup
+@models.ForeignObject.register_lookup
 class FesNotEqualTo(lookups.Lookup):
     """Allow fieldname__fes_notequal=... lookups in querysets."""
 
