@@ -185,6 +185,11 @@ class NonIdOperator(Operator):
 
         This calls build_lhs() and build_rhs() on the expressions.
         """
+        # lhs and rhs are allowed to be reversed. However, the SQL compiler
+        # works much simpler when Django can predict the actual data type.
+        if isinstance(rhs, Literal) and isinstance(rhs, ValueReference):
+            lhs, rhs = rhs, lhs
+
         if (
             compiler.feature_type is not None
             and isinstance(lhs, ValueReference)
