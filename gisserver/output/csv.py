@@ -1,9 +1,12 @@
 """Output rendering logic for GeoJSON."""
 import csv
+from datetime import datetime
+from typing import List
+
 from django.conf import settings
 from django.contrib.gis.db.models.functions import GeoFunc
 from django.db import models
-from typing import List
+from django.utils.timezone import utc
 
 from gisserver import conf
 from gisserver.types import XsdElement
@@ -112,6 +115,8 @@ class CSVRenderer(OutputRenderer):
             elif isinstance(value, list):
                 # Array field
                 append(",".join(map(str, value)))
+            elif isinstance(value, datetime):
+                append(str(value.astimezone(utc)))
             else:
                 append(value)
         return values

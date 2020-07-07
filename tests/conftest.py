@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from pathlib import Path
 import ctypes
 
@@ -9,7 +11,7 @@ from django.db import connection
 
 from gisserver import conf
 from tests.constants import RD_NEW_PROJ, RD_NEW_SRID, RD_NEW_WKT
-from tests.test_gisserver.models import City, Restaurant
+from tests.test_gisserver.models import City, Restaurant, current_datetime
 from tests.xsd_download import download_schema
 
 HERE = Path(__file__).parent
@@ -57,7 +59,10 @@ def restaurant(city) -> Restaurant:
 @pytest.fixture()
 def bad_restaurant() -> Restaurant:
     return Restaurant.objects.create(
-        name="Foo Bar", location=Point(122421, 486290, srid=RD_NEW_SRID), rating=1.0
+        name="Foo Bar",
+        location=Point(122421, 486290, srid=RD_NEW_SRID),
+        rating=1.0,
+        created=current_datetime() + timedelta(hours=8),
     )
 
 

@@ -264,7 +264,7 @@ class TestGetFeature:
           </gml:Point>
         </app:location>
         <app:rating>1.0</app:rating>
-        <app:created>2020-04-05T12:11:10+00:00</app:created>
+        <app:created>2020-04-05T20:11:10+00:00</app:created>
       </app:restaurant>
     </wfs:member>
 
@@ -633,7 +633,7 @@ class TestGetFeature:
                         "name": "Foo Bar",
                         "city_id": None,
                         "rating": 1.0,
-                        "created": "2020-04-05T12:11:10+00:00",
+                        "created": "2020-04-05T20:11:10+00:00",
                     },
                 },
             ],
@@ -717,7 +717,7 @@ class TestGetFeature:
                         "name": "Foo Bar",
                         "city": None,
                         "rating": 1.0,
-                        "created": "2020-04-05T12:11:10+00:00",
+                        "created": "2020-04-05T20:11:10+00:00",
                     },
                 },
             ],
@@ -742,8 +742,8 @@ class TestGetFeature:
 
         expect = f"""
 "id","name","city_id","location","rating","created"
-"{restaurant.id}","Café Noir","{restaurant.city_id}","SRID=4326;{POINT1_EWKT}","5.0","2020-04-05 14:11:10"
-"{bad_restaurant.id}","Foo Bar","","SRID=4326;{POINT2_EWKT}","1.0","2020-04-05 14:11:10"
+"{restaurant.id}","Café Noir","{restaurant.city_id}","SRID=4326;{POINT1_EWKT}","5.0","2020-04-05 12:11:10+00:00"
+"{bad_restaurant.id}","Foo Bar","","SRID=4326;{POINT2_EWKT}","1.0","2020-04-05 20:11:10+00:00"
 """.lstrip()  # noqa: E501
         assert content == expect
 
