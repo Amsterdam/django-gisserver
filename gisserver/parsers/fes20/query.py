@@ -137,7 +137,8 @@ class CompiledQuery:
             return NotImplemented
 
 
-@models.Field.register_lookup
+@models.CharField.register_lookup
+@models.TextField.register_lookup
 @models.ForeignObject.register_lookup
 class FesLike(lookups.Lookup):
     """Allow fieldname__fes_like=... lookups in querysets."""

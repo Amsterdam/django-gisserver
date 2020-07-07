@@ -10,6 +10,7 @@ from enum import Enum
 
 from django.core.exceptions import ValidationError
 from django.db.models import Q
+from django.db.models.fields.related import RelatedField
 from typing import List, Optional, Type
 
 from django.contrib.gis.db.models import GeometryField
@@ -162,7 +163,13 @@ class XsdElement:
             except (ValueError, TypeError) as e:
                 raise ValidationError(str(e)) from e
 
-            if self.source.get_lookup(lookup) is None:
+            # Check whether the Django model field supports the lookup
+            # This prevents calling LIKE on a datetime or float field.
+            # For foreign keys, this depends on the target field type.
+            if self.source.get_lookup(lookup) is None or (
+                isinstance(self.source, RelatedField)
+                and self.source.target_field.get_lookup(lookup) is None
+            ):
                 raise ValidationError(
                     f"Property comparison between {self.name} and {value} "
                     f"does not support this operator."
