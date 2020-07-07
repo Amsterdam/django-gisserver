@@ -412,7 +412,8 @@ class LikeOperator(ComparisonOperator):
     def build_query(self, compiler: CompiledQuery) -> Q:
         lhs, rhs = self.expression
         if isinstance(rhs, Literal):
-            value = rhs.value
+            value = str(rhs.value)  # value could be auto-casted to int.
+
             # Not using r"\" here as that is a syntax error.
             if self.escapeChar != "\\":
                 value = value.replace("\\", "\\\\").replace(self.escapeChar, "\\")
