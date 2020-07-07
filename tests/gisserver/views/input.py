@@ -227,6 +227,21 @@ INVALID_FILTERS = {
             else "Invalid filter query: could not convert string to float: 'TEXT'"
         ),
     ),
+    "float_like": (
+        """
+    <fes:Filter
+         xmlns:fes="http://www.opengis.net/fes/2.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://www.opengis.net/fes/2.0
+         http://schemas.opengis.net/filter/2.0/filterAll.xsd">
+        <fes:PropertyIsLike wildCard="*" singleChar="?" escapeChar="\\">
+            <fes:ValueReference>rating</fes:ValueReference>
+            <fes:Literal>2</fes:Literal>
+        </fes:PropertyIsLike>
+    </fes:Filter>""",
+        "Invalid filter query: Operator '{http://www.opengis.net/fes/2.0}PropertyIsLike' "
+        "is not supported for the 'rating' property.",
+    ),
     "date_number": (
         """
     <fes:Filter

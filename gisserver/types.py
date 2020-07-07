@@ -151,7 +151,7 @@ class XsdElement:
             # E.g. Django foreign keys that point to a non-existing member.
             return None
 
-    def validate_comparison(self, value, lookup=None):
+    def validate_comparison(self, value, lookup, tag=None):
         """Validate whether the input value can be used in a comparison.
         This avoids comparing a database DATETIME object to an integer.
         """
@@ -171,8 +171,7 @@ class XsdElement:
                 and self.source.target_field.get_lookup(lookup) is None
             ):
                 raise ValidationError(
-                    f"Property comparison between {self.name} and {value} "
-                    f"does not support this operator."
+                    f"Operator '{tag}' is not supported for the '{self.name}' property."
                 )
 
 

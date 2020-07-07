@@ -4,7 +4,7 @@ The class names and attributes are identical to those in the FES spec.
 from itertools import groupby
 
 import operator
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from decimal import Decimal
 from enum import Enum
 from functools import reduce
@@ -172,6 +172,8 @@ class IdOperator(Operator):
 class NonIdOperator(Operator):
     """Abstract base class, as defined by FES spec."""
 
+    _source = None
+
     def build_compare(
         self,
         compiler: CompiledQuery,
@@ -191,7 +193,8 @@ class NonIdOperator(Operator):
             # When a common case of value comparison is done, the inputs
             # can be validated before the ORM query is constructed.
             xsd_element = compiler.feature_type.resolve_element(lhs.xpath).child
-            xsd_element.validate_comparison(rhs.value, lookup=lookup)
+            tag = self._source if self._source is not None else None
+            xsd_element.validate_comparison(rhs.value, lookup=lookup, tag=tag)
 
         lhs = lhs.build_lhs(compiler)
 
@@ -234,6 +237,7 @@ class DistanceOperator(SpatialOperator):
     operatorType: DistanceOperatorName
     geometry: gml.GM_Object
     distance: Measure
+    _source: Optional[str] = field(compare=False, default=None)
 
     @classmethod
     def from_xml(cls, element: Element):
@@ -250,6 +254,7 @@ class DistanceOperator(SpatialOperator):
             operatorType=DistanceOperatorName.from_xml(element),
             geometry=gml.parse_gml_node(geometries[0]),
             distance=Measure.from_xml(get_child(element, FES20, "Distance")),
+            _source=element.tag,
         )
 
     def build_query(self, compiler: CompiledQuery) -> Q:
@@ -269,6 +274,7 @@ class BinarySpatialOperator(SpatialOperator):
     operatorType: SpatialOperatorName
     operand1: Optional[ValueReference]
     operand2: SpatialDescription
+    _source: Optional[str] = field(compare=False, default=None)
 
     @classmethod
     def from_xml(cls, element: Element):
@@ -288,6 +294,7 @@ class BinarySpatialOperator(SpatialOperator):
             operand2=tag_registry.from_child_xml(
                 geo, allowed_types=SpatialDescription.__args__,  # get_args() in 3.8
             ),
+            _source=element.tag,
         )
 
     def build_query(self, compiler: CompiledQuery) -> Q:
@@ -308,6 +315,7 @@ class TemporalOperator(NonIdOperator):
     operatorType: TemporalOperatorName
     operand1: ValueReference
     operand2: TemporalOperand
+    _source: Optional[str] = field(compare=False, default=None)
 
     @classmethod
     def from_xml(cls, element: Element):
@@ -317,6 +325,7 @@ class TemporalOperator(NonIdOperator):
             operand2=tag_registry.from_child_xml(
                 element[1], allowed_types=TemporalOperand.__args__,  # get_args() in 3.8
             ),
+            _source=element.tag,
         )
 
 
@@ -337,6 +346,7 @@ class BinaryComparisonOperator(ComparisonOperator):
     expression: Tuple[Expression, Expression]
     matchCase: bool = True
     matchAction: MatchAction = MatchAction.Any
+    _source: Optional[str] = field(compare=False, default=None)
 
     @classmethod
     def from_xml(cls, element: Element):
@@ -350,6 +360,7 @@ class BinaryComparisonOperator(ComparisonOperator):
             matchAction=MatchAction(
                 element.get("matchAction", default=MatchAction.Any)
             ),
+            _source=element.tag,
         )
 
     def build_query(self, compiler: CompiledQuery) -> Q:
@@ -367,6 +378,7 @@ class BetweenComparisonOperator(ComparisonOperator):
     expression: Expression
     lowerBoundary: Expression
     upperBoundary: Expression
+    _source: Optional[str] = field(compare=False, default=None)
 
     @classmethod
     def from_xml(cls, element: Element):
@@ -376,6 +388,7 @@ class BetweenComparisonOperator(ComparisonOperator):
             expression=Expression.from_child_xml(element[0]),
             lowerBoundary=Expression.from_child_xml(lower[0]),
             upperBoundary=Expression.from_child_xml(upper[0]),
+            _source=element.tag,
         )
 
     def build_query(self, compiler: CompiledQuery) -> Q:
@@ -396,6 +409,7 @@ class LikeOperator(ComparisonOperator):
     wildCard: str
     singleChar: str
     escapeChar: str
+    _source: Optional[str] = field(compare=False, default=None)
 
     @classmethod
     def from_xml(cls, element: Element):
@@ -407,6 +421,7 @@ class LikeOperator(ComparisonOperator):
             wildCard=get_attribute(element, "wildCard"),
             singleChar=get_attribute(element, "singleChar"),
             escapeChar=get_attribute(element, "escapeChar"),
+            _source=element.tag,
         )
 
     def build_query(self, compiler: CompiledQuery) -> Q:
@@ -439,12 +454,14 @@ class NilOperator(ComparisonOperator):
 
     expression: Optional[Expression]
     nilReason: str
+    _source: Optional[str] = field(compare=False, default=None)
 
     @classmethod
     def from_xml(cls, element: Element):
         return cls(
             expression=Expression.from_child_xml(element[0]) if element else None,
             nilReason=element.get("nilReason"),
+            _source=element.tag,
         )
 
     def build_query(self, compiler: CompiledQuery) -> Q:
@@ -462,10 +479,13 @@ class NullOperator(ComparisonOperator):
     """
 
     expression: Expression
+    _source: Optional[str] = field(compare=False, default=None)
 
     @classmethod
     def from_xml(cls, element: Element):
-        return cls(expression=Expression.from_child_xml(element[0]))
+        return cls(
+            expression=Expression.from_child_xml(element[0]), _source=element.tag
+        )
 
     def build_query(self, compiler: CompiledQuery) -> Q:
         # For now, the implementation is identical to PropertyIsNil.
@@ -488,12 +508,14 @@ class BinaryLogicOperator(LogicalOperator):
 
     operands: List[NonIdOperator]
     operatorType: BinaryLogicType
+    _source: Optional[str] = field(compare=False, default=None)
 
     @classmethod
     def from_xml(cls, element: Element):
         return cls(
             operands=[NonIdOperator.from_child_xml(child) for child in element],
             operatorType=BinaryLogicType.from_xml(element),
+            _source=element.tag,
         )
 
     def build_query(self, compiler: CompiledQuery) -> Q:
@@ -509,12 +531,14 @@ class UnaryLogicOperator(LogicalOperator):
 
     operands: NonIdOperator
     operatorType: UnaryLogicType
+    _source: Optional[str] = field(compare=False, default=None)
 
     @classmethod
     def from_xml(cls, element: Element):
         return cls(
             operands=NonIdOperator.from_child_xml(element[0]),
             operatorType=UnaryLogicType.from_xml(element),
+            _source=element.tag,
         )
 
     def build_query(self, compiler: CompiledQuery) -> Q:
