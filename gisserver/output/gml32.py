@@ -108,13 +108,13 @@ class GML32Renderer(OutputRenderer):
             "http://www.opengis.net/gml/3.2 http://schemas.opengis.net/gml/3.2.1/gml.xsd",
         ]
 
-        return """
-     xmlns:app="{app_xml_namespace}"
-     xmlns:gml="http://www.opengis.net/gml/3.2"
-     xmlns:wfs="http://www.opengis.net/wfs/2.0"
-     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-     xsi:schemaLocation="{schema_location}"
-""".format(
+        return (
+            'xmlns:wfs="http://www.opengis.net/wfs/2.0" '
+            'xmlns:gml="http://www.opengis.net/gml/3.2" '
+            'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
+            'xmlns:app="{app_xml_namespace}" '
+            'xsi:schemaLocation="{schema_location}"'
+        ).format(
             app_xml_namespace=escape(self.app_xml_namespace),
             schema_location=escape(" ".join(schema_location)),
         )
@@ -136,7 +136,7 @@ class GML32Renderer(OutputRenderer):
             raise NotFound("Feature not found.")
 
         output = StringBuffer()
-        output.write("""<?xml version='1.0' encoding="UTF-8" ?>\n""")
+        output.write('<?xml version="1.0" encoding="UTF-8"?>\n')
         output.write(
             self.render_wfs_member(
                 feature_type=sub_collection.feature_type,
@@ -166,11 +166,11 @@ class GML32Renderer(OutputRenderer):
 
         output.write(
             f"""<?xml version='1.0' encoding="UTF-8" ?>\n"""
-            f"<wfs:{self.xml_collection_tag}\n"
-            f"     {xmlns}\n"
-            f'     timeStamp="{collection.timestamp}"'
+            f"<wfs:{self.xml_collection_tag} {xmlns}"
+            f' timeStamp="{collection.timestamp}"'
             f' numberMatched="{number_matched}"'
-            f' numberReturned="{int(number_returned)}"{next}{previous}>\n'
+            f' numberReturned="{int(number_returned)}"'
+            f"{next}{previous}>\n"
         )
 
         if number_returned:
