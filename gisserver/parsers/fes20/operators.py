@@ -191,7 +191,7 @@ class NonIdOperator(Operator):
             # When a common case of value comparison is done, the inputs
             # can be validated before the ORM query is constructed.
             xsd_element = compiler.feature_type.resolve_element(lhs.xpath).child
-            xsd_element.validate_comparison(rhs.value)
+            xsd_element.validate_comparison(rhs.value, lookup=lookup)
 
         lhs = lhs.build_lhs(compiler)
 
@@ -421,7 +421,7 @@ class LikeOperator(ComparisonOperator):
             if self.singleChar != "_":
                 value = value.replace("_", r"\_").replace(self.singleChar, "_")
 
-            rhs = value
+            rhs = Literal(value=value)
         else:
             raise NotImplementedError()
 
