@@ -173,7 +173,11 @@ class NonIdOperator(Operator):
     """Abstract base class, as defined by FES spec."""
 
     def build_compare(
-        self, compiler: CompiledQuery, lhs: Expression, lookup: str, rhs: RhsTypes
+        self,
+        compiler: CompiledQuery,
+        lhs: Expression,
+        lookup: str,
+        rhs: Union[Expression, RhsTypes],
     ) -> Q:
         """Use the value in comparison with some other expression.
 
