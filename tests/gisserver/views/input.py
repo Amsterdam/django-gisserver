@@ -61,6 +61,18 @@ FILTERS = {
                 <fes:Literal>3.0</fes:Literal>
             </fes:PropertyIsGreaterThanOrEqualTo>
         </fes:Filter>""",
+    "value_datetimefield": f"""
+        <?xml version="1.0"?>
+        <fes:Filter
+             xmlns:fes="http://www.opengis.net/fes/2.0"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xsi:schemaLocation="http://www.opengis.net/fes/2.0
+             http://schemas.opengis.net/filter/2.0/filterAll.xsd">
+            <fes:PropertyIsEqualTo>
+                <fes:Literal>2020-04-05T12:11:10+00:00</fes:Literal>
+                <fes:ValueReference>created</fes:ValueReference>
+            </fes:PropertyIsEqualTo>
+        </fes:Filter>""",
     "fes1": """
         <Filter>
             <PropertyIsGreaterThanOrEqualTo>

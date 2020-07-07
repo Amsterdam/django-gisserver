@@ -1,4 +1,5 @@
 """Additional tests for FES 1.0 Arithmetic operators."""
+from django.db import models
 from django.db.models import Value, Q
 
 from gisserver.parsers.fes20 import Filter
@@ -66,6 +67,15 @@ def test_fes10_add_sub():
 
     # Test SQL generating
     query = result.compile_query()
+    integer_field = models.IntegerField()
     assert query == CompiledQuery(
-        lookups=[Q(SomeProperty__exact=Value(100) - Value(50) + Value(200))]
+        lookups=[
+            Q(
+                SomeProperty__exact=(
+                    Value(100, output_field=integer_field)
+                    - Value(50, output_field=integer_field)
+                    + Value(200, output_field=integer_field)
+                )
+            )
+        ]
     ), repr(query)

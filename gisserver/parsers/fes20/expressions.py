@@ -5,6 +5,7 @@ import operator
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal as D
+from django.db import models
 from django.utils.functional import cached_property
 from typing import List, Optional, Tuple, Union
 from xml.etree.ElementTree import Element
@@ -27,6 +28,16 @@ NoneType = type(None)
 RhsTypes = Union[
     Combinable, Func, Q, GEOSGeometry, bool, int, str, date, datetime, tuple
 ]
+
+OUTPUT_FIELDS = {
+    bool: models.BooleanField(),
+    str: models.CharField(),
+    int: models.IntegerField(),
+    date: models.DateField(),
+    datetime: models.DateTimeField(),
+    float: models.FloatField(),
+    D: models.DecimalField(),
+}
 
 
 class BinaryOperatorType(TagNameEnum):
@@ -98,7 +109,13 @@ class Literal(Expression):
         By aliasing the value using an annotation,
         it can be queried like a regular field name.
         """
-        return compiler.add_annotation(Value(self.value))
+        return compiler.add_annotation(
+            Value(self.value, output_field=self.get_output_field())
+        )
+
+    def get_output_field(self):
+        # When the value is used a left-hand-side, Django needs to know the output type.
+        return OUTPUT_FIELDS.get(type(self.value))
 
     def build_rhs(self, compiler) -> Union[Combinable, Q, str]:
         """Return the value when it's used in the right-hand-side"""
@@ -215,4 +232,5 @@ def _make_combinable(value) -> Union[Combinable, Q]:
     if isinstance(value, (Combinable, Q)):
         return value
     else:
-        return Value(value)  # e.g. str, or GEOSGeometry
+        # e.g. str, or GEOSGeometry
+        return Value(value, output_field=OUTPUT_FIELDS.get(type(value)))
