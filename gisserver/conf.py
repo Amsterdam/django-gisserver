@@ -8,6 +8,11 @@ from django.dispatch import receiver
 # This gives a better performance overall, but output may vary between database vendors.
 GISSERVER_USE_DB_RENDERING = getattr(settings, "GISSERVER_USE_DB_RENDERING", True)
 
+# Whether to wrap filter errors in a nice response, or raise an exception
+GISSERVER_WRAP_FILTER_DB_ERRORS = getattr(
+    settings, "GISSERVER_WRAP_FILTER_DB_ERRORS", True
+)
+
 # Allow tuning the page size without having to override code.
 # This corresponds with the "DefaultMaxFeatures" setting.
 GISSERVER_DEFAULT_MAX_PAGE_SIZE = getattr(

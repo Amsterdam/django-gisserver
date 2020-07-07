@@ -248,12 +248,16 @@ class BaseWFSGetDataMethod(WFSTypeNamesMethod):
             ) from e
         except FieldError as e:
             # e.g. doing a LIKE on a foreign key, or requesting an unknown field.
+            if not conf.GISSERVER_WRAP_FILTER_DB_ERRORS:
+                raise
             self._log_filter_error(query, logging.ERROR, e)
             raise InvalidParameterValue(
                 self._get_locator(**params), f"Internal error when processing filter",
             ) from e
         except (InternalError, ProgrammingError) as e:
             # e.g. comparing datetime against integer
+            if not conf.GISSERVER_WRAP_FILTER_DB_ERRORS:
+                raise
             logger.error("WFS request failed: %s\nParams: %r", e, params)
             msg = str(e)
             locator = (
