@@ -7,7 +7,7 @@ See:
 https://docs.opengeospatial.org/is/09-025r2/09-025r2.html#35
 https://docs.opengeospatial.org/is/09-025r2/09-025r2.html#411
 """
-from django.template.loader import render_to_string
+from django.utils.html import format_html
 
 
 class ExternalValueError(ValueError):
@@ -35,12 +35,22 @@ class OWSException(Exception):
         self.code = code or self.code
 
     def as_xml(self):
-        return render_to_string(
-            [
-                f"gisserver/{self.service.lower()}/{self.version}/exception.xml",
-                f"gisserver/{self.version}/exception.xml",
-            ],
-            {"self": self},
+        return format_html(
+            '<?xml version="1.0" encoding="UTF-8"?>\n'
+            "<ows:ExceptionReport"
+            ' xmlns:ows="http://www.opengis.net/ows/1.1"'
+            ' xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"'
+            ' xsi:schemaLocation="http://www.opengis.net/ows/1.1'
+            ' http://schemas.opengis.net/ows/1.1.0/owsExceptionReport.xsd"'
+            ' xml:lang="en-US"'
+            ' version="2.0.0">\n'
+            '  <ows:Exception exceptionCode="{code}" locator="{locator}">\n'
+            "    <ows:ExceptionText>{text}</ows:ExceptionText>\n"
+            "  </ows:Exception>\n"
+            "</ows:ExceptionReport>",
+            code=self.code,
+            locator=self.locator,
+            text=self.text,
         )
 
     def __html__(self):
