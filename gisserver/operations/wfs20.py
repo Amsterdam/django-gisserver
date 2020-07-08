@@ -236,15 +236,12 @@ class BaseWFSGetDataMethod(WFSTypeNamesMethod):
         except ExternalValueError as e:
             # Bad input data
             self._log_filter_error(query, logging.ERROR, e)
-            raise InvalidParameterValue(
-                self._get_locator(**params), f"Invalid filter query: {e}",
-            ) from e
+            raise InvalidParameterValue(self._get_locator(**params), str(e),) from e
         except ValidationError as e:
             # Bad input data
             self._log_filter_error(query, logging.ERROR, e)
-            msg = "\n".join(map(str, e.messages))
             raise InvalidParameterValue(
-                self._get_locator(**params), f"Invalid filter query: {msg}",
+                self._get_locator(**params), "\n".join(map(str, e.messages)),
             ) from e
         except FieldError as e:
             # e.g. doing a LIKE on a foreign key, or requesting an unknown field.

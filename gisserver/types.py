@@ -163,8 +163,15 @@ class XsdElement:
             # which shouldn't be checked against for a filter query.
             try:
                 self.source.get_prep_value(raw_value)
+            except ValidationError as e:
+                raise ValidationError(
+                    f"Invalid data for the '{self.name}' property: {e.messages[0]}",
+                    code=e.code,
+                ) from e
             except (ValueError, TypeError) as e:
-                raise ValidationError(str(e)) from e
+                raise ValidationError(
+                    f"Invalid data for the '{self.name}' property: {e}"
+                ) from e
 
             # Check whether the Django model field supports the lookup
             # This prevents calling LIKE on a datetime or float field.

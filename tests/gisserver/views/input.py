@@ -234,9 +234,11 @@ INVALID_FILTERS = {
         </fes:PropertyIsGreaterThanOrEqualTo>
     </fes:Filter>""",
         (
-            "Invalid filter query: Field 'rating' expected a number but got 'TEXT'."
+            "Invalid data for the 'rating' property:"
+            " Field 'rating' expected a number but got 'TEXT'."
             if django.VERSION >= (3, 0)
-            else "Invalid filter query: could not convert string to float: 'TEXT'"
+            else "Invalid data for the 'rating' property:"
+            " could not convert string to float: 'TEXT'"
         ),
     ),
     "float_like": (
@@ -251,8 +253,8 @@ INVALID_FILTERS = {
             <fes:Literal>2</fes:Literal>
         </fes:PropertyIsLike>
     </fes:Filter>""",
-        "Invalid filter query: Operator '{http://www.opengis.net/fes/2.0}PropertyIsLike' "
-        "is not supported for the 'rating' property.",
+        "Operator '{http://www.opengis.net/fes/2.0}PropertyIsLike'"
+        " is not supported for the 'rating' property.",
     ),
     "date_number": (
         # this also tests auto_cast() logic for Literal,
@@ -269,11 +271,13 @@ INVALID_FILTERS = {
         </fes:PropertyIsEqualTo>
     </fes:Filter>""",
         (
-            "Invalid filter query: “21” value has an invalid format. "
-            "It must be in YYYY-MM-DD HH:MM[:ss[.uuuuuu]][TZ] format."
+            "Invalid data for the 'created' property:"
+            " “21” value has an invalid format."
+            " It must be in YYYY-MM-DD HH:MM[:ss[.uuuuuu]][TZ] format."
             if django.VERSION >= (3, 0)
-            else "Invalid filter query: '21' value has an invalid format. "
-            "It must be in YYYY-MM-DD HH:MM[:ss[.uuuuuu]][TZ] format."
+            else "Invalid data for the 'created' property:"
+            " '21' value has an invalid format."
+            " It must be in YYYY-MM-DD HH:MM[:ss[.uuuuuu]][TZ] format."
         ),
     ),
     "date_text": (
@@ -289,11 +293,13 @@ INVALID_FILTERS = {
         </fes:PropertyIsGreaterThanOrEqualTo>
     </fes:Filter>""",
         (
-            "Invalid filter query: “abc” value has an invalid format. "
-            "It must be in YYYY-MM-DD HH:MM[:ss[.uuuuuu]][TZ] format."
+            "Invalid data for the 'created' property:"
+            " “abc” value has an invalid format."
+            " It must be in YYYY-MM-DD HH:MM[:ss[.uuuuuu]][TZ] format."
             if django.VERSION >= (3, 0)
-            else "Invalid filter query: 'abc' value has an invalid format. "
-            "It must be in YYYY-MM-DD HH:MM[:ss[.uuuuuu]][TZ] format."
+            else "Invalid data for the 'created' property:"
+            " 'abc' value has an invalid format."
+            " It must be in YYYY-MM-DD HH:MM[:ss[.uuuuuu]][TZ] format."
         ),
     ),
 }
