@@ -130,6 +130,9 @@ class FeatureField:
     an XSD definition that the remaining application uses.
     """
 
+    #: The class that's used to generate the XsdElement.
+    xsd_element_class: Type[XsdElement] = XsdElement
+
     model: Optional[Type[models.Model]]
     model_field: Optional[models.Field]
 
@@ -162,7 +165,7 @@ class FeatureField:
         if self.model_field is None:
             raise RuntimeError(f"bind() was not called for {self!r}")
 
-        return XsdElement(
+        return self.xsd_element_class(
             name=self.name,
             type=self._get_xsd_type(),
             nillable=self.model_field.null,
