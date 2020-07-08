@@ -36,6 +36,7 @@ __all__ = [
     "field",
     "FeatureField",
     "ComplexFeatureField",
+    "get_basic_field_type",
 ]
 
 XSD_TYPES = {
@@ -63,7 +64,7 @@ XSD_TYPES = {
 DEFAULT_XSD_TYPE = XsdTypes.anyType
 
 
-def _get_basic_field_type(field_name: str, model_field: models.Field) -> XsdAnyType:
+def get_basic_field_type(field_name: str, model_field: models.Field) -> XsdAnyType:
     """Determine the XSD field type for a Django field."""
     try:
         # Direct instance, quickly resolved!
@@ -73,10 +74,10 @@ def _get_basic_field_type(field_name: str, model_field: models.Field) -> XsdAnyT
 
     if isinstance(model_field, models.ForeignKey):
         # Don't let it query on the relation value yet
-        return _get_basic_field_type(field_name, model_field.target_field)
+        return get_basic_field_type(field_name, model_field.target_field)
     elif isinstance(model_field, ForeignObjectRel):
         # e.g. ManyToOneRel descriptor of a foreignkey_id field.
-        return _get_basic_field_type(field_name, model_field.remote_field.target_field)
+        return get_basic_field_type(field_name, model_field.remote_field.target_field)
     else:
         # Subclass checks:
         for field_cls, xsd_type in XSD_TYPES.items():
@@ -144,7 +145,7 @@ class FeatureField:
         return f"<{self.__class__.__name__}: {self.name}>"
 
     def _get_xsd_type(self):
-        return _get_basic_field_type(self.name, self.model_field)
+        return get_basic_field_type(self.name, self.model_field)
 
     def bind(self, model: Type[models.Model]):
         """Late-binding for the model"""
