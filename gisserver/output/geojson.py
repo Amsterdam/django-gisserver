@@ -1,16 +1,13 @@
 """Output rendering logic for GeoJSON."""
-from django.utils.functional import Promise
-from uuid import UUID
-
+from datetime import datetime
 from decimal import Decimal
 from typing import cast
-
-from datetime import datetime
 
 import orjson
 from django.conf import settings
 from django.contrib.gis.db.models.functions import AsGeoJSON
 from django.db import models
+from django.utils.functional import Promise
 from django.utils.timezone import utc
 from gisserver import conf
 from gisserver.features import FeatureType
@@ -21,7 +18,7 @@ from .base import BytesBuffer, OutputRenderer, get_db_geometry_target
 
 def _json_default(obj):
     """Serialize non-built in values to JSON"""
-    if isinstance(obj, (Decimal, UUID, Promise)):
+    if isinstance(obj, (Decimal, Promise)):
         return str(obj)
     raise TypeError(f"Unable to serialize {obj.__class__.__name__} to JSON")
 

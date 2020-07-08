@@ -3,7 +3,7 @@
 * Added field renaming support with `field(..., model_attribute=...)`.
 * Added support for WFS 1 parameters TYPENAME and MAXFEATURES.
 * Improved error handling for FES filters with invalid comparisons.
-* Fixed GeoJSON support for Decimal/UUID/gettext\_lazy values.
+* Fixed GeoJSON support for Decimal/gettext\_lazy values.
 * Fixes for CITE compliance testing for WFS Basic conformance:
   * Handle `NAMESPACES` parameter.
   * Fix missing "application/gml+xml" output format for `GetFeature`.
