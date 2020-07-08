@@ -255,6 +255,8 @@ INVALID_FILTERS = {
         "is not supported for the 'rating' property.",
     ),
     "date_number": (
+        # this also tests auto_cast() logic for Literal,
+        # which get_prop_value() doesn't handle well.
         """
     <fes:Filter
          xmlns:fes="http://www.opengis.net/fes/2.0"
@@ -266,7 +268,13 @@ INVALID_FILTERS = {
             <fes:Literal>21</fes:Literal>
         </fes:PropertyIsEqualTo>
     </fes:Filter>""",
-        "Invalid filter query: expected string or bytes-like object",
+        (
+            "Invalid filter query: “21” value has an invalid format. "
+            "It must be in YYYY-MM-DD HH:MM[:ss[.uuuuuu]][TZ] format."
+            if django.VERSION >= (3, 0)
+            else "Invalid filter query: '21' value has an invalid format. "
+            "It must be in YYYY-MM-DD HH:MM[:ss[.uuuuuu]][TZ] format."
+        ),
     ),
     "date_text": (
         """

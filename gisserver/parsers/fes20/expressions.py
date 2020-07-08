@@ -82,26 +82,28 @@ class Expression(BaseNode):
 class Literal(Expression):
     """The <fes:Literal> element that holds a literal value"""
 
-    value: Union[int, str, date, D, datetime, NoneType]  # officially <xsd:any>
+    raw_value: Optional[str]
     type: Optional[str] = None
 
     def __str__(self):
         return self.value
 
+    @cached_property
+    def value(
+        self,
+    ) -> Union[int, str, date, D, datetime, NoneType]:  # officially <xsd:any>
+        """Access the value of the element, casted to the appropriate data type."""
+        if self.type:
+            # Cast the value based on the given xsd:QName
+            return xsd_cast(self.raw_value, self.type)
+        else:
+            # Make sure gt / datetime comparisons work out of the box.
+            return auto_cast(self.raw_value)
+
     @classmethod
     @expect_tag(FES20, "Literal", leaf=True)
     def from_xml(cls, element: Element):
-        type = element.get("type")
-        value = element.text
-
-        if type:
-            # Cast the value based on the given xsd:QName
-            value = xsd_cast(value, type)
-        else:
-            # Make sure gt / datetime comparisons work out of the box.
-            value = auto_cast(value)
-
-        return cls(value=value, type=type)
+        return cls(raw_value=element.text, type=element.get("type"))
 
     def build_lhs(self, compiler) -> str:
         """Alias the value when it's used in the left-hand-side.

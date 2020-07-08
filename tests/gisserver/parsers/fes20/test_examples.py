@@ -63,7 +63,7 @@ def test_fes20_c5_example1():
     expected = Filter(
         BinaryComparisonOperator(
             BinaryComparisonName.PropertyIsEqualTo,
-            expression=(ValueReference("SomeProperty"), Literal(100),),
+            expression=(ValueReference("SomeProperty"), Literal("100"),),
         )
     )
     result = Filter.from_string(xml_text)
@@ -94,7 +94,7 @@ def test_fes20_c5_example2():
     expected = Filter(
         BinaryComparisonOperator(
             BinaryComparisonName.PropertyIsLessThan,
-            expression=(ValueReference("DEPTH"), Literal(30)),
+            expression=(ValueReference("DEPTH"), Literal("30")),
         )
     )
     result = Filter.from_string(xml_text)
@@ -258,7 +258,7 @@ def test_fes20_c5_example4():
                     operatorType=BinaryComparisonName.PropertyIsLessThan,
                     expression=(
                         ValueReference(xpath="DEPTH"),
-                        Literal(value=30, type=None),
+                        Literal(raw_value="30"),
                     ),
                     matchCase=True,
                     matchAction=MatchAction.Any,
@@ -383,7 +383,7 @@ def test_fes20_c5_example6():
                 Function(
                     name="SIN", arguments=[ValueReference(xpath="DISPERSION_ANGLE")],
                 ),
-                Literal(value=1),
+                Literal(raw_value="1"),
             ),
             matchCase=True,
             matchAction=MatchAction.Any,
@@ -437,7 +437,7 @@ def test_fes20_c5_example7():
                 ValueReference(xpath="PROPA"),
                 Function(
                     name="Add",
-                    arguments=[ValueReference(xpath="PROPB"), Literal(value=100)],
+                    arguments=[ValueReference(xpath="PROPB"), Literal(raw_value="100")],
                 ),
             ),
             matchCase=True,
@@ -478,8 +478,8 @@ def test_fes20_c5_example8():
     expected = Filter(
         predicate=BetweenComparisonOperator(
             expression=ValueReference(xpath="DEPTH"),
-            lowerBoundary=Literal(value=100),
-            upperBoundary=Literal(value=200),
+            lowerBoundary=Literal(raw_value="100"),
+            upperBoundary=Literal(raw_value="200"),
         )
     )
     result = Filter.from_string(xml_text)
@@ -514,8 +514,8 @@ def test_fes20_c5_example9():
     expected = Filter(
         predicate=BetweenComparisonOperator(
             expression=ValueReference(xpath="SAMPLE_DATE"),
-            lowerBoundary=Literal(value="2001-01-15T20:07:48.11", type=None),
-            upperBoundary=Literal(value="2001-03-06T12:00:00.00", type=None),
+            lowerBoundary=Literal(raw_value="2001-01-15T20:07:48.11"),
+            upperBoundary=Literal(raw_value="2001-03-06T12:00:00.00"),
         )
     )
     result = Filter.from_string(xml_text)
@@ -549,10 +549,7 @@ def test_fes20_c5_example10():
     """.strip()
     expected = Filter(
         predicate=LikeOperator(
-            expression=(
-                ValueReference(xpath="LAST_NAME"),
-                Literal(value="JOHN*", type=None),
-            ),
+            expression=(ValueReference(xpath="LAST_NAME"), Literal(raw_value="JOHN*"),),
             wildCard="*",
             singleChar="#",
             escapeChar="!",
@@ -714,7 +711,7 @@ def test_fes20_c5_example12():
                             operatorType=BinaryComparisonName.PropertyIsEqualTo,
                             expression=(
                                 ValueReference(xpath="FIELD1"),
-                                Literal(value=10),
+                                Literal(raw_value="10"),
                             ),
                             matchCase=True,
                             matchAction=MatchAction.Any,
@@ -723,7 +720,7 @@ def test_fes20_c5_example12():
                             operatorType=BinaryComparisonName.PropertyIsEqualTo,
                             expression=(
                                 ValueReference(xpath="FIELD1"),
-                                Literal(value=20),
+                                Literal(raw_value="20"),
                             ),
                             matchCase=True,
                             matchAction=MatchAction.Any,
@@ -735,7 +732,7 @@ def test_fes20_c5_example12():
                     operatorType=BinaryComparisonName.PropertyIsEqualTo,
                     expression=(
                         ValueReference(xpath="STATUS"),
-                        Literal(value="VALID"),
+                        Literal(raw_value="VALID"),
                     ),
                     matchCase=True,
                     matchAction=MatchAction.Any,
@@ -811,8 +808,8 @@ def test_fes20_c5_example13():
                 ),
                 BetweenComparisonOperator(
                     expression=ValueReference(xpath="DEPTH"),
-                    lowerBoundary=Literal(value=400, type=None),
-                    upperBoundary=Literal(value=800, type=None),
+                    lowerBoundary=Literal(raw_value="400", type=None),
+                    upperBoundary=Literal(raw_value="800", type=None),
                 ),
             ],
             operatorType=BinaryLogicType.And,
@@ -865,7 +862,10 @@ def test_fes20_c5_example14():
             operands=[
                 BinaryComparisonOperator(
                     operatorType=BinaryComparisonName.PropertyIsGreaterThan,
-                    expression=(ValueReference(xpath="Person/age"), Literal(value=50)),
+                    expression=(
+                        ValueReference(xpath="Person/age"),
+                        Literal(raw_value="50"),
+                    ),
                     matchCase=True,
                     matchAction=MatchAction.Any,
                 ),
@@ -873,7 +873,7 @@ def test_fes20_c5_example14():
                     operatorType=BinaryComparisonName.PropertyIsEqualTo,
                     expression=(
                         ValueReference(xpath="Person/mailAddress/Address/city"),
-                        Literal(value="Toronto"),
+                        Literal(raw_value="Toronto"),
                     ),
                     matchCase=True,
                     matchAction=MatchAction.Any,

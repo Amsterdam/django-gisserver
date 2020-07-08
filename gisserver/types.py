@@ -151,15 +151,18 @@ class XsdElement:
             # E.g. Django foreign keys that point to a non-existing member.
             return None
 
-    def validate_comparison(self, value, lookup, tag=None):
+    def validate_comparison(self, raw_value: str, lookup, tag=None):
         """Validate whether the input value can be used in a comparison.
         This avoids comparing a database DATETIME object to an integer.
+
+        The raw string value can be passed here. Auto-cased values could
+        raise an TypeError due to being unsupported by the validation.
         """
         if self.source is not None:
             # Not calling self.source.validate() as that checks for allowed choices,
             # which shouldn't be checked against for a filter query.
             try:
-                self.source.get_prep_value(value)
+                self.source.get_prep_value(raw_value)
             except (ValueError, TypeError) as e:
                 raise ValidationError(str(e)) from e
 
