@@ -160,7 +160,10 @@ class FeatureField:
     @cached_property
     def xsd_element(self) -> XsdElement:
         """Define the XMLSchema definition for a model field.
-        This is used in DescribeFeatureType.
+
+        This definition is used by the remaining application to access the
+        data. It's the basis for DescribeFeatureType, and it's ``get_value()``
+        method is read to access the model field data.
         """
         if self.model_field is None:
             raise RuntimeError(f"bind() was not called for {self!r}")
