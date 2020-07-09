@@ -1,3 +1,8 @@
+# 2020-07-09 (0.9.1)
+
+* Fixed `GetPropertyValue` calls for non-db optimized rendering.
+
+
 # 2020-07-09 (0.9)
 
 * Added support for nested, flattened fields.
