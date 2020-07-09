@@ -120,8 +120,8 @@ class CustomWFSView(WFSView):
 ```
 
 Since various clients (like QGis) don't support complex types well,
-relations can also be flattened by overriding the `model_attribute`.
-The following can also be defined:
+relations can also be flattened by defining dotted-names.
+This can be combined with `model_attribute` which allows to access a different field.
 
 ```python
 from gisserver.features import FeatureType, field
@@ -137,19 +137,13 @@ class CustomWFSView(WFSView):
                 "id",
                 "name",
                 "location",
-                "owner.id",
+                field("owner.id", model_attribute="owner_id")
                 "owner.name",
-                "owner.phonenumber",
+                field("owner.phone", model_attribute="owner.telephone"),
                 "created"
             ],
         ),
     ]
-```
-
-The fields can be renamed, so a different underlying field is used:
-
-```python
-    field("owner.id", model_attribute="owner_id")
 ```
 
 
