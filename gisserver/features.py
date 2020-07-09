@@ -105,13 +105,15 @@ def _get_target_model(model_field) -> Type[models.Model]:
         )
 
 
-def _get_model_fields(model, fields):
+def _get_model_fields(model, fields, parent=None):
     if fields == "__all__":
         # All regular fields
         return [
             FeatureField(
                 name=f.attname if isinstance(f, models.ForeignKey) else f.name,
+                # .bind() is called directly:
                 model=model,
+                parent=parent,
             )
             for f in model._meta.get_fields()
         ]
@@ -119,7 +121,7 @@ def _get_model_fields(model, fields):
         # Only defined fields
         fields = [f if isinstance(f, FeatureField) else FeatureField(f) for f in fields]
         for field in fields:
-            field.bind(model)
+            field.bind(model, parent=parent)
         return fields
 
 
@@ -149,11 +151,18 @@ class FeatureField:
     model: Optional[Type[models.Model]]
     model_field: Optional[models.Field]
 
-    def __init__(self, name, model_attribute=None, model=None):
+    def __init__(
+        self,
+        name,
+        model_attribute=None,
+        model=None,
+        parent: "Optional[ComplexFeatureField]" = None,
+    ):
         self.name = name
         self.model_attribute = model_attribute
         self.model = None
         self.model_field = None
+        self.parent = parent
         self._nillable_relation = False
         if model is not None:
             self.bind(model)
@@ -164,11 +173,24 @@ class FeatureField:
     def _get_xsd_type(self):
         return get_basic_field_type(self.name, self.model_field)
 
-    def bind(self, model: Type[models.Model]):
-        """Late-binding for the model"""
+    def bind(
+        self, model: Type[models.Model], parent: "Optional[ComplexFeatureField]" = None,
+    ):
+        """Late-binding for the model.
+
+        This method is called internally when the field definition wasn't
+        linked to a model yet. This allows the fields to be defined first,
+        in external code, and then become part of the ``FeatureType`` fields
+        list.
+
+        :param model: The model is field is linked to.
+        :param parent: When this element is part of a complex feature,
+                       this links to the parent field.
+        """
         if self.model is not None:
             raise RuntimeError(f"Feature field '{self.name}' cannot be reused")
         self.model = model
+        self.parent = parent
 
         if self.model_attribute:
             # Support dot based field traversal.
@@ -235,7 +257,7 @@ class ComplexFeatureField(FeatureField):
 
     def _get_xsd_type(self) -> XsdComplexType:
         """Generate the XSD description for the field with an object relation."""
-        fields = _get_model_fields(self.target_model, self._fields)
+        fields = _get_model_fields(self.target_model, self._fields, parent=self)
         return XsdComplexType(
             name=f"{self.target_model._meta.object_name}Type",
             elements=[field.xsd_element for field in fields],
