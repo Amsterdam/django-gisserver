@@ -194,6 +194,12 @@ class XsdElement:
                 )
 
 
+class _XsdElement_WithComplexType(XsdElement):
+    """This only exists as "protocol" for the type annotations"""
+
+    type: "XsdComplexType"
+
+
 @dataclass(frozen=True)
 class XsdComplexType(XsdAnyType):
     """Define an <xsd:complexType> that represents a whole class definition.
@@ -236,7 +242,7 @@ class XsdComplexType(XsdAnyType):
         return [e for e in self.elements if e.is_gml]
 
     @cached_property
-    def complex_elements(self) -> List[XsdElement]:
+    def complex_elements(self) -> List[_XsdElement_WithComplexType]:
         """Shortcut to get all elements with a complex type"""
         return [e for e in self.elements if e.type.is_complex_type]
 
