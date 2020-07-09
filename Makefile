@@ -11,7 +11,8 @@ install:       ## Install the package into the current virtualenv
 	pre-commit install
 
 test:          ## Run the tests
-	pytest -vs
+	GISSERVER_USE_DB_RENDERING=1 pytest -vs
+	GISSERVER_USE_DB_RENDERING=0 pytest -vs
 
 docker-test:   ## Run the tests against Linux GIS library versions
 	docker build . -t django-gisserver

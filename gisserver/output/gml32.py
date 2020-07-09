@@ -544,6 +544,17 @@ class GML32ValueRenderer(GML32Renderer):
         self.value_reference = value_reference
         super().__init__(*args, **kwargs)
 
+    @classmethod
+    def decorate_queryset(
+        cls,
+        feature_type: FeatureType,
+        queryset: models.QuerySet,
+        output_crs: CRS,
+        **params,
+    ):
+        # Don't optimize queryset, it only retrieves one value
+        return queryset
+
     def render_wfs_member(
         self, feature_type: FeatureType, instance: dict, extra_xmlns=""
     ) -> str:
