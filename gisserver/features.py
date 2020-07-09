@@ -8,7 +8,7 @@ from typing import List, Optional, Type, Union
 from django.contrib.gis.db import models as gis_models
 from django.contrib.gis.db.models import Extent, GeometryField
 from django.contrib.gis.db.models.functions import Transform
-from django.core.exceptions import ImproperlyConfigured
+from django.core.exceptions import FieldDoesNotExist, ImproperlyConfigured
 from django.db import models
 from django.db.models.fields.reverse_related import ForeignObjectRel
 from django.utils.functional import cached_property  # py3.8: functools
@@ -92,6 +92,19 @@ def get_basic_field_type(field_name: str, model_field: models.Field) -> XsdAnyTy
         return DEFAULT_XSD_TYPE
 
 
+def _get_target_model(model_field) -> Type[models.Model]:
+    """Find which model a related field points at"""
+    if isinstance(model_field, models.ForeignKey):
+        return model_field.target_field.model
+    elif isinstance(model_field, ForeignObjectRel):
+        # e.g. ManyToOneRel descriptor of a foreignkey_id field.
+        return model_field.remote_field.model
+    else:
+        raise NotImplementedError(
+            f"Model field is not supported as relation: {model_field.__class__.__name__}"
+        )
+
+
 def _get_model_fields(model, fields):
     if fields == "__all__":
         # All regular fields
@@ -141,6 +154,7 @@ class FeatureField:
         self.model_attribute = model_attribute
         self.model = None
         self.model_field = None
+        self._nillable_relation = False
         if model is not None:
             self.bind(model)
 
@@ -155,7 +169,25 @@ class FeatureField:
         if self.model is not None:
             raise RuntimeError(f"Feature field '{self.name}' cannot be reused")
         self.model = model
-        self.model_field = self.model._meta.get_field(self.model_attribute or self.name)
+
+        if self.model_attribute:
+            # Support dot based field traversal.
+            field_path = self.model_attribute.split(".")
+            try:
+                field: models.Field = self.model._meta.get_field(field_path[0])
+            except FieldDoesNotExist as e:
+                raise ImproperlyConfigured(
+                    f"FeatureField '{self.name}' has an invalid"
+                    f" model_attribute: '{self.model_attribute}' can't be"
+                    f" resolved for model '{self.model.__name__}'."
+                ) from e
+            for name in field_path[1:]:
+                if field.null:
+                    self._nillable_relation = True
+                field = _get_target_model(field)._meta.get_field(name)
+            self.model_field = field
+        else:
+            self.model_field = self.model._meta.get_field(self.name)
 
     @cached_property
     def xsd_element(self) -> XsdElement:
@@ -171,7 +203,7 @@ class FeatureField:
         return self.xsd_element_class(
             name=self.name,
             type=self._get_xsd_type(),
-            nillable=self.model_field.null,
+            nillable=self.model_field.null or self._nillable_relation,
             min_occurs=0,
             max_occurs=1 if isinstance(self.model_field, GeometryField) else None,
             model_attribute=self.model_attribute,
@@ -216,16 +248,13 @@ class ComplexFeatureField(FeatureField):
         if self.model_field is None:
             raise RuntimeError("FeatureField.bind() is not called yet")
 
-        if isinstance(self.model_field, models.ForeignKey):
-            return self.model_field.target_field.model
-        elif isinstance(self.model_field, ForeignObjectRel):
-            # e.g. ManyToOneRel descriptor of a foreignkey_id field.
-            return self.model_field.remote_field.model
-        else:
+        try:
+            return _get_target_model(self.model_field)
+        except NotImplementedError:
             raise ImproperlyConfigured(
                 f"{self.__class__.__name__} does not support fields of "
                 f"type {self.model_field.__class__.__name__}."
-            )
+            ) from None
 
 
 def field(

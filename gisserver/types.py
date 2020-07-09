@@ -4,14 +4,18 @@ These types are the internal definition on which all output is generated.
 It's constructed from the model metadata by the `FeatureType` / `FeatureField`
 classes. Custom field types could also generate these field types.
 """
+import operator
 import re
 from dataclasses import dataclass
 from enum import Enum
 
-from django.core.exceptions import ValidationError
+from django.core.exceptions import (
+    ObjectDoesNotExist,
+    ValidationError,
+)
 from django.db.models import Q
 from django.db.models.fields.related import RelatedField
-from typing import List, Optional, Type
+from typing import List, Optional, Tuple, Type
 
 from django.contrib.gis.db.models import GeometryField
 from django.db import models
@@ -114,6 +118,9 @@ class XsdElement:
 
     The :attr:`name` may differ from the underlying :attr:`model_attribute`,
     so the WFS server can use other field names then the underlying model.
+
+    A dotted-path notation can be used for :attr:`model_attribute` to access
+    a related field. For the WFS client, the data appears to be flattened.
     """
 
     name: str
@@ -124,15 +131,27 @@ class XsdElement:
     source: Optional[models.Field] = None
 
     #: Which field to read from the model to get the value
+    #: This supports dot notation to access related attributes.
     model_attribute: Optional[str] = None
 
     def __post_init__(self):
         if self.model_attribute is None:
             object.__setattr__(self, "model_attribute", self.name)
 
+        # Using operator.attrgetter() instead of getattr() gives built-in
+        # support to traversing model attributes with dots.
+        object.__setattr__(
+            self, "_attrgetter", operator.attrgetter(self.model_attribute)
+        )
+
     @cached_property
-    def is_gml(self):
+    def is_gml(self) -> bool:
         return isinstance(self.source, GeometryField) or self.type.prefix == "gml"
+
+    @cached_property
+    def is_flattened(self) -> bool:
+        """Whether the field is a lookup to a relation."""
+        return "." in self.model_attribute
 
     @cached_property
     def as_xml(self):
@@ -150,13 +169,28 @@ class XsdElement:
     def __str__(self):
         return self.as_xml
 
+    @cached_property
+    def orm_path(self) -> str:
+        """The ORM field lookup to perform."""
+        return self.model_attribute.replace(".", "__")
+
+    @cached_property
+    def orm_relation(self) -> Tuple[str, str]:
+        """The ORM field and parent relation"""
+        try:
+            path, field = self.model_attribute.rsplit(".", 1)
+        except ValueError:
+            return None, self.model_attribute
+        else:
+            return path.replace(".", "__"), field
+
     def get_value(self, instance: models.Model):
         """Provide the value for the data"""
         # For foreign keys, it's not possible to use the model value,
         # as that would conflict with the field type in the XSD schema.
         try:
-            return getattr(instance, self.model_attribute)
-        except AttributeError:
+            return self._attrgetter(instance)
+        except (AttributeError, ObjectDoesNotExist):
             # E.g. Django foreign keys that point to a non-existing member.
             return None
 
@@ -246,6 +280,11 @@ class XsdComplexType(XsdAnyType):
         """Shortcut to get all elements with a complex type"""
         return [e for e in self.elements if e.type.is_complex_type]
 
+    @cached_property
+    def flattened_elements(self) -> List[XsdElement]:
+        """Shortcut to get all elements with a flattened model attribite"""
+        return [e for e in self.elements if e.is_flattened]
+
     def resolve_element_path(self, xpath: str) -> Optional[List[XsdElement]]:
         """Resolve an xpath reference to the actual node.
         This returns the list of all levels if a match was found.
@@ -323,7 +362,7 @@ class XPathMatch:
     @property
     def orm_path(self) -> str:
         """Tell which ORM path should be targetted."""
-        return "__".join(xsd_element.model_attribute for xsd_element in self.elements)
+        return "__".join(xsd_element.orm_path for xsd_element in self.elements)
 
     @property
     def orm_filters(self) -> Optional[Q]:

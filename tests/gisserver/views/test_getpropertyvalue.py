@@ -6,6 +6,7 @@ from tests.constants import NAMESPACES
 from tests.gisserver.views.input import (
     COMPLEX_FILTERS,
     FILTERS,
+    FLATTENED_FILTERS,
     INVALID_FILTERS,
     POINT1_XML_WGS84,
     SORT_BY,
@@ -103,11 +104,13 @@ class TestGetPropertyValue:
     def test_get_filter(self, client, restaurant, bad_restaurant, filter_name):
         """Prove that that parsing FILTER=<fes:Filter>... works"""
         filter = FILTERS[filter_name].strip()
-
         response = client.get(
             "/v1/wfs/?SERVICE=WFS&REQUEST=GetPropertyValue&VERSION=2.0.0&TYPENAMES=restaurant"
             "&VALUEREFERENCE=name&FILTER=" + quote_plus(filter)
         )
+        self._assert_filter(response)
+
+    def _assert_filter(self, response, expect="Café Noir"):
         content = read_response(response)
         assert response["content-type"] == "text/xml; charset=utf-8", content
         assert response.status_code == 200, content
@@ -120,30 +123,29 @@ class TestGetPropertyValue:
 
         # Assert that the correct object was matched
         name = xml_doc.find("wfs:member/app:name", namespaces=NAMESPACES).text
-        assert name == "Café Noir"
+        assert name == expect
 
     @pytest.mark.parametrize("filter_name", list(COMPLEX_FILTERS.keys()))
     def test_get_filter_complex(self, client, restaurant, bad_restaurant, filter_name):
-        """Prove that that parsing FILTER=<fes:Filter>... works"""
+        """Prove that that parsing FILTER=<fes:Filter>... works for complex types"""
         filter = COMPLEX_FILTERS[filter_name].strip()
-
         response = client.get(
             "/v1/wfs-complextypes/?SERVICE=WFS&REQUEST=GetPropertyValue&VERSION=2.0.0"
             "&TYPENAMES=restaurant&VALUEREFERENCE=name&FILTER=" + quote_plus(filter)
         )
-        content = read_response(response)
-        assert response["content-type"] == "text/xml; charset=utf-8", content
-        assert response.status_code == 200, content
-        assert "</wfs:ValueCollection>" in content
+        self._assert_filter(response)
 
-        # Validate against the WFS 2.0 XSD
-        xml_doc = validate_xsd(content, WFS_20_XSD)
-        assert xml_doc.attrib["numberMatched"] == "1"
-        assert xml_doc.attrib["numberReturned"] == "1"
-
-        # Assert that the correct object was matched
-        name = xml_doc.find("wfs:member/app:name", namespaces=NAMESPACES).text
-        assert name == "Café Noir"
+    @pytest.mark.parametrize("filter_name", list(FLATTENED_FILTERS.keys()))
+    def test_get_filter_flattened(
+        self, client, restaurant, bad_restaurant, filter_name
+    ):
+        """Prove that that parsing FILTER=<fes:Filter>... works for flattened types"""
+        filter = FLATTENED_FILTERS[filter_name].strip()
+        response = client.get(
+            "/v1/wfs-flattened/?SERVICE=WFS&REQUEST=GetPropertyValue&VERSION=2.0.0"
+            "&TYPENAMES=restaurant&VALUEREFERENCE=name&FILTER=" + quote_plus(filter)
+        )
+        self._assert_filter(response)
 
     @pytest.mark.parametrize("filter_name", list(INVALID_FILTERS.keys()))
     def test_get_filter_invalid(self, client, restaurant, filter_name):

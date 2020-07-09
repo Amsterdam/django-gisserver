@@ -9,4 +9,9 @@ urlpatterns = [
         views.ComplexTypesWFSView.as_view(),
         name="wfs-view-complextypes",
     ),
+    path(
+        "v1/wfs-flattened/",
+        views.FlattenedWFSView.as_view(),
+        name="wfs-view-flattened",
+    ),
 ]

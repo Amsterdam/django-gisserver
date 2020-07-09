@@ -9,11 +9,13 @@ from django.db import models
 from django.utils.timezone import utc
 
 from gisserver import conf
-from gisserver.types import XsdElement
+from gisserver.features import FeatureType
+from gisserver.types import XsdComplexType, XsdElement
 from .base import (
     OutputRenderer,
     StringBuffer,
     build_db_annotations,
+    get_db_annotation,
     get_db_geometry_selects,
 )
 
@@ -36,13 +38,20 @@ class CSVRenderer(OutputRenderer):
     dialect = "unix"
 
     @classmethod
-    def decorate_queryset(cls, feature_type, queryset, output_crs, **params):
+    def decorate_queryset(
+        cls, feature_type: FeatureType, queryset, output_crs, **params
+    ):
         """Make sure relations are included with select-related to avoid N-queries.
         Using prefetch_related() isn't possible with .iterator().
         """
-        related = [
-            xsd_element.name for xsd_element in feature_type.xsd_type.complex_elements
-        ]
+        xsd_type: XsdComplexType = feature_type.xsd_type
+        # Take all relations that are expanded to complex elements,
+        # and all relations that are fetched for flattened elements.
+        related = set(
+            xsd_element.orm_path for xsd_element in xsd_type.complex_elements
+        ) | set(
+            xsd_element.orm_relation[0] for xsd_element in xsd_type.flattened_elements
+        )
         if related:
             queryset = queryset.select_related(*related)
 
@@ -139,7 +148,9 @@ class DBCSVRenderer(CSVRenderer):
 
         # Instead of reading the binary geometry data,
         # ask the database to generate EWKT data directly.
-        geometries = get_db_geometry_selects(feature_type.xsd_type, output_crs)
+        geometries = get_db_geometry_selects(
+            feature_type.xsd_type.gml_elements, output_crs
+        )
         if geometries:
             queryset = queryset.defer(*geometries.keys()).annotate(
                 **build_db_annotations(geometries, "_as_ewkt_{name}", _AsEWKT)
@@ -148,4 +159,4 @@ class DBCSVRenderer(CSVRenderer):
         return queryset
 
     def render_geometry(self, instance: models.Model, field: XsdElement):
-        return getattr(instance, f"_as_ewkt_{field.name}")
+        return get_db_annotation(instance, field.name, "_as_ewkt_{name}")

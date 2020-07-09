@@ -1,16 +1,18 @@
-from django.contrib.gis.db.models import GeometryField
-from django.contrib.gis.db.models.functions import Transform
-from typing import cast
-
 import io
+from collections import defaultdict
+from typing import List, Set, Tuple, Type, cast
 
 from django.conf import settings
+from django.contrib.gis.db.models import GeometryField
+from django.contrib.gis.db.models.functions import Transform
+from django.db import models
 from django.db.models import Prefetch
 from django.http import HttpResponse, StreamingHttpResponse
 from django.utils.html import escape
 
-from gisserver.operations.base import WFSMethod
+from gisserver.features import FeatureType
 from gisserver.geometries import CRS
+from gisserver.operations.base import WFSMethod
 from gisserver.types import XPathMatch, XsdComplexType, XsdElement
 
 from .results import FeatureCollection
@@ -69,24 +71,79 @@ class OutputRenderer:
                 sub_collection.queryset = queryset
 
     @classmethod
-    def decorate_queryset(cls, feature_type, queryset, output_crs, **params):
+    def decorate_queryset(
+        cls,
+        feature_type: FeatureType,
+        queryset: models.QuerySet,
+        output_crs: CRS,
+        **params,
+    ):
         """Apply presentation layer logic to the queryset."""
         # Avoid fetching relations, fetch these within the same query,
         related = [
+            # All complex elements directly reference a relation,
+            # which can be prefetched directly.
             Prefetch(
-                xsd_element.name,
-                queryset=cls.get_prefetch_queryset(xsd_element, output_crs),
+                obj_path,
+                queryset=cls.get_prefetch_queryset(
+                    feature_type, xsd_elements, fields, output_crs
+                ),
             )
-            for xsd_element in feature_type.xsd_type.complex_elements
+            for obj_path, xsd_elements, fields in cls._get_prefetch_summary(
+                feature_type.xsd_type
+            )
         ]
+
         if related:
             queryset = queryset.prefetch_related(*related)
 
         return queryset
 
     @classmethod
-    def get_prefetch_queryset(cls, xsd_element: XsdElement, output_crs: CRS):
+    def _get_prefetch_summary(
+        cls, xsd_type: XsdComplexType
+    ) -> List[Tuple[str, List[XsdElement], Set[str]]]:
+        """Summarize which fields read data from relations.
+
+        This combines the input from flattened and complex fields,
+        in the unlikely case both variations are used in the same feature.
+        """
+        fields = defaultdict(set)
+        elements = defaultdict(list)
+
+        for xsd_element in xsd_type.flattened_elements:
+            if xsd_element.source is not None:
+                obj_path, field = xsd_element.orm_relation
+                elements[obj_path].append(xsd_element)
+                fields[obj_path].add(field)
+
+        for xsd_element in xsd_type.complex_elements:
+            obj_path = xsd_element.orm_path
+            elements[obj_path].append(xsd_element)
+            fields[obj_path] = set(f.orm_path for f in xsd_element.type.elements)
+
+        return [
+            (obj_path, elements[obj_path], fields[obj_path])
+            for obj_path in fields.keys()
+        ]
+
+    @classmethod
+    def get_prefetch_queryset(
+        cls,
+        feature_type: FeatureType,
+        xsd_elements: List[XsdElement],
+        fields: Set[str],
+        output_crs: CRS,
+    ):
+        """Generate a custom queryset that's used to prefetch a reation."""
         return None
+
+    @classmethod
+    def get_flattened_prefetch_queryset(
+        cls, model: Type[models.Model], fields: List[str]
+    ):
+        """Give the minimum queryset to query the flattened fields."""
+        return model.objects.only("pk", *fields)
 
     def get_response(self):
         """Render the output as streaming response."""
@@ -175,16 +232,27 @@ def build_db_annotations(selects: dict, name_template: str, wrapper_func) -> dic
     This is used by various DB-optimized rendering methods.
     """
     return {
-        name_template.format(name=name): wrapper_func(target)
+        escape_xml_name(name, name_template): wrapper_func(target)
         for name, target in selects.items()
     }
 
 
-def get_db_geometry_selects(xsd_type: XsdComplexType, output_crs: CRS) -> dict:
+def get_db_annotation(instance: models.Model, name: str, name_template: str):
+    """Retrieve the value that an annotation has added to the model."""
+    # The "name" allows any XML-tag elements, escape the most obvious
+    return getattr(instance, escape_xml_name(name, name_template))
+
+
+def escape_xml_name(name: str, template="{name}") -> str:
+    """Escape an XML name to be used as annotation name."""
+    return template.format(name=name.replace(".", "_"))
+
+
+def get_db_geometry_selects(gml_elements: List[XsdElement], output_crs: CRS) -> dict:
     """Utility to generate select clauses for the geometry fields of a type."""
     return {
         xsd_element.name: _get_db_geometry_target(xsd_element, output_crs)
-        for xsd_element in xsd_type.gml_elements
+        for xsd_element in gml_elements
         if xsd_element.source is not None
     }
 
@@ -193,7 +261,7 @@ def _get_db_geometry_target(xsd_element: XsdElement, output_crs: CRS):
     """Wrap the selection of a geometry field in a CRS Transform if needed."""
     field = cast(GeometryField, xsd_element.source)
 
-    target = xsd_element.model_attribute
+    target = xsd_element.orm_path
     if field.srid != output_crs.srid:
         target = Transform(target, output_crs.srid)
 

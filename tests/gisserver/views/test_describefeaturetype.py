@@ -11,7 +11,7 @@ pytestmark = [pytest.mark.urls("tests.test_gisserver.urls")]
 class TestDescribeFeatureType:
     """All tests for the DescribeFeatureType method."""
 
-    def test_get(self, client):
+    def test_describe(self, client):
         """Prove that the happy flow works"""
         response = client.get(
             "/v1/wfs/?SERVICE=WFS&REQUEST=DescribeFeatureType&VERSION=2.0.0&TYPENAMES=restaurant"
@@ -64,7 +64,7 @@ class TestDescribeFeatureType:
 </schema>""",  # noqa: E501
         )
 
-    def test_get_complex(self, client):
+    def test_describe_complex(self, client):
         """Prove that complex types are properly rendered"""
         response = client.get(
             "/v1/wfs-complextypes/?SERVICE=WFS&REQUEST=DescribeFeatureType&VERSION=2.0.0"
@@ -114,6 +114,54 @@ class TestDescribeFeatureType:
         <sequence>
           <element name="id" type="integer" minOccurs="0" />
           <element name="name" type="string" minOccurs="0" />
+        </sequence>
+      </extension>
+    </complexContent>
+  </complexType>
+
+</schema>""",  # noqa: E501
+        )
+
+    def test_describe_flattened(self, client):
+        """Prove that complex types are properly rendered"""
+        response = client.get(
+            "/v1/wfs-flattened/?SERVICE=WFS&REQUEST=DescribeFeatureType&VERSION=2.0.0"
+            "&TYPENAMES=restaurant"
+        )
+        content = response.content.decode()
+        assert response["content-type"] == "application/gml+xml; version=3.2", content
+        assert response.status_code == 200, content
+        assert "PropertyType" in content  # for element holding a GML field
+
+        # The response is an XSD itself.
+        # Only validate it's XML structure
+        xml_doc: etree._Element = etree.fromstring(response.content)
+        assert xml_doc.tag == "{http://www.w3.org/2001/XMLSchema}schema"
+
+        assert_xml_equal(
+            response.content,
+            """<schema
+   xmlns="http://www.w3.org/2001/XMLSchema"
+   xmlns:app="http://example.org/gisserver"
+   xmlns:gml="http://www.opengis.net/gml/3.2"
+   targetNamespace="http://example.org/gisserver"
+   elementFormDefault="qualified" version="0.1">
+
+  <import namespace="http://www.opengis.net/gml/3.2" schemaLocation="http://schemas.opengis.net/gml/3.2.1/gml.xsd" />
+
+  <element name="restaurant" type="app:RestaurantType" substitutionGroup="gml:AbstractFeature" />
+
+  <complexType name="RestaurantType">
+    <complexContent>
+      <extension base="gml:AbstractFeatureType">
+        <sequence>
+          <element name="id" type="integer" minOccurs="0" />
+          <element name="name" type="string" minOccurs="0" />
+          <element name="city-id" type="integer" minOccurs="0" nillable="true" />
+          <element name="city-name" type="string" minOccurs="0" nillable="true" />
+          <element name="location" type="gml:PointPropertyType" minOccurs="0" maxOccurs="1" nillable="true" />
+          <element name="rating" type="double" minOccurs="0" />
+          <element name="created" type="dateTime" minOccurs="0" />
         </sequence>
       </extension>
     </complexContent>

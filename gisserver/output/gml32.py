@@ -8,7 +8,7 @@ import re
 from datetime import date, datetime, time
 from functools import reduce
 from html import escape
-from typing import Optional, cast
+from typing import List, Optional, cast
 
 from django.contrib.gis import geos
 from django.contrib.gis.db.models.functions import AsGML, Transform, Union
@@ -26,6 +26,7 @@ from .base import (
     OutputRenderer,
     StringBuffer,
     build_db_annotations,
+    get_db_annotation,
     get_db_geometry_selects,
     get_db_geometry_target,
 )
@@ -403,7 +404,13 @@ class DBGML32Renderer(GML32Renderer):
     """Faster GetFeature renderer that uses the database to render GML 3.2"""
 
     @classmethod
-    def decorate_queryset(cls, feature_type, queryset, output_crs, **params):
+    def decorate_queryset(
+        cls,
+        feature_type: FeatureType,
+        queryset: models.QuerySet,
+        output_crs: CRS,
+        **params,
+    ):
         """Update the queryset to let the database render the GML output.
         This is far more efficient then GeoDjango's logic, which performs a
         C-API call for every single coordinate of a geometry.
@@ -412,7 +419,9 @@ class DBGML32Renderer(GML32Renderer):
             feature_type, queryset, output_crs, **params
         )
 
-        geometries = get_db_geometry_selects(feature_type.xsd_type, output_crs)
+        geometries = get_db_geometry_selects(
+            feature_type.xsd_type.gml_elements, output_crs
+        )
         return queryset.defer(*geometries.keys()).annotate(
             _as_envelope_gml=cls.get_db_envelope_as_gml(
                 feature_type, queryset, output_crs
@@ -421,14 +430,33 @@ class DBGML32Renderer(GML32Renderer):
         )
 
     @classmethod
-    def get_prefetch_queryset(cls, xsd_element: XsdElement, output_crs: CRS):
-        """Perform DB annotations for the prefetched relation too."""
-        xsd_type: XsdComplexType = cast(XsdComplexType, xsd_element.type)
-        model = xsd_type.source
+    def get_prefetch_queryset(
+        cls,
+        feature_type: FeatureType,
+        xsd_elements: List[XsdElement],
+        fields: List[str],
+        output_crs: CRS,
+    ):
+        """Perform DB annotations for prefetched relations too."""
+        model = xsd_elements[0].source
+        if model is None:
+            return None
 
-        geometries = get_db_geometry_selects(xsd_type, output_crs)
+        # Find which fields are GML elements
+        gml_elements = []
+        for e in xsd_elements:
+            if e.is_gml:
+                # Prefetching a flattened relation
+                gml_elements.append(e)
+            elif e.type.is_complex_type:
+                # Prefetching a complex type
+                xsd_type: XsdComplexType = cast(XsdComplexType, e.type)
+                gml_elements.extend(xsd_type.gml_elements)
+
+        geometries = get_db_geometry_selects(gml_elements, output_crs)
+        fields = set(fields) - set(geometries.keys())
         if geometries:
-            return model.objects.defer(*geometries.keys()).annotate(
+            return model.objects.only("pk", *fields).annotate(
                 **build_db_annotations(geometries, "_as_gml_{name}", _AsGML),
             )
 
@@ -466,7 +494,7 @@ class DBGML32Renderer(GML32Renderer):
     ):
         if xsd_element.is_gml:
             # Optimized path, pre-rendered GML
-            value = getattr(instance, f"_as_gml_{xsd_element.name}")
+            value = get_db_annotation(instance, xsd_element.name, "_as_gml_{name}")
             if value is None:
                 # Avoid incrementing gml_seq
                 return f'      <app:{xsd_element.name} xsi:nil="true" />\n'

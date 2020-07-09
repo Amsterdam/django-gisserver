@@ -64,3 +64,22 @@ class ComplexTypesWFSView(PlacesWFSView):
             other_crs=[RD_NEW],
         ),
     ]
+
+
+class FlattenedWFSView(PlacesWFSView):
+    """An advanced view that has a custom type definition for a foreign key."""
+
+    feature_types = [
+        FeatureType(
+            Restaurant.objects.all(),
+            fields=[
+                "id",
+                "name",
+                field("city-id", model_attribute="city_id"),
+                field("city-name", model_attribute="city.name"),
+                "location",
+                "rating",
+                "created",
+            ],
+        ),
+    ]
