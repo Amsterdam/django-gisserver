@@ -1,3 +1,23 @@
+# 2020-07-09 (0.9)
+
+* Added support for nested, flattened fields.
+* Added support for dotted-names in field names.
+* Added support for dotted-names in `model_attribute`.
+* Added `GISSERVER_WRAP_FILTER_DB_ERRORS` setting for debugging filter errors.
+* Added API's for easier subclassing:
+  * `FeatureField.xsd_element_class`.
+  * `FeatureField.parent` for elements in a complex feature.
+  * `gisserver.features.get_basic_field_type()`.
+* Fixed CSV output to render datetimes as UTC, identical to GeoJSON
+* Fixed bugs found by CITE compliance testing:
+  * Fixed support for LIKE operators on string-based foreign keys.
+  * Fixed `<fes:PropertyIsLike>` on numeric values, when the field is a string.
+  * Fixed comparison of `<fes:PropertyIs..>` when the field name and value are reversed.
+* Improved error messages when using invalid comparison operators.
+* Optimize feature retrieval, only fetch the actual fields being displayed.
+* Compactified XML output headers.
+
+
 # 2020-07-06 (0.8.4)
 
 * Added field renaming support with `field(..., model_attribute=...)`.

@@ -1,1 +1,1 @@
-__version__ = "0.8.4"  # follows PEP440
+__version__ = "0.9"  # follows PEP440
