@@ -119,6 +119,39 @@ class CustomWFSView(WFSView):
     ]
 ```
 
+Since various clients (like QGis) don't support complex types well,
+relations can also be flattened by overriding the `model_attribute`.
+The following can also be defined:
+
+```python
+from gisserver.features import FeatureType, field
+
+
+class CustomWFSView(WFSView):
+    ...
+
+    feature_types = [
+        FeatureType(
+            Restaurant.objects.all(),
+            fields=[
+                "id",
+                "name",
+                "location",
+                "owner.id",
+                "owner.name",
+                "owner.phonenumber",
+                "created"
+            ],
+        ),
+    ]
+```
+
+The fields can be renamed, so a different underlying field is used:
+
+```python
+    field("owner.id", model_attribute="owner_id")
+```
+
 
 ## Customization hooks
 
