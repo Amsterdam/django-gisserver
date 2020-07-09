@@ -175,6 +175,11 @@ class XsdElement:
         return self.model_attribute.replace(".", "__")
 
     @cached_property
+    def orm_field(self) -> str:
+        """The direct ORM field that provides this property."""
+        return self.model_attribute.split(".", 1)[0]
+
+    @cached_property
     def orm_relation(self) -> Tuple[str, str]:
         """The ORM field and parent relation"""
         try:

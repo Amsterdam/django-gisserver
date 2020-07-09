@@ -97,7 +97,10 @@ class OutputRenderer:
         if related:
             queryset = queryset.prefetch_related(*related)
 
-        return queryset
+        # Also limit the queryset to the actual fields that are shown.
+        # No need to request more data
+        fields = [f.orm_field for f in feature_type.xsd_type.elements]
+        return queryset.only("pk", *fields)
 
     @classmethod
     def _get_prefetch_summary(
