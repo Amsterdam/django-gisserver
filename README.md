@@ -153,7 +153,7 @@ There are a few places that allow to customize the WFS logic:
 
 * Overriding methods from ``WFSView``, such as ``get_feature_types()`` or ``dispatch()`` for authorization.
 * Subclassing the ``FeatureType`` class, to override it's ``get_queryset()`` method.
-* Subclassing the ``FeatureField`` class for the ``FeatureType(fields=...)`` parameter.
+* Subclassing the ``FeatureField`` class that is passed to the ``FeatureType(fields=...)`` parameter.
 * Registering new FES functions to ``gisserver.parsers.fes_function_registry``.
 * Registering new stored procedures to ``gisserver.queries.stored_query_registry``.
 
