@@ -8,6 +8,7 @@ from typing import Optional, Union
 
 from django.db.models import Q
 
+from gisserver import conf
 from gisserver.exceptions import ExternalValueError
 from gisserver.parsers.base import BaseNode, FES20, tag_registry
 from gisserver.parsers.utils import (
@@ -54,7 +55,12 @@ class ResourceId(Id):
         try:
             self.type_name, self.id = self.rid.rsplit(".", 1)
         except ValueError:
-            raise ExternalValueError("Expected typename.id format") from None
+            if conf.GISSERVER_WFS_STRICT_STANDARD:
+                raise ExternalValueError("Expected typename.id format") from None
+
+            # This should end in a 404 instead.
+            self.type_name = None
+            self.id = None
 
     @classmethod
     @expect_tag(FES20, "ResourceId", leaf=True)
@@ -80,7 +86,7 @@ class ResourceId(Id):
                 "No support for <fes:ResourceId> startTime/endTime/version attributes"
             )
 
-        lookup = Q(pk=self.id)
+        lookup = Q(pk=self.id or self.rid)
         if compiler is not None:
             # When the
             # NOTE: type_name is currently read by the IdOperator that contains this object,

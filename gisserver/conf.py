@@ -31,6 +31,9 @@ GISSERVER_GEOJSON_MAX_PAGE_SIZE = getattr(
 )
 GISSERVER_CSV_MAX_PAGE_SIZE = getattr(settings, "GISSERVER_CSV_MAX_PAGE_SIZE", math.inf)
 
+# Whether to follow the WFS standards strictly (breaks CITE conformance testing)
+GISSERVER_WFS_STRICT_STANDARD = getattr(settings, "GISSERVER_WFS_STRICT_STANDARD", True)
+
 
 @receiver(setting_changed)
 def _on_settings_change(setting, value, enter, **kwargs):

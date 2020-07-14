@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from django.db.models import Q
 from typing import List, Optional
 
+from gisserver import conf
 from gisserver.exceptions import (
     InvalidParameterValue,
     MissingParameterValue,
@@ -90,7 +91,7 @@ class AdhocQuery(QueryExpression):
 
             # When ResourceId + typenames is defined, it should be a value from typenames
             # see WFS spec 7.9.2.4.1
-            if params["typeNames"]:
+            if conf.GISSERVER_WFS_STRICT_STANDARD and params["typeNames"]:
                 raw_type_names = [
                     feature_type.name for feature_type in params["typeNames"]
                 ]
@@ -115,7 +116,7 @@ class AdhocQuery(QueryExpression):
         """Inform this quey object of the available feature types"""
         super().bind(*args, **kwargs)
 
-        if self.resourceId:
+        if self.resourceId and self.resourceId.type_name is not None:
             # Early validation whether the selected resourceID type exists.
             feature_type = self.resolve_type_name(
                 self.resourceId.type_name, locator="resourceID"

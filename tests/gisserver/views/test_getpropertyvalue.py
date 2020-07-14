@@ -291,7 +291,7 @@ class TestGetPropertyValue:
         response = client.get(
             "/v1/wfs/?SERVICE=WFS&REQUEST=GetPropertyValue&VERSION=2.0.0"
             "&TYPENAMES=mini-restaurant"
-            f"&RESOURCEID=restaurant.{restaurant.id}&VALUEREFERENCE=name"
+            f"&RESOURCEID=restaurant.{restaurant.id}&VALUEREFERENCE=location"
         )
         content = read_response(response)
         assert response["content-type"] == "text/xml; charset=utf-8", content
