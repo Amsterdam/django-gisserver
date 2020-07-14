@@ -100,6 +100,37 @@ class TestGetPropertyValue:
 </wfs:ValueCollection>""",  # noqa: E501
         )
 
+    def test_get_attribute(self, client, restaurant, bad_restaurant):
+        """Prove that referencing attributes works"""
+        response = client.get(
+            "/v1/wfs/?SERVICE=WFS&REQUEST=GetPropertyValue&VERSION=2.0.0&TYPENAMES=restaurant"
+            f"&VALUEREFERENCE=@gml:id"
+        )
+        content = read_response(response)
+        assert response["content-type"] == "text/xml; charset=utf-8", content
+        assert response.status_code == 200, content
+        assert "</wfs:ValueCollection>" in content
+
+        # Validate against the WFS 2.0 XSD
+        xml_doc = validate_xsd(content, WFS_20_XSD)
+        assert xml_doc.attrib["numberMatched"] == "2"
+        assert xml_doc.attrib["numberReturned"] == "2"
+        timestamp = xml_doc.attrib["timeStamp"]
+
+        assert_xml_equal(
+            content,
+            f"""<wfs:ValueCollection
+       xmlns:app="http://example.org/gisserver"
+       xmlns:gml="http://www.opengis.net/gml/3.2"
+       xmlns:wfs="http://www.opengis.net/wfs/2.0"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://example.org/gisserver http://testserver/v1/wfs/?SERVICE=WFS&amp;VERSION=2.0.0&amp;REQUEST=DescribeFeatureType&amp;TYPENAMES=restaurant http://www.opengis.net/wfs/2.0 http://schemas.opengis.net/wfs/2.0/wfs.xsd http://www.opengis.net/gml/3.2 http://schemas.opengis.net/gml/3.2.1/gml.xsd"
+       timeStamp="{timestamp}" numberMatched="2" numberReturned="2">
+  <wfs:member>restaurant.{restaurant.pk}</wfs:member>
+  <wfs:member>restaurant.{bad_restaurant.pk}</wfs:member>
+</wfs:ValueCollection>""",  # noqa: E501
+        )
+
     @pytest.mark.parametrize("filter_name", list(FILTERS.keys()))
     def test_get_filter(self, client, restaurant, bad_restaurant, filter_name):
         """Prove that that parsing FILTER=<fes:Filter>... works"""

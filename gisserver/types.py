@@ -6,7 +6,7 @@ classes. Custom field types could also generate these field types.
 """
 import operator
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 
 from django.core.exceptions import (
@@ -107,8 +107,87 @@ class XsdTypes(XsdAnyType, Enum):
             return f"{prefix}:{self.value}"
 
 
+class XsdNode:
+    name: str
+    type: XsdAnyType
+    source: Optional[models.Field]
+    model_attribute: Optional[str]
+
+    is_geometry = False
+    is_attribute = False
+
+    @cached_property
+    def orm_path(self) -> str:
+        """The ORM field lookup to perform."""
+        return self.model_attribute.replace(".", "__")
+
+    @cached_property
+    def orm_field(self) -> str:
+        """The direct ORM field that provides this property."""
+        return self.model_attribute.split(".", 1)[0]
+
+    @cached_property
+    def orm_relation(self) -> Tuple[str, str]:
+        """The ORM field and parent relation"""
+        try:
+            path, field = self.model_attribute.rsplit(".", 1)
+        except ValueError:
+            return None, self.model_attribute
+        else:
+            return path.replace(".", "__"), field
+
+    def get_value(self, instance: models.Model):
+        """Provide the value for the data"""
+        # For foreign keys, it's not possible to use the model value,
+        # as that would conflict with the field type in the XSD schema.
+        try:
+            return self.format_value(self._attrgetter(instance))
+        except (AttributeError, ObjectDoesNotExist):
+            # E.g. Django foreign keys that point to a non-existing member.
+            return None
+
+    def format_value(self, value):
+        """Allow to apply some final transformations on a value.
+        This is mainly used to support @gml:id which includes a prefix.
+        """
+        return value
+
+    def validate_comparison(self, raw_value: str, lookup, tag=None):
+        """Validate whether the input value can be used in a comparison.
+        This avoids comparing a database DATETIME object to an integer.
+
+        The raw string value can be passed here. Auto-cased values could
+        raise an TypeError due to being unsupported by the validation.
+        """
+        if self.source is not None:
+            # Not calling self.source.validate() as that checks for allowed choices,
+            # which shouldn't be checked against for a filter query.
+            try:
+                self.source.get_prep_value(raw_value)
+            except ValidationError as e:
+                raise ValidationError(
+                    f"Invalid data for the '{self.name}' property: {e.messages[0]}",
+                    code=e.code,
+                ) from e
+            except (ValueError, TypeError) as e:
+                raise ValidationError(
+                    f"Invalid data for the '{self.name}' property: {e}"
+                ) from e
+
+            # Check whether the Django model field supports the lookup
+            # This prevents calling LIKE on a datetime or float field.
+            # For foreign keys, this depends on the target field type.
+            if self.source.get_lookup(lookup) is None or (
+                isinstance(self.source, RelatedField)
+                and self.source.target_field.get_lookup(lookup) is None
+            ):
+                raise ValidationError(
+                    f"Operator '{tag}' is not supported for the '{self.name}' property."
+                )
+
+
 @dataclass(frozen=True)
-class XsdElement:
+class XsdElement(XsdNode):
     """Declare an XSD element.
 
     This holds the definition for a single property in the WFS server.
@@ -169,74 +248,60 @@ class XsdElement:
     def __str__(self):
         return self.as_xml
 
-    @cached_property
-    def orm_path(self) -> str:
-        """The ORM field lookup to perform."""
-        return self.model_attribute.replace(".", "__")
-
-    @cached_property
-    def orm_field(self) -> str:
-        """The direct ORM field that provides this property."""
-        return self.model_attribute.split(".", 1)[0]
-
-    @cached_property
-    def orm_relation(self) -> Tuple[str, str]:
-        """The ORM field and parent relation"""
-        try:
-            path, field = self.model_attribute.rsplit(".", 1)
-        except ValueError:
-            return None, self.model_attribute
-        else:
-            return path.replace(".", "__"), field
-
-    def get_value(self, instance: models.Model):
-        """Provide the value for the data"""
-        # For foreign keys, it's not possible to use the model value,
-        # as that would conflict with the field type in the XSD schema.
-        try:
-            return self._attrgetter(instance)
-        except (AttributeError, ObjectDoesNotExist):
-            # E.g. Django foreign keys that point to a non-existing member.
-            return None
-
-    def validate_comparison(self, raw_value: str, lookup, tag=None):
-        """Validate whether the input value can be used in a comparison.
-        This avoids comparing a database DATETIME object to an integer.
-
-        The raw string value can be passed here. Auto-cased values could
-        raise an TypeError due to being unsupported by the validation.
-        """
-        if self.source is not None:
-            # Not calling self.source.validate() as that checks for allowed choices,
-            # which shouldn't be checked against for a filter query.
-            try:
-                self.source.get_prep_value(raw_value)
-            except ValidationError as e:
-                raise ValidationError(
-                    f"Invalid data for the '{self.name}' property: {e.messages[0]}",
-                    code=e.code,
-                ) from e
-            except (ValueError, TypeError) as e:
-                raise ValidationError(
-                    f"Invalid data for the '{self.name}' property: {e}"
-                ) from e
-
-            # Check whether the Django model field supports the lookup
-            # This prevents calling LIKE on a datetime or float field.
-            # For foreign keys, this depends on the target field type.
-            if self.source.get_lookup(lookup) is None or (
-                isinstance(self.source, RelatedField)
-                and self.source.target_field.get_lookup(lookup) is None
-            ):
-                raise ValidationError(
-                    f"Operator '{tag}' is not supported for the '{self.name}' property."
-                )
-
 
 class _XsdElement_WithComplexType(XsdElement):
     """This only exists as "protocol" for the type annotations"""
 
     type: "XsdComplexType"
+
+
+@dataclass(frozen=True)
+class XsdAttribute(XsdNode):
+    prefix: str
+    name: str
+    type: XsdTypes = XsdTypes.string
+    use: str = "optional"
+    source: Optional[models.Field] = None
+
+    #: Which field to read from the model to get the value
+    model_attribute: Optional[str] = None
+
+    @cached_property
+    def xml_name(self):
+        return f"{self.prefix}:{self.name}" if self.prefix else self.name
+
+    def __post_init__(self):
+        if self.model_attribute is None:
+            object.__setattr__(self, "model_attribute", self.name)
+
+
+# Override static property, but can't do that
+# inside the class definition for dataclasses.
+XsdAttribute.is_attribute = True
+
+
+class GmlIdAttribute(XsdAttribute):
+    """A virtual 'gml:id' attribute. that can be queried"""
+
+    type_name: str
+
+    def __init__(
+        self,
+        type_name: str,
+        source: Optional[models.Field] = None,
+        model_attribute="pk",
+    ):
+        super().__init__(
+            prefix="gml", name="id", source=source, model_attribute=model_attribute
+        )
+        object.__setattr__(self, "type_name", type_name)
+
+    def get_value(self, instance: models.Model):
+        pk = super().get_value(instance)  # handle dotted-name notations
+        return f"{self.type_name}.{pk}"
+
+    def format_value(self, value):
+        return f"{self.type_name}.{value}"
 
 
 @dataclass(frozen=True)
@@ -256,6 +321,7 @@ class XsdComplexType(XsdAnyType):
 
     name: str
     elements: List[XsdElement]
+    attributes: List[XsdAttribute] = field(default_factory=list)
     base: XsdTypes = XsdTypes.gmlAbstractFeatureType
     source: Optional[Type[models.Model]] = None
 
@@ -290,7 +356,7 @@ class XsdComplexType(XsdAnyType):
         """Shortcut to get all elements with a flattened model attribite"""
         return [e for e in self.elements if e.is_flattened]
 
-    def resolve_element_path(self, xpath: str) -> Optional[List[XsdElement]]:
+    def resolve_element_path(self, xpath: str) -> Optional[List[XsdNode]]:
         """Resolve an xpath reference to the actual node.
         This returns the list of all levels if a match was found.
         """
@@ -301,30 +367,51 @@ class XsdComplexType(XsdAnyType):
             node_name = xpath
             pos = 0
 
-        # Strip current app namespace. Note this should actually compare the
-        # xmlns URI's, but this will suffice for now. The ElementTree parser
-        # doesn't provide access to 'xmlns' definitions on the element (or it's
-        # parents), so a tag like this is essentially not parsable for us:
-        # <ValueReference xmlns:tns="http://example.org/gisserver">tns:fieldname</ValueReference>
-        node_name = strip_namespace_prefix(node_name)
-
         # Strip any [@attr=..] conditions
         node_name = RE_XPATH_ATTR.sub("", node_name)
 
-        for element in self.elements:
-            if element.name == node_name:
-                if pos:
-                    if not element.type.is_complex_type:
-                        return None
-                    else:
-                        child_path = element.type.resolve_element_path(xpath[pos + 1 :])
-                        if child_path is None:
-                            return None
-                        else:
-                            return [element] + child_path
-                else:
-                    return [element]
+        if node_name.startswith("@"):
+            # Resolve attributes (e.g. gml:id)
+            if pos:
+                return None  # invalid attribute
 
+            attribute = self._find_attribute(xml_name=node_name[1:])
+            return [attribute] if attribute is not None else None
+        else:
+            # Strip current app namespace. Note this should actually compare the
+            # xmlns URI's, but this will suffice for now. The ElementTree parser
+            # doesn't provide access to 'xmlns' definitions on the element (or it's
+            # parents), so a tag like this is essentially not parsable for us:
+            # <ValueReference xmlns:tns="http://...">tns:fieldname</ValueReference>
+            if not node_name.startswith("gml:"):
+                node_name = strip_namespace_prefix(node_name)
+
+            element = self._find_element(node_name)
+            if element is None:
+                return None
+
+            if pos:
+                if not element.type.is_complex_type:
+                    return None
+                else:
+                    # Recurse into the child node to find the next part
+                    child_path = element.type.resolve_element_path(xpath[pos + 1 :])
+                    return [element] + child_path if child_path is not None else None
+            else:
+                return [element]
+
+    def _find_element(self, name) -> Optional[XsdElement]:
+        """Locate an element by name"""
+        for element in self.elements:
+            if element.name == name:
+                return element
+        return None
+
+    def _find_attribute(self, xml_name) -> Optional[XsdAttribute]:
+        """Locate an attribute by name"""
+        for attribute in self.attributes:
+            if attribute.xml_name == xml_name:
+                return attribute
         return None
 
 
@@ -337,46 +424,60 @@ def strip_namespace_prefix(value: str):
         return value
 
 
-class XPathMatch:
+class ORMPath:
+    """Base class to provide raw XPath results."""
+
+    def __init__(self, orm_path: str, orm_filters: Optional[Q] = None):
+        self.orm_path = orm_path
+        self.orm_filters = orm_filters
+
+    def __repr__(self):
+        return (
+            f"XPathMatch(orm_path={self.orm_path!r}, orm_filters={self.orm_filters!r})"
+        )
+
+
+class XPathMatch(ORMPath):
     """Wrapper class to provide XPath results."""
 
     #: The matched element, with all it's parents.
-    elements: List[XsdElement]
+    nodes: List[XsdNode]
 
     #: The source XPath query
     query: str
 
-    def __init__(self, elements: List[XsdElement], query: str):
-        self.elements = elements
+    #: The path to request in the ORM
+    orm_path: str
+
+    #: The additional filters are needed (due to [@attr=..] syntax).
+    orm_filters: Optional[Q]
+
+    def __init__(self, nodes: List[XsdNode], query: str):
+        self.nodes = nodes
         self.query = query
 
-    def __iter__(self):
-        return iter(self.elements)
-
-    def __getitem__(self, item) -> XsdElement:
-        return self.elements[item]
-
-    def __repr__(self):
-        return f"XPathMatch(elements={self.elements!r}, query={self.query!r})"
-
-    @property
-    def child(self) -> XsdElement:
-        """Return only the final element"""
-        return self.elements[-1]
-
-    @property
-    def orm_path(self) -> str:
-        """Tell which ORM path should be targetted."""
-        return "__".join(xsd_element.orm_path for xsd_element in self.elements)
-
-    @property
-    def orm_filters(self) -> Optional[Q]:
-        """Tell which additional filters are needed (due to [@attr=..] syntax)."""
-        if RE_NON_NAME.match(self.query):
+        if "[" in self.query:
             # If there is an element[@attr=...]/field tag,
             # the build_...() logic should return a Q() object.
             raise NotImplementedError(
                 f"Complex XPath queries are not supported yet: {self.query}"
             )
 
-        return None
+        super().__init__(
+            orm_path="__".join(xsd_node.orm_path for xsd_node in self.nodes),
+            orm_filters=None,
+        )
+
+    def __iter__(self):
+        return iter(self.nodes)
+
+    def __getitem__(self, item) -> XsdNode:
+        return self.nodes[item]
+
+    def __repr__(self):
+        return f"XPathMatch(nodes={self.nodes!r}, query={self.query!r})"
+
+    @property
+    def child(self) -> XsdNode:
+        """Return only the final element"""
+        return self.nodes[-1]

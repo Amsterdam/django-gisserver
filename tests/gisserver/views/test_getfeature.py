@@ -930,7 +930,7 @@ class TestGetFeature:
         """Prove that fetching objects by ID works."""
         response = client.get(
             "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
-            f"&RESOURCEID=restaurant.{restaurant.id}&VALUEREFERENCE=name"
+            f"&RESOURCEID=restaurant.{restaurant.id}"
         )
         content = read_response(response)
         assert response["content-type"] == "text/xml; charset=utf-8", content

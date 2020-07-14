@@ -20,6 +20,7 @@ from gisserver.types import (
     XsdComplexType,
     XsdElement,
     XsdTypes,
+    GmlIdAttribute,
 )
 from gisserver.geometries import BoundingBox, CRS, WGS84
 
@@ -258,9 +259,16 @@ class ComplexFeatureField(FeatureField):
     def _get_xsd_type(self) -> XsdComplexType:
         """Generate the XSD description for the field with an object relation."""
         fields = _get_model_fields(self.target_model, self._fields, parent=self)
+        pk_field = self.target_model._meta.pk
         return XsdComplexType(
             name=f"{self.target_model._meta.object_name}Type",
             elements=[field.xsd_element for field in fields],
+            attributes=[
+                # Add gml:id attribute definition so it can be resolved in xpath
+                GmlIdAttribute(
+                    type_name=self.name, source=pk_field, model_attribute=pk_field.name,
+                )
+            ],
             source=self.target_model,
         )
 
@@ -480,9 +488,16 @@ class FeatureType:
     @cached_property
     def xsd_type(self) -> XsdComplexType:
         """Return the definition of this feature as an XSD Complex Type."""
+        pk_field = self.model._meta.pk
         return self.xsd_type_class(
             name=f"{self.name.title()}Type",
             elements=[field.xsd_element for field in self.fields],
+            attributes=[
+                # Add gml:id attribute definition so it can be resolved in xpath
+                GmlIdAttribute(
+                    type_name=self.name, source=pk_field, model_attribute=pk_field.name,
+                )
+            ],
             source=self.model,
         )
 

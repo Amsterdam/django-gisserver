@@ -66,9 +66,9 @@ class SortBy:
         ordering = []
         for prop in self.sort_properties:
             if feature_type is not None:
-                orm_field, __ = prop.value_reference.parse_xpath(feature_type)
+                orm_path = prop.value_reference.parse_xpath(feature_type).orm_path
             else:
-                orm_field = prop.value_reference.xpath.replace("/", "__")
+                orm_path = prop.value_reference.xpath.replace("/", "__")
 
-            ordering.append(f"{prop.sort_order.value}{orm_field}")
+            ordering.append(f"{prop.sort_order.value}{orm_path}")
         return ordering

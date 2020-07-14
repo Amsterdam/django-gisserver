@@ -22,6 +22,7 @@ from gisserver.parsers.utils import (
     get_attribute,
     xsd_cast,
 )
+from gisserver.types import ORMPath
 
 NoneType = type(None)
 
@@ -147,25 +148,24 @@ class ValueReference(Expression):
 
     def build_lhs(self, compiler) -> str:
         """Optimized LHS: there is no need to alias a field lookup through an annotation."""
-        field, extra_q = self.parse_xpath(compiler.feature_type)
-        if extra_q:
-            compiler.add_extra_lookup(extra_q)
-        return field
+        match = self.parse_xpath(compiler.feature_type)
+        if match.orm_filters:
+            compiler.add_extra_lookup(match.orm_filters)
+        return match.orm_path
 
     def build_rhs(self, compiler) -> RhsTypes:
         """Return the value as F-expression"""
         return F(self.build_lhs(compiler))
 
-    def parse_xpath(self, feature_type=None) -> Tuple[str, Optional[Q]]:
+    def parse_xpath(self, feature_type=None) -> ORMPath:
         """Convert the XPath into a the required ORM query elements."""
         if feature_type is not None:
             # Can resolve against XSD paths, find the correct DB field name
-            match = feature_type.resolve_element(self.xpath)
-            return match.orm_path, match.orm_filters
+            return feature_type.resolve_element(self.xpath)
         else:
             # Only used by unit testing (when feature_type is not given).
             parts = [word.strip() for word in self.xpath.split("/")]
-            return "__".join(parts), None
+            return ORMPath(orm_path="__".join(parts), orm_filters=None)
 
     @cached_property
     def element_name(self):
