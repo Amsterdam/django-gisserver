@@ -125,17 +125,22 @@ class GeoJsonRenderer(OutputRenderer):
         # Get all instance attributes:
         properties = self.get_properties(feature_type.xsd_type, instance)
 
+        if feature_type.show_name:
+            geometry_name = b'"geometry_name":%b,' % orjson.dumps(str(instance))
+        else:
+            geometry_name = b""
+
         return (
             b"    {"
-            b'"type": "Feature", '
-            b'"id":%b, '
-            b'"geometry_name":%b,'
+            b'"type":"Feature",'
+            b'"id":%b,'
+            b"%b"
             b'"geometry":%b,'
             b'"properties":%b'
             b"}"
         ) % (
             orjson.dumps(f"{feature_type.name}.{instance.pk}"),
-            orjson.dumps(str(instance)),
+            geometry_name,
             self.render_geometry(feature_type, instance),
             orjson.dumps(properties, default=_json_default),
         )

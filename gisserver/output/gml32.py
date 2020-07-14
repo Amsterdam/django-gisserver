@@ -219,14 +219,19 @@ class GML32Renderer(OutputRenderer):
         self.gml_seq = 0  # need to increment this between render_xml_field cals
         output = StringBuffer()
         output.write(
-            '    <app:{name} gml:id="{name}.{pk}"{extra_xmlns}>\n'
-            "      <gml:name>{display}</gml:name>\n".format(
+            '    <app:{name} gml:id="{name}.{pk}"{extra_xmlns}>\n'.format(
                 name=feature_type.name,
                 pk=escape(str(instance.pk)),
-                display=escape(str(instance)),
                 extra_xmlns=extra_xmlns,
             )
         )
+
+        if feature_type.show_name:
+            output.write(
+                "      <gml:name>{display}</gml:name>\n".format(
+                    display=escape(str(instance)),
+                )
+            )
 
         # Add <gml:boundedBy>
         gml = self.render_bounds(feature_type, instance)

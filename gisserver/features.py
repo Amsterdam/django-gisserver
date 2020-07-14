@@ -324,6 +324,8 @@ class FeatureType:
         crs: CRS = None,
         other_crs: List[CRS] = None,
         metadata_url: Optional[str] = None,
+        # Settings
+        show_name: bool = True,
     ):
         """
         :param queryset: The queryset to retrieve the data.
@@ -337,6 +339,7 @@ class FeatureType:
         :param crs: Used in WFS metadata.
         :param other_crs: Used in WFS metadata.
         :param metadata_url: Used in WFS metadata.
+        :param show_name: Whether to show the ``gml:name`` or GeoJSON ``geometry_name`` field.
         """
         if isinstance(queryset, models.QuerySet):
             self.queryset = queryset
@@ -357,6 +360,7 @@ class FeatureType:
         self._crs = crs
         self.other_crs = other_crs or []
         self.metadata_url = metadata_url
+        self.show_name = show_name
 
         # Validate that the name doesn't require XML escaping.
         if html.escape(self.name) != self.name or " " in self.name or ":" in self.name:
