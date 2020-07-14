@@ -263,7 +263,7 @@ class GML32Renderer(OutputRenderer):
     ):
         """Rendering of a single field."""
         value = xsd_element.get_value(instance)
-        if xsd_element.is_gml and value is not None:
+        if xsd_element.is_geometry and value is not None:
             # None check happens here to avoid incrementing for none values
             self.gml_seq += 1
             return self.render_gml_field(
@@ -425,7 +425,7 @@ class DBGML32Renderer(GML32Renderer):
         )
 
         geometries = get_db_geometry_selects(
-            feature_type.xsd_type.gml_elements, output_crs
+            feature_type.xsd_type.geometry_elements, output_crs
         )
         return queryset.defer(*geometries.keys()).annotate(
             _as_envelope_gml=cls.get_db_envelope_as_gml(
@@ -450,13 +450,13 @@ class DBGML32Renderer(GML32Renderer):
         # Find which fields are GML elements
         gml_elements = []
         for e in xsd_elements:
-            if e.is_gml:
+            if e.is_geometry:
                 # Prefetching a flattened relation
                 gml_elements.append(e)
             elif e.type.is_complex_type:
                 # Prefetching a complex type
                 xsd_type: XsdComplexType = cast(XsdComplexType, e.type)
-                gml_elements.extend(xsd_type.gml_elements)
+                gml_elements.extend(xsd_type.geometry_elements)
 
         geometries = get_db_geometry_selects(gml_elements, output_crs)
         fields = set(fields) - set(geometries.keys())
@@ -497,7 +497,7 @@ class DBGML32Renderer(GML32Renderer):
     def render_element(
         self, feature_type, xsd_element: XsdElement, instance: models.Model
     ):
-        if xsd_element.is_gml:
+        if xsd_element.is_geometry:
             # Optimized path, pre-rendered GML
             value = get_db_annotation(instance, xsd_element.name, "_as_gml_{name}")
             if value is None:
@@ -592,7 +592,7 @@ class DBGML32ValueRenderer(DBGML32Renderer, GML32ValueRenderer):
         """Update the queryset to let the database render the GML output."""
         value_reference = params["valueReference"]
         match = feature_type.resolve_element(value_reference.xpath)
-        if match.child.is_gml:
+        if match.child.is_geometry:
             # Add 'gml_member' to point to the pre-rendered GML version.
             return queryset.values(
                 "pk", gml_member=_AsGML(get_db_geometry_target(match, output_crs)),

@@ -56,7 +56,7 @@ class GeoJsonRenderer(OutputRenderer):
                 defer_related = [
                     f"{e.orm_path}__{child.orm_path}"
                     for e in relations
-                    for child in e.type.gml_elements
+                    for child in e.type.geometry_elements
                 ]
                 queryset = queryset.select_related(*related)
                 if defer_related:
@@ -225,7 +225,7 @@ class GeoJsonRenderer(OutputRenderer):
         """
         props = {}
         for xsd_element in xsd_type.elements:
-            if not xsd_element.is_gml:
+            if not xsd_element.is_geometry:
                 value = xsd_element.get_value(instance)
                 if xsd_element.type.is_complex_type:
                     # Nested object data

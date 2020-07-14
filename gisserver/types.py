@@ -145,7 +145,7 @@ class XsdElement:
         )
 
     @cached_property
-    def is_gml(self) -> bool:
+    def is_geometry(self) -> bool:
         return isinstance(self.source, GeometryField) or self.type.prefix == "gml"
 
     @cached_property
@@ -276,9 +276,9 @@ class XsdComplexType(XsdAnyType):
         return str(self)
 
     @cached_property
-    def gml_elements(self) -> List[XsdElement]:
+    def geometry_elements(self) -> List[XsdElement]:
         """Shortcut to get all geometry elements"""
-        return [e for e in self.elements if e.is_gml]
+        return [e for e in self.elements if e.is_geometry]
 
     @cached_property
     def complex_elements(self) -> List[_XsdElement_WithComplexType]:

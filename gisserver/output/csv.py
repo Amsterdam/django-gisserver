@@ -113,7 +113,7 @@ class CSVRenderer(OutputRenderer):
         values = []
         append = values.append
         for field in fields:
-            if field.is_gml:
+            if field.is_geometry:
                 append(self.render_geometry(instance, field))
                 continue
 
@@ -149,7 +149,7 @@ class DBCSVRenderer(CSVRenderer):
         # Instead of reading the binary geometry data,
         # ask the database to generate EWKT data directly.
         geometries = get_db_geometry_selects(
-            feature_type.xsd_type.gml_elements, output_crs
+            feature_type.xsd_type.geometry_elements, output_crs
         )
         if geometries:
             queryset = queryset.defer(*geometries.keys()).annotate(
