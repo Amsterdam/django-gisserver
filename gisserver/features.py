@@ -145,7 +145,7 @@ class FeatureField:
     an XSD definition that the remaining application uses.
     """
 
-    #: The class that's used to generate the XsdElement.
+    #: Allow to override the XSD element type that this field will generate.
     xsd_element_class: Type[XsdElement] = XsdElement
 
     model: Optional[Type[models.Model]]
@@ -309,6 +309,9 @@ class FeatureType:
 
     This corresponds with a single Django model.
     """
+
+    #: Allow to override the XSD complex type that this feature will generate.
+    xsd_type_class: Type[XsdComplexType] = XsdComplexType
 
     def __init__(
         self,
@@ -477,7 +480,7 @@ class FeatureType:
     @cached_property
     def xsd_type(self) -> XsdComplexType:
         """Return the definition of this feature as an XSD Complex Type."""
-        return XsdComplexType(
+        return self.xsd_type_class(
             name=f"{self.name.title()}Type",
             elements=[field.xsd_element for field in self.fields],
             source=self.model,
