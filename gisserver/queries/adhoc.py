@@ -60,7 +60,7 @@ class AdhocQuery(QueryExpression):
 
     # Officially part of the GetFeature/GetPropertyValue request object,
     # but included here for ease of query implementation.
-    resourceId: Optional[fes20.ResourceId] = None
+    resourceId: Optional[fes20.IdOperator] = None
 
     # GetPropertyValue:
     # In the WFS spec, this is only part of the operation/presentation.
@@ -92,10 +92,10 @@ class AdhocQuery(QueryExpression):
             # When ResourceId + typenames is defined, it should be a value from typenames
             # see WFS spec 7.9.2.4.1
             if conf.GISSERVER_WFS_STRICT_STANDARD and params["typeNames"]:
-                raw_type_names = [
+                raw_type_names = {
                     feature_type.name for feature_type in params["typeNames"]
-                ]
-                if params["resourceID"].type_name not in raw_type_names:
+                }
+                if not raw_type_names.issuperset(params["resourceID"].type_names):
                     raise InvalidParameterValue(
                         "resourceID",
                         "When TYPENAMES and RESOURCEID are combined, "
@@ -116,15 +116,16 @@ class AdhocQuery(QueryExpression):
         """Inform this quey object of the available feature types"""
         super().bind(*args, **kwargs)
 
-        if self.resourceId and self.resourceId.type_name is not None:
+        if self.resourceId:
             # Early validation whether the selected resourceID type exists.
-            feature_type = self.resolve_type_name(
-                self.resourceId.type_name, locator="resourceID"
-            )
+            feature_types = [
+                self.resolve_type_name(type_name, locator="resourceID")
+                for type_name in self.resourceId.type_names
+            ]
 
             # Also make the behavior consistent, always supply the type name.
             if not self.typeNames:
-                self.typeNames = [feature_type]
+                self.typeNames = feature_types
 
     def get_type_names(self):
         return self.typeNames

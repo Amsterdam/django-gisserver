@@ -8,11 +8,12 @@ from dataclasses import dataclass, field
 from decimal import Decimal
 from enum import Enum
 from functools import reduce
-from typing import Any, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 from xml.etree.ElementTree import Element
 
 from django.contrib.gis import measure
 from django.db.models import Q
+from django.utils.functional import cached_property
 
 from gisserver.exceptions import ExternalValueError
 from gisserver.parsers import gml
@@ -154,15 +155,29 @@ class IdOperator(Operator):
 
     id: List[Id]
 
+    @property
+    def type_names(self) -> List[str]:
+        """Provide a list of all type names accessed by this operator"""
+        return [
+            type_name for type_name in self.grouped_ids.keys() if type_name is not None
+        ]
+
+    @cached_property
+    def grouped_ids(self) -> Dict[str, List[Id]]:
+        # For itertools.groupby(), items have to be sorted first.
+        ids = sorted(self.id, key=operator.attrgetter("rid"))
+        return {
+            type_name: list(items)
+            for type_name, items in groupby(ids, key=operator.attrgetter("type_name"))
+        }
+
     def build_query(self, compiler):
         """Generate the ID lookup query.
 
         As these identifiers also reference the type name, no Q-object is
         returned. The lookups are directly added to the fes query object.
         """
-        # For itertools.groupby(), items need to be sorted first.
-        ids = sorted(self.id, key=operator.attrgetter("rid"))
-        for type_name, items in groupby(ids, key=operator.attrgetter("type_name")):
+        for type_name, items in self.grouped_ids.items():
             ids_subset = reduce(
                 operator.or_, [id.build_query(compiler=None) for id in items]
             )

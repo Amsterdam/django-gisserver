@@ -216,7 +216,7 @@ class BaseWFSGetDataMethod(WFSTypeNamesMethod):
         ),
         Parameter("filter", parser=fes20.Filter.from_string),
         Parameter("sortBy", parser=fes20.SortBy.from_string),
-        Parameter("resourceID", parser=fes20.ResourceId),
+        Parameter("resourceID", parser=fes20.parse_resource_id_kvp),
         UnsupportedParameter("aliases"),
         queries.StoredQueryParameter(),
     ]

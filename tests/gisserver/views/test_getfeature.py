@@ -1013,6 +1013,31 @@ class TestGetFeature:
         assert exception.attrib["locator"] == "resourceId", message
         # message differs in Django versions
 
+    def test_resource_id_multiple(self, client, restaurant, bad_restaurant):
+        """Prove that fetching multiple IDs works."""
+        response = client.get(
+            "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
+            f"&RESOURCEID=restaurant.{restaurant.id},restaurant.{bad_restaurant.id}"
+        )
+        content = read_response(response)
+        assert response["content-type"] == "text/xml; charset=utf-8", content
+        assert response.status_code == 200, content
+        assert "</wfs:FeatureCollection>" in content
+
+        # Validate against the WFS 2.0 XSD
+        xml_doc = validate_xsd(content, WFS_20_XSD)
+        assert xml_doc.attrib["numberMatched"] == "2"
+        assert xml_doc.attrib["numberReturned"] == "2"
+
+        # Test sort ordering.
+        restaurants = xml_doc.findall(
+            "wfs:member/app:restaurant", namespaces=NAMESPACES
+        )
+        names = [
+            res.find("app:name", namespaces=NAMESPACES).text for res in restaurants
+        ]
+        assert names == ["Café Noir", "Foo Bar"]
+
     def test_get_feature_by_id_stored_query(self, client, restaurant, bad_restaurant):
         """Prove that fetching objects by ID works."""
         response = client.get(
