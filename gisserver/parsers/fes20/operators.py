@@ -177,6 +177,12 @@ class IdOperator(Operator):
         As these identifiers also reference the type name, no Q-object is
         returned. The lookups are directly added to the fes query object.
         """
+        # When ResourceId has no type_name associated, this means that the
+        # parsing was invalid. Instead of raising an error, empty results are returned.
+        if len(self.grouped_ids) == 1 and self.grouped_ids.get(None):
+            compiler.mark_empty()
+            return
+
         for type_name, items in self.grouped_ids.items():
             ids_subset = reduce(
                 operator.or_, [id.build_query(compiler=None) for id in items]

@@ -37,6 +37,7 @@ class CompiledQuery:
         self.aliases = 0
         self.extra_lookups = []
         self.ordering = []
+        self.is_empty = False
 
     def add_annotation(self, value: Union[Combinable, Q]) -> str:
         """Create an named-alias for a function/Q object.
@@ -86,6 +87,10 @@ class CompiledQuery:
             self.extra_lookups.clear()
         return result
 
+    def mark_empty(self):
+        """Mark as returning no results."""
+        self.is_empty = True
+
     def filter_queryset(
         self, queryset: QuerySet, feature_type: FeatureType
     ) -> QuerySet:
@@ -94,6 +99,9 @@ class CompiledQuery:
         :param queryset: The queryset to filter.
         :param feature_type: The feature type that the queryset originated from.
         """
+        if self.is_empty:
+            return queryset.none()
+
         if self.extra_lookups:
             # Each time an expression node calls add_extra_lookup(),
             # the parent should have used apply_extra_lookups()
