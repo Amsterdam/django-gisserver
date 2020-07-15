@@ -41,7 +41,7 @@ class QueryExpression:
         for feature_type in self.get_type_names():
             feature_type.check_permissions(request)
 
-    def resolve_type_name(self, type_name, locator="") -> FeatureType:
+    def resolve_type_name(self, type_name, locator="typename") -> FeatureType:
         """Find the feature type for a given name.
         This is an utility that cusstom subclasses can use.
         """
@@ -54,7 +54,7 @@ class QueryExpression:
             return self.all_feature_types[type_name]
         except KeyError:
             raise InvalidParameterValue(
-                "typename", f"Typename '{type_name}' doesn't exist in this server."
+                locator, f"Typename '{type_name}' doesn't exist in this server."
             ) from None
 
     def get_hits(self) -> FeatureCollection:
