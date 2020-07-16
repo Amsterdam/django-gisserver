@@ -397,6 +397,11 @@ class FeatureType:
         return f"app:{self.name}"
 
     @cached_property
+    def supported_crs(self) -> List[CRS]:
+        """Return all spatial reference system ID's that this feature supports."""
+        return [self.crs] + self.other_crs
+
+    @cached_property
     def geometry_field_names(self):
         return {f.name for f in self.geometry_fields}
 

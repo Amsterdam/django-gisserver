@@ -10,6 +10,8 @@ from django.db.models import Prefetch
 from django.http import HttpResponse, StreamingHttpResponse
 from django.utils.html import escape
 
+from gisserver import conf
+from gisserver.exceptions import InvalidParameterValue
 from gisserver.features import FeatureType
 from gisserver.geometries import CRS
 from gisserver.operations.base import WFSMethod
@@ -58,9 +60,14 @@ class OutputRenderer:
         self.app_xml_namespace = method.view.xml_namespace
 
     @classmethod
-    def decorate_collection(cls, collection: FeatureCollection, output_crs, **params):
+    def decorate_collection(
+        cls, collection: FeatureCollection, output_crs: CRS, **params
+    ):
         """Perform presentation-layer logic enhancements on the queryset."""
         for sub_collection in collection.results:
+            # Validate the presentation-level parameters for this feature:
+            cls.validate(sub_collection.feature_type, **params)
+
             queryset = cls.decorate_queryset(
                 sub_collection.feature_type,
                 sub_collection.queryset,
@@ -69,6 +76,20 @@ class OutputRenderer:
             )
             if queryset is not None:
                 sub_collection.queryset = queryset
+
+    @classmethod
+    def validate(cls, feature_type: FeatureType, **params):
+        """Validate the presentation parameters"""
+        crs = params["srsName"]
+        if (
+            conf.GISSERVER_WFS_SUPPORTED_CRS_ONLY
+            and crs is not None
+            and crs not in feature_type.supported_crs
+        ):
+            raise InvalidParameterValue(
+                "srsName",
+                f"Feature '{feature_type.name}' does not support SRID {crs.srid}.",
+            )
 
     @classmethod
     def decorate_queryset(

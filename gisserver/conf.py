@@ -34,6 +34,12 @@ GISSERVER_CSV_MAX_PAGE_SIZE = getattr(settings, "GISSERVER_CSV_MAX_PAGE_SIZE", m
 # Whether to follow the WFS standards strictly (breaks CITE conformance testing)
 GISSERVER_WFS_STRICT_STANDARD = getattr(settings, "GISSERVER_WFS_STRICT_STANDARD", True)
 
+# Whether to strictly check whether the provided CRS is accepted.
+# Otherwise, all database-supported SRID's are allowed.
+GISSERVER_WFS_SUPPORTED_CRS_ONLY = getattr(
+    settings, "GISSERVER_WFS_SUPPORTED_CRS_ONLY", True
+)
+
 
 @receiver(setting_changed)
 def _on_settings_change(setting, value, enter, **kwargs):

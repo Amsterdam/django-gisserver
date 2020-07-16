@@ -148,6 +148,20 @@ class AdhocQuery(QueryExpression):
         compiler = fes20.CompiledQuery(feature_type=feature_type)
 
         if self.bbox:
+            # Validate whether the provided SRID is supported.
+            # While PostGIS would support many more ID's,
+            # it would crash when an unsupported ID is given.
+            crs = self.bbox.crs
+            if (
+                conf.GISSERVER_WFS_SUPPORTED_CRS_ONLY
+                and crs is not None
+                and crs not in feature_type.supported_crs
+            ):
+                raise InvalidParameterValue(
+                    "bbox",
+                    f"Feature '{feature_type.name}' does not support SRID {crs.srid}.",
+                )
+
             # Using __within does not work with geometries
             # that only partially exist within the bbox
             lookup = operators.SpatialOperatorName.BBOX.value  # "intersects"
