@@ -3,7 +3,7 @@ from xml.etree.ElementTree import Element, QName
 
 from defusedxml.ElementTree import ParseError, fromstring
 
-from gisserver.exceptions import ExternalValueError
+from gisserver.exceptions import ExternalParsingError
 from gisserver.parsers.base import FES20, tag_registry
 from gisserver.parsers.utils import expect_tag
 from . import expressions, identifiers, operators, query
@@ -49,7 +49,7 @@ class Filter:
             root_element = fromstring(text)
         except ParseError as e:
             # Offer consistent results for callers to check for invalid data.
-            raise ExternalValueError(str(e)) from e
+            raise ExternalParsingError(str(e)) from e
         return Filter.from_xml(root_element, source=text)
 
     @classmethod

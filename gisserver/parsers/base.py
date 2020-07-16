@@ -1,7 +1,7 @@
 from enum import Enum
 from typing import Dict, Type
 from xml.etree.ElementTree import Element, QName
-from gisserver.exceptions import ExternalValueError
+from gisserver.exceptions import ExternalParsingError
 from .utils import split_ns
 
 # Some common namespaces
@@ -123,7 +123,7 @@ class TagRegistry:
         # Check whether the resolved class is indeed a valid option here.
         if allowed_types is not None and not issubclass(real_cls, allowed_types):
             types = ", ".join(c.__name__ for c in allowed_types)
-            raise ExternalValueError(
+            raise ExternalParsingError(
                 f"Unexpected {real_cls.__name__} for <{element.tag}> node, "
                 f"expected one of: {types}"
             )

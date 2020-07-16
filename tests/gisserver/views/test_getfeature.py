@@ -496,7 +496,7 @@ class TestGetFeature:
     @pytest.mark.parametrize("filter_name", list(INVALID_FILTERS.keys()))
     def test_get_filter_invalid(self, client, restaurant, filter_name):
         """Prove that that parsing FILTER=<fes:Filter>... works"""
-        filter, expect_msg = INVALID_FILTERS[filter_name]
+        filter, expect_exception = INVALID_FILTERS[filter_name]
 
         response = client.get(
             "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
@@ -510,10 +510,10 @@ class TestGetFeature:
         xml_doc = validate_xsd(content, WFS_20_XSD)
         assert xml_doc.attrib["version"] == "2.0.0"
         exception = xml_doc.find("ows:Exception", NAMESPACES)
-        assert exception.attrib["exceptionCode"] == "InvalidParameterValue"
+        assert exception.attrib["exceptionCode"] == expect_exception.code
 
         message = exception.find("ows:ExceptionText", NAMESPACES).text
-        assert message == expect_msg
+        assert message == expect_exception.text
 
     def test_get_unauth(self, client):
         """Prove that features may block access.

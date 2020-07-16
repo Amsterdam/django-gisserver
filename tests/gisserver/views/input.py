@@ -1,6 +1,13 @@
 import django
 import sys
+
 from gisserver import conf
+from gisserver.exceptions import (
+    InvalidParameterValue,
+    OperationParsingFailed,
+    OperationProcessingFailed,
+)
+
 
 # Despite efforts to sync the PROJ.4 definitions, there is still a minor difference
 # between platforms, or library versions that cause coordinate shifts. Hopefully,
@@ -233,7 +240,10 @@ FLATTENED_FILTERS = {
 INVALID_FILTERS = {
     "syntax": (
         """<fes:Filter xmlns:fes="http://www.opengis.net/fes/2.0">FDFDS</fes:Filter""",
-        "Unable to parse FILTER argument: unclosed token: line 1, column 60",
+        OperationParsingFailed(
+            "filter",
+            "Unable to parse FILTER argument: unclosed token: line 1, column 60",
+        ),
     ),
     "missing_xmlns": (
         """<?xml version="1.0"?>
@@ -246,7 +256,10 @@ INVALID_FILTERS = {
                 <fes:Literal>3.0</fes:Literal>
             </fes:PropertyIsGreaterThanOrEqualTo>
         </fes:Filter>""",
-        "Unable to parse FILTER argument: unbound prefix: line 2, column 8",
+        OperationParsingFailed(
+            "filter",
+            "Unable to parse FILTER argument: unbound prefix: line 2, column 8",
+        ),
     ),
     "closing_tag": (
         """
@@ -260,7 +273,10 @@ INVALID_FILTERS = {
             <fes:Literal>3.0</fes:Literal>
         </fes:PropertyIsGreaterThanOrEqualTofoo>
     </fes:Filter>""",
-        "Unable to parse FILTER argument: mismatched tag: line 9, column 10",
+        OperationParsingFailed(
+            "filter",
+            "Unable to parse FILTER argument: mismatched tag: line 9, column 10",
+        ),
     ),
     "float_text": (
         """
@@ -274,12 +290,13 @@ INVALID_FILTERS = {
             <fes:Literal>TEXT</fes:Literal>
         </fes:PropertyIsGreaterThanOrEqualTo>
     </fes:Filter>""",
-        (
+        InvalidParameterValue(
+            "filter",
             "Invalid data for the 'rating' property:"
             " Field 'rating' expected a number but got 'TEXT'."
             if django.VERSION >= (3, 0)
             else "Invalid data for the 'rating' property:"
-            " could not convert string to float: 'TEXT'"
+            " could not convert string to float: 'TEXT'",
         ),
     ),
     "float_like": (
@@ -294,8 +311,11 @@ INVALID_FILTERS = {
             <fes:Literal>2</fes:Literal>
         </fes:PropertyIsLike>
     </fes:Filter>""",
-        "Operator '{http://www.opengis.net/fes/2.0}PropertyIsLike'"
-        " is not supported for the 'rating' property.",
+        OperationProcessingFailed(
+            "filter",
+            "Operator '{http://www.opengis.net/fes/2.0}PropertyIsLike'"
+            " is not supported for the 'rating' property.",
+        ),
     ),
     "date_number": (
         # this also tests auto_cast() logic for Literal,
@@ -311,14 +331,15 @@ INVALID_FILTERS = {
             <fes:Literal>21</fes:Literal>
         </fes:PropertyIsEqualTo>
     </fes:Filter>""",
-        (
+        InvalidParameterValue(
+            "filter",
             "Invalid data for the 'created' property:"
             " “21” value has an invalid format."
             " It must be in YYYY-MM-DD HH:MM[:ss[.uuuuuu]][TZ] format."
             if django.VERSION >= (3, 0)
             else "Invalid data for the 'created' property:"
             " '21' value has an invalid format."
-            " It must be in YYYY-MM-DD HH:MM[:ss[.uuuuuu]][TZ] format."
+            " It must be in YYYY-MM-DD HH:MM[:ss[.uuuuuu]][TZ] format.",
         ),
     ),
     "date_text": (
@@ -333,14 +354,15 @@ INVALID_FILTERS = {
             <fes:Literal>abc</fes:Literal>
         </fes:PropertyIsGreaterThanOrEqualTo>
     </fes:Filter>""",
-        (
+        InvalidParameterValue(
+            "filter",
             "Invalid data for the 'created' property:"
             " “abc” value has an invalid format."
             " It must be in YYYY-MM-DD HH:MM[:ss[.uuuuuu]][TZ] format."
             if django.VERSION >= (3, 0)
             else "Invalid data for the 'created' property:"
             " 'abc' value has an invalid format."
-            " It must be in YYYY-MM-DD HH:MM[:ss[.uuuuuu]][TZ] format."
+            " It must be in YYYY-MM-DD HH:MM[:ss[.uuuuuu]][TZ] format.",
         ),
     ),
 }

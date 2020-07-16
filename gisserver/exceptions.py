@@ -17,6 +17,10 @@ class ExternalValueError(ValueError):
     """
 
 
+class ExternalParsingError(ValueError):
+    """Raise a ValueError for a parsing problem."""
+
+
 class OWSException(Exception):
     """Base class for XML based exceptions in this module."""
 
@@ -27,12 +31,13 @@ class OWSException(Exception):
     code = None
     text_template = None
 
-    def __init__(self, locator, text=None, code=None):
+    def __init__(self, locator, text=None, code=None, status_code=None):
         text = text or self.text_template.format(code=self.code, locator=locator)
         super().__init__(text)
         self.locator = locator
         self.text = text
         self.code = code or self.code
+        self.status_code = status_code or self.status_code
 
     def as_xml(self):
         return format_html(
@@ -81,7 +86,7 @@ class OperationParsingFailed(WFSException):
 class OperationProcessingFailed(WFSException):
     """Error while processing the request."""
 
-    status_code = 500
+    status_code = 500  # 400 & 403 may also be used but are deprecated.
     reason = "Server processing failed"
     code = "OperationProcessingFailed"
     text_template = "The request could not be processed by the server."

@@ -21,6 +21,7 @@ from django.contrib.gis.db.models import GeometryField
 from django.db import models
 from django.utils.functional import cached_property
 
+from gisserver.exceptions import OperationProcessingFailed
 from gisserver.geometries import CRS, WGS84  # noqa, for backwards compatibility
 
 __all__ = [
@@ -181,8 +182,10 @@ class XsdNode:
                 isinstance(self.source, RelatedField)
                 and self.source.target_field.get_lookup(lookup) is None
             ):
-                raise ValidationError(
-                    f"Operator '{tag}' is not supported for the '{self.name}' property."
+                raise OperationProcessingFailed(
+                    "filter",
+                    f"Operator '{tag}' is not supported for the '{self.name}' property.",
+                    status_code=400,  # not HTTP 500 here. Spec allows both.
                 )
 
 

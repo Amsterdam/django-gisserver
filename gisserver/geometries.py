@@ -12,7 +12,7 @@ from typing import Optional, Union
 from django.contrib.gis.gdal import CoordTransform, SpatialReference
 from functools import lru_cache
 
-from gisserver.exceptions import ExternalValueError
+from gisserver.exceptions import ExternalParsingError, ExternalValueError
 
 CRS_URN_REGEX = re.compile(
     r"^urn:(?P<domain>[a-z]+)"
@@ -232,6 +232,7 @@ class CRS:
             return NotImplemented
 
     def __hash__(self):
+        """Used to match objects in a set."""
         return hash((self.authority, self.srid))
 
     def _as_gdal(self) -> SpatialReference:
@@ -282,7 +283,7 @@ class BoundingBox:
         """
         bbox = bbox.split(",")
         if not (4 <= len(bbox) <= 5):
-            raise ExternalValueError(
+            raise ExternalParsingError(
                 f"Input does not contain bounding box, "
                 f"expected 4 or 5 values, not {bbox}."
             )

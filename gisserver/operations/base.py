@@ -16,6 +16,7 @@ from django.http import HttpResponse
 from django.template.loader import render_to_string
 
 from gisserver.exceptions import (
+    ExternalParsingError,
     InvalidParameterValue,
     MissingParameterValue,
     OperationParsingFailed,
@@ -75,20 +76,26 @@ class Parameter:
 
         # Check required field settings, both empty and missing value are treated the same.
         if not value:
-            if self.required:
-                raise MissingParameterValue(self.name, f"Empty {kvp_name} parameter")
-            else:
+            if not self.required:
                 return self.default
+            elif value is None:
+                raise MissingParameterValue(self.name, f"Missing {kvp_name} parameter")
+            else:
+                raise InvalidParameterValue(self.name, f"Empty {kvp_name} parameter")
 
         # Allow conversion into a python object
         if self.parser is not None:
             try:
                 value = self.parser(value)
+            except ExternalParsingError as e:
+                raise OperationParsingFailed(
+                    self.name, f"Unable to parse {kvp_name} argument: {e}"
+                ) from None
             except (TypeError, ValueError, NotImplementedError) as e:
                 # TypeError/ValueError are raised by most handlers for unexpected data
                 # The NotImplementedError can be raised by fes parsing.
                 raise InvalidParameterValue(
-                    self.name, f"Unable to parse {kvp_name} argument: {e}"
+                    self.name, f"Invalid {kvp_name} argument: {e}"
                 ) from None
 
         # Validate against value choices

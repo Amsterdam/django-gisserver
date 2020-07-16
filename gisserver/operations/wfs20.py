@@ -17,9 +17,11 @@ from urllib.parse import urlencode
 
 from gisserver import conf, output, queries
 from gisserver.exceptions import (
+    ExternalParsingError,
     ExternalValueError,
     InvalidParameterValue,
     MissingParameterValue,
+    OperationParsingFailed,
     VersionNegotiationFailed,
 )
 from gisserver.geometries import BoundingBox, CRS
@@ -233,6 +235,10 @@ class BaseWFSGetDataMethod(WFSTypeNamesMethod):
                 collection = self.get_paginated_results(query, **params)
             else:
                 raise NotImplementedError()
+        except ExternalParsingError as e:
+            # Bad input data
+            self._log_filter_error(query, logging.ERROR, e)
+            raise OperationParsingFailed(self._get_locator(**params), str(e),) from e
         except ExternalValueError as e:
             # Bad input data
             self._log_filter_error(query, logging.ERROR, e)
