@@ -91,16 +91,20 @@ class AdhocQuery(QueryExpression):
 
             # When ResourceId + typenames is defined, it should be a value from typenames
             # see WFS spec 7.9.2.4.1
-            if conf.GISSERVER_WFS_STRICT_STANDARD and params["typeNames"]:
-                raw_type_names = {
-                    feature_type.name for feature_type in params["typeNames"]
-                }
-                if not raw_type_names.issuperset(params["resourceID"].type_names):
-                    raise InvalidParameterValue(
-                        "resourceID",
-                        "When TYPENAMES and RESOURCEID are combined, "
-                        "the RESOURCEID type should be included in TYPENAMES.",
-                    )
+            if params["typeNames"]:
+                id_type_names = params["resourceID"].type_names
+                if id_type_names:
+                    # Only test when the RESOURCEID has a typename.id format
+                    # Otherwise, this breaks the CITE RESOURCEID=test-UUID parameter.
+                    kvp_type_names = {
+                        feature_type.name for feature_type in params["typeNames"]
+                    }
+                    if not kvp_type_names.issuperset(id_type_names):
+                        raise InvalidParameterValue(
+                            "resourceID",
+                            "When TYPENAMES and RESOURCEID are combined, "
+                            "the RESOURCEID type should be included in TYPENAMES.",
+                        )
 
         return AdhocQuery(
             typeNames=params["typeNames"],
