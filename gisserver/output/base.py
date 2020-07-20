@@ -264,7 +264,14 @@ def build_db_annotations(selects: dict, name_template: str, wrapper_func) -> dic
 def get_db_annotation(instance: models.Model, name: str, name_template: str):
     """Retrieve the value that an annotation has added to the model."""
     # The "name" allows any XML-tag elements, escape the most obvious
-    return getattr(instance, escape_xml_name(name, name_template))
+    escaped_name = escape_xml_name(name, name_template)
+    try:
+        return getattr(instance, escaped_name)
+    except AttributeError as e:
+        raise AttributeError(
+            f" DB annotation {instance._meta.model_name}.{escaped_name}"
+            f" not found (using {name_template})"
+        ) from e
 
 
 def escape_xml_name(name: str, template="{name}") -> str:
