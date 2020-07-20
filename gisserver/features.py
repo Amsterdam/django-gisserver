@@ -337,6 +337,7 @@ class FeatureType:
         metadata_url: Optional[str] = None,
         # Settings
         show_name: bool = True,
+        xml_prefix: str = "app",
     ):
         """
         :param queryset: The queryset to retrieve the data.
@@ -351,6 +352,7 @@ class FeatureType:
         :param other_crs: Used in WFS metadata.
         :param metadata_url: Used in WFS metadata.
         :param show_name: Whether to show the ``gml:name`` or GeoJSON ``geometry_name`` field.
+        :param xml_prefix: The XML namespace prefix to use.
         """
         if isinstance(queryset, models.QuerySet):
             self.queryset = queryset
@@ -372,10 +374,11 @@ class FeatureType:
         self.other_crs = other_crs or []
         self.metadata_url = metadata_url
         self.show_name = show_name
+        self.xml_prefix = xml_prefix
 
         # Validate that the name doesn't require XML escaping.
         if html.escape(self.name) != self.name or " " in self.name or ":" in self.name:
-            raise ValueError(f"Invalid feature name for XML: <app:{self.name}>")
+            raise ValueError(f"Invalid feature name for XML: <{self.xml_name}>")
 
         # Auto-detect geometry fields (also fills geometry_field_name)
         self.geometry_fields = [
@@ -394,7 +397,7 @@ class FeatureType:
     @cached_property
     def xml_name(self):
         """Return the feature name with xml namespace prefix."""
-        return f"app:{self.name}"
+        return f"{self.xml_prefix}:{self.name}"
 
     @cached_property
     def supported_crs(self) -> List[CRS]:
@@ -540,8 +543,8 @@ class FeatureType:
         for root_prefix in (
             f"{self.name}/",
             f"/{self.name}/",
-            f"app:{self.name}/",
-            f"/app:{self.name}/",
+            f"{self.xml_name}/",
+            f"/{self.xml_name}/",
         ):
             if xpath.startswith(root_prefix):
                 xpath = xpath[len(root_prefix) :]

@@ -23,12 +23,21 @@ class XMLSchemaRenderer(OutputRenderer):
         self.feature_types = feature_types
 
     def render_stream(self):
+        # For now, all features have the same XML namespace despite allowing
+        # the prefixes to be different.
+        xmlns_features = "\n   ".join(
+            f'xmlns:{p}="{self.app_xml_namespace}"'
+            for p in sorted(
+                set(feature_type.xml_prefix for feature_type in self.feature_types)
+            )
+        )
+
         output = StringBuffer()
         output.write(
             f"""<?xml version='1.0' encoding="UTF-8" ?>
 <schema
    xmlns="http://www.w3.org/2001/XMLSchema"
-   xmlns:app="{self.app_xml_namespace}"
+   {xmlns_features}
    xmlns:gml="http://www.opengis.net/gml/3.2"
    targetNamespace="{self.app_xml_namespace}"
    elementFormDefault="qualified" version="0.1">
@@ -71,16 +80,9 @@ class XMLSchemaRenderer(OutputRenderer):
 
     def render_complex_type(self, complex_type: XsdComplexType):
         """Write the definition of a single class."""
-        class_name = complex_type.name
-        if class_name.startswith("app:"):
-            # This might not be the official XML way (this should compare namespace URI's)
-            # but for now this is good enough. Since "app" is our targetNamespace, this
-            # prefix can be removed.
-            class_name = class_name[4:]
-
         output = StringBuffer()
         output.write(
-            f'  <complexType name="{class_name}">\n'
+            f'  <complexType name="{complex_type.name}">\n'
             "    <complexContent>\n"
             f'      <extension base="{complex_type.base}">\n'
             "        <sequence>\n"

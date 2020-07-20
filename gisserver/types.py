@@ -41,12 +41,18 @@ class XsdAnyType:
 
     prefix = None
     is_complex_type = False
+    is_geometry = False
 
     def __str__(self):
+        """Return the type name"""
         raise NotImplementedError()
 
     def with_prefix(self, prefix="xs"):
-        raise NotImplementedError()
+        xml_name = str(self)
+        if ":" in xml_name:
+            return xml_name
+        else:
+            return f"{prefix}:{xml_name}"
 
 
 class XsdTypes(XsdAnyType, Enum):
@@ -98,24 +104,40 @@ class XsdTypes(XsdAnyType, Enum):
 
     @property
     def prefix(self) -> Optional[str]:
-        colon = self.value.find(":")
-        return self.value[:colon] if colon else None
+        """Extrapolate the prefix from the type name"""
+        xml_name = str(self)
+        colon = xml_name.find(":")
+        return xml_name[:colon] if colon else None
 
-    def with_prefix(self, prefix="xs"):
-        if ":" in self.value:
-            return self.value
-        else:
-            return f"{prefix}:{self.value}"
+    @cached_property
+    def is_geometry(self):
+        """Whether the value represents a element which contains a GML element."""
+        return self.prefix == "gml" and self.value.endswith("PropertyType")
 
 
 class XsdNode:
+    """Common logic for XsdElement and XsdAttribute."""
+
+    is_attribute = False
+
     name: str
     type: XsdAnyType
+    prefix: Optional[str]
     source: Optional[models.Field]
     model_attribute: Optional[str]
 
-    is_geometry = False
-    is_attribute = False
+    @cached_property
+    def is_geometry(self) -> bool:
+        return self.type.is_geometry or isinstance(self.source, GeometryField)
+
+    @cached_property
+    def is_flattened(self) -> bool:
+        """Whether the field is a lookup to a relation."""
+        return "." in self.model_attribute
+
+    @cached_property
+    def xml_name(self):
+        return f"{self.prefix}:{self.name}" if self.prefix else self.name
 
     @cached_property
     def orm_path(self) -> str:
@@ -207,6 +229,7 @@ class XsdElement(XsdNode):
 
     name: str
     type: XsdAnyType  # Both XsdComplexType and XsdType are allowed
+    prefix: str = "app"
     nillable: Optional[bool] = None
     min_occurs: Optional[int] = None
     max_occurs: Optional[int] = None
@@ -225,15 +248,6 @@ class XsdElement(XsdNode):
         object.__setattr__(
             self, "_attrgetter", operator.attrgetter(self.model_attribute)
         )
-
-    @cached_property
-    def is_geometry(self) -> bool:
-        return isinstance(self.source, GeometryField) or self.type.prefix == "gml"
-
-    @cached_property
-    def is_flattened(self) -> bool:
-        """Whether the field is a lookup to a relation."""
-        return "." in self.model_attribute
 
     @cached_property
     def as_xml(self):
@@ -260,6 +274,8 @@ class _XsdElement_WithComplexType(XsdElement):
 
 @dataclass(frozen=True)
 class XsdAttribute(XsdNode):
+    is_attribute = True
+
     prefix: str
     name: str
     type: XsdTypes = XsdTypes.string
@@ -276,11 +292,6 @@ class XsdAttribute(XsdNode):
     def __post_init__(self):
         if self.model_attribute is None:
             object.__setattr__(self, "model_attribute", self.name)
-
-
-# Override static property, but can't do that
-# inside the class definition for dataclasses.
-XsdAttribute.is_attribute = True
 
 
 class GmlIdAttribute(XsdAttribute):
@@ -326,23 +337,19 @@ class XsdComplexType(XsdAnyType):
     elements: List[XsdElement]
     attributes: List[XsdAttribute] = field(default_factory=list)
     base: XsdTypes = XsdTypes.gmlAbstractFeatureType
+    prefix: str = "app"
     source: Optional[Type[models.Model]] = None
 
     def __str__(self):
+        return self.xml_name
+
+    @cached_property
+    def xml_name(self):
         return f"{self.prefix}:{self.name}"
 
     @property
     def is_complex_type(self):
         return True
-
-    @property
-    def prefix(self):
-        # mimic API of XsdTypes
-        return "app"
-
-    def with_prefix(self, prefix="xs"):
-        # mimic API of XsdTypes
-        return str(self)
 
     @cached_property
     def geometry_elements(self) -> List[XsdElement]:
