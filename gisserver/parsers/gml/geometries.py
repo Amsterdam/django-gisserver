@@ -11,11 +11,10 @@ from django.contrib.gis.geos import GEOSGeometry
 from gisserver.parsers.base import tag_registry
 from gisserver.parsers.utils import get_attribute
 from gisserver.geometries import CRS
+from gisserver.types import GML21, GML32
 
 from .base import AbstractGeometry, TM_Object
 
-GML21 = "http://www.opengis.net/gml"
-GML32 = "http://www.opengis.net/gml/3.2"
 _ANY_GML_NS = "{http://www.opengis.net/gml/"
 
 

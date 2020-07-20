@@ -10,7 +10,8 @@ from django.db.models import Q
 
 from gisserver import conf
 from gisserver.exceptions import ExternalValueError
-from gisserver.parsers.base import BaseNode, FES20, tag_registry
+from gisserver.parsers.base import BaseNode, tag_registry
+from gisserver.types import FES20
 from gisserver.parsers.utils import (
     auto_cast,
     get_attribute,

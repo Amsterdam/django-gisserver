@@ -25,11 +25,25 @@ from gisserver.exceptions import OperationProcessingFailed
 from gisserver.geometries import CRS, WGS84  # noqa, for backwards compatibility
 
 __all__ = [
+    "ORMPath",
+    "XPathMatch",
     "XsdAnyType",
-    "XsdTypes",
+    "XsdAttribute",
     "XsdComplexType",
+    "XsdElement",
+    "XsdNode",
+    "XsdTypes",
     "strip_namespace_prefix",
+    "FES20",
+    "GML21",
+    "GML32",
+    "XSI",
 ]
+
+GML21 = "http://www.opengis.net/gml"
+GML32 = "http://www.opengis.net/gml/3.2"
+XSI = "http://www.w3.org/2001/XMLSchema-instance"
+FES20 = "http://www.opengis.net/fes/2.0"
 
 
 RE_XPATH_ATTR = re.compile(r"\[[^\]]+\]$")

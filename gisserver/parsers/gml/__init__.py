@@ -10,7 +10,7 @@ from gisserver.exceptions import ExternalParsingError
 from gisserver.parsers.base import tag_registry
 
 from .base import AbstractGeometry, GM_Envelope, GM_Object, TM_Object
-from .geometries import GML21, GML32, is_gml_element  # also do tag registration
+from .geometries import is_gml_element  # also do tag registration
 
 # All known root nodes as GML object:
 FES_GML_NODES = (GM_Object, GM_Envelope, TM_Object)
@@ -23,8 +23,6 @@ __all__ = [
     "parse_gml",
     "parse_gml_node",
     "find_gml_nodes",
-    "GML21",
-    "GML32",
 ]
 
 

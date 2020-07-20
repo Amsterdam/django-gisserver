@@ -4,11 +4,6 @@ from xml.etree.ElementTree import Element, QName
 from gisserver.exceptions import ExternalParsingError
 from .utils import split_ns
 
-# Some common namespaces
-
-XSI = "http://www.w3.org/2001/XMLSchema-instance"
-FES20 = "http://www.opengis.net/fes/2.0"
-
 
 class TagNameEnum(Enum):
     """An enumeration of tag names.

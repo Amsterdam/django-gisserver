@@ -14,7 +14,7 @@ from django.contrib.gis.geos import GEOSGeometry
 from django.db.models import F, Func, Q, Value
 from django.db.models.expressions import Combinable
 
-from gisserver.parsers.base import FES20, BaseNode, TagNameEnum, tag_registry
+from gisserver.parsers.base import BaseNode, TagNameEnum, tag_registry
 from gisserver.parsers.fes20.functions import function_registry
 from gisserver.parsers.utils import (
     auto_cast,
@@ -22,7 +22,7 @@ from gisserver.parsers.utils import (
     get_attribute,
     xsd_cast,
 )
-from gisserver.types import ORMPath
+from gisserver.types import ORMPath, FES20
 
 NoneType = type(None)
 

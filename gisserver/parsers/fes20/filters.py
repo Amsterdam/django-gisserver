@@ -4,10 +4,10 @@ from xml.etree.ElementTree import Element, QName
 from defusedxml.ElementTree import ParseError, fromstring
 
 from gisserver.exceptions import ExternalParsingError
-from gisserver.parsers.base import FES20, tag_registry
+from gisserver.parsers.base import tag_registry
 from gisserver.parsers.utils import expect_tag
+from gisserver.types import FES20, GML32
 from . import expressions, identifiers, operators, query
-from ..gml import GML32
 
 FilterPredicates = Union[expressions.Function, operators.Operator]
 
