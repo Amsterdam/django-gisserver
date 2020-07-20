@@ -15,6 +15,8 @@ from django.utils.functional import cached_property  # py3.8: functools
 from gisserver.db import conditional_transform
 from gisserver.exceptions import ExternalValueError
 from gisserver.types import (
+    GmlBoundedByElement,
+    GmlNameElement,
     XPathMatch,
     XsdAnyType,
     XsdComplexType,
@@ -260,6 +262,7 @@ class ComplexFeatureField(FeatureField):
         """Generate the XSD description for the field with an object relation."""
         fields = _get_model_fields(self.target_model, self._fields, parent=self)
         pk_field = self.target_model._meta.pk
+
         return XsdComplexType(
             name=f"{self.target_model._meta.object_name}Type",
             elements=[field.xsd_element for field in fields],
@@ -326,6 +329,7 @@ class FeatureType:
         queryset: models.QuerySet,
         *,
         fields: Optional[_FieldDefinitions] = None,
+        display_field_name: str = None,
         geometry_field_name: str = None,
         name: str = None,
         # WFS Metadata:
@@ -336,14 +340,15 @@ class FeatureType:
         other_crs: List[CRS] = None,
         metadata_url: Optional[str] = None,
         # Settings
-        show_name: bool = True,
+        show_name_field: bool = True,
         xml_prefix: str = "app",
     ):
         """
         :param queryset: The queryset to retrieve the data.
         :param fields: Define which fields to show in the WFS data.
             This can be a list of field names, or :class:`FeatureField` objects.
-        :param geometry_field_name: Name of the geometry field to expose (default = auto detect).
+        :param display_field_name: Name of the field that's used as general string representation.
+        :param geometry_field: Name of the geometry field to expose (default = auto detect).
         :param name: Name, also used as XML tag name.
         :param title: Used in WFS metadata.
         :param abstract: Used in WFS metadata.
@@ -351,7 +356,8 @@ class FeatureType:
         :param crs: Used in WFS metadata.
         :param other_crs: Used in WFS metadata.
         :param metadata_url: Used in WFS metadata.
-        :param show_name: Whether to show the ``gml:name`` or GeoJSON ``geometry_name`` field.
+        :param show_name_field: Whether to show the ``gml:name`` or the GeoJSON ``geometry_name``
+            field. Default is to show a field when ``name_field`` is given.
         :param xml_prefix: The XML namespace prefix to use.
         """
         if isinstance(queryset, models.QuerySet):
@@ -365,6 +371,7 @@ class FeatureType:
             raise TypeError("FeatureType expects a model or queryset")
 
         self._fields = fields
+        self.display_field_name = display_field_name
         self._geometry_field_name = geometry_field_name
         self.name = name or self.model._meta.model_name
         self.title = title or self.model._meta.verbose_name
@@ -373,7 +380,9 @@ class FeatureType:
         self._crs = crs
         self.other_crs = other_crs or []
         self.metadata_url = metadata_url
-        self.show_name = show_name
+
+        # Settings
+        self.show_name_field = show_name_field
         self.xml_prefix = xml_prefix
 
         # Validate that the name doesn't require XML escaping.
@@ -416,6 +425,14 @@ class FeatureType:
             return [FeatureField(self.geometry_field_name, model=self.model)]
         else:
             return _get_model_fields(self.model, self._fields)
+
+    @cached_property
+    def display_field(self) -> Optional[models.Field]:
+        """Give access to the field that holds the string-representation."""
+        if not self.show_name_field or not self.display_field_name:
+            return None
+        else:
+            return self.model._meta.get_field(self.display_field_name)
 
     @cached_property
     def geometry_field(self) -> gis_models.GeometryField:
@@ -469,7 +486,9 @@ class FeatureType:
         bbox = self.get_queryset().aggregate(a=Extent(geo_expression))["a"]
         return BoundingBox(*bbox, crs=WGS84) if bbox else None
 
-    def get_envelope(self, instance, crs: CRS) -> Optional[BoundingBox]:
+    def get_envelope(
+        self, instance, crs: Optional[CRS] = None
+    ) -> Optional[BoundingBox]:
         """Get the bounding box for a single instance.
 
         This is only used for native Python rendering. When the database
@@ -488,23 +507,59 @@ class FeatureType:
         geometry = (
             geometries[0] if len(geometries) == 1 else reduce(operator.or_, geometries)
         )
-        if geometry.srid != crs.srid:
+        if crs is not None and geometry.srid != crs.srid:
             crs.apply_to(geometry)  # avoid clone
         return BoundingBox.from_geometry(geometry, crs=crs)
 
-    @cached_property
-    def xsd_type(self) -> XsdComplexType:
-        """Return the definition of this feature as an XSD Complex Type."""
+    def get_display_value(self, instance: models.Model) -> str:
+        """Generate the display name value"""
+        if self.display_field_name:
+            return getattr(instance, self.display_field_name)
+        else:
+            return str(instance)
+
+    @property
+    def xsd_base_type(self) -> XsdAnyType:
+        """Return the base class for the :attr:`xsd_type`.
+
+        This builds an XsdComplexType element that represents
+        the contents of :attr:`XsdTypes.gmlAbstractFeatureType`.
+        By providing this as Complex Type, the filters can also resolve the
+        attributes of ``@gml:id``, ``<gml:name>`` and ``<gml:boundedBy>`` nodes.
+        """
         pk_field = self.model._meta.pk
-        return self.xsd_type_class(
-            name=f"{self.name.title()}Type",
-            elements=[field.xsd_element for field in self.fields],
+
+        # Define <gml:boundedBy>
+        base_elements = [GmlBoundedByElement(feature_type=self)]
+        if self.show_name_field:
+            # Add <gml:name>
+            gml_name = GmlNameElement(
+                model_attribute=self.display_field_name,
+                source=self.display_field,
+                feature_type=self,
+            )
+            base_elements.insert(0, gml_name)
+
+        return XsdComplexType(
+            prefix="gml",
+            name="AbstractFeatureType",
+            elements=base_elements,
             attributes=[
                 # Add gml:id attribute definition so it can be resolved in xpath
                 GmlIdAttribute(
                     type_name=self.name, source=pk_field, model_attribute=pk_field.name,
                 )
             ],
+            base=XsdTypes.gmlAbstractGMLType,
+        )
+
+    @cached_property
+    def xsd_type(self) -> XsdComplexType:
+        """Return the definition of this feature as an XSD Complex Type."""
+        return self.xsd_type_class(
+            name=f"{self.name.title()}Type",
+            elements=[field.xsd_element for field in self.fields],
+            base=self.xsd_base_type,
             source=self.model,
         )
 
@@ -512,11 +567,11 @@ class FeatureType:
         """Resolve the element, and the matching object.
         Internally, this method caches results.
         """
-        path = self._cached_resolver(xpath)  # calls _inner_resolve_element
-        if path is None:
+        nodes = self._cached_resolver(xpath)  # calls _inner_resolve_element
+        if nodes is None:
             raise ExternalValueError(f"Field '{xpath}' does not exist.")
 
-        return XPathMatch(path, query=xpath)
+        return XPathMatch(self, nodes, query=xpath)
 
     def _inner_resolve_element(self, xpath: str):
         """Inner part of resolve_element() that is cached.

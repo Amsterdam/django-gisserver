@@ -11,7 +11,7 @@ from typing import List, Optional, Tuple, Union
 from xml.etree.ElementTree import Element
 
 from django.contrib.gis.geos import GEOSGeometry
-from django.db.models import F, Func, Q, Value
+from django.db.models import Func, Q, Value
 from django.db.models.expressions import Combinable
 
 from gisserver.parsers.base import BaseNode, TagNameEnum, tag_registry
@@ -149,13 +149,12 @@ class ValueReference(Expression):
     def build_lhs(self, compiler) -> str:
         """Optimized LHS: there is no need to alias a field lookup through an annotation."""
         match = self.parse_xpath(compiler.feature_type)
-        if match.orm_filters:
-            compiler.add_extra_lookup(match.orm_filters)
-        return match.orm_path
+        return match.build_lhs(compiler)
 
     def build_rhs(self, compiler) -> RhsTypes:
         """Return the value as F-expression"""
-        return F(self.build_lhs(compiler))
+        match = self.parse_xpath(compiler.feature_type)
+        return match.build_rhs(compiler)
 
     def parse_xpath(self, feature_type=None) -> ORMPath:
         """Convert the XPath into a the required ORM query elements."""

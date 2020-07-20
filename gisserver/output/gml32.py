@@ -217,17 +217,22 @@ class GML32Renderer(OutputRenderer):
             f'    <{feature_type.xml_name} gml:id="{feature_type.name}.{pk}"{extra_xmlns}>\n'
         )
 
-        if feature_type.show_name:
-            output.write(
-                "      <gml:name>{display}</gml:name>\n".format(
-                    display=escape(str(instance)),
-                )
-            )
-
-        # Add <gml:boundedBy>
-        gml = self.render_bounds(feature_type, instance)
-        if gml is not None:
-            output.write(gml)
+        # Add all base class members, in their correct ordering
+        # By having these as XsdElement objects instead of hard-coded writes,
+        # the query/filter logic also works for these elements.
+        if feature_type.xsd_type.base.is_complex_type:
+            for xsd_element in feature_type.xsd_type.base.elements:
+                if xsd_element.xml_name == "gml:boundedBy":
+                    # Special case for <gml:boundedBy>, so it will render with
+                    # the output CRS and can be overwritten with DB-rendered GML.
+                    gml = self.render_bounds(feature_type, instance)
+                    if gml is not None:
+                        output.write(gml)
+                else:
+                    # e.g. <gml:name>
+                    output.write(
+                        self.render_element(feature_type, xsd_element, instance)
+                    )
 
         # Add all members
         for xsd_element in feature_type.xsd_type.elements:

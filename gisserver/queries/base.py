@@ -5,7 +5,7 @@ from gisserver.exceptions import InvalidParameterValue
 from gisserver.features import FeatureType
 from gisserver.output import FeatureCollection, SimpleFeatureCollection
 from gisserver.parsers import fes20
-from gisserver.types import strip_namespace_prefix
+from gisserver.types import split_xml_name
 
 
 class QueryExpression:
@@ -48,7 +48,7 @@ class QueryExpression:
         # Strip the namespace prefix. The Python ElementTree parser does
         # not expose the used namespace prefixes, so text-values can't be
         # mapped against it. As we expose just one namespace, just strip it.
-        type_name = strip_namespace_prefix(type_name)
+        xmlns, type_name = split_xml_name(type_name)
 
         try:
             return self.all_feature_types[type_name]

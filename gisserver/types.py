@@ -15,9 +15,9 @@ from django.core.exceptions import (
 )
 from django.db.models import Q
 from django.db.models.fields.related import RelatedField
-from typing import List, Optional, Tuple, Type
+from typing import List, Optional, Tuple, Type, TYPE_CHECKING
 
-from django.contrib.gis.db.models import GeometryField
+from django.contrib.gis.db.models import F, GeometryField
 from django.db import models
 from django.utils.functional import cached_property
 
@@ -33,7 +33,7 @@ __all__ = [
     "XsdElement",
     "XsdNode",
     "XsdTypes",
-    "strip_namespace_prefix",
+    "split_xml_name",
     "FES20",
     "GML21",
     "GML32",
@@ -107,11 +107,16 @@ class XsdTypes(XsdAnyType, Enum):
     gmlMultiCurvePropertyType = "gml:MultiCurvePropertyType"
     gmlMultiGeometryPropertyType = "gml:MultiGeometryPropertyType"
 
-    #: A direct geometry value
+    # Other typical GML values
+    gmlCodeType = "gml:CodeType"  # for <gml:name>
+    gmlBoundingShapeType = "gml:BoundingShapeType"  # for <gml:boundedBy>
+
+    #: A direct geometry value (used as function argument type)
     gmlAbstractGeometryType = "gml:AbstractGeometryType"
 
-    #: A feature that has an gml:name and gml:boundedBy as posible child element.
+    #: A feature that has an gml:name and gml:boundedBy as possible child element.
     gmlAbstractFeatureType = "gml:AbstractFeatureType"
+    gmlAbstractGMLType = "gml:AbstractGMLType"  # base class of gml:AbstractFeatureType
 
     def __str__(self):
         return self.value
@@ -135,10 +140,40 @@ class XsdNode:
     is_attribute = False
 
     name: str
-    type: XsdAnyType
+    type: XsdAnyType  # Both XsdComplexType and XsdType are allowed
     prefix: Optional[str]
+
+    #: Which field to read from the model to get the value
+    #: This supports dot notation to access related attributes.
     source: Optional[models.Field]
+
+    #: Which field to read from the model to get the value
+    #: This supports dot notation to access related attributes.
     model_attribute: Optional[str]
+
+    def __init__(
+        self,
+        name: str,
+        type: XsdAnyType,
+        *,
+        prefix: Optional[str] = "app",
+        source: Optional[models.Field] = None,
+        model_attribute: Optional[str] = None,
+    ):
+        # Using plain assignment instead of dataclass turns out to be needed
+        # for flexibility and easier subclassing.
+        self.name = name
+        self.type = type
+        self.prefix = prefix
+        self.source = source
+        self.model_attribute = model_attribute or self.name
+
+        if ":" in self.name:
+            raise ValueError("Use 'prefix' argument for namespaces")
+
+        # Using operator.attrgetter() instead of getattr() gives built-in
+        # support to traversing model attributes with dots.
+        self._attrgetter = operator.attrgetter(self.model_attribute)
 
     @cached_property
     def is_geometry(self) -> bool:
@@ -156,22 +191,38 @@ class XsdNode:
     @cached_property
     def orm_path(self) -> str:
         """The ORM field lookup to perform."""
+        if self.model_attribute is None:
+            raise ValueError(f"Node {self.xml_name} has no 'model_attribute' set.")
         return self.model_attribute.replace(".", "__")
 
     @cached_property
     def orm_field(self) -> str:
         """The direct ORM field that provides this property."""
+        if self.model_attribute is None:
+            raise ValueError(f"Node {self.xml_name} has no 'model_attribute' set.")
         return self.model_attribute.split(".", 1)[0]
 
     @cached_property
-    def orm_relation(self) -> Tuple[str, str]:
+    def orm_relation(self) -> Tuple[Optional[str], str]:
         """The ORM field and parent relation"""
+        if self.model_attribute is None:
+            raise ValueError(f"Node {self.xml_name} has no 'model_attribute' set.")
+
         try:
             path, field = self.model_attribute.rsplit(".", 1)
         except ValueError:
             return None, self.model_attribute
         else:
             return path.replace(".", "__"), field
+
+    def build_lhs_part(self, compiler, match: "ORMPath"):
+        """Give the ORM part when this element is used as
+        left-hand-side of a comparison."""
+        return match.orm_path
+
+    def build_rhs_part(self, compiler, match: "ORMPath"):
+        """Give the ORM part when this element would be used as right-hand-side"""
+        return F(match.orm_path)
 
     def get_value(self, instance: models.Model):
         """Provide the value for the data"""
@@ -225,7 +276,6 @@ class XsdNode:
                 )
 
 
-@dataclass(frozen=True)
 class XsdElement(XsdNode):
     """Declare an XSD element.
 
@@ -241,27 +291,28 @@ class XsdElement(XsdNode):
     a related field. For the WFS client, the data appears to be flattened.
     """
 
-    name: str
-    type: XsdAnyType  # Both XsdComplexType and XsdType are allowed
-    prefix: str = "app"
-    nillable: Optional[bool] = None
-    min_occurs: Optional[int] = None
-    max_occurs: Optional[int] = None
-    source: Optional[models.Field] = None
+    nillable: Optional[bool]
+    min_occurs: Optional[int]
+    max_occurs: Optional[int]
 
-    #: Which field to read from the model to get the value
-    #: This supports dot notation to access related attributes.
-    model_attribute: Optional[str] = None
-
-    def __post_init__(self):
-        if self.model_attribute is None:
-            object.__setattr__(self, "model_attribute", self.name)
-
-        # Using operator.attrgetter() instead of getattr() gives built-in
-        # support to traversing model attributes with dots.
-        object.__setattr__(
-            self, "_attrgetter", operator.attrgetter(self.model_attribute)
+    def __init__(
+        self,
+        name: str,
+        type: XsdAnyType,
+        *,
+        prefix: Optional[str] = "app",
+        nillable: Optional[bool] = None,
+        min_occurs: Optional[int] = None,
+        max_occurs: Optional[int] = None,
+        source: Optional[models.Field] = None,
+        model_attribute: Optional[str] = None,
+    ):
+        super().__init__(
+            name, type, prefix=prefix, source=source, model_attribute=model_attribute
         )
+        self.nillable = nillable
+        self.min_occurs = min_occurs
+        self.max_occurs = max_occurs
 
     @cached_property
     def as_xml(self):
@@ -286,30 +337,37 @@ class _XsdElement_WithComplexType(XsdElement):
     type: "XsdComplexType"
 
 
-@dataclass(frozen=True)
 class XsdAttribute(XsdNode):
+    """Declare an XSD attribute.
+
+    This is needed to support filters against attributes like gml:id.
+    """
+
     is_attribute = True
 
-    prefix: str
-    name: str
-    type: XsdTypes = XsdTypes.string
+    type: XsdTypes
     use: str = "optional"
-    source: Optional[models.Field] = None
 
-    #: Which field to read from the model to get the value
-    model_attribute: Optional[str] = None
-
-    @cached_property
-    def xml_name(self):
-        return f"{self.prefix}:{self.name}" if self.prefix else self.name
-
-    def __post_init__(self):
-        if self.model_attribute is None:
-            object.__setattr__(self, "model_attribute", self.name)
+    def __init__(
+        self,
+        name: str,
+        type: XsdAnyType = XsdTypes.string,  # added default
+        *,
+        prefix: Optional[str] = "app",
+        use: str = "optional",
+        source: Optional[models.Field] = None,
+        model_attribute: Optional[str] = None,
+    ):
+        super().__init__(
+            name, type, prefix=prefix, source=source, model_attribute=model_attribute
+        )
+        self.use = use
 
 
 class GmlIdAttribute(XsdAttribute):
-    """A virtual 'gml:id' attribute. that can be queried"""
+    """A virtual 'gml:id' attribute that can be queried.
+    This subclass has overwritten get_value() logic.
+    """
 
     type_name: str
 
@@ -332,6 +390,69 @@ class GmlIdAttribute(XsdAttribute):
         return f"{self.type_name}.{value}"
 
 
+class GmlNameElement(XsdElement):
+    """A subclass to handle the <gml:name> element.
+    Currently this just reads a single attribute,
+    but it can be extended to support formatted names.
+    """
+
+    def __init__(
+        self,
+        model_attribute: str,
+        source: Optional[models.Field] = None,
+        feature_type=None,
+    ):
+        # Prefill most known fields
+        super().__init__(
+            prefix="gml",
+            name="name",
+            type=XsdTypes.gmlCodeType,
+            min_occurs=0,
+            source=source,
+            model_attribute=model_attribute,
+        )
+        self.feature_type = feature_type
+
+    def get_value(self, instance: models.Model):
+        # Redirect to FeatureType
+        if self.feature_type is not None:
+            return self.feature_type.get_display_value(instance)
+        else:
+            # Using this class at a sub-level object.
+            return super().get_value(instance)
+
+
+class GmlBoundedByElement(XsdElement):
+    """A subclass to handle the <gml:boundedBy> element."""
+
+    is_geometry = True  # Override type
+
+    def __init__(self, feature_type):
+        # Prefill most known fields
+        super().__init__(
+            prefix="gml",
+            name="boundedBy",
+            type=XsdTypes.gmlBoundingShapeType,
+            min_occurs=0,
+        )
+        self.feature_type = feature_type
+        self.model_attribute = None
+
+    def build_lhs_part(self, compiler, match: "ORMPath"):
+        """Give the ORM part when this element is used as
+        left-hand-side of a comparison."""
+        return compiler.add_annotation(self.build_rhs_part(compiler, match))
+
+    def build_rhs_part(self, compiler, match: "ORMPath"):
+        """Give the ORM part when this element would be used as right-hand-side"""
+        return
+
+    def get_value(self, instance: models.Model, crs: Optional[CRS] = None):
+        """Provide the value of the <gml:boundedBy> field
+        (if this is not given by the database already)."""
+        return self.feature_type.get_envelope(instance, crs=crs)
+
+
 @dataclass(frozen=True)
 class XsdComplexType(XsdAnyType):
     """Define an <xsd:complexType> that represents a whole class definition.
@@ -350,7 +471,8 @@ class XsdComplexType(XsdAnyType):
     name: str
     elements: List[XsdElement]
     attributes: List[XsdAttribute] = field(default_factory=list)
-    base: XsdTypes = XsdTypes.gmlAbstractFeatureType
+    prefix: str = "app"
+    base: XsdAnyType = XsdTypes.gmlAbstractFeatureType
     prefix: str = "app"
     source: Optional[Type[models.Model]] = None
 
@@ -399,17 +521,11 @@ class XsdComplexType(XsdAnyType):
             if pos:
                 return None  # invalid attribute
 
-            attribute = self._find_attribute(xml_name=node_name[1:])
+            # Remove app: prefixes, or any alias of it (see explanation below)
+            xml_name = node_name[1:]
+            attribute = self._find_attribute(xml_name=xml_name)
             return [attribute] if attribute is not None else None
         else:
-            # Strip current app namespace. Note this should actually compare the
-            # xmlns URI's, but this will suffice for now. The ElementTree parser
-            # doesn't provide access to 'xmlns' definitions on the element (or it's
-            # parents), so a tag like this is essentially not parsable for us:
-            # <ValueReference xmlns:tns="http://...">tns:fieldname</ValueReference>
-            if not node_name.startswith("gml:"):
-                node_name = strip_namespace_prefix(node_name)
-
             element = self._find_element(node_name)
             if element is None:
                 return None
@@ -424,11 +540,26 @@ class XsdComplexType(XsdAnyType):
             else:
                 return [element]
 
-    def _find_element(self, name) -> Optional[XsdElement]:
+    def _find_element(self, xml_name) -> Optional[XsdElement]:
         """Locate an element by name"""
         for element in self.elements:
-            if element.name == name:
+            if element.xml_name == xml_name:
                 return element
+
+        prefix, name = split_xml_name(xml_name)
+        if prefix != "gml" and prefix != self.prefix:
+            # Ignore current app namespace. Note this should actually compare the
+            # xmlns URI's, but this will suffice for now. The ElementTree parser
+            # doesn't provide access to 'xmlns' definitions on the element (or it's
+            # parents), so a tag like this is essentially not parsable for us:
+            # <ValueReference xmlns:tns="http://...">tns:fieldname</ValueReference>
+            for element in self.elements:
+                if element.name == name:
+                    return element
+
+        # When there is a base class, resolve elements there too.
+        if self.base.is_complex_type:
+            return self.base._find_element(xml_name)
         return None
 
     def _find_attribute(self, xml_name) -> Optional[XsdAttribute]:
@@ -436,16 +567,28 @@ class XsdComplexType(XsdAnyType):
         for attribute in self.attributes:
             if attribute.xml_name == xml_name:
                 return attribute
+
+        prefix, name = split_xml_name(xml_name)
+        if prefix != "gml" and prefix != self.prefix:
+            # Allow any namespace to match, since the stdlib ElementTree parser
+            # can't resolve namespaces at all.
+            for attribute in self.attributes:
+                if attribute.name == name:
+                    return attribute
+
+        # When there is a base class, resolve attributes there too.
+        if self.base.is_complex_type:
+            return self.base._find_attribute(xml_name)
         return None
 
 
-def strip_namespace_prefix(value: str):
+def split_xml_name(xml_name: str) -> Tuple[Optional[str], str]:
     """Remove the namespace prefix from an element."""
     try:
-        ns_pos = value.index(":")
-        return value[ns_pos + 1 :]
+        prefix, name = xml_name.split(":", 1)
+        return prefix, name
     except ValueError:
-        return value
+        return None, xml_name
 
 
 class ORMPath:
@@ -460,6 +603,17 @@ class ORMPath:
             f"XPathMatch(orm_path={self.orm_path!r}, orm_filters={self.orm_filters!r})"
         )
 
+    def build_lhs(self, compiler):
+        """Give the ORM part when this element is used as
+        left-hand-side of a comparison."""
+        if self.orm_filters:
+            compiler.add_extra_lookup(self.orm_filters)
+        return self.orm_path
+
+    def build_rhs(self, compiler):
+        """Give the ORM part when this element would be used as right-hand-side"""
+        return F(self.build_lhs(compiler))
+
 
 class XPathMatch(ORMPath):
     """Wrapper class to provide XPath results."""
@@ -470,15 +624,14 @@ class XPathMatch(ORMPath):
     #: The source XPath query
     query: str
 
-    #: The path to request in the ORM
-    orm_path: str
-
     #: The additional filters are needed (due to [@attr=..] syntax).
     orm_filters: Optional[Q]
 
-    def __init__(self, nodes: List[XsdNode], query: str):
+    def __init__(self, feature_type: "FeatureType", nodes: List[XsdNode], query: str):
+        self.feature_type = feature_type
         self.nodes = nodes
         self.query = query
+        self.orm_filters = None
 
         if "[" in self.query:
             # If there is an element[@attr=...]/field tag,
@@ -487,10 +640,10 @@ class XPathMatch(ORMPath):
                 f"Complex XPath queries are not supported yet: {self.query}"
             )
 
-        super().__init__(
-            orm_path="__".join(xsd_node.orm_path for xsd_node in self.nodes),
-            orm_filters=None,
-        )
+    @cached_property
+    def orm_path(self) -> str:
+        # Become on demand, sometimes
+        return "__".join(xsd_node.orm_path for xsd_node in self.nodes)
 
     def __iter__(self):
         return iter(self.nodes)
@@ -505,3 +658,19 @@ class XPathMatch(ORMPath):
     def child(self) -> XsdNode:
         """Return only the final element"""
         return self.nodes[-1]
+
+    def build_lhs(self, compiler):
+        """Delegate the LHS construction to the final XsdNode."""
+        if self.orm_filters:
+            compiler.add_extra_lookup(self.orm_filters)
+        return self.child.build_lhs_part(compiler, self)
+
+    def build_rhs(self, compiler):
+        """Delegate the RHS construction to the final XsdNode."""
+        if self.orm_filters:
+            compiler.add_extra_lookup(self.orm_filters)
+        return self.child.build_rhs_part(compiler, self)
+
+
+if TYPE_CHECKING:
+    from .features import FeatureType
