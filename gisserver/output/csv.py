@@ -4,27 +4,22 @@ from datetime import datetime
 from typing import List
 
 from django.conf import settings
-from django.contrib.gis.db.models.functions import GeoFunc
 from django.db import models
 from django.utils.timezone import utc
 
 from gisserver import conf
+from gisserver.db import (
+    AsEWKT,
+    build_db_annotations,
+    get_db_annotation,
+    get_db_geometry_selects,
+)
 from gisserver.features import FeatureType
 from gisserver.types import XsdComplexType, XsdElement
 from .base import (
     OutputRenderer,
     StringBuffer,
-    build_db_annotations,
-    get_db_annotation,
-    get_db_geometry_selects,
 )
-
-
-class _AsEWKT(GeoFunc):
-    """Generate EWKT in the database (PostGIS tested only at the moment)."""
-
-    name = "AsEWKT"
-    output_field = models.TextField()
 
 
 class CSVRenderer(OutputRenderer):
@@ -153,7 +148,7 @@ class DBCSVRenderer(CSVRenderer):
         )
         if geometries:
             queryset = queryset.defer(*geometries.keys()).annotate(
-                **build_db_annotations(geometries, "_as_ewkt_{name}", _AsEWKT)
+                **build_db_annotations(geometries, "_as_ewkt_{name}", AsEWKT)
             )
 
         return queryset

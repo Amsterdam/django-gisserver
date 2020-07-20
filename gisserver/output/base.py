@@ -1,10 +1,8 @@
 import io
 from collections import defaultdict
-from typing import List, Set, Tuple, Type, cast
+from typing import List, Set, Tuple, Type
 
 from django.conf import settings
-from django.contrib.gis.db.models import GeometryField
-from django.contrib.gis.db.models.functions import Transform
 from django.db import models
 from django.db.models import Prefetch
 from django.http import HttpResponse, StreamingHttpResponse
@@ -15,7 +13,7 @@ from gisserver.exceptions import InvalidParameterValue
 from gisserver.features import FeatureType
 from gisserver.geometries import CRS
 from gisserver.operations.base import WFSMethod
-from gisserver.types import XPathMatch, XsdComplexType, XsdElement
+from gisserver.types import XsdComplexType, XsdElement
 
 from .results import FeatureCollection
 
@@ -249,62 +247,3 @@ class StringBuffer(BaseBuffer):
 
     def __str__(self):
         return self.getvalue()
-
-
-def build_db_annotations(selects: dict, name_template: str, wrapper_func) -> dict:
-    """Utility to build annotations for all geometry fields for an XSD type.
-    This is used by various DB-optimized rendering methods.
-    """
-    return {
-        escape_xml_name(name, name_template): wrapper_func(target)
-        for name, target in selects.items()
-    }
-
-
-def get_db_annotation(instance: models.Model, name: str, name_template: str):
-    """Retrieve the value that an annotation has added to the model."""
-    # The "name" allows any XML-tag elements, escape the most obvious
-    escaped_name = escape_xml_name(name, name_template)
-    try:
-        return getattr(instance, escaped_name)
-    except AttributeError as e:
-        raise AttributeError(
-            f" DB annotation {instance._meta.model_name}.{escaped_name}"
-            f" not found (using {name_template})"
-        ) from e
-
-
-def escape_xml_name(name: str, template="{name}") -> str:
-    """Escape an XML name to be used as annotation name."""
-    return template.format(name=name.replace(".", "_"))
-
-
-def get_db_geometry_selects(gml_elements: List[XsdElement], output_crs: CRS) -> dict:
-    """Utility to generate select clauses for the geometry fields of a type."""
-    return {
-        xsd_element.name: _get_db_geometry_target(xsd_element, output_crs)
-        for xsd_element in gml_elements
-        if xsd_element.source is not None
-    }
-
-
-def _get_db_geometry_target(xsd_element: XsdElement, output_crs: CRS):
-    """Wrap the selection of a geometry field in a CRS Transform if needed."""
-    field = cast(GeometryField, xsd_element.source)
-
-    target = xsd_element.orm_path
-    if field.srid != output_crs.srid:
-        target = Transform(target, output_crs.srid)
-
-    return target
-
-
-def get_db_geometry_target(xpath_match: XPathMatch, output_crs: CRS):
-    """Based on a resolved element, build the proper geometry field select clause."""
-    field = cast(GeometryField, xpath_match.child.source)
-
-    target = xpath_match.orm_path
-    if field.srid != output_crs.srid:
-        target = Transform(target, output_crs.srid)
-
-    return target

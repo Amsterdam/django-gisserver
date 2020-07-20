@@ -6,16 +6,23 @@ as it's quite a performance improvement to just use html.escape().
 import itertools
 import re
 from datetime import date, datetime, time
-from functools import reduce
 from html import escape
 from typing import List, Optional, cast
 
 from django.contrib.gis import geos
-from django.contrib.gis.db.models.functions import AsGML, Transform, Union
-from django.db import connections, models
+from django.db import models
 from django.http import HttpResponse
 from django.utils.timezone import utc
 
+from gisserver.db import (
+    AsGML,
+    conditional_transform,
+    get_geometries_union,
+    build_db_annotations,
+    get_db_annotation,
+    get_db_geometry_selects,
+    get_db_geometry_target,
+)
 from gisserver.exceptions import NotFound
 from gisserver.features import FeatureType
 from gisserver.geometries import CRS
@@ -25,10 +32,6 @@ from gisserver.types import XsdComplexType, XsdElement
 from .base import (
     OutputRenderer,
     StringBuffer,
-    build_db_annotations,
-    get_db_annotation,
-    get_db_geometry_selects,
-    get_db_geometry_target,
 )
 
 GML_RENDER_FUNCTIONS = {}
@@ -40,33 +43,6 @@ def default_if_none(value, default):
         return default
     else:
         return value
-
-
-class _AsGML(AsGML):
-    name = "AsGML"
-
-    def __init__(self, expression, version=3, precision=14, envelope=False, **extra):
-        # Note that Django's AsGml, version=2, precision=8
-        # the options is postgres-only.
-        super().__init__(expression, version, precision, **extra)
-        self.envelope = envelope
-
-    def as_postgresql(self, compiler, connection, **extra_context):
-        # Fill options parameter (https://postgis.net/docs/ST_AsGML.html)
-        options = 33 if self.envelope else 1  # 32 = bbox, 1 = long CRS urn
-        template = f"%(function)s(%(expressions)s, {options})"
-        return self.as_sql(compiler, connection, template=template, **extra_context)
-
-
-class ST_Union(Union):
-    name = "Union"
-    arity = None
-
-    def as_postgresql(self, compiler, connection, **extra_context):
-        # PostgreSQL can handle ST_Union(ARRAY(field names)), other databases don't.
-        if len(self.source_expressions) > 2:
-            extra_context["template"] = f"%(function)s(ARRAY(%(expressions)s))"
-        return self.as_sql(compiler, connection, **extra_context)
 
 
 def register_geos_type(geos_type):
@@ -452,7 +428,7 @@ class DBGML32Renderer(GML32Renderer):
             _as_envelope_gml=cls.get_db_envelope_as_gml(
                 feature_type, queryset, output_crs
             ),
-            **build_db_annotations(geometries, "_as_gml_{name}", _AsGML),
+            **build_db_annotations(geometries, "_as_gml_{name}", AsGML),
         )
 
     @classmethod
@@ -483,7 +459,7 @@ class DBGML32Renderer(GML32Renderer):
         fields = set(fields) - set(geometries.keys())
         if geometries:
             return model.objects.only("pk", *fields).annotate(
-                **build_db_annotations(geometries, "_as_gml_{name}", _AsGML),
+                **build_db_annotations(geometries, "_as_gml_{name}", AsGML),
             )
 
     @classmethod
@@ -493,27 +469,16 @@ class DBGML32Renderer(GML32Renderer):
         This also avoids offloads the geometry union calculation to the DB.
         """
         geo_fields_union = cls._get_geometries_union(feature_type, queryset, output_crs)
-        return _AsGML(geo_fields_union, envelope=True)
+        return AsGML(geo_fields_union, envelope=True)
 
     @classmethod
     def _get_geometries_union(cls, feature_type: FeatureType, queryset, output_crs):
         """Combine all geometries of the model in a single SQL function."""
-        field_names = feature_type.geometry_field_names
-        if len(field_names) == 1:
-            union = next(iter(field_names))  # fastest in set data type
-        elif len(field_names) == 2:
-            union = Union(*field_names)
-        elif connections[queryset.db].vendor == "postgresql":
-            # postgres can handle multiple field names
-            union = ST_Union(field_names)
-        else:
-            # other databases do Union(Union(1, 2), 3)
-            union = reduce(Union, field_names)
-
-        if feature_type.geometry_field.srid != output_crs.srid:
-            union = Transform(union, output_crs.srid)
-
-        return union
+        return conditional_transform(
+            get_geometries_union(feature_type.geometry_field_names, using=queryset.db),
+            feature_type.geometry_field.srid,
+            output_srid=output_crs.srid,
+        )
 
     def render_element(
         self, feature_type, xsd_element: XsdElement, instance: models.Model
@@ -648,7 +613,7 @@ class DBGML32ValueRenderer(DBGML32Renderer, GML32ValueRenderer):
         if match.child.is_geometry:
             # Add 'gml_member' to point to the pre-rendered GML version.
             return queryset.values(
-                "pk", gml_member=_AsGML(get_db_geometry_target(match, output_crs)),
+                "pk", gml_member=AsGML(get_db_geometry_target(match, output_crs)),
             )
         else:
             return queryset

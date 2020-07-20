@@ -9,11 +9,13 @@ from django.contrib.gis.db.models.functions import AsGeoJSON
 from django.db import models
 from django.utils.functional import Promise
 from django.utils.timezone import utc
+
 from gisserver import conf
+from gisserver.db import get_db_geometry_target
 from gisserver.features import FeatureType
 from gisserver.types import XsdComplexType
 
-from .base import BytesBuffer, OutputRenderer, get_db_geometry_target
+from .base import BytesBuffer, OutputRenderer
 
 
 def _json_default(obj):

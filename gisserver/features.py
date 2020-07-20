@@ -7,12 +7,12 @@ from typing import List, Optional, Type, Union
 
 from django.contrib.gis.db import models as gis_models
 from django.contrib.gis.db.models import Extent, GeometryField
-from django.contrib.gis.db.models.functions import Transform
 from django.core.exceptions import FieldDoesNotExist, ImproperlyConfigured
 from django.db import models
 from django.db.models.fields.reverse_related import ForeignObjectRel
 from django.utils.functional import cached_property  # py3.8: functools
 
+from gisserver.db import conditional_transform
 from gisserver.exceptions import ExternalValueError
 from gisserver.types import (
     XPathMatch,
@@ -462,10 +462,9 @@ class FeatureType:
         when the database table is empty, or the custom queryset doesn't
         return any results.
         """
-        if self.geometry_field.srid != WGS84.srid:
-            geo_expression = Transform(self.geometry_field.name, WGS84.srid)
-        else:
-            geo_expression = self.geometry_field.name
+        geo_expression = conditional_transform(
+            self.geometry_field.name, self.geometry_field.srid, WGS84.srid
+        )
 
         bbox = self.get_queryset().aggregate(a=Extent(geo_expression))["a"]
         return BoundingBox(*bbox, crs=WGS84) if bbox else None
