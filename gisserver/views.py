@@ -181,9 +181,9 @@ class WFSView(GISView):
 
     #: Metadata of the capabilities:
     wfs_service_constraints = {
-        "ImplementsBasicWFS": False,  # only simple WFS
-        "ImplementsTransactionalWFS": False,  # only simple WFS
-        "ImplementsLockingWFS": False,  # only simple WFS
+        "ImplementsBasicWFS": True,  # Advanced queries/xpath
+        "ImplementsTransactionalWFS": False,  # only reads
+        "ImplementsLockingWFS": False,  # only basic WFS
         "KVPEncoding": True,  # HTTP GET support
         "XMLEncoding": False,  # HTTP POST requests
         "SOAPEncoding": False,  # no SOAP requests
