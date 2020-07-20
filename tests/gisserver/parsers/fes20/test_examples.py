@@ -8,6 +8,8 @@ HTML Version: https://docs.opengeospatial.org/is/09-026r2/09-026r2.html
 
 This test style is inspired by pyfes (which is also Apache licensed)
 """
+from datetime import datetime
+
 from decimal import Decimal as D
 
 import pytest
@@ -525,7 +527,12 @@ def test_fes20_c5_example9():
     query = result.compile_query()
     assert query == CompiledQuery(
         lookups=[
-            Q(SAMPLE_DATE__range=("2001-01-15T20:07:48.11", "2001-03-06T12:00:00.00"))
+            Q(
+                SAMPLE_DATE__range=(
+                    datetime(2001, 1, 15, 20, 7, 48, 110000),
+                    datetime(2001, 3, 6, 12, 0),
+                )
+            )
         ]
     ), repr(query)
 
@@ -808,8 +815,8 @@ def test_fes20_c5_example13():
                 ),
                 BetweenComparisonOperator(
                     expression=ValueReference(xpath="DEPTH"),
-                    lowerBoundary=Literal(raw_value="400", type=None),
-                    upperBoundary=Literal(raw_value="800", type=None),
+                    lowerBoundary=Literal(raw_value="400"),
+                    upperBoundary=Literal(raw_value="800"),
                 ),
             ],
             operatorType=BinaryLogicType.And,

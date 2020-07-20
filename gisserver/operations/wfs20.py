@@ -246,7 +246,7 @@ class BaseWFSGetDataMethod(WFSTypeNamesMethod):
         except ValidationError as e:
             # Bad input data
             self._log_filter_error(query, logging.ERROR, e)
-            raise InvalidParameterValue(
+            raise OperationParsingFailed(
                 self._get_locator(**params), "\n".join(map(str, e.messages)),
             ) from e
         except FieldError as e:

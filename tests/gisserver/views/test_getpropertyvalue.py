@@ -195,9 +195,9 @@ class TestGetPropertyValue:
         xml_doc = validate_xsd(content, WFS_20_XSD)
         assert xml_doc.attrib["version"] == "2.0.0"
         exception = xml_doc.find("ows:Exception", NAMESPACES)
-        assert exception.attrib["exceptionCode"] == expect_exception.code
-
         message = exception.find("ows:ExceptionText", NAMESPACES).text
+
+        assert exception.attrib["exceptionCode"] == expect_exception.code, message
         assert message == expect_exception.text
 
     def test_get_unauth(self, client):

@@ -1,11 +1,11 @@
 import re
-from datetime import date, datetime, time
 from decimal import Decimal as D
 from functools import wraps
 from typing import List, Optional, Tuple
 from xml.etree.ElementTree import Element, QName
 
 from gisserver.exceptions import ExternalParsingError
+from gisserver.types import parse_iso_datetime
 
 RE_FLOAT = re.compile(r"\A[0-9]+(\.[0-9]+)\Z")
 
@@ -79,27 +79,3 @@ def auto_cast(value: str):
             pass
 
     return value
-
-
-def xsd_cast(value: str, type: str):
-    if type == "xs:date":
-        return date.fromisoformat(value)
-    elif type == "xs:dateTime":
-        return parse_iso_datetime(value)
-    elif type == "xs:time":
-        return time.fromisoformat(value)
-    elif type == "xs:string":
-        return value
-    elif type in ("xs:int", "xs:integer", "xs:long"):
-        return int(value)
-    elif type in ("xs:float", "xs:double", "xs:decimal"):
-        return D(value)
-    else:
-        raise NotImplementedError(f'<fes:Literal type="{type}"> is not implemented.')
-
-
-def parse_iso_datetime(value) -> datetime:
-    try:
-        return datetime.fromisoformat(value)  # Python 3.7+
-    except AttributeError:
-        return datetime.strptime(value, "%Y-%m-%dT%H:%M:%S")

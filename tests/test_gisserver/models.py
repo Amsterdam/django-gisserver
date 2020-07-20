@@ -21,6 +21,7 @@ class Restaurant(models.Model):
     city = models.ForeignKey(City, on_delete=models.SET_NULL, null=True)
     location = PointField(null=True)
     rating = models.FloatField(default=0)
+    is_open = models.BooleanField(default=False)
     created = models.DateTimeField(default=current_datetime)
 
     def __str__(self):

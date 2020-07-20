@@ -96,6 +96,7 @@ class TestGetFeature:
           </gml:Point>
         </app:location>
         <app:rating>5.0</app:rating>
+        <app:is_open>true</app:is_open>
         <app:created>2020-04-05T12:11:10+00:00</app:created>
       </app:restaurant>
     </wfs:member>
@@ -137,6 +138,7 @@ class TestGetFeature:
             <app:city_id xsi:nil="true" />
             <app:location xsi:nil="true" />
             <app:rating>0.0</app:rating>
+            <app:is_open>false</app:is_open>
             <app:created>2020-04-05T12:11:10+00:00</app:created>
           </app:restaurant>
         </wfs:member>
@@ -243,6 +245,7 @@ class TestGetFeature:
           </gml:Point>
         </app:location>
         <app:rating>5.0</app:rating>
+        <app:is_open>true</app:is_open>
         <app:created>2020-04-05T12:11:10+00:00</app:created>
       </app:restaurant>
     </wfs:member>
@@ -265,6 +268,7 @@ class TestGetFeature:
           </gml:Point>
         </app:location>
         <app:rating>1.0</app:rating>
+        <app:is_open>false</app:is_open>
         <app:created>2020-04-05T20:11:10+00:00</app:created>
       </app:restaurant>
     </wfs:member>
@@ -320,6 +324,7 @@ class TestGetFeature:
           </gml:Point>
         </app:location>
         <app:rating>5.0</app:rating>
+        <app:is_open>true</app:is_open>
         <app:created>2020-04-05T12:11:10+00:00</app:created>
       </app:restaurant>
     </wfs:member>
@@ -343,6 +348,7 @@ class TestGetFeature:
           </gml:Point>
         </app:location>
         <app:rating>1.0</app:rating>
+        <app:is_open>false</app:is_open>
         <app:created>2020-04-05T20:11:10+00:00</app:created>
       </app:restaurant>
     </wfs:member>
@@ -401,6 +407,7 @@ class TestGetFeature:
               </gml:Point>
             </app:location>
             <app:rating>5.0</app:rating>
+            <app:is_open>true</app:is_open>
             <app:created>2020-04-05T12:11:10+00:00</app:created>
           </app:restaurant>
         </wfs:member>
@@ -510,9 +517,9 @@ class TestGetFeature:
         xml_doc = validate_xsd(content, WFS_20_XSD)
         assert xml_doc.attrib["version"] == "2.0.0"
         exception = xml_doc.find("ows:Exception", NAMESPACES)
-        assert exception.attrib["exceptionCode"] == expect_exception.code
-
         message = exception.find("ows:ExceptionText", NAMESPACES).text
+
+        assert exception.attrib["exceptionCode"] == expect_exception.code, message
         assert message == expect_exception.text
 
     def test_get_unauth(self, client):
@@ -701,6 +708,7 @@ class TestGetFeature:
                         "name": "Café Noir",
                         "city_id": restaurant.city_id,
                         "rating": 5.0,
+                        "is_open": True,
                         "created": "2020-04-05T12:11:10+00:00",
                     },
                 },
@@ -714,6 +722,7 @@ class TestGetFeature:
                         "name": "Foo Bar",
                         "city_id": None,
                         "rating": 1.0,
+                        "is_open": False,
                         "created": "2020-04-05T20:11:10+00:00",
                     },
                 },
@@ -785,6 +794,7 @@ class TestGetFeature:
                             "name": "CloudCity",
                         },
                         "rating": 5.0,
+                        "is_open": True,
                         "created": "2020-04-05T12:11:10+00:00",
                     },
                 },
@@ -798,6 +808,7 @@ class TestGetFeature:
                         "name": "Foo Bar",
                         "city": None,
                         "rating": 1.0,
+                        "is_open": False,
                         "created": "2020-04-05T20:11:10+00:00",
                     },
                 },
@@ -842,6 +853,7 @@ class TestGetFeature:
                         "city-id": restaurant.city_id,
                         "city-name": "CloudCity",
                         "rating": 5.0,
+                        "is_open": True,
                         "created": "2020-04-05T12:11:10+00:00",
                     },
                 },
@@ -856,6 +868,7 @@ class TestGetFeature:
                         "city-id": None,
                         "city-name": None,
                         "rating": 1.0,
+                        "is_open": False,
                         "created": "2020-04-05T20:11:10+00:00",
                     },
                 },
@@ -880,9 +893,9 @@ class TestGetFeature:
             assert response.status_code == 200, content
 
         expect = f"""
-"id","name","city_id","location","rating","created"
-"{restaurant.id}","Café Noir","{restaurant.city_id}","SRID=4326;{POINT1_EWKT}","5.0","2020-04-05 12:11:10+00:00"
-"{bad_restaurant.id}","Foo Bar","","SRID=4326;{POINT2_EWKT}","1.0","2020-04-05 20:11:10+00:00"
+"id","name","city_id","location","rating","is_open","created"
+"{restaurant.id}","Café Noir","{restaurant.city_id}","SRID=4326;{POINT1_EWKT}","5.0","True","2020-04-05 12:11:10+00:00"
+"{bad_restaurant.id}","Foo Bar","","SRID=4326;{POINT2_EWKT}","1.0","False","2020-04-05 20:11:10+00:00"
 """.lstrip()  # noqa: E501
         assert content == expect
 
@@ -900,9 +913,9 @@ class TestGetFeature:
             assert response.status_code == 200, content
 
         expect = f"""
-"id","name","city.id","city.name","location","rating","created"
-"{restaurant.id}","Café Noir","{restaurant.city_id}","CloudCity","SRID=4326;{POINT1_EWKT}","5.0","2020-04-05 12:11:10+00:00"
-"{bad_restaurant.id}","Foo Bar","","","SRID=4326;{POINT2_EWKT}","1.0","2020-04-05 20:11:10+00:00"
+"id","name","city.id","city.name","location","rating","is_open","created"
+"{restaurant.id}","Café Noir","{restaurant.city_id}","CloudCity","SRID=4326;{POINT1_EWKT}","5.0","True","2020-04-05 12:11:10+00:00"
+"{bad_restaurant.id}","Foo Bar","","","SRID=4326;{POINT2_EWKT}","1.0","False","2020-04-05 20:11:10+00:00"
 """.lstrip()  # noqa: E501
         assert content == expect
 
@@ -920,9 +933,9 @@ class TestGetFeature:
             assert response.status_code == 200, content
 
         expect = f"""
-"id","name","city-id","city-name","location","rating","created"
-"{restaurant.id}","Café Noir","{restaurant.city_id}","CloudCity","SRID=4326;{POINT1_EWKT}","5.0","2020-04-05 12:11:10+00:00"
-"{bad_restaurant.id}","Foo Bar","","","SRID=4326;{POINT2_EWKT}","1.0","2020-04-05 20:11:10+00:00"
+"id","name","city-id","city-name","location","rating","is_open","created"
+"{restaurant.id}","Café Noir","{restaurant.city_id}","CloudCity","SRID=4326;{POINT1_EWKT}","5.0","True","2020-04-05 12:11:10+00:00"
+"{bad_restaurant.id}","Foo Bar","","","SRID=4326;{POINT2_EWKT}","1.0","False","2020-04-05 20:11:10+00:00"
 """.lstrip()  # noqa: E501
         assert content == expect
 
@@ -1085,6 +1098,7 @@ class TestGetFeature:
         </gml:Point>
     </app:location>
     <app:rating>5.0</app:rating>
+    <app:is_open>true</app:is_open>
     <app:created>2020-04-05T12:11:10+00:00</app:created>
 </app:restaurant>""",  # noqa: E501
         )

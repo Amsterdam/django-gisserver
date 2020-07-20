@@ -1,9 +1,7 @@
-import django
 import sys
 
 from gisserver import conf
 from gisserver.exceptions import (
-    InvalidParameterValue,
     OperationParsingFailed,
     OperationProcessingFailed,
 )
@@ -68,7 +66,7 @@ FILTERS = {
                 <fes:Literal>3.0</fes:Literal>
             </fes:PropertyIsGreaterThanOrEqualTo>
         </fes:Filter>""",
-    "value_datetimefield": f"""
+    "value_datetimefield": """
         <?xml version="1.0"?>
         <fes:Filter
              xmlns:fes="http://www.opengis.net/fes/2.0"
@@ -78,6 +76,28 @@ FILTERS = {
             <fes:PropertyIsEqualTo>
                 <fes:Literal>2020-04-05T12:11:10+00:00</fes:Literal>
                 <fes:ValueReference>created</fes:ValueReference>
+            </fes:PropertyIsEqualTo>
+        </fes:Filter>""",
+    "value_boolean": """
+        <?xml version="1.0"?>
+        <fes:Filter
+             xmlns:fes="http://www.opengis.net/fes/2.0"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xsi:schemaLocation="http://www.opengis.net/fes/2.0
+             http://schemas.opengis.net/filter/2.0/filterAll.xsd">
+            <fes:PropertyIsEqualTo>
+                <fes:ValueReference>is_open</fes:ValueReference>
+                <fes:Literal>true</fes:Literal>
+            </fes:PropertyIsEqualTo>
+        </fes:Filter>""",
+    "value_boolean_cast": """
+        <?xml version="1.0"?>
+        <fes:Filter
+             xmlns:fes="http://www.opengis.net/fes/2.0"
+             xmlns:xs="http://www.w3.org/2001/XMLSchema">
+            <fes:PropertyIsEqualTo>
+                <fes:Literal type="xs:boolean">true</fes:Literal>
+                <fes:ValueReference>is_open</fes:ValueReference>
             </fes:PropertyIsEqualTo>
         </fes:Filter>""",
     "fes1": """
@@ -302,13 +322,9 @@ INVALID_FILTERS = {
             <fes:Literal>TEXT</fes:Literal>
         </fes:PropertyIsGreaterThanOrEqualTo>
     </fes:Filter>""",
-        InvalidParameterValue(
+        OperationParsingFailed(
             "filter",
-            "Invalid data for the 'rating' property:"
-            " Field 'rating' expected a number but got 'TEXT'."
-            if django.VERSION >= (3, 0)
-            else "Invalid data for the 'rating' property:"
-            " could not convert string to float: 'TEXT'",
+            "Invalid data for the 'rating' property: Can't cast 'TEXT' to double.",
         ),
     ),
     "float_like": (
@@ -343,15 +359,10 @@ INVALID_FILTERS = {
             <fes:Literal>21</fes:Literal>
         </fes:PropertyIsEqualTo>
     </fes:Filter>""",
-        InvalidParameterValue(
+        OperationParsingFailed(
             "filter",
             "Invalid data for the 'created' property:"
-            " “21” value has an invalid format."
-            " It must be in YYYY-MM-DD HH:MM[:ss[.uuuuuu]][TZ] format."
-            if django.VERSION >= (3, 0)
-            else "Invalid data for the 'created' property:"
-            " '21' value has an invalid format."
-            " It must be in YYYY-MM-DD HH:MM[:ss[.uuuuuu]][TZ] format.",
+            " Date must be in YYYY-MM-DD HH:MM[:ss[.uuuuuu]][TZ] format.",
         ),
     ),
     "date_text": (
@@ -366,15 +377,10 @@ INVALID_FILTERS = {
             <fes:Literal>abc</fes:Literal>
         </fes:PropertyIsGreaterThanOrEqualTo>
     </fes:Filter>""",
-        InvalidParameterValue(
+        OperationParsingFailed(
             "filter",
             "Invalid data for the 'created' property:"
-            " “abc” value has an invalid format."
-            " It must be in YYYY-MM-DD HH:MM[:ss[.uuuuuu]][TZ] format."
-            if django.VERSION >= (3, 0)
-            else "Invalid data for the 'created' property:"
-            " 'abc' value has an invalid format."
-            " It must be in YYYY-MM-DD HH:MM[:ss[.uuuuuu]][TZ] format.",
+            " Date must be in YYYY-MM-DD HH:MM[:ss[.uuuuuu]][TZ] format.",
         ),
     ),
     "geometry_lte": (

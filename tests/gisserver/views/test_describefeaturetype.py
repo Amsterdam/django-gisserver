@@ -30,7 +30,15 @@ class TestDescribeFeatureType:
             namespaces=NAMESPACES,
         )
         field_names = [el.attrib["name"] for el in elements]
-        assert field_names == ["id", "name", "city_id", "location", "rating", "created"]
+        assert field_names == [
+            "id",
+            "name",
+            "city_id",
+            "location",
+            "rating",
+            "is_open",
+            "created",
+        ]
 
         assert_xml_equal(
             response.content,
@@ -55,6 +63,7 @@ class TestDescribeFeatureType:
           <element name="city_id" type="integer" nillable="true" minOccurs="0" />
           <element name="location" type="gml:PointPropertyType" nillable="true" minOccurs="0" maxOccurs="1"/>
           <element name="rating" type="double" minOccurs="0" />
+          <element name="is_open" type="boolean" minOccurs="0" />
           <element name="created" type="dateTime" minOccurs="0" />
         </sequence>
       </extension>
@@ -102,6 +111,7 @@ class TestDescribeFeatureType:
           <element name="city" type="app:CityType" minOccurs="0" nillable="true" />
           <element name="location" type="gml:PointPropertyType" minOccurs="0" maxOccurs="1" nillable="true" />
           <element name="rating" type="double" minOccurs="0" />
+          <element name="is_open" type="boolean" minOccurs="0" />
           <element name="created" type="dateTime" minOccurs="0" />
         </sequence>
       </extension>
@@ -161,6 +171,7 @@ class TestDescribeFeatureType:
           <element name="city-name" type="string" minOccurs="0" nillable="true" />
           <element name="location" type="gml:PointPropertyType" minOccurs="0" maxOccurs="1" nillable="true" />
           <element name="rating" type="double" minOccurs="0" />
+          <element name="is_open" type="boolean" minOccurs="0" />
           <element name="created" type="dateTime" minOccurs="0" />
         </sequence>
       </extension>

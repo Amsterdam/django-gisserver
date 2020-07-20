@@ -53,6 +53,7 @@ def restaurant(city) -> Restaurant:
         city=city,
         location=Point(122411, 486250, srid=RD_NEW_SRID),
         rating=5.0,
+        is_open=True,
     )
 
 
@@ -62,6 +63,7 @@ def bad_restaurant() -> Restaurant:
         name="Foo Bar",
         location=Point(122421, 486290, srid=RD_NEW_SRID),
         rating=1.0,
+        is_open=False,
         created=current_datetime() + timedelta(hours=8),
     )
 

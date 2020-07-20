@@ -6,6 +6,8 @@ classes. Custom field types could also generate these field types.
 """
 import operator
 import re
+from datetime import date, datetime, time
+from decimal import Decimal as D
 from dataclasses import dataclass, field
 from enum import Enum
 
@@ -15,13 +17,14 @@ from django.core.exceptions import (
 )
 from django.db.models import Q
 from django.db.models.fields.related import RelatedField
+from django.utils.dateparse import parse_datetime
 from typing import List, Optional, Tuple, Type, TYPE_CHECKING
 
 from django.contrib.gis.db.models import F, GeometryField
 from django.db import models
 from django.utils.functional import cached_property
 
-from gisserver.exceptions import OperationProcessingFailed
+from gisserver.exceptions import ExternalParsingError, OperationProcessingFailed
 from gisserver.geometries import CRS, WGS84  # noqa, for backwards compatibility
 
 __all__ = [
@@ -68,6 +71,10 @@ class XsdAnyType:
         else:
             return f"{prefix}:{xml_name}"
 
+    def to_python(self, raw_value):
+        """Convert a raw string value to this type representation"""
+        return raw_value
+
 
 class XsdTypes(XsdAnyType, Enum):
     """Brief enumeration of basic XSD-types.
@@ -80,13 +87,23 @@ class XsdTypes(XsdAnyType, Enum):
     string = "string"
     boolean = "boolean"
     decimal = "decimal"  # the base type for all numbers too.
-    integer = "integer"
+    integer = "integer"  # integer value
     float = "float"
     double = "double"
     time = "time"
     date = "date"
     dateTime = "dateTime"
     anyURI = "anyURI"
+
+    # Number variations
+    byte = "byte"  # signed 8-bit integer
+    short = "short"  # signed 16-bit integer
+    int = "int"  # signed 32-bit integer
+    long = "long"  # signed 64-bit integer
+    unsignedByte = "unsignedByte"  # unsigned 8-bit integer
+    unsignedShort = "unsignedShort"  # unsigned 16-bit integer
+    unsignedInt = "unsignedInt"  # unsigned 32-bit integer
+    unsignedLong = "unsignedLong"  # unsigned 64-bit integer
 
     # Less common, but useful nonetheless:
     duration = "duration"
@@ -132,6 +149,68 @@ class XsdTypes(XsdAnyType, Enum):
     def is_geometry(self):
         """Whether the value represents a element which contains a GML element."""
         return self.prefix == "gml" and self.value.endswith("PropertyType")
+
+    def to_python(self, raw_value):
+        """Convert a raw string value to this type representation"""
+        if self.is_geometry:
+            # Leave complex values as-is.
+            return raw_value
+
+        try:
+            func = TYPES_TO_PYTHON[self]
+        except KeyError:
+            raise NotImplementedError(
+                f'Casting to "{self}"> is not implemented.'
+            ) from None
+
+        try:
+            return func(raw_value)
+        except ExternalParsingError:
+            raise
+        except (TypeError, ValueError, ArithmeticError) as e:
+            # ArithmeticError is base of DecimalException
+            raise ExternalParsingError(f"Can't cast '{raw_value}' to {self}.") from e
+
+
+def parse_iso_datetime(raw_value: str) -> datetime:
+    value = parse_datetime(raw_value)
+    if value is None:
+        raise ExternalParsingError(
+            "Date must be in YYYY-MM-DD HH:MM[:ss[.uuuuuu]][TZ] format."
+        )
+    return value
+
+
+def parse_bool(raw_value: str):
+    if raw_value in ("true", "1"):
+        return True
+    elif raw_value in ("false", "0"):
+        return False
+    else:
+        raise ExternalParsingError(f"Can't cast '{raw_value}' to boolean")
+
+
+as_is = lambda v: v
+TYPES_TO_PYTHON = {
+    XsdTypes.date: date.fromisoformat,
+    XsdTypes.dateTime: parse_iso_datetime,
+    XsdTypes.time: time.fromisoformat,
+    XsdTypes.string: as_is,
+    XsdTypes.boolean: parse_bool,
+    XsdTypes.integer: int,
+    XsdTypes.int: int,
+    XsdTypes.long: int,
+    XsdTypes.short: int,
+    XsdTypes.byte: int,
+    XsdTypes.unsignedInt: int,
+    XsdTypes.unsignedLong: int,
+    XsdTypes.unsignedShort: int,
+    XsdTypes.unsignedByte: int,
+    XsdTypes.float: D,
+    XsdTypes.double: D,
+    XsdTypes.decimal: D,
+    XsdTypes.gmlCodeType: as_is,
+}
 
 
 class XsdNode:
@@ -240,6 +319,29 @@ class XsdNode:
         """
         return value
 
+    @cached_property
+    def _form_field(self):
+        """Internal cached field for to_python()"""
+        return self.source.formfield()
+
+    def to_python(self, raw_value: str):
+        """Convert a raw value to the Python data type for this element type."""
+        try:
+            raw_value = self.type.to_python(raw_value)
+            if self.source is not None:
+                raw_value = self.source.get_prep_value(raw_value)
+        except ValidationError as e:
+            raise ValidationError(
+                f"Invalid data for the '{self.name}' property: {e.messages[0]}",
+                code=e.code,
+            ) from e
+        except (ValueError, TypeError) as e:
+            raise ValidationError(
+                f"Invalid data for the '{self.name}' property: {e}"
+            ) from e
+
+        return raw_value
+
     def validate_comparison(self, raw_value: str, lookup, tag=None):
         """Validate whether the input value can be used in a comparison.
         This avoids comparing a database DATETIME object to an integer.
@@ -250,17 +352,7 @@ class XsdNode:
         if self.source is not None:
             # Not calling self.source.validate() as that checks for allowed choices,
             # which shouldn't be checked against for a filter query.
-            try:
-                self.source.get_prep_value(raw_value)
-            except ValidationError as e:
-                raise ValidationError(
-                    f"Invalid data for the '{self.name}' property: {e.messages[0]}",
-                    code=e.code,
-                ) from e
-            except (ValueError, TypeError) as e:
-                raise ValidationError(
-                    f"Invalid data for the '{self.name}' property: {e}"
-                ) from e
+            raw_value = self.to_python(raw_value)
 
             # Check whether the Django model field supports the lookup
             # This prevents calling LIKE on a datetime or float field.
@@ -274,6 +366,8 @@ class XsdNode:
                     f"Operator '{tag}' is not supported for the '{self.name}' property.",
                     status_code=400,  # not HTTP 500 here. Spec allows both.
                 )
+
+        return raw_value
 
 
 class XsdElement(XsdNode):

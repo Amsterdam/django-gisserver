@@ -244,6 +244,10 @@ class NonIdOperator(Operator):
                 )
 
             if isinstance(rhs, Literal):
+                # Since the element is resolved, inform the Literal how to parse the value.
+                # This avoids various validation errors along the path.
+                rhs.bind_type(xsd_element.type)
+
                 # When a common case of value comparison is done, the inputs
                 # can be validated before the ORM query is constructed.
                 xsd_element.validate_comparison(rhs.raw_value, lookup=lookup, tag=tag)
@@ -256,6 +260,10 @@ class NonIdOperator(Operator):
         rhs: Tuple[HasBuildRhs, HasBuildRhs],
     ) -> Q:
         """Use the value in comparison with 2 other values (e.g. between query)"""
+        if compiler.feature_type is not None:
+            self.validate_comparison(compiler, lhs, lookup, rhs[0])
+            self.validate_comparison(compiler, lhs, lookup, rhs[1])
+
         field_name = lhs.build_lhs(compiler)
         result = Q(
             **{

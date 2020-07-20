@@ -24,13 +24,8 @@ from gisserver.parsers.gml import (
     is_gml_element,
     parse_gml_node,
 )
-from gisserver.parsers.utils import (
-    auto_cast,
-    expect_tag,
-    get_attribute,
-    xsd_cast,
-)
-from gisserver.types import ORMPath, FES20
+from gisserver.parsers.utils import auto_cast, expect_tag, get_attribute
+from gisserver.types import ORMPath, FES20, XsdTypes, split_xml_name
 
 NoneType = type(None)
 RhsTypes = Union[
@@ -95,7 +90,7 @@ class Literal(Expression):
 
     # The XSD definition even defines a sequence of xsd:any as possible member!
     raw_value: Union[NoneType, str, GM_Object, GM_Envelope, TM_Object]
-    type: Optional[str] = None
+    raw_type: Optional[str] = None
 
     def __str__(self):
         return self.value
@@ -107,10 +102,22 @@ class Literal(Expression):
             return self.raw_value  # GML element or None
         elif self.type:
             # Cast the value based on the given xsd:QName
-            return xsd_cast(self.raw_value, self.type)
+            return self.type.to_python(self.raw_value)
         else:
             # Make sure gt / datetime comparisons work out of the box.
             return auto_cast(self.raw_value)
+
+    @cached_property
+    def type(self) -> Optional[XsdTypes]:
+        if not self.raw_type:
+            return None
+
+        xmlns, localname = split_xml_name(self.raw_type)
+        if xmlns == "gml":
+            return XsdTypes(self.raw_type)
+        else:
+            # No idea what XMLSchema was prefixed as (could be ns0 instead of xs:)
+            return XsdTypes(localname)
 
     @classmethod
     @expect_tag(FES20, "Literal")
@@ -127,7 +134,7 @@ class Literal(Expression):
                 f"Unsupported child element for <Literal> element: {element[0].tag}."
             )
 
-        return cls(raw_value=raw_value, type=element.get("type"))
+        return cls(raw_value=raw_value, raw_type=element.get("type"))
 
     def build_lhs(self, compiler) -> str:
         """Alias the value when it's used in the left-hand-side.
@@ -146,6 +153,12 @@ class Literal(Expression):
     def build_rhs(self, compiler) -> Union[Combinable, Q, ParsedValue]:
         """Return the value when it's used in the right-hand-side"""
         return self.value
+
+    def bind_type(self, type: XsdTypes):
+        """Assign the expected type that this literal is compared against"""
+        if not self.raw_type:
+            self.__dict__["type"] = type
+            self.__dict__.pop("value", None)  # reset cached_property
 
 
 @dataclass

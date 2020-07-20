@@ -50,11 +50,11 @@ def test_fes10_add_sub():
                         BinaryOperator(
                             _operatorType=BinaryOperatorType.Sub,
                             expression=(
-                                Literal(raw_value="100", type=None),
-                                Literal(raw_value="50", type=None),
+                                Literal(raw_value="100"),
+                                Literal(raw_value="50"),
                             ),
                         ),
-                        Literal(raw_value="200", type=None),
+                        Literal(raw_value="200"),
                     ),
                 ),
             ),
