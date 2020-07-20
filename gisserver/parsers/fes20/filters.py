@@ -72,9 +72,9 @@ class Filter:
                 source=source,
             )
 
-    def compile_query(self, feature_type=None) -> query.CompiledQuery:
+    def compile_query(self, feature_type=None, using=None) -> query.CompiledQuery:
         """Collect the data to perform a Django ORM query."""
-        compiler = query.CompiledQuery(feature_type=feature_type)
+        compiler = query.CompiledQuery(feature_type=feature_type, using=using)
 
         # Function, Operator, IdList
         q_object = self.predicate.build_query(compiler)

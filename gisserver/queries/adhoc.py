@@ -130,22 +130,24 @@ class AdhocQuery(QueryExpression):
     def get_type_names(self):
         return self.typeNames
 
-    def compile_query(self, feature_type: FeatureType) -> fes20.CompiledQuery:
+    def compile_query(
+        self, feature_type: FeatureType, using=None
+    ) -> fes20.CompiledQuery:
         """Return our internal CompiledQuery object that can be applied to the queryset."""
         if self.filter:
             # Generate the internal query object from the <fes:Filter>
-            return self.filter.compile_query(feature_type)
+            return self.filter.compile_query(feature_type, using=using)
         else:
             # Generate the internal query object from the BBOX and sortBy args.
-            return self._compile_non_filter_query(feature_type)
+            return self._compile_non_filter_query(feature_type, using=using)
 
-    def _compile_non_filter_query(self, feature_type):
+    def _compile_non_filter_query(self, feature_type, using=None):
         """Generate the query based on the remaining parameters.
 
         This is slightly more efficient then generating the fes Filter object
         from these KVP parameters (which could also be done within the request method).
         """
-        compiler = fes20.CompiledQuery(feature_type=feature_type)
+        compiler = fes20.CompiledQuery(feature_type=feature_type, using=using)
 
         if self.bbox:
             # Validate whether the provided SRID is supported.

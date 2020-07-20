@@ -197,7 +197,9 @@ class GetFeatureById(StoredQuery):
 
         return collection
 
-    def compile_query(self, feature_type: FeatureType) -> fes20.CompiledQuery:
+    def compile_query(
+        self, feature_type: FeatureType, using=None
+    ) -> fes20.CompiledQuery:
         """Create the internal query object that will be applied to the queryset."""
         compiler = fes20.CompiledQuery(feature_type=feature_type)
         compiler.add_lookups(Q(pk=self.id), type_name=self.type_name)

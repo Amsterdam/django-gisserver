@@ -25,12 +25,14 @@ class CompiledQuery:
     def __init__(
         self,
         feature_type: Optional[FeatureType] = None,
+        using: Optional[str] = None,
         lookups: Optional[List[Q]] = None,
         typed_lookups: Optional[Dict[str, List[Q]]] = None,
         annotations: Optional[Dict[str, Union[Combinable, Q]]] = None,
     ):
         """The init method is typically used only in unit tests."""
         self.feature_type = feature_type
+        self.using = using
         self.lookups = lookups or []
         self.typed_lookups = typed_lookups or {}
         self.annotations = annotations or {}

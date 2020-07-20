@@ -111,7 +111,7 @@ class QueryExpression:
         queryset = feature_type.get_queryset()
 
         # Apply filters
-        compiler = self.compile_query(feature_type)
+        compiler = self.compile_query(feature_type, using=queryset.db)
 
         if self.value_reference is not None:
             if feature_type.resolve_element(self.value_reference.xpath) is None:
@@ -138,7 +138,9 @@ class QueryExpression:
             f"{self.__class__.__name__}.get_type_names() should be implemented."
         )
 
-    def compile_query(self, feature_type: FeatureType) -> fes20.CompiledQuery:
+    def compile_query(
+        self, feature_type: FeatureType, using=None
+    ) -> fes20.CompiledQuery:
         """Define the compiled query that filters the queryset.
 
         Subclasses need to define this method, unless
