@@ -15,7 +15,7 @@ from django.contrib.gis import measure
 from django.db.models import Q
 from django.utils.functional import cached_property
 
-from gisserver.exceptions import ExternalParsingError
+from gisserver.exceptions import ExternalParsingError, OperationProcessingFailed
 from gisserver.parsers import gml
 from gisserver.parsers.base import BaseNode, TagNameEnum, tag_registry
 from gisserver.parsers.utils import expect_tag, get_attribute, get_child
@@ -195,6 +195,7 @@ class NonIdOperator(Operator):
     """Abstract base class, as defined by FES spec."""
 
     _source = None
+    allow_geometries = False
 
     def build_compare(
         self,
@@ -209,19 +210,11 @@ class NonIdOperator(Operator):
         """
         # lhs and rhs are allowed to be reversed. However, the SQL compiler
         # works much simpler when Django can predict the actual data type.
-        if isinstance(rhs, Literal) and isinstance(rhs, ValueReference):
+        if isinstance(lhs, Literal) and isinstance(rhs, ValueReference):
             lhs, rhs = rhs, lhs
 
-        if (
-            compiler.feature_type is not None
-            and isinstance(lhs, ValueReference)
-            and isinstance(rhs, Literal)
-        ):
-            # When a common case of value comparison is done, the inputs
-            # can be validated before the ORM query is constructed.
-            xsd_element = compiler.feature_type.resolve_element(lhs.xpath).child
-            tag = self._source if self._source is not None else None
-            xsd_element.validate_comparison(rhs.raw_value, lookup=lookup, tag=tag)
+        if compiler.feature_type is not None:
+            self.validate_comparison(compiler, lhs, lookup, rhs)
 
         lhs = lhs.build_lhs(compiler)
 
@@ -230,6 +223,30 @@ class NonIdOperator(Operator):
 
         result = Q(**{f"{lhs}__{lookup}": rhs})
         return compiler.apply_extra_lookups(result)
+
+    def validate_comparison(
+        self, compiler, lhs: Expression, lookup: str, rhs: Union[Expression, RhsTypes]
+    ):
+        """Validate whether a given comparison is even possible.
+        Where needed, the lhs/rhs are already ordered in a logical sequence.
+        """
+        if isinstance(lhs, ValueReference):
+            xsd_element = compiler.feature_type.resolve_element(lhs.xpath).child
+            tag = self._source if self._source is not None else None
+
+            # e.g. deny <PropertyIsLessThanOrEqualTo> against <gml:boundedBy>
+            if xsd_element.is_geometry and not self.allow_geometries:
+                raise OperationProcessingFailed(
+                    "filter",
+                    f"Operator '{tag}' does not support comparing"
+                    f" geometry properties: '{xsd_element.xml_name}'.",
+                    status_code=400,  # not HTTP 500 here. Spec allows both.
+                )
+
+            if isinstance(rhs, Literal):
+                # When a common case of value comparison is done, the inputs
+                # can be validated before the ORM query is constructed.
+                xsd_element.validate_comparison(rhs.raw_value, lookup=lookup, tag=tag)
 
     def build_compare_between(
         self,
@@ -259,6 +276,8 @@ class SpatialOperator(NonIdOperator):
 @tag_registry.register_names(DistanceOperatorName)  # <Beyond>, <DWithin>
 class DistanceOperator(SpatialOperator):
     """Comparing the distance to a geometry."""
+
+    allow_geometries = True  # override static attribute
 
     valueReference: ValueReference
     operatorType: DistanceOperatorName
@@ -299,6 +318,8 @@ class DistanceOperator(SpatialOperator):
 @tag_registry.register_names(SpatialOperatorName)  # <BBOX>, <Equals>, ...
 class BinarySpatialOperator(SpatialOperator):
     """A comparison of geometries using 2 values, e.g. A Within B."""
+
+    allow_geometries = True  # override static attribute
 
     operatorType: SpatialOperatorName
     operand1: Optional[ValueReference]

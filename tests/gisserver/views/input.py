@@ -377,6 +377,32 @@ INVALID_FILTERS = {
             " It must be in YYYY-MM-DD HH:MM[:ss[.uuuuuu]][TZ] format.",
         ),
     ),
+    "geometry_lte": (
+        # There is so much wrong with this filter that I don't see why
+        # this is part of the CITE conformance test suite. It's valid
+        # for the XSD schema, but invalid for the application logic.
+        """
+    <Filter
+        xmlns="http://www.opengis.net/fes/2.0"
+        xmlns:wfs="http://www.opengis.net/wfs/2.0">
+        <PropertyIsLessThanOrEqualTo matchAction="Any" matchCase="true">
+            <Literal>
+                <gml:Envelope xmlns:gml="http://www.opengis.net/gml/3.2"
+                              srsName="urn:ogc:def:crs:EPSG::4326">
+                    <gml:lowerCorner>-90 -180</gml:lowerCorner>
+                    <gml:upperCorner>90 180</gml:upperCorner>
+                </gml:Envelope>
+            </Literal>
+            <ValueReference
+                xmlns:gml="http://www.opengis.net/gml/3.2">gml:boundedBy</ValueReference>
+        </PropertyIsLessThanOrEqualTo>
+    </Filter>""",
+        OperationProcessingFailed(
+            "filter",
+            "Operator '{http://www.opengis.net/fes/2.0}PropertyIsLessThanOrEqualTo'"
+            " does not support comparing geometry properties: 'gml:boundedBy'.",
+        ),
+    ),
 }
 
 SORT_BY = {

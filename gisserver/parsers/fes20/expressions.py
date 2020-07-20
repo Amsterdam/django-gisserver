@@ -14,8 +14,16 @@ from django.contrib.gis.geos import GEOSGeometry
 from django.db.models import Func, Q, Value
 from django.db.models.expressions import Combinable
 
+from gisserver.exceptions import ExternalParsingError
 from gisserver.parsers.base import BaseNode, TagNameEnum, tag_registry
 from gisserver.parsers.fes20.functions import function_registry
+from gisserver.parsers.gml import (
+    GM_Envelope,
+    GM_Object,
+    TM_Object,
+    is_gml_element,
+    parse_gml_node,
+)
 from gisserver.parsers.utils import (
     auto_cast,
     expect_tag,
@@ -25,9 +33,11 @@ from gisserver.parsers.utils import (
 from gisserver.types import ORMPath, FES20
 
 NoneType = type(None)
-
 RhsTypes = Union[
     Combinable, Func, Q, GEOSGeometry, bool, int, str, date, datetime, tuple
+]
+ParsedValue = Union[
+    int, str, date, D, datetime, GM_Object, GM_Envelope, TM_Object, NoneType
 ]
 
 OUTPUT_FIELDS = {
@@ -83,18 +93,19 @@ class Expression(BaseNode):
 class Literal(Expression):
     """The <fes:Literal> element that holds a literal value"""
 
-    raw_value: Optional[str]
+    # The XSD definition even defines a sequence of xsd:any as possible member!
+    raw_value: Union[NoneType, str, GM_Object, GM_Envelope, TM_Object]
     type: Optional[str] = None
 
     def __str__(self):
         return self.value
 
     @cached_property
-    def value(
-        self,
-    ) -> Union[int, str, date, D, datetime, NoneType]:  # officially <xsd:any>
+    def value(self) -> ParsedValue:  # officially <xsd:any>
         """Access the value of the element, casted to the appropriate data type."""
-        if self.type:
+        if not isinstance(self.raw_value, str):
+            return self.raw_value  # GML element or None
+        elif self.type:
             # Cast the value based on the given xsd:QName
             return xsd_cast(self.raw_value, self.type)
         else:
@@ -102,9 +113,21 @@ class Literal(Expression):
             return auto_cast(self.raw_value)
 
     @classmethod
-    @expect_tag(FES20, "Literal", leaf=True)
+    @expect_tag(FES20, "Literal")
     def from_xml(cls, element: Element):
-        return cls(raw_value=element.text, type=element.get("type"))
+        children = len(element)
+        if not children:
+            # Common case: value is raw text
+            raw_value = element.text
+        elif children == 1 and is_gml_element(element[0]):
+            # Possible: a <gml:Envelope> element to compare something against.
+            raw_value = parse_gml_node(element[0])
+        else:
+            raise ExternalParsingError(
+                f"Unsupported child element for <Literal> element: {element[0].tag}."
+            )
+
+        return cls(raw_value=raw_value, type=element.get("type"))
 
     def build_lhs(self, compiler) -> str:
         """Alias the value when it's used in the left-hand-side.
@@ -120,7 +143,7 @@ class Literal(Expression):
         # When the value is used a left-hand-side, Django needs to know the output type.
         return OUTPUT_FIELDS.get(type(self.value))
 
-    def build_rhs(self, compiler) -> Union[Combinable, Q, str]:
+    def build_rhs(self, compiler) -> Union[Combinable, Q, ParsedValue]:
         """Return the value when it's used in the right-hand-side"""
         return self.value
 
