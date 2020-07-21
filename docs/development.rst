@@ -1,6 +1,8 @@
 Development
 ============
 
+.. contents:: :local:
+
 When you follow the source of the `WFSView`, `WFSMethod` and `Parameter` classes,
 you'll find that it's written with extensibility in mind. Extra parameters and operations
 can easily be added there. You could even do that within your own projects and implementations.
@@ -10,6 +12,34 @@ By following these type definitions, a lot of the logic and code structure follo
 
 The :file:`Makefile` gives you all you need to start working on the project.
 Typing ``make`` gives an overview of all possible shortcut commands.
+
+
+Running tests
+-------------
+
+The :file:`Makefile` has all options. Just typing ``make`` gives a list of all commands.
+
+Using ``make test``, and ``make retest`` should run the pytest suite.
+
+A special ``make docker-test`` runs the tests as they would run within Travis-CI.
+This helps to debug any differences between coordinate transformations due to
+different PROJ.4 versions being installed.
+
+Accessing the CITE tests
+------------------------
+
+To perform CITE conformance testing against a server,
+use `<https://cite.opengeospatial.org/teamengine/>`_.
+
+* At the bottom of the page, there is a **Create an account** button.
+* Create a new WFS 2.0 test session
+* At the next page, enter the URL to the ``GetCapabilities`` document, e.g.:
+
+`http://example.org/v1/wfs/?VERSION=2.0.0&REQUEST=GetCapabilities`
+
+Local testing can't be done with NGrok, as it exceeds the rate limiting.
+Instead, consider opening a temporary port-forward at your router/modem.
+
 
 Internal logic
 --------------
@@ -72,7 +102,7 @@ When ``GetFeature`` or ``GetPropertyValue`` is called, several things happen:
 The whole ``<fes:Filter>`` contents is translated an an internal "abstract syntax tree" (AST)
 which closely resembles all class names that the FES standard defines.
 
-Then, it's ``.get_query()`` method constructs the proper query object based on the request parameters.
+Then, the views ``.get_query()`` method constructs the proper query object based on the request parameters.
 
 The query class diagram looks like:
 
@@ -128,6 +158,22 @@ The ``CompiledQuery`` collects all intermediate data needed
 to translate the ``<fes:Filter>`` queries to a Django ORM call.
 This object is passed though all nodes of the filter,
 so each ``build...()`` function can add their lookups and annotations.
+
+Finally, the query returns a ``FeatureCollection`` that iterates over all results.
+Each ``FeatureType`` is represented by a ``SimpleFeatureCollection`` member.
+
+.. graphviz::
+
+    digraph foo {
+
+        FeatureCollection [shape=box]
+        SimpleFeatureCollection [shape=box]
+        FeatureCollection -> SimpleFeatureCollection
+
+    }
+
+These collections attempt to use queryset-iterator logic as much as possible,
+unless it would cause multiple queries (such as needing the ``number_matched`` data early).
 
 Output Rendering
 ~~~~~~~~~~~~~~~~
@@ -191,18 +237,3 @@ Other links:
 
 * http://schemas.opengis.net/wfs/2.0/ (XSD and examples)
 * https://mapserver.org/development/rfc/ms-rfc-105.html (more examples)
-
-Accessing the CITE tests
-------------------------
-
-To perform CITE conformance testing against a server,
-use `<https://cite.opengeospatial.org/teamengine/>`_.
-
-At the bottom of the page, there is a "Register" button.
-Create a new WFS 2.0 test session, and enter the URL, e.g.:
-
-`http://example.org/v1/wfs/?VERSION=2.0.0&REQUEST=GetCapabilities`
-
-Local testing can't be done with NGrok, as it exceeds the rate limiting.
-Instead, consider opening a temporary port-forward at your router/modem.
-

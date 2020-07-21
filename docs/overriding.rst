@@ -129,7 +129,7 @@ By default, only ``GetFeatureById`` is built-in.
 
 These stored procedures can be defined like this:
 
-.. code-block::
+.. code-block:: python
 
     from gisserver.queries import StoredQuery, stored_query_registry
     from gisserver.types import XsdTypes

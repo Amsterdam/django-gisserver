@@ -1,11 +1,11 @@
 Configuration Settings
 ======================
 
-The following configuration settings can be used to tweak server behavior
+The following configuration settings can be used to tweak server behavior.
 
 The defaults are:
 
-.. code-block::
+.. code-block:: python
 
     import math
 

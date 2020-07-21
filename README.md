@@ -20,7 +20,7 @@ Django speaking WFS 2.0 to expose geo data.
 
 ## Documentation
 
-For more details, see: <https://django-gisserver.readthedocs.io/en/latest/>
+For more details, see: <https://django-gisserver.readthedocs.io/>
 
 
 ## Quickstart
