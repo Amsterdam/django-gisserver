@@ -1,0 +1,139 @@
+Feature Type Configuration
+==========================
+
+Having completed the :doc:`getting started <quickstart>` page, a server should be running.
+The exposed feature types can be configured further.
+
+.. tip::
+    WFS uses the term "feature" reference any real-world pointable thing,
+    which is typically called an "object instance" in Django terminology.
+    Likewise, a "feature type" describes the definition, which Django calls a "model".
+
+
+Defining the exposed fields
+---------------------------
+
+By default, only the geometry field is exposed as WFS attribute.
+This avoids exposing any privacy sensitive fields.
+
+While ``fields="__all__"`` works for convenience, it's better and more secure
+to define the exact field names using the ``FeatureType(..., fields=[...])`` parameter:
+
+.. code-block:: python
+
+    from gisserver.features import FeatureType
+    from gisserver.views import WFSView
+
+
+    class CustomWFSView(WFSView):
+        ...
+
+        feature_types = [
+            FeatureType(
+                Restaurant.objects.all(),
+                fields=[
+                    "id",
+                    "name",
+                    "location",
+                    "owner_id",
+                    "created"
+                ],
+            ),
+        ]
+
+
+Renaming fields
+~~~~~~~~~~~~~~~
+
+Using the ``model_attribute``, the field name can differ from the actual attribute:
+
+.. code-block:: python
+
+    from gisserver.features import FeatureType, field
+    from gisserver.views import WFSView
+
+
+    class CustomWFSView(WFSView):
+        ...
+
+        feature_types = [
+            FeatureType(
+                Restaurant.objects.all(),
+                fields=[
+                    "id",
+                    "name",
+                    field("location", model_attribute="point"),
+                    field("owner.id", model_attribute="owner_id"),
+                    "created"
+                ],
+            ),
+        ]
+
+
+
+
+Exposing complex fields
+~~~~~~~~~~~~~~~~~~~~~~~
+
+Foreign key relations can be exposed as "complex fields":
+
+.. code-block:: python
+
+    from gisserver.features import FeatureType, field
+    from gisserver.views import WFSView
+
+
+    class CustomWFSView(WFSView):
+        ...
+
+        feature_types = [
+            FeatureType(
+                Restaurant.objects.all(),
+                fields=[
+                    "id",
+                    "name",
+                    "location",
+                    field("owner", fields=["id", "name", "phonenumber"])
+                    "created"
+                ],
+            ),
+        ]
+
+These fields appear as nested properties in the ``GetFeature`` response.
+
+Exposing flattened relations
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Since various clients (like QGis) don't support complex types well,
+relations can also be flattened by defining dotted-names.
+This can be combined with `model_attribute` which allows to access a different field:
+
+.. code-block:: python
+
+    from gisserver.features import FeatureType, field
+    from gisserver.views import WFSView
+
+
+    class CustomWFSView(WFSView):
+        ...
+
+        feature_types = [
+            FeatureType(
+                Restaurant.objects.all(),
+                fields=[
+                    "id",
+                    "name",
+                    "location",
+                    field("owner.id", model_attribute="owner_id")
+                    "owner.name",
+                    field("owner.phone", model_attribute="owner.telephone"),
+                    "created"
+                ],
+            ),
+        ]
+
+If a dotted-name is found, the :func:`~gisserver.features.field` logic
+assumes it's a flattened relation.
+
+In the example above, the ``owner.id`` field is linked to the ``owner_id`` model attribute
+so no additional JOIN is needed to filter against ``owner.id``.

@@ -565,7 +565,6 @@ class XsdComplexType(XsdAnyType):
     name: str
     elements: List[XsdElement]
     attributes: List[XsdAttribute] = field(default_factory=list)
-    prefix: str = "app"
     base: XsdAnyType = XsdTypes.gmlAbstractFeatureType
     prefix: str = "app"
     source: Optional[Type[models.Model]] = None

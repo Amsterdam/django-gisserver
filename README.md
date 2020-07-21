@@ -1,3 +1,4 @@
+[![Documentation](https://readthedocs.org/projects/django-gisserver/badge/?version=latest)](https://django-gisserver.readthedocs.io/en/latest/?badge=latest)
 [![Travis](https://img.shields.io/travis/amsterdam/django-gisserver.svg)](http://travis-ci.org/amsterdam/django-gisserver)
 [![PyPI](https://img.shields.io/pypi/v/django-gisserver.svg)](https://pypi.python.org/pypi/django-gisserver)
 [![MPL License](https://img.shields.io/badge/license-MPL%202.0-blue.svg)](https://pypi.python.org/pypi/django-gisserver)
@@ -9,7 +10,7 @@ Django speaking WFS 2.0 to expose geo data.
 
 ## Features
 
-* WFS 2.0 simple implementation.
+* WFS 2.0 Basic implementation.
 * GML 3.2 output.
 * Standard and spatial filtering (FES 2.0)
 * GeoJSON and CSV export formats.
@@ -17,7 +18,12 @@ Django speaking WFS 2.0 to expose geo data.
 * Uses GeoDjango queries for filtering.
 * Streaming responses for large datasets.
 
-## Usage
+## Documentation
+
+For more details, see: <https://django-gisserver.readthedocs.io/en/latest/>
+
+
+## Quickstart
 
 Create a model that exposes a GeoDjango field:
 
@@ -91,130 +97,6 @@ It will perform requests such as:
 By adding `&OUTPUTFORMAT=geojson` or `&OUTPUTFORMAT=csv` to the `GetFeature` request, the GeoJSON and CSV outputs are returned.
 The CSV output has an unlimited page size, as it's quite performant.
 
-## Configuring fields
-
-By default, only the geometry field is exposed as WFS attribute.
-Use the `FeatureType(..., fields=[...])` parameter to define which fields should be exposed.
-
-It's possible to expose foreign key relations too as complex fields:
-
-```python
-from gisserver.features import FeatureType, field
-
-
-class CustomWFSView(WFSView):
-    ...
-
-    feature_types = [
-        FeatureType(
-            Restaurant.objects.all(),
-            fields=[
-                "id",
-                "name",
-                "location",
-                field("owner", fields=["id", "name", "phonenumber"])
-                "created"
-            ],
-        ),
-    ]
-```
-
-Since various clients (like QGis) don't support complex types well,
-relations can also be flattened by defining dotted-names.
-This can be combined with `model_attribute` which allows to access a different field.
-
-```python
-from gisserver.features import FeatureType, field
-
-
-class CustomWFSView(WFSView):
-    ...
-
-    feature_types = [
-        FeatureType(
-            Restaurant.objects.all(),
-            fields=[
-                "id",
-                "name",
-                "location",
-                field("owner.id", model_attribute="owner_id")
-                "owner.name",
-                field("owner.phone", model_attribute="owner.telephone"),
-                "created"
-            ],
-        ),
-    ]
-```
-
-
-## Customization hooks
-
-There are a few places that allow to customize the WFS logic:
-
-* Overriding methods from ``WFSView``, such as ``get_feature_types()`` or ``dispatch()`` for authorization.
-* Subclassing the ``FeatureType`` class, to override it's ``get_queryset()`` method.
-* Subclassing the ``FeatureField`` class that is passed to the ``FeatureType(fields=...)`` parameter.
-* Registering new FES functions to ``gisserver.parsers.fes_function_registry``.
-* Registering new stored procedures to ``gisserver.queries.stored_query_registry``.
-
-## Debugging questions
-
-* The error "Operation on mixed SRID geometries" often indicates the table SRID differs
-  from the ``GeometryField(srid=..)`` configuration in Django.
-
-## Standards compliance
-
-Nearly all operations for the WFS simple conformance class are implemented.
-You should be able to view the WFS server [QGis](https://qgis.org/).
-The unit tests validate the output against WFS 2.0 XSD schema.
-
-Some remaining parts for the "WFS simple" conformance level are not implemented yet:
-
-* KVP filters: `propertyName`, `aliases`.
-* Remote resolving: `resolveDepth`, `resolveTimeout`.
-* Some `GetCapabilities` features: `acceptFormats` and `sections`.
-* Temporal filtering (high on todo)
-
-### Low-prio items:
-
-Anything outside WFS simple could be implemented, but is very low on the todo-list:
-
-* The methods for the WFS transactional, locking and inheritance conformance classes.
-* HTTP POST requests.
-* SOAP requests.
-* Other protocols (WMS, WMTS, WCS)
-* Other output formats (shapefile, KML, GML 3.1) - but easy to add.
-
-## Development
-
-When you follow the source of the `WFSView`, `WFSMethod` and `Parameter` classes,
-you'll find that it's written with extensibility in mind. Extra parameters and operations
-can easily be added there. You could even do that within your own projects and implementations.
-
-A lot of the internal classes and object names are direct copies from the WFS spec.
-By following these type definitions, a lot of the logic and code structure follows naturally.
-
-The `Makefile` gives you all you need to start working on the project.
-Typing `make` gives an overview of all possible shortcut commands.
-
-The WFS specification and examples be found at:
-
-* <https://www.opengeospatial.org/standards/> (all OGC standards)
-* <https://docs.opengeospatial.org/> (HTML versions)
-
-Some deeplinks:
-
-* <https://www.opengeospatial.org/standards/common> (OGC Web Service Common)
-* <https://www.opengeospatial.org/standards/wfs#downloads> (OGC WFS)
-* <https://portal.opengeospatial.org/files/09-025r2> (WFS 2.0 spec, PDF)
-* <https://portal.opengeospatial.org/files/09-026r1> (OpenGIS Filter Encoding 2.0, PDF)
-* <https://portal.opengeospatial.org/files/07-036> (GML 3.2.1)
-
-Other links:
-
-* <http://schemas.opengis.net/wfs/2.0/> (XSD and examples)
-* <https://cite.opengeospatial.org/teamengine/> (test suite)
-* <https://mapserver.org/development/rfc/ms-rfc-105.html> (more examples)
 
 
 ## Why this code is shared

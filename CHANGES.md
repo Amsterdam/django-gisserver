@@ -1,3 +1,25 @@
+# 2020-07-21 (1.0)
+
+* Added `FeatureType.show_name_field` to show/hide `<gml:name>` and GeoJSON `geometry_name`.
+* Added `FeatureType.xml_prefix` so the outputted namespace prefix can be changed from "app:" to anything else.
+* Added `FeatureType.xsd_type_class` so this can be overwritten easier.
+* Added `XsdNode.to_python()` to support input data parsing.
+* Added `GISSERVER_SUPPORTED_CRS_ONLY` to accept only the listed coordinate systems.
+* Rename `is_gml` -> `is_geometry`.
+* Fixes for CITE compliance testing for WFS Basic conformance:
+  * Added `ImplementsBasicWFS` flag in capabilities document.
+  * Added attribute resolving, like `@gml:id` in XPath.
+  * Added querying support for the `gml:name` field.
+  * Added support to fetch multiple RESOURCEID objects in a single request.
+  * Fixed unwanted exception when the RESOURCEID format is invalid, empty results are returned instead.
+  * Fixed locator for RESOURCEID errors.
+  * Fixed filter type exception, now `OperationParsingFailed` instead of `InvalidParameterValue`.
+  * Fixed datetime and boolean comparisons.
+  * Fixed exception message when `<PropertyIsLessThanOrEqualTo>` receives an GML object.
+  * Fixed exception message for bad SRID's.
+* Internal code reorganizations.
+
+
 # 2020-07-09 (0.9.1)
 
 * Fixed `GetPropertyValue` calls for non-db optimized rendering.

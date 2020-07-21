@@ -159,7 +159,7 @@ class AdhocQuery(QueryExpression):
             # it would crash when an unsupported ID is given.
             crs = self.bbox.crs
             if (
-                conf.GISSERVER_WFS_SUPPORTED_CRS_ONLY
+                conf.GISSERVER_SUPPORTED_CRS_ONLY
                 and crs is not None
                 and crs not in feature_type.supported_crs
             ):
