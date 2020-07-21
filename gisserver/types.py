@@ -6,7 +6,7 @@ classes. Custom field types could also generate these field types.
 """
 import operator
 import re
-from datetime import date, datetime, time
+from datetime import datetime
 from decimal import Decimal as D
 from dataclasses import dataclass, field
 from enum import Enum
@@ -17,7 +17,7 @@ from django.core.exceptions import (
 )
 from django.db.models import Q
 from django.db.models.fields.related import RelatedField
-from django.utils.dateparse import parse_datetime
+from django.utils.dateparse import parse_date, parse_datetime, parse_time
 from typing import List, Optional, Tuple, Type, TYPE_CHECKING
 
 from django.contrib.gis.db.models import F, GeometryField
@@ -192,9 +192,9 @@ def parse_bool(raw_value: str):
 
 as_is = lambda v: v
 TYPES_TO_PYTHON = {
-    XsdTypes.date: date.fromisoformat,
+    XsdTypes.date: parse_date,
     XsdTypes.dateTime: parse_iso_datetime,
-    XsdTypes.time: time.fromisoformat,
+    XsdTypes.time: parse_time,
     XsdTypes.string: as_is,
     XsdTypes.boolean: parse_bool,
     XsdTypes.integer: int,
