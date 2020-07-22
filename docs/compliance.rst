@@ -33,7 +33,7 @@ Other Python tiling logic such as
 `TileCache <http://tilecache.org/>`_ and `TileStache <http://tilestache.org/>`_
 could serve as inspiration too.
 
-Low-prio items
+Low-Prio Items
 --------------
 
 Anything outside WFS-T could be implemented, but is very low on the todo-list:

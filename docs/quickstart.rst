@@ -1,4 +1,4 @@
-Getting started
+Getting Started
 ===============
 
 The django-gisserver module is designed to be used in an existing GeoDjango project.
@@ -70,7 +70,7 @@ Use that view in the URLConf:
         path("/wfs/places/", views.PlacesWFSView.as_view()),
     ]
 
-Testing the server
+Testing the Server
 ------------------
 
 You can now use http://localhost:8000/wfs/places/ in your GIS application.
@@ -80,7 +80,7 @@ It will perform requests such as:
 * http://localhost:8000/wfs/places/?SERVICE=WFS&REQUEST=DescribeFeatureType&VERSION=2.0.0&TYPENAMES=restaurant
 * http://localhost:8000/wfs/places/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant&STARTINDEX=0&COUNT=1000&SRSNAME=urn:ogc:def:crs:EPSG::28992
 
-Specifying the output format
+Specifying the Output Format
 ----------------------------
 
 By adding ``&OUTPUTFORMAT=geojson`` or ``&OUTPUTFORMAT=csv`` to the ``GetFeature`` request,

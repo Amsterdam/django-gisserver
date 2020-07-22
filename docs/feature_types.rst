@@ -10,7 +10,7 @@ The exposed feature types can be configured further.
     Likewise, a "feature type" describes the definition, which Django calls a "model".
 
 
-Defining the exposed fields
+Defining the Exposed Fields
 ---------------------------
 
 By default, only the geometry field is exposed as WFS attribute.
@@ -42,7 +42,7 @@ to define the exact field names using the ``FeatureType(..., fields=[...])`` par
         ]
 
 
-Renaming fields
+Renaming Fields
 ~~~~~~~~~~~~~~~
 
 Using the ``model_attribute``, the field name can differ from the actual attribute:
@@ -72,7 +72,7 @@ Using the ``model_attribute``, the field name can differ from the actual attribu
 
 
 
-Exposing complex fields
+Exposing Complex Fields
 ~~~~~~~~~~~~~~~~~~~~~~~
 
 Foreign key relations can be exposed as "complex fields":
@@ -101,7 +101,7 @@ Foreign key relations can be exposed as "complex fields":
 
 These fields appear as nested properties in the ``GetFeature`` response.
 
-Exposing flattened relations
+Exposing Flattened Relations
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Since various clients (like QGis) don't support complex types well,
