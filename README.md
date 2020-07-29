@@ -25,6 +25,21 @@ For more details, see: <https://django-gisserver.readthedocs.io/>
 
 ## Quickstart
 
+Install the module in your project:
+
+```bash
+pip install django-gisserver
+```
+
+Add it to the ``INSTALLED_APPS``:
+
+```python
+INSTALLED_APPS = [
+    ...
+    "gisserver",
+]
+```
+
 Create a model that exposes a GeoDjango field:
 
 ```python

@@ -4,6 +4,21 @@ Getting Started
 The django-gisserver module is designed to be used in an existing GeoDjango project.
 Hence, all configuration is done in code.
 
+Install the module in your project:
+
+.. code-block:: bash
+
+    pip install django-gisserver
+
+Add it to the ``INSTALLED_APPS``:
+
+.. code-block:: python
+
+    INSTALLED_APPS = [
+        ...
+        "gisserver",
+    ]
+
 Suppose the project has this exisiting GeoDjango model:
 
 .. code-block:: python
