@@ -3,7 +3,7 @@ Standards Compliance
 
 Some facts about this project:
 
-* Nearly all operations for the WFS Basic conformance class are implemented.
+* All operations for the WFS Basic conformance class are implemented.
 * The `CITE Test Suite <https://cite.opengeospatial.org/teamengine/>`_  only reveals a few bits left to implement.
 * You should be able to view the WFS server `QGis <https://qgis.org/>`_.
 * The unit tests validate the output against WFS 2.0 XSD schema.
