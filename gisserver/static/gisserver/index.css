@@ -1,0 +1,4 @@
+tbody th { text-align: left; }
+.complex-level-1 th { padding-left: 16px; }
+.complex-level-2 th { padding-left: 32px; }
+.complex-level-3 th { padding-left: 48px; }

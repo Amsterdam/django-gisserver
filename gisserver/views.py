@@ -1,5 +1,6 @@
 """The view layer parses the request, and dispatches it to an operation."""
 import re
+from django.shortcuts import render
 from typing import List, Optional, Type
 
 from django.core.exceptions import (
@@ -48,6 +49,12 @@ class GISView(View):
     #: Metadata of the service:
     service_description: Optional[ServiceDescription] = None
 
+    #: Template to render a HTML welcome page for non-OGC requests.
+    index_template_name = None
+
+    #: Whether to render GET HTML pages
+    use_html_templates = True
+
     def dispatch(self, request, *args, **kwargs):
         """Render proper XML errors for exceptions on all request types."""
         try:
@@ -90,8 +97,76 @@ class GISView(View):
         """
         # Convert to WFS key-value-pair format.
         self.KVP = {key.upper(): value for key, value in request.GET.items()}
+
+        # Perform early version parsing. The detailed validation happens by the operation
+        # Parameter objects, but by performing an early check, templates can use that version.
+        version = self.KVP.get("VERSION")
+        if version and version in self.accept_versions:
+            self.set_version(version)
+
+        # Allow for an user-friendly opening page (hence the version check above)
+        if self.use_html_templates and self.is_index_request():
+            return self.render_index()
+
+        # Normal WFS
         wfs_method_cls = self.get_operation_class()
         return self.call_operation(wfs_method_cls)
+
+    def is_index_request(self):
+        """Tell whether to index page should be shown."""
+        # If none of the typical WFS parameters are given, and there aren't many other
+        # (misspelled?) parameters on the query string, this is considered to be an index page.
+        # Minimal request has 2 parameters (SERVICE=WFS&REQUEST=GetCapabilities).
+        # Some servers also allow a default of SERVICE, thus needing even less.
+        return len(self.KVP) < 2 and {
+            "REQUEST",
+            "SERVICE",
+            "VERSION",
+            "ACCEPTVERSIONS",
+        }.isdisjoint(self.KVP.keys())
+
+    def render_index(self):
+        """Render the index page."""
+        # Not using the whole TemplateResponseMixin config with configurable parameters.
+        # If this really needs more configuration, overriding is likely just as easy.
+        return render(
+            self.request, self.get_index_template_names(), self.get_index_context_data()
+        )
+
+    def get_index_context_data(self, **kwargs):
+        """Provide the context data for the index page."""
+        service = self.KVP.get("SERVICE", self.default_service)
+        return {
+            "view": self,
+            "service": service,
+            "version": self.version,
+            "service_description": self.get_service_description(service),
+            "accept_versions": self.accept_versions,
+            "accept_operations": self.accept_operations,
+            **kwargs,
+        }
+
+    def get_index_template_names(self):
+        """Get the index page template name.
+        If no template is configured, some reasonable defaults are selected.
+        """
+        raw_service = self.KVP.get("SERVICE", self.default_service)
+        if raw_service and raw_service in self.accept_operations:
+            service = raw_service.lower()
+        else:
+            service = "default"
+
+        if self.index_template_name:
+            # Allow the same substitutions for a manually configured template.
+            return [
+                self.index_template_name.format(service=service, version=self.version)
+            ]
+        else:
+            return [
+                f"gisserver/{service}/{self.version}/index.html",
+                f"gisserver/{service}/index.html",
+                "gisserver/index.html",
+            ]
 
     def get_operation_class(self) -> Type[base.WFSMethod]:
         """Resolve the method that the client wants to call."""
@@ -231,3 +306,18 @@ class WFSView(GISView):
     def get_feature_types(self) -> List[FeatureType]:
         """Return all available feature types this server exposes"""
         return self.feature_types
+
+    def get_index_context_data(self, **kwargs):
+        """Add WFS specific metadata"""
+        wfs_output_formats = self.accept_operations["WFS"]["GetFeature"].output_formats
+
+        context = super().get_index_context_data(**kwargs)
+        context.update(
+            {
+                "wfs_features": self.get_feature_types(),
+                "wfs_output_formats": wfs_output_formats,
+                "wfs_filter_capabilities": self.wfs_filter_capabilities,
+                "wfs_service_constraints": self.wfs_service_constraints,
+            }
+        )
+        return context

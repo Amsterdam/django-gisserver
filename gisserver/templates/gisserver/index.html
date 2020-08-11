@@ -1,0 +1,26 @@
+<!doctype html>{% load i18n static %}{# This is a very basic template that can be overwritten in projects #}
+<html>
+<head>
+  <meta http-equiv="content-type" content="text/html; charset=utf-8">
+  <title>{{ service_description.title }} {{ accept_operations|dictsort:0|join:"/" }}</title>
+  {% block link %}<link rel="stylesheet" type="text/css" href="{% static 'gisserver/index.css' %}">{% endblock %}
+  {% block extrahead %}{% endblock %}
+</head>
+<body>
+  <header>
+    {% block header %}{% include "gisserver/service_description.html" %}{% endblock %}
+  </header>
+
+  <main>
+    {% block main %}
+      {% if wfs_features %}
+        <h2>WFS Feature Types</h2>
+        {% for feature_type in wfs_features %}
+          <article>{% include "gisserver/wfs/feature_type.html" %}</article>
+        {% endfor %}
+      {% endif %}
+    {% endblock %}
+  </main>
+
+</body>
+</html>

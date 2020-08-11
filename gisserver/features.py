@@ -160,12 +160,15 @@ class FeatureField:
         model_attribute=None,
         model=None,
         parent: "Optional[ComplexFeatureField]" = None,
+        abstract=None,
     ):
         self.name = name
         self.model_attribute = model_attribute
         self.model = None
         self.model_field = None
         self.parent = parent
+        self.abstract = abstract
+
         self._nillable_relation = False
         if model is not None:
             self.bind(model)
@@ -247,7 +250,12 @@ class ComplexFeatureField(FeatureField):
     """
 
     def __init__(
-        self, name: str, fields: _FieldDefinitions, model_attribute=None, model=None
+        self,
+        name: str,
+        fields: _FieldDefinitions,
+        model_attribute=None,
+        model=None,
+        abstract=None,
     ):
         """
         :param name: Name of the model field.
@@ -255,17 +263,23 @@ class ComplexFeatureField(FeatureField):
             be a list of :class:`FeatureField` objects, or plain field names.
             Using ``__all__`` also works but is not recommended outside testing.
         """
-        super().__init__(name, model_attribute=model_attribute, model=model)
+        super().__init__(
+            name, model_attribute=model_attribute, model=model, abstract=abstract
+        )
         self._fields = fields
+
+    @cached_property
+    def fields(self) -> List[FeatureField]:
+        """Provide all fields that will be rendered as part of this complex field."""
+        return _get_model_fields(self.target_model, self._fields, parent=self)
 
     def _get_xsd_type(self) -> XsdComplexType:
         """Generate the XSD description for the field with an object relation."""
-        fields = _get_model_fields(self.target_model, self._fields, parent=self)
         pk_field = self.target_model._meta.pk
 
         return XsdComplexType(
             name=f"{self.target_model._meta.object_name}Type",
-            elements=[field.xsd_element for field in fields],
+            elements=[field.xsd_element for field in self.fields],
             attributes=[
                 # Add gml:id attribute definition so it can be resolved in xpath
                 GmlIdAttribute(
@@ -291,7 +305,11 @@ class ComplexFeatureField(FeatureField):
 
 
 def field(
-    name: str, *, model_attribute=None, fields: Optional[_FieldDefinitions] = None
+    name: str,
+    *,
+    model_attribute=None,
+    abstract: Optional[str] = None,
+    fields: Optional[_FieldDefinitions] = None,
 ) -> FeatureField:
     """Shortcut to define a WFS field.
 
@@ -305,10 +323,10 @@ def field(
     """
     if fields is not None:
         return ComplexFeatureField(
-            name=name, model_attribute=model_attribute, fields=fields
+            name=name, model_attribute=model_attribute, fields=fields, abstract=abstract
         )
     else:
-        return FeatureField(name, model_attribute=model_attribute)
+        return FeatureField(name, model_attribute=model_attribute, abstract=abstract)
 
 
 class FeatureType:

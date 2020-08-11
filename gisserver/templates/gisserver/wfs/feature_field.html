@@ -1,0 +1,6 @@
+<tr{% if level %} class="complex-field-member complex-level-{{ level }}"{% endif %}><th><code>{{ field.name }}</code></th><td>{{ field.xsd_element.type }}</td><td>{{ field.abstract|default:'' }}</td></tr>
+{% if field.fields %}
+  {% for sub_field in field.fields %}
+    {% include "gisserver/wfs/feature_field.html" with field=sub_field level=level|add:1 %}
+  {% endfor %}
+{% endif %}

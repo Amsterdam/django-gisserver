@@ -133,17 +133,37 @@ class OutputFormat:
     """
 
     def __init__(
-        self, content_type, renderer_class=None, max_page_size=None, **extra,
+        self,
+        content_type,
+        renderer_class=None,
+        max_page_size=None,
+        title=None,
+        **extra,
     ):
+        """
+        :param content_type: The MIME-type used in the request to select this type.
+        :param renderer_class: The class that performs the output rendering.
+            If it's not given, the operation renders it's output using an XML template.
+        :param max_page_size: Used to override the ``max_page_size`` of the renderer_class.
+        :param title: A human-friendly name for a HTML overview page.
+        :param extra: Any additional key-value pairs for the definition.
+            Could include ``subtype`` as a shorter alias for the MIME-type.
+        """
         self.content_type = content_type
         self.extra = extra
         self.subtype = self.extra.get("subtype")
         self.renderer_class = renderer_class
+        self.title = title
         self._max_page_size = max_page_size
 
     def matches(self, value):
         """Test whether the 'value' is matched by this object."""
         return self.content_type == value or self.subtype == value
+
+    @property
+    def identifier(self):
+        """The identifier to use in templates as OUTPUTFORMAT input value."""
+        return self.subtype or self.content_type
 
     @property
     def max_page_size(self):
@@ -238,6 +258,7 @@ class WFSMethod:
 
     def _parse_output_format(self, value) -> OutputFormat:
         """Select the proper OutputFormat object based on the input value"""
+        value = value.replace(" ", "+")  # allow application/gml+xml on the KVP.
         try:
             return next(o for o in self.output_formats if o.matches(value))
         except StopIteration:

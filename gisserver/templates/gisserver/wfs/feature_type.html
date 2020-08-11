@@ -1,0 +1,23 @@
+{% load i18n %}
+<h3>{{ feature_type.title }}</h3>
+{% if feature_type.abstract %}{{ feature_type.abstract|linebreaks }}{% endif %}
+
+{% block formats %}{% if wfs_output_formats %}
+  <p>
+    {% trans "Formats" %}:
+    {% for output_format in wfs_output_formats %}
+      <a href="?SERVICE=WFS&VERSION={{ version }}&REQUEST=GetFeature&TYPENAMES={{ feature_type.name }}&OUTPUTFORMAT={{ output_format.identifier }}">{{ output_format.title|default:output_format }}</a>,
+    {% endfor %}
+  </p>
+{% endif %}{% endblock %}
+
+{% block fields %}
+<p>{% trans "Fields" %}:</p>
+<table>
+  <tbody>
+  {% for field in feature_type.fields %}
+    {% include "gisserver/wfs/feature_field.html" with level=0 %}
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

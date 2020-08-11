@@ -406,9 +406,13 @@ class GetFeature(BaseWFSGetDataMethod):
             "application/gml+xml",
             version="3.2",
             renderer_class=output.gml32_renderer,
+            title="GML",
         ),
         OutputFormat(
-            "text/xml", subtype="gml/3.2.1", renderer_class=output.gml32_renderer
+            "text/xml",
+            subtype="gml/3.2.1",
+            renderer_class=output.gml32_renderer,
+            title="GML 3.2.1",
         ),
         # OutputFormat("gml"),
         OutputFormat(
@@ -416,12 +420,14 @@ class GetFeature(BaseWFSGetDataMethod):
             subtype="geojson",
             charset="utf-8",
             renderer_class=output.geojson_renderer,
+            title="GeoJSON",
         ),
         OutputFormat(
             "text/csv",
             subtype="csv",
             charset="utf-8",
             renderer_class=output.csv_renderer,
+            title="CSV",
         ),
         # OutputFormat("shapezip"),
         # OutputFormat("application/zip"),

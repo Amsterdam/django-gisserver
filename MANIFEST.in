@@ -1,5 +1,6 @@
 include LICENSE
 include CHANGES.md
+recursive-include gisserver/static *.css
 recursive-include gisserver/templates *.html *.xml
 
 # Without this, the sdist kept including tests, while the wheel didn't:
