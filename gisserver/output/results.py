@@ -212,7 +212,8 @@ class FeatureCollection:
         self._number_matched = number_matched
         self.next = next
         self.previous = previous
-        self.timestamp = now().astimezone(utc).isoformat()
+        self.date = now()
+        self.timestamp = self.date.astimezone(utc).isoformat()
 
     def get_bounding_box(self) -> BoundingBox:
         """Determine bounding box of all items."""

@@ -1,4 +1,5 @@
 import io
+import math
 from collections import defaultdict
 from typing import List, Set, Tuple, Type
 
@@ -30,6 +31,9 @@ class OutputRenderer:
 
     #: Define the content type for rendering the output
     content_type = "application/octet-stream"
+
+    #: An optional content-disposition header to output
+    content_disposition = None
 
     def __init__(
         self,
@@ -171,12 +175,44 @@ class OutputRenderer:
         """Render the output as streaming response."""
         stream = self.render_stream()
         if isinstance(stream, (str, bytes)):
-            return HttpResponse(content=stream, content_type=self.content_type)
+            response = HttpResponse(content=stream, content_type=self.content_type)
         else:
             stream = self._trap_exceptions(stream)
-            return StreamingHttpResponse(
+            response = StreamingHttpResponse(
                 streaming_content=stream, content_type=self.content_type,
             )
+
+        for name, value in self.get_headers().items():
+            response[name] = value
+        return response
+
+    def get_headers(self):
+        """Return the response headers"""
+        if self.content_disposition:
+            # Offer a common quick content-disposition logic that works for all possible queries.
+            sub_collection = self.collection.results[0]
+            if sub_collection.stop == math.inf:
+                if sub_collection.start:
+                    page = f"{sub_collection.start}-end"
+                else:
+                    page = "all"
+            elif sub_collection.stop:
+                page = f"{sub_collection.start}-{sub_collection.stop - 1}"
+            else:
+                page = "results"
+
+            return {
+                "Content-Disposition": self.content_disposition.format(
+                    typenames="+".join(
+                        sub.feature_type.name for sub in self.collection.results
+                    ),
+                    page=page,
+                    date=self.collection.date.strftime("%Y-%m-%d %H.%M.%S%z"),
+                    timestamp=self.collection.timestamp,
+                )
+            }
+
+        return {}
 
     def _trap_exceptions(self, stream):
         """Decorate the generator to show exceptions"""

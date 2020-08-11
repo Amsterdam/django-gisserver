@@ -29,7 +29,11 @@ class CSVRenderer(OutputRenderer):
     """
 
     content_type = "text/csv; charset=utf-8"
+    content_disposition = 'attachment; filename="{typenames} {page} {date}.csv"'
     max_page_size = conf.GISSERVER_CSV_MAX_PAGE_SIZE
+
+    #: The outputted CSV dialect. This can be a csv.Dialect subclass
+    #: or one of the registered names like: "unix", "excel", "excel-tab"
     dialect = "unix"
 
     @classmethod

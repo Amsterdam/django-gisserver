@@ -37,6 +37,7 @@ class GeoJsonRenderer(OutputRenderer):
     """
 
     content_type = "application/json; charset=utf-8"
+    content_disposition = 'inline; filename="{typenames} {page} {date}.geojson"'
     max_page_size = conf.GISSERVER_GEOJSON_MAX_PAGE_SIZE
 
     @classmethod
