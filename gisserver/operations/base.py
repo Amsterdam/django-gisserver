@@ -206,9 +206,10 @@ class WFSMethod:
             # Part of BaseRequest:
             Parameter(
                 "service",
-                required=True,
+                required=not bool(self.view.default_service),
                 in_capabilities=True,
                 allowed_values=list(self.view.accept_operations.keys()),
+                default=self.view.default_service,  # can be None or e.g. "WFS"
                 error_messages={"invalid": "Unsupported service type: {value}."},
             ),
             Parameter(

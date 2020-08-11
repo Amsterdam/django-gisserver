@@ -36,6 +36,9 @@ class GISView(View):
     #: Default version to use
     version = "2.0.0"
 
+    #: Allow to set a default service, so the SERVICE parameter can be omitted.
+    default_service = None
+
     #: Supported versions
     accept_versions = ("2.0.0",)
 
@@ -96,7 +99,7 @@ class GISView(View):
             raise ImproperlyConfigured("View has no operations")
 
         # The service is always WFS
-        service = self._get_required_arg("SERVICE").upper()
+        service = self._get_required_arg("SERVICE", self.default_service).upper()
         try:
             operations = self.accept_operations[service]
         except KeyError:
@@ -126,10 +129,12 @@ class GISView(View):
         param_values = wfs_method.parse_request(self.KVP)
         return wfs_method(**param_values)  # goes into __call__()
 
-    def _get_required_arg(self, argname):
+    def _get_required_arg(self, argname, default=None):
         try:
             return self.KVP[argname]
         except KeyError:
+            if default is not None:
+                return default
             raise MissingParameterValue(argname.lower()) from None
 
     def get_service_description(self, service: str) -> ServiceDescription:
@@ -178,6 +183,10 @@ class WFSView(GISView):
             "DescribeStoredQueries": wfs20.DescribeStoredQueries,
         }
     }
+
+    #: Since URLs to this view are already specifically for WFS,
+    #: allow to omit the service name.
+    default_service = "WFS"
 
     #: Metadata of the capabilities:
     wfs_service_constraints = {
