@@ -1,3 +1,11 @@
+# 2020-08-13 (1.1)
+
+* Added browsable HTML views for WFS views, which can be extended/overwritten.
+* Added content-disposition header to export formats, to have a proper filename.
+* Added "abstract" property to field classes to provide a description.
+* Consider `?SERVICE=WFS` as default for `WFSView` views.
+
+
 # 2020-07-21 (1.0)
 
 * Added `FeatureType.show_name_field` to show/hide `<gml:name>` and GeoJSON `geometry_name`.
