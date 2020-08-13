@@ -1,8 +1,5 @@
 """All supported output formats"""
-from django.utils.decorators import classproperty
-
 from gisserver import conf
-
 from .base import OutputRenderer
 from .csv import DBCSVRenderer, CSVRenderer
 from .geojson import DBGeoJsonRenderer, GeoJsonRenderer
@@ -14,6 +11,11 @@ from .gml32 import (
 )
 from .xmlschema import XMLSchemaRenderer
 from .results import FeatureCollection, SimpleFeatureCollection
+
+try:
+    from django.utils.functional import classproperty  # Django 3.1+
+except ImportError:
+    from django.utils.decorators import classproperty
 
 __all__ = [
     "OutputRenderer",
