@@ -497,7 +497,9 @@ class LikeOperator(ComparisonOperator):
 
             rhs = Literal(raw_value=value)
         else:
-            raise NotImplementedError()
+            raise ExternalParsingError(
+                f"Expected a literal value for the {self.tag} operator."
+            )
 
         # Use the FesLike lookup
         return self.build_compare(compiler, lhs=lhs, lookup="fes_like", rhs=rhs)
