@@ -136,9 +136,12 @@ class GISView(View):
     def get_index_context_data(self, **kwargs):
         """Provide the context data for the index page."""
         service = self.KVP.get("SERVICE", self.default_service)
+        root_url = self.request.build_absolute_uri()
         return {
             "view": self,
             "service": service,
+            "root_url": root_url,
+            "connect_url": root_url,
             "version": self.version,
             "service_description": self.get_service_description(service),
             "accept_versions": self.accept_versions,
