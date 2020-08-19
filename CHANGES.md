@@ -1,3 +1,10 @@
+# 2020-08-19 (1.1.1)
+
+* Improve HTML page with "Using This WFS" section.
+* Fixed Django 3.1 compatibility.
+* Improved error message for `<fes:PropertyIsLike>` operator when comparing against a `<fes:ValueReference>` instead of `<fes:Literal>`.
+
+
 # 2020-08-13 (1.1)
 
 * Added browsable HTML views for WFS views, which can be extended/overwritten.

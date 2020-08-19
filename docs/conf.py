@@ -27,7 +27,7 @@ copyright = "2020, City of Amsterdam"
 author = "Datapunt > OIS > City of Amsterdam"
 
 # The full version, including alpha/beta/rc tags
-release = "1.1"
+release = "1.1.1"
 
 
 # -- General configuration ---------------------------------------------------
