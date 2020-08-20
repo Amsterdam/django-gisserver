@@ -43,7 +43,7 @@ class Filter:
                 # Allow KVP requests without a namespace
                 # Both geoserver and mapserver support this.
                 if "<Filter" in first_tag:
-                    text = f'{first_tag} xmlns="{FES20}" xmlns:gml="{GML32}">{text[end_first:]}'
+                    text = f'{first_tag} xmlns="{FES20}" xmlns:gml="{GML32}"{text[end_first:]}'
 
         try:
             root_element = fromstring(text)
