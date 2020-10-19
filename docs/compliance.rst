@@ -45,3 +45,22 @@ Anything outside WFS-T could be implemented, but is very low on the todo-list:
 
 Some parts (such as output formats or missing WFS methods) can even
 be implemented within your own project, by overriding the existing class attributes.
+
+Compatibility with older WFS-clients
+------------------------------------
+
+Some popular WFS-clients still use aspects of the WFS 1.0 filter syntax in their queries.
+To support these clients, the following logic is also implemented:
+
+* The ``<PropertyName>`` tag instead of ``<fes:ValueReference>``
+* The ``<fes:Add>``, ``<fes:Sub>``, ``<fes:Mul>`` and ``<fes:Div>`` arithmetic operators, used by QGis.
+* The ``FILTER=<Filter>...</Filter>`` parameter without an XML namespace declaration, typically seen in web-browser libraries.
+* The ``MAXFEATURES`` parameter instead of ``COUNT``.
+* The ``TYPENAME`` parameter instead of ``TYPENAMES`` (used by the CITE test suite!).
+* Using ``A`` and ``D`` as sort direction in ``SORTBY`` / ``<fes:SortBy>`` instead of ``ASC`` and ``DESC``.
+
+For CITE test suite compliance, ``urn:ogc:def:query:OGC-WFS::GetFeatureById`` query returns an HTTP 404
+for an invalid resource ID format, even though the WFS 2 specification states it should return
+an ``InvalidParameterValue``. Likewise, the ``<ResourceId>`` query returns an empty list instead
+of ``InvalidParameterValue`` for invalid resource ID formats.
+This behavior can be disabled with the ``GISSERVER_WFS_STRICT_STANDARD`` setting.
