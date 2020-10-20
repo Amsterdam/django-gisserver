@@ -269,10 +269,10 @@ WGS84 = CRS.from_srid(4326)  # aka EPSG:4326
 class BoundingBox:
     """A bounding box that describes the extent of a map layer"""
 
-    lower_lon: float
-    lower_lat: float
-    upper_lon: float
-    upper_lat: float
+    south: float  # longitude
+    west: float  # latitude
+    north: float  # longitude
+    east: float  # latitude
     crs: Optional[CRS] = None
 
     @classmethod
@@ -307,27 +307,23 @@ class BoundingBox:
 
     @property
     def lower_corner(self):
-        return [self.lower_lon, self.lower_lat]
+        return [self.south, self.west]
 
     @property
     def upper_corner(self):
-        return [self.upper_lon, self.upper_lat]
+        return [self.north, self.east]
 
     def __repr__(self):
-        return (
-            "BoundingBox("
-            f"{self.lower_lon}, {self.lower_lat}, {self.upper_lon}, {self.upper_lat}"
-            ")"
-        )
+        return f"BoundingBox({self.south}, {self.west}, {self.north}, {self.east})"
 
     def extend_to(
         self, lower_lon: float, lower_lat: float, upper_lon: float, upper_lat: float
     ):
         """Expand the bounding box in-place"""
-        self.lower_lon = min(self.lower_lon, lower_lon)
-        self.lower_lat = min(self.lower_lat, lower_lat)
-        self.upper_lon = max(self.upper_lon, upper_lon)
-        self.upper_lat = max(self.upper_lat, upper_lat)
+        self.south = min(self.south, lower_lon)
+        self.west = min(self.west, lower_lat)
+        self.north = max(self.north, upper_lon)
+        self.east = max(self.east, upper_lat)
 
     def extend_to_geometry(self, geometry: GEOSGeometry):
         """Extend this bounding box with the coordinates of a given geometry."""
@@ -344,19 +340,17 @@ class BoundingBox:
                     "Can't combine instances with different spatial reference systems"
                 )
             return BoundingBox(
-                min(self.lower_lon, other.lower_lon),
-                min(self.lower_lat, other.lower_lat),
-                max(self.upper_lon, other.upper_lon),
-                max(self.upper_lat, other.upper_lat),
+                min(self.south, other.south),
+                min(self.west, other.west),
+                max(self.north, other.north),
+                max(self.east, other.east),
             )
         else:
             return NotImplemented
 
     def as_polygon(self) -> Polygon:
         """Convert the value into a GEOS polygon."""
-        polygon = Polygon.from_bbox(
-            (self.lower_lon, self.lower_lat, self.upper_lon, self.upper_lat)
-        )
+        polygon = Polygon.from_bbox((self.south, self.west, self.north, self.east))
         if self.crs is not None:
             polygon.srid = self.crs.srid
         return polygon
