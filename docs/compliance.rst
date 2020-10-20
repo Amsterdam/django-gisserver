@@ -18,6 +18,7 @@ Some remaining parts for the "WFS simple" conformance level are not implemented 
 * Multiple queries in a single GET call.
 * Some `GetCapabilities` features: `acceptFormats` and `sections`.
 * Temporal filtering (high on todo)
+* Tests on axis orientation.
 
 Planned
 -------

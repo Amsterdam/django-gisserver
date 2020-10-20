@@ -237,3 +237,12 @@ Other links:
 
 * http://schemas.opengis.net/wfs/2.0/ (XSD and examples)
 * https://mapserver.org/development/rfc/ms-rfc-105.html (more examples)
+
+Coordinate systems, and axis orientation:
+
+* https://macwright.com/lonlat/ (the inconsistency of lat/lon or lon/lat)
+* https://macwright.com/2015/03/23/geojson-second-bite.html (More than you ever wanted to know about GeoJSON)
+* https://mapserver.org/ogc/wms_server.html#coordinate-systems-and-axis-orientation (mapserver WMS part)
+* https://mapserver.org/ogc/wfs_server.html#axis-orientation-in-wfs-1-1-and-2-0 (mapserver WFS part)
+* https://docs.geoserver.org/stable/en/user/services/wms/basics.html#axis-ordering (geoserver WMS part)
+* https://docs.geoserver.org/stable/en/user/services/wfs/axis_order.html (geoserver WFS part)
