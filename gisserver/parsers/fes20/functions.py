@@ -205,7 +205,7 @@ function_registry.register(
 function_registry.register(
     "round",
     functions.Round,
-    arguments={"base": XsdTypes.double},
+    arguments={"value": XsdTypes.double},
     returns=XsdTypes.integer,
 )
 
