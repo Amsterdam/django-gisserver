@@ -3,7 +3,7 @@ from functools import reduce
 from typing import Dict, List, Optional, Union
 
 from django.contrib.gis.db.models.fields import BaseSpatialField
-from django.contrib.gis.db.models.lookups import DistanceLookupBase
+from django.contrib.gis.db.models.lookups import DWithinLookup
 from django.db import models
 from django.db.models import Q, QuerySet, lookups
 from django.db.models.expressions import Combinable
@@ -185,6 +185,19 @@ class FesNotEqualTo(lookups.Lookup):
 
 
 @BaseSpatialField.register_lookup
-class FesNotDWithinLookup(DistanceLookupBase):
-    lookup_name = "fes_not_dwithin"
+class FesBeyondLookup(DWithinLookup):
+    """Based on the FES 2.0.3 corrigendum:
+
+    DWithin(A,B,d) = Distance(A,B) < d
+    Beyond(A,B,d) = Distance(A,B) > d
+
+    See: https://docs.opengeospatial.org/is/09-026r2/09-026r2.html#61
+    """
+
+    lookup_name = "fes_beyond"
     sql_template = "NOT %(func)s(%(lhs)s, %(rhs)s, %(value)s)"
+
+    def get_rhs_op(self, connection, rhs):
+        # Allow the SQL $(func)s to be different from the ORM lookup name.
+        # This uses ST_DWithin() on PostGIS
+        return connection.ops.gis_operators["dwithin"]

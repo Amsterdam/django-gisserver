@@ -13,6 +13,15 @@ that the database table uses a different SRID
 then the ``GeometryField(srid=..)`` configuration in Django assumes.
 
 
+Only numeric values of degree units are allowed on geographic DWithin queries
+-----------------------------------------------------------------------------
+
+The ``DWithin`` / ``Beyond`` can only use unit-based distances when the model
+field defines a projected system (e.g. ``PointField(srid=...)``).
+Otherwise, only the units of the geometry field are supported (e.g. degrees for WGS84).
+If it's possible to work around this limitation, a pull request is welcome.
+
+
 ProgrammingError / InternalError database exceptions
 ----------------------------------------------------
 

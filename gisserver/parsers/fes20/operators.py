@@ -68,7 +68,7 @@ class BinaryComparisonName(TagNameEnum):
 class DistanceOperatorName(TagNameEnum):
     """XML tag names for distance operators"""
 
-    Beyond = "fes_not_dwithin"  # using __distance_gt=.. would be slower.
+    Beyond = "fes_beyond"  # using __distance_gt=.. would be slower.
     DWithin = "dwithin"  # ST_DWithin uses indices, distance_lte does not.
 
 
