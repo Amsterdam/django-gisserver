@@ -34,6 +34,7 @@ Features
    :maxdepth: 1
    :caption: Background:
 
+   user/filters
    compliance
    development
 
