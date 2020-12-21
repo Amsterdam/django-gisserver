@@ -65,7 +65,10 @@ def test_fes20_c5_example1():
     expected = Filter(
         BinaryComparisonOperator(
             BinaryComparisonName.PropertyIsEqualTo,
-            expression=(ValueReference("SomeProperty"), Literal("100"),),
+            expression=(
+                ValueReference("SomeProperty"),
+                Literal("100"),
+            ),
         )
     )
     result = Filter.from_string(xml_text)
@@ -359,7 +362,9 @@ def test_fes20_c5_example6():
     """
 
     @function_registry.register(
-        name="SIN", arguments=dict(value1="xsd:double"), returns="xsd:double",
+        name="SIN",
+        arguments=dict(value1="xsd:double"),
+        returns="xsd:double",
     )
     def fes_sin(value1):
         return Sin(value1)
@@ -383,7 +388,8 @@ def test_fes20_c5_example6():
             operatorType=BinaryComparisonName.PropertyIsEqualTo,
             expression=(
                 Function(
-                    name="SIN", arguments=[ValueReference(xpath="DISPERSION_ANGLE")],
+                    name="SIN",
+                    arguments=[ValueReference(xpath="DISPERSION_ANGLE")],
                 ),
                 Literal(raw_value="1"),
             ),
@@ -556,7 +562,10 @@ def test_fes20_c5_example10():
     """.strip()
     expected = Filter(
         predicate=LikeOperator(
-            expression=(ValueReference(xpath="LAST_NAME"), Literal(raw_value="JOHN*"),),
+            expression=(
+                ValueReference(xpath="LAST_NAME"),
+                Literal(raw_value="JOHN*"),
+            ),
             wildCard="*",
             singleChar="#",
             escapeChar="!",

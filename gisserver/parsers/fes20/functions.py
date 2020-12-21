@@ -210,11 +210,17 @@ function_registry.register(
 )
 
 function_registry.register(
-    "exp", functions.Exp, arguments={"value": XsdTypes.double}, returns=XsdTypes.double,
+    "exp",
+    functions.Exp,
+    arguments={"value": XsdTypes.double},
+    returns=XsdTypes.double,
 )
 
 function_registry.register(
-    "log", functions.Log, arguments={"value": XsdTypes.double}, returns=XsdTypes.double,
+    "log",
+    functions.Log,
+    arguments={"value": XsdTypes.double},
+    returns=XsdTypes.double,
 )
 
 function_registry.register(
@@ -276,7 +282,9 @@ function_registry.register(
 )
 
 function_registry.register(
-    "pi", functions.Pi, returns=XsdTypes.double,
+    "pi",
+    functions.Pi,
+    returns=XsdTypes.double,
 )
 
 function_registry.register(

@@ -968,7 +968,7 @@ class TestGetFeature:
         """Prove that unknown IDs simply return an empty list."""
         response = client.get(
             "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
-            f"&RESOURCEID=restaurant.0"
+            "&RESOURCEID=restaurant.0"
         )
         content = read_response(response)
         assert response["content-type"] == "text/xml; charset=utf-8", content
@@ -1011,7 +1011,7 @@ class TestGetFeature:
         """Prove that TYPENAMES should be omitted, or match the RESOURCEID."""
         response = client.get(
             "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
-            f"&RESOURCEID=restaurant.ABC"
+            "&RESOURCEID=restaurant.ABC"
         )
         content = read_response(response)
         assert response["content-type"] == "text/xml; charset=utf-8", content
@@ -1055,7 +1055,7 @@ class TestGetFeature:
         """Prove that fetching objects by ID works."""
         response = client.get(
             "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
-            f"&STOREDQUERY_ID=urn:ogc:def:query:OGC-WFS::GetFeatureById"
+            "&STOREDQUERY_ID=urn:ogc:def:query:OGC-WFS::GetFeatureById"
             f"&ID=restaurant.{restaurant.id}"
         )
         content = read_response(response)
@@ -1107,8 +1107,8 @@ class TestGetFeature:
         """Prove that invalid IDs are properly handled."""
         response = client.get(
             "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
-            f"&STOREDQUERY_ID=urn:ogc:def:query:OGC-WFS::GetFeatureById"
-            f"&ID=restaurant.ABC"
+            "&STOREDQUERY_ID=urn:ogc:def:query:OGC-WFS::GetFeatureById"
+            "&ID=restaurant.ABC"
         )
         content = read_response(response)
         assert response["content-type"] == "text/xml; charset=utf-8", content
@@ -1131,8 +1131,8 @@ class TestGetFeature:
         """Prove that missing IDs are properly handled."""
         response = client.get(
             "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
-            f"&STOREDQUERY_ID=urn:ogc:def:query:OGC-WFS::GetFeatureById"
-            f"&ID=restaurant.0"
+            "&STOREDQUERY_ID=urn:ogc:def:query:OGC-WFS::GetFeatureById"
+            "&ID=restaurant.0"
         )
         content = read_response(response)
         assert response["content-type"] == "text/xml; charset=utf-8", content

@@ -40,7 +40,7 @@ class ST_Union(functions.Union):
     def as_postgresql(self, compiler, connection, **extra_context):
         # PostgreSQL can handle ST_Union(ARRAY(field names)), other databases don't.
         if len(self.source_expressions) > 2:
-            extra_context["template"] = f"%(function)s(ARRAY(%(expressions)s))"
+            extra_context["template"] = "%(function)s(ARRAY(%(expressions)s))"
         return self.as_sql(compiler, connection, **extra_context)
 
 

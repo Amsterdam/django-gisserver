@@ -45,7 +45,9 @@ setup(
         "orjson >= 2.4.0",
     ],
     tests_require=tests_require,
-    extras_require={"test": tests_require,},
+    extras_require={
+        "test": tests_require,
+    },
     requires=["Django (>=2.0)"],
     description="Django speaking WFS 2.0 (exposing GeoDjango model fields)",
     long_description=read("README.md"),

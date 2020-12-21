@@ -180,7 +180,9 @@ class FeatureField:
         return get_basic_field_type(self.name, self.model_field)
 
     def bind(
-        self, model: Type[models.Model], parent: "Optional[ComplexFeatureField]" = None,
+        self,
+        model: Type[models.Model],
+        parent: "Optional[ComplexFeatureField]" = None,
     ):
         """Late-binding for the model.
 
@@ -283,7 +285,9 @@ class ComplexFeatureField(FeatureField):
             attributes=[
                 # Add gml:id attribute definition so it can be resolved in xpath
                 GmlIdAttribute(
-                    type_name=self.name, source=pk_field, model_attribute=pk_field.name,
+                    type_name=self.name,
+                    source=pk_field,
+                    model_attribute=pk_field.name,
                 )
             ],
             source=self.target_model,
@@ -565,7 +569,9 @@ class FeatureType:
             attributes=[
                 # Add gml:id attribute definition so it can be resolved in xpath
                 GmlIdAttribute(
-                    type_name=self.name, source=pk_field, model_attribute=pk_field.name,
+                    type_name=self.name,
+                    source=pk_field,
+                    model_attribute=pk_field.name,
                 )
             ],
             base=XsdTypes.gmlAbstractGMLType,

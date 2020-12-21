@@ -10,7 +10,7 @@ XSD_DIR = "tests/files/xsd"
 
 def url_to_path(url: str) -> str:
     """turns a URL to an XSD into a filesystem path
-       eg "http://www.example.come/a/b/c.xsd" -> "./www.example.come/a/b/c.xsd"
+    eg "http://www.example.come/a/b/c.xsd" -> "./www.example.come/a/b/c.xsd"
     """
     parsed = urlparse(url)
 
@@ -19,8 +19,8 @@ def url_to_path(url: str) -> str:
 
 
 def localize_links(text: str, filename_complete: str) -> str:
-    """ Similar to wget's --convert-links, this converts the schemaLocation
-        links to be useable on local filesystem
+    """Similar to wget's --convert-links, this converts the schemaLocation
+    links to be useable on local filesystem
     """
     # only converting the url-based schemaLocations here
     # eg, some will schemaLocation="../abc.xsd"
@@ -38,7 +38,7 @@ def localize_links(text: str, filename_complete: str) -> str:
 
 def save_file(url: str, text: str) -> None:
     """save the XSD `text` data to file path decided by `url`
-       also creates the directory structure if it doesn't exist
+    also creates the directory structure if it doesn't exist
     """
     filename_complete = url_to_path(url)
     dir_name = os.path.dirname(XSD_DIR + "/" + filename_complete)
@@ -62,14 +62,13 @@ def download_xml_url(url: str) -> str:
 
 
 def download_schema(url):
-    """ Calls the recursive function recursive_get_schema_locations()
-    """
+    """Calls the recursive function recursive_get_schema_locations()"""
     # list of the URLs that have been downloaded already
     downloaded_urls = []
 
     def recursive_get_schema_locations(url: str, referring_url: str) -> None:
-        """ Recursive function that is the heart of the script,
-            stops when... TODO
+        """Recursive function that is the heart of the script,
+        stops when... TODO
         """
 
         # dont download same link twice

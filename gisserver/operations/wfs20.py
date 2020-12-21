@@ -147,7 +147,7 @@ class DescribeFeatureType(WFSTypeNamesMethod):
     def get_context_data(self, typeNames, **params):
         if self.view.KVP.get("TYPENAMES") == "" or self.view.KVP.get("TYPENAME") == "":
             # Using TYPENAMES= does result in an error.
-            raise MissingParameterValue("typeNames", f"Empty TYPENAMES parameter")
+            raise MissingParameterValue("typeNames", "Empty TYPENAMES parameter")
         elif typeNames is None:
             # Not given, all types are returned
             typeNames = self.all_feature_types
@@ -238,16 +238,16 @@ class BaseWFSGetDataMethod(WFSTypeNamesMethod):
         except ExternalParsingError as e:
             # Bad input data
             self._log_filter_error(query, logging.ERROR, e)
-            raise OperationParsingFailed(self._get_locator(**params), str(e),) from e
+            raise OperationParsingFailed(self._get_locator(**params), str(e)) from e
         except ExternalValueError as e:
             # Bad input data
             self._log_filter_error(query, logging.ERROR, e)
-            raise InvalidParameterValue(self._get_locator(**params), str(e),) from e
+            raise InvalidParameterValue(self._get_locator(**params), str(e)) from e
         except ValidationError as e:
             # Bad input data
             self._log_filter_error(query, logging.ERROR, e)
             raise OperationParsingFailed(
-                self._get_locator(**params), "\n".join(map(str, e.messages)),
+                self._get_locator(**params), "\n".join(map(str, e.messages))
             ) from e
         except FieldError as e:
             # e.g. doing a LIKE on a foreign key, or requesting an unknown field.
@@ -255,7 +255,7 @@ class BaseWFSGetDataMethod(WFSTypeNamesMethod):
                 raise
             self._log_filter_error(query, logging.ERROR, e)
             raise InvalidParameterValue(
-                self._get_locator(**params), f"Internal error when processing filter",
+                self._get_locator(**params), "Internal error when processing filter"
             ) from e
         except (InternalError, ProgrammingError) as e:
             # e.g. comparing datetime against integer
@@ -273,7 +273,7 @@ class BaseWFSGetDataMethod(WFSTypeNamesMethod):
             # this is already caught by XsdElement.validate_comparison().
             if self._is_orm_error(e):
                 raise InvalidParameterValue(
-                    self._get_locator(**params), f"Invalid filter query: {e}",
+                    self._get_locator(**params), f"Invalid filter query: {e}"
                 ) from e
             raise
 
@@ -343,12 +343,14 @@ class BaseWFSGetDataMethod(WFSTypeNamesMethod):
         if stop != math.inf:
             if start > 0:
                 collection.previous = self._replace_url_params(
-                    STARTINDEX=max(0, start - page_size), COUNT=page_size,
+                    STARTINDEX=max(0, start - page_size),
+                    COUNT=page_size,
                 )
             if stop < collection.number_matched:
                 # TODO: fix this when returning multiple typeNames:
                 collection.next = self._replace_url_params(
-                    STARTINDEX=start + page_size, COUNT=page_size
+                    STARTINDEX=start + page_size,
+                    COUNT=page_size,
                 )
 
         return collection

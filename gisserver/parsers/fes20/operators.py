@@ -350,7 +350,7 @@ class BinarySpatialOperator(SpatialOperator):
             operatorType=operator_type,
             operand1=ValueReference.from_xml(ref) if ref is not None else None,
             operand2=tag_registry.from_child_xml(
-                geo, allowed_types=SpatialDescription.__args__,  # get_args() in 3.8
+                geo, allowed_types=SpatialDescription.__args__  # get_args() in 3.8
             ),
             _source=element.tag,
         )
@@ -361,7 +361,10 @@ class BinarySpatialOperator(SpatialOperator):
             operant1 = ValueReference(xpath=compiler.feature_type.geometry_field_name)
 
         return self.build_compare(
-            compiler, lhs=operant1, lookup=self.operatorType.value, rhs=self.operand2,
+            compiler,
+            lhs=operant1,
+            lookup=self.operatorType.value,
+            rhs=self.operand2,
         )
 
 
@@ -381,7 +384,7 @@ class TemporalOperator(NonIdOperator):
             operatorType=TemporalOperatorName.from_xml(element),
             operand1=ValueReference.from_xml(element[0]),
             operand2=tag_registry.from_child_xml(
-                element[1], allowed_types=TemporalOperand.__args__,  # get_args() in 3.8
+                element[1], allowed_types=TemporalOperand.__args__  # get_args() in 3.8
             ),
             _source=element.tag,
         )

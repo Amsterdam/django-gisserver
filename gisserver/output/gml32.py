@@ -618,7 +618,7 @@ class DBGML32ValueRenderer(DBGML32Renderer, GML32ValueRenderer):
         if match.child.is_geometry:
             # Add 'gml_member' to point to the pre-rendered GML version.
             return queryset.values(
-                "pk", gml_member=AsGML(get_db_geometry_target(match, output_crs)),
+                "pk", gml_member=AsGML(get_db_geometry_target(match, output_crs))
             )
         else:
             return queryset
@@ -630,7 +630,10 @@ class DBGML32ValueRenderer(DBGML32Renderer, GML32ValueRenderer):
         if "gml_member" in instance:
             gml_id = self.get_gml_id(feature_type, instance["pk"], seq=1)
             body = self.render_db_gml_field(
-                feature_type, self.xsd_node, instance["gml_member"], gml_id=gml_id,
+                feature_type,
+                self.xsd_node,
+                instance["gml_member"],
+                gml_id=gml_id,
             )
             return f"  <wfs:member>\n{body}  </wfs:member>\n"
         else:

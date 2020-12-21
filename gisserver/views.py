@@ -118,12 +118,15 @@ class GISView(View):
         # (misspelled?) parameters on the query string, this is considered to be an index page.
         # Minimal request has 2 parameters (SERVICE=WFS&REQUEST=GetCapabilities).
         # Some servers also allow a default of SERVICE, thus needing even less.
-        return len(self.KVP) < 2 and {
-            "REQUEST",
-            "SERVICE",
-            "VERSION",
-            "ACCEPTVERSIONS",
-        }.isdisjoint(self.KVP.keys())
+        return (
+            len(self.KVP) < 2
+            and {
+                "REQUEST",
+                "SERVICE",
+                "VERSION",
+                "ACCEPTVERSIONS",
+            }.isdisjoint(self.KVP.keys())
+        )
 
     def render_index(self):
         """Render the index page."""

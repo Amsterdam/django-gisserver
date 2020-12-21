@@ -7,8 +7,7 @@ class TestCRS:
         assert CRS.from_string("EPSG:4326").urn == "urn:ogc:def:crs:EPSG::4326"
 
     def test_crs84_inequal(self):
-        """Prove that using strings from other vendors is also parsed.
-        """
+        """Prove that using strings from other vendors is also parsed."""
         crs84 = CRS.from_string("urn:ogc:def:crs:OGC:1.3:CRS84")
         assert crs84.srid == WGS84.srid
 

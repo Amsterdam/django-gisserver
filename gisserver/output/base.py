@@ -179,7 +179,8 @@ class OutputRenderer:
         else:
             stream = self._trap_exceptions(stream)
             response = StreamingHttpResponse(
-                streaming_content=stream, content_type=self.content_type,
+                streaming_content=stream,
+                content_type=self.content_type,
             )
 
         for name, value in self.get_headers().items():

@@ -43,5 +43,6 @@ RD_NEW_WKT = (
 )
 
 RD_NEW = CRS.from_string(
-    "urn:ogc:def:crs:EPSG::28992", backend=SpatialReference(RD_NEW_PROJ),
+    "urn:ogc:def:crs:EPSG::28992",
+    backend=SpatialReference(RD_NEW_PROJ),
 )

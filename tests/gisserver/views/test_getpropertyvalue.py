@@ -104,7 +104,7 @@ class TestGetPropertyValue:
         """Prove that referencing attributes works"""
         response = client.get(
             "/v1/wfs/?SERVICE=WFS&REQUEST=GetPropertyValue&VERSION=2.0.0&TYPENAMES=restaurant"
-            f"&VALUEREFERENCE=@gml:id"
+            "&VALUEREFERENCE=@gml:id"
         )
         content = read_response(response)
         assert response["content-type"] == "text/xml; charset=utf-8", content
@@ -301,7 +301,7 @@ class TestGetPropertyValue:
         """Prove that unknown IDs simply return an empty list."""
         response = client.get(
             "/v1/wfs/?SERVICE=WFS&REQUEST=GetPropertyValue&VERSION=2.0.0&TYPENAMES=restaurant"
-            f"&RESOURCEID=restaurant.0&VALUEREFERENCE=name"
+            "&RESOURCEID=restaurant.0&VALUEREFERENCE=name"
         )
         content = read_response(response)
         assert response["content-type"] == "text/xml; charset=utf-8", content
@@ -344,7 +344,7 @@ class TestGetPropertyValue:
         """Prove that TYPENAMES should be omitted, or match the RESOURCEID."""
         response = client.get(
             "/v1/wfs/?SERVICE=WFS&REQUEST=GetPropertyValue&VERSION=2.0.0"
-            f"&RESOURCEID=restaurant.ABC&VALUEREFERENCE=name"
+            "&RESOURCEID=restaurant.ABC&VALUEREFERENCE=name"
         )
         content = read_response(response)
         assert response["content-type"] == "text/xml; charset=utf-8", content
@@ -376,16 +376,16 @@ class TestGetPropertyValue:
         # For GetFeatureById, no <wfs:FeatureCollection> is returned.
         assert_xml_equal(
             content,
-            f"""<app:name xmlns:app="http://example.org/gisserver"
-                          xmlns:gml="http://www.opengis.net/gml/3.2">Café Noir</app:name>""",
+            """<app:name xmlns:app="http://example.org/gisserver"
+                         xmlns:gml="http://www.opengis.net/gml/3.2">Café Noir</app:name>""",
         )
 
     def test_get_feature_by_id_bad_id(self, client, restaurant, bad_restaurant):
         """Prove that invalid IDs are properly handled."""
         response = client.get(
             "/v1/wfs/?SERVICE=WFS&REQUEST=GetPropertyValue&VERSION=2.0.0"
-            f"&STOREDQUERY_ID=urn:ogc:def:query:OGC-WFS::GetFeatureById"
-            f"&ID=restaurant.ABC&VALUEREFERENCE=name"
+            "&STOREDQUERY_ID=urn:ogc:def:query:OGC-WFS::GetFeatureById"
+            "&ID=restaurant.ABC&VALUEREFERENCE=name"
         )
         content = read_response(response)
         assert response["content-type"] == "text/xml; charset=utf-8", content
@@ -408,8 +408,8 @@ class TestGetPropertyValue:
         """Prove that missing IDs are properly handled."""
         response = client.get(
             "/v1/wfs/?SERVICE=WFS&REQUEST=GetPropertyValue&VERSION=2.0.0"
-            f"&STOREDQUERY_ID=urn:ogc:def:query:OGC-WFS::GetFeatureById"
-            f"&ID=restaurant.0&VALUEREFERENCE=name"
+            "&STOREDQUERY_ID=urn:ogc:def:query:OGC-WFS::GetFeatureById"
+            "&ID=restaurant.0&VALUEREFERENCE=name"
         )
         content = read_response(response)
         assert response["content-type"] == "text/xml; charset=utf-8", content
