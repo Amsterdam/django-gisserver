@@ -276,7 +276,7 @@ This allows to create complex filters, such as:
     </Filter>
 
 Functions
-~~~~~~~~~
+---------
 
 Functions are executed by using the tag ``<Function name="..">..</Function>``.
 This can be used anywhere as an expression instead of a ``<ValueReference>`` or ``<Literal>``.
@@ -401,7 +401,7 @@ The following functions are available in the server:
 
 
 Filter Compatibility
-~~~~~~~~~~~~~~~~~~~~
+--------------------
 
 Strictly speaking, XML namespaces are required in the filter. Since many clients omit them,
 The server also supports requests without namespaces. For the sake of completeness,
