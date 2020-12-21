@@ -176,6 +176,12 @@ These tags are all supported:
    * - ``<Within>``
      - :samp:`ST_Within({a}, {b})`
      - Geometry 1 is completely contained within geometry 2.
+   * - ``<DWithin>``
+     - :samp:`ST_DWithin({a}, {b}, {d})`
+     - The geometries are within a given distance of each other.
+   * - ``<Beyond>``
+     - :samp:`NOT ST_DWithin({a}, {b}, {d})`
+     - The geometries are not within a given distance.
    * - ``<And>``
      - :samp:`{a} AND {b}`
      - The nested elements must all be true.
