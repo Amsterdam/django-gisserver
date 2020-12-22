@@ -1,3 +1,10 @@
+# 2020-12-22 (1.1.2)
+
+* Fixed double ``>`` sign in ``<Filter xml..>>`` code when namespaces were auto-corrected.
+* Fixed basic ``<Beyond>`` support for distance queries.
+* Fixed parameter name for ``round()`` function.
+
+
 # 2020-08-19 (1.1.1)
 
 * Improve HTML page with "Using This WFS" section.
