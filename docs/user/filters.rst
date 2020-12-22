@@ -43,7 +43,7 @@ For example:
 .. tip::
    In the example links above, a ``COUNT=`` parameter is included to activate pagination.
    When this parameter is omitted, *all objects* will be returned in a single request.
-   For most datasets, the server is capable of delivering all results efficiently.
+   For most datasets, the server is capable of efficiently delivering all results in a single response.
 
 Geometry Projections
 --------------------
