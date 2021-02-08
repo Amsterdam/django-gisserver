@@ -14,6 +14,11 @@ from functools import lru_cache
 
 from gisserver.exceptions import ExternalParsingError, ExternalValueError
 
+try:
+    from django.contrib.gis.gdal import AxisOrder  # Django 3.1+
+except ImportError:
+    AxisOrder = None
+
 CRS_URN_REGEX = re.compile(
     r"^urn:(?P<domain>[a-z]+)"
     r":def:crs:(?P<authority>[a-z]+)"
@@ -30,11 +35,17 @@ __all__ = [
 ]
 
 
-@lru_cache(maxsize=100)
-def _get_spatial_reference(srid):
+@lru_cache(maxsize=200)
+def _get_spatial_reference(srs_input, srs_type="user", axis_order=None):
     """Construct an GDAL object reference"""
     # Using lru-cache to avoid repeated GDAL c-object construction
-    return SpatialReference(srid, srs_type="epsg")
+    if AxisOrder is not None:
+        # Django 3.1+ only, allow to define the axis ordering with GDAL 3.0
+        # https://gdal.org/tutorials/osr_api_tut.html#crs-and-axis-order
+        # https://github.com/django/django/commit/58f1b07e49a98bb391c9e38b91f078ab2c302703
+        return SpatialReference(srs_input, srs_type=srs_type, axis_order=axis_order)
+    else:
+        return SpatialReference(srs_input, srs_type=srs_type)
 
 
 @lru_cache(maxsize=100)
@@ -50,9 +61,9 @@ def _get_coord_transform(
     repeatedly created with a custom 'backend' object.
     """
     if isinstance(source, int):
-        source = _get_spatial_reference(source)
+        source = _get_spatial_reference(source, srs_type="epsg")
     if isinstance(target, int):
-        target = _get_spatial_reference(target)
+        target = _get_spatial_reference(target, srs_type="epsg")
 
     return CoordTransform(source, target)
 
@@ -90,6 +101,9 @@ class CRS:
     #: GDAL SpatialReference with PROJ.4 / WKT content to describe the exact transformation.
     backend: Optional[SpatialReference] = None
 
+    #: Original input
+    origin: str = field(init=False, default=None)
+
     has_custom_backend: bool = field(init=False)
 
     def __post_init__(self):
@@ -126,7 +140,7 @@ class CRS:
 
             CRS.from_string("urn:ogc:def:crs:EPSG:6.9:<SRID>")
         """
-        return cls(
+        crs = cls(
             domain="ogc",
             authority="EPSG",
             version="",
@@ -134,6 +148,8 @@ class CRS:
             srid=int(srid),
             backend=backend,
         )
+        crs.__dict__["origin"] = srid
+        return crs
 
     @classmethod
     def _from_urn(cls, urn, backend=None):  # noqa: C901
@@ -172,7 +188,7 @@ class CRS:
                 f"CRS URI [{urn}] contains unknown authority [{authority}]"
             )
 
-        return cls(
+        crs = cls(
             domain=domain,
             authority=authority,
             version=urn_match.group(3),
@@ -180,6 +196,8 @@ class CRS:
             srid=srid,
             backend=backend,
         )
+        crs.__dict__["origin"] = urn
+        return crs
 
     @classmethod
     def _from_legacy(cls, uri, backend=None):
@@ -199,7 +217,7 @@ class CRS:
                         f"CRS URI [{uri}] should contain a numeric SRID value."
                     ) from None
 
-                return cls(
+                crs = cls(
                     domain="ogc",
                     authority="EPSG",
                     version="",
@@ -207,6 +225,8 @@ class CRS:
                     srid=srid,
                     backend=backend,
                 )
+                crs.__dict__["origin"] = uri
+                return crs
 
         raise ExternalValueError(f"Unknown CRS URI [{uri}] specified")
 
@@ -238,8 +258,14 @@ class CRS:
     def _as_gdal(self) -> SpatialReference:
         """Generate the GDAL Spatial Reference object"""
         if self.backend is None:
-            # Avoid repeated construction
-            self.__dict__["backend"] = _get_spatial_reference(self.srid)
+            # Avoid repeated construction, reuse the object from cache if possible.
+            # Note that the original data is used, as it also defines axis orientation.
+            if self.origin:
+                self.__dict__["backend"] = _get_spatial_reference(self.origin)
+            else:
+                self.__dict__["backend"] = _get_spatial_reference(
+                    self.srid, srs_type="epsg"
+                )
         return self.backend
 
     def apply_to(self, geometry: GEOSGeometry, clone=False) -> Optional[GEOSGeometry]:

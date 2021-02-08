@@ -12,6 +12,8 @@ from gisserver.exceptions import (
 # no other changes are visible. Hence keeping these here for now. If there are more
 # differences on other platforms, better perform a live transformation here to see
 # what the expected values will be.
+#
+# Note that GeoJSON coordinates are always ESPG:4326 in (longitude, latitude)
 if sys.platform == "darwin":
     if conf.GISSERVER_USE_DB_RENDERING:
         # PostgreSQL determines the results.
