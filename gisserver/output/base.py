@@ -226,7 +226,12 @@ class OutputRenderer:
             raise
 
     def render_exception(self, exception: Exception):
-        """Render the exception in a format that fits with the output."""
+        """Inform the client that the stream processing was interrupted with an exception.
+        The exception can be rendered in the format fits with the output.
+
+        Purposefully, not much information is given, so avoid informing clients.
+        The actual exception is still raised and logged server-side.
+        """
         if settings.DEBUG:
             return f"<!-- {exception.__class__.__name__}: {exception} -->\n"
         else:
