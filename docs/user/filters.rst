@@ -5,7 +5,7 @@ This is a brief explanation of using a WFS server.
 
 Commonly, a WFS server can is accessed by GIS-software, such as `QGis <https://qgis.org/>`_.
 The URL that's configured inside ``urls.py`` can be used directly as WFS endpoint.
-For example, add https://api.data.amsterdam.nl/v1/wfs/bag/ to QGis.
+For example, add https://api.data.amsterdam.nl/v1/wfs/gebieden/ to QGis.
 
 Everything, for querying and viewing can be done in QGis.
 
@@ -37,8 +37,8 @@ The parameters :samp:`TYPENAMES={feature-name}` and :samp:`OUTPUTFORMAT={format}
 
 For example:
 
-* `...&TYPENAMES=buurt&OUTPUTFORMAT=geojson <https://api.data.amsterdam.nl/v1/wfs/bag/?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetFeature&TYPENAMES=buurt&COUNT=10&OUTPUTFORMAT=geojson>`_
-* `...&TYPENAMES=buurt&OUTPUTFORMAT=csv <https://api.data.amsterdam.nl/v1/wfs/bag/?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetFeature&TYPENAMES=buurt&COUNT=10&OUTPUTFORMAT=csv>`_
+* `...&TYPENAMES=wijken&OUTPUTFORMAT=geojson <https://api.data.amsterdam.nl/v1/wfs/gebieden/?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetFeature&TYPENAMES=wijken&COUNT=10&OUTPUTFORMAT=geojson>`_
+* `...&TYPENAMES=wijken&OUTPUTFORMAT=csv <https://api.data.amsterdam.nl/v1/wfs/gebieden/?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetFeature&TYPENAMES=wijken&COUNT=10&OUTPUTFORMAT=csv>`_
 
 .. tip::
    In the example links above, a ``COUNT=`` parameter is included to activate pagination.
@@ -60,20 +60,20 @@ The WFS protocol offers a powerful syntax to filter data.
 Use the request ``REQUEST=GetFeature`` with a ``FILTER`` argument.
 The filter value is expressed as XML.
 
-For example, to query all neighbourhoods (typename buurt) of the central district (stadsdeel) in Amsterdam:
+For example, to query all neighbourhoods (typename buurten) of the central district (stadsdeel) in Amsterdam:
 
 .. code-block:: xml
 
     <Filter>
         <PropertyIsEqualTo>
-            <ValueReference>stadsdeel/naam</ValueReference>
+            <ValueReference>ligt_in_stadsdeel/naam</ValueReference>
             <Literal>Centrum</Literal>
         </PropertyIsEqualTo>
     </Filter>
 
 This can be included in the request, for example:
 
-* `...&TYPENAMES=buurt&OUTPUTFORMAT=geojson&FILTER=%3CFilter%3E%3CPropertyIsEqualTo%3E%3CValueReference... <https://api.data.amsterdam.nl/v1/wfs/bag/?expand=stadsdeel&SERVICE=WFS&VERSION=2.0.0&REQUEST=GetFeature&TYPENAMES=buurt&COUNT=10&OUTPUTFORMAT=geojson&FILTER=%3CFilter%3E%3CPropertyIsEqualTo%3E%3CValueReference%3Estadsdeel/naam%3C/ValueReference%3E%3CLiteral%3ECentrum%3C/Literal%3E%3C/PropertyIsEqualTo%3E%3C/Filter%3E>`_
+* `...&TYPENAMES=wijken&OUTPUTFORMAT=geojson&FILTER=%3CFilter%3E%3CPropertyIsEqualTo%3E%3CValueReference... <https://api.data.amsterdam.nl/v1/wfs/gebieden/?expand=ligt_in_stadsdeel&SERVICE=WFS&VERSION=2.0.0&REQUEST=GetFeature&TYPENAMES=wijken&COUNT=10&OUTPUTFORMAT=geojson&FILTER=%3CFilter%3E%3CPropertyIsEqualTo%3E%3CValueReference%3Eligt_in_stadsdeel/naam%3C/ValueReference%3E%3CLiteral%3ECentrum%3C/Literal%3E%3C/PropertyIsEqualTo%3E%3C/Filter%3E>`_
 
 The ``FILTER`` parameter replaces the separate ``BBOX`` and ``RESOURCEID`` parameters.
 If you use these parameters as well, they should be included in the filter:
