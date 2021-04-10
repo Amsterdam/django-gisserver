@@ -23,9 +23,9 @@ tests_require = [
     "django-environ >= 0.4.5",
     "psycopg2-binary >= 2.8.4",
     "lxml >= 4.5.0",
-    "pytest == 5.3.5",
-    "pytest-django == 3.8.0",
-    "pytest-cov == 2.8.1",
+    "pytest == 6.2.3",
+    "pytest-django == 4.1.0",
+    "pytest-cov == 2.11.1",
 ]
 
 
