@@ -1,3 +1,5 @@
+* Support Django 3.2.
+
 # 2020-12-22 (1.1.2)
 
 * Fixed double ``>`` sign in ``<Filter xml..>>`` code when namespaces were auto-corrected.
