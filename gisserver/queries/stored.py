@@ -72,7 +72,7 @@ class StoredQuery(QueryExpression):
     def extract_parameters(cls, KVP) -> Dict[str, str]:
         """Extract the arguments from the key-value-pair (=HTTP GET) request."""
         args = {}
-        for name, xsd_type in cls.meta.parameters.items():
+        for name, _xsd_type in cls.meta.parameters.items():
             try:
                 args[name] = KVP[name]
             except KeyError:
