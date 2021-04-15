@@ -50,7 +50,7 @@ Features and Fields
 Each :class:`~gisserver.features.FeatureField` is transformed into
 an internal ``XsdElement`` object. The model field access happens
 through ``XsdElement.get_value()``.
-Note that the ``type`` can either reference either an ``XsdTypes`` or ``XsdComplexType``.
+Note that the ``type`` can either reference either an ``XsdTypes`` or ``XsdComplexType`` object.
 
 .. graphviz::
 

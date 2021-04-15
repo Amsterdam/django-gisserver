@@ -95,7 +95,7 @@ If you use these parameters as well, they should be included in the filter:
         </And>
     </Filter>
 
-De ``RESOURCEID`` parameter has a ``<ResourceId>`` equivalent which can appear several times in the filter:
+The ``RESOURCEID`` parameter has a ``<ResourceId>`` equivalent which can appear several times in the filter:
 
 .. code-block:: xml
 
@@ -404,7 +404,7 @@ Filter Compatibility
 --------------------
 
 Strictly speaking, XML namespaces are required in the filter. Since many clients omit them,
-The server also supports requests without namespaces. For the sake of completeness,
+the server also supports requests without namespaces. For the sake of completeness,
 a request with namespaces included looks like this:
 
 .. code-block:: xml
