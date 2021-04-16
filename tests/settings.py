@@ -1,3 +1,4 @@
+import django
 from environ import Env
 
 env = Env()
@@ -9,6 +10,9 @@ DATABASES = {
         engine="django.contrib.gis.db.backends.postgis",
     )
 }
+
+if django.VERSION >= (3, 2):
+    DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 GISSERVER_USE_DB_RENDERING = env.bool("GISSERVER_USE_DB_RENDERING", default=True)
 
