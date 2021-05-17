@@ -1,4 +1,11 @@
-* Support Django 3.2.
+# 2021-05-17 (1.1.3)
+
+* Included Django 3.2 in test matrix.
+* Fixed preserving axis orientation by passing Incoming SRS data is directly to GDAL.
+* Fixed doc typoo's
+* Updated pre-commit hooks.
+* Drop universal wheel declaration (Python 2 is no longer supported)
+
 
 # 2020-12-22 (1.1.2)
 
