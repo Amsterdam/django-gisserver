@@ -144,10 +144,10 @@ Overriding Value Retrieval
 .. versionchanged:: 1.0.4
    The ``xsd_class`` simplifies field overriding, and ``value_from_object()`` is now used.
 
-Deep down, each feature fields are exposed as an ``XsdElement`` that
-defines how the WFS-server generates it's type definitions and retrieves the value.
+Deep down, all feature fields are mapped to ``XsdElement`` objects that
+defines what WFS-server should generate as type definition.
 Field values are retrieved using ``XsdElement.get_value()``,
-which calls Django's ``field.value_from_object()``.
+which resolves any dotted paths and calls Django's ``value_from_object()`` on the model field.
 This logic can be overwritten:
 
 .. code-block:: python
