@@ -161,6 +161,7 @@ class FeatureField:
         model=None,
         parent: "Optional[ComplexFeatureField]" = None,
         abstract=None,
+        xsd_class: Optional[Type[XsdElement]] = None,
     ):
         self.name = name
         self.model_attribute = model_attribute
@@ -168,6 +169,11 @@ class FeatureField:
         self.model_field = None
         self.parent = parent
         self.abstract = abstract
+
+        # Allow to override the class attribute on 'self',
+        # which avoids having to subclass this field class as well.
+        if xsd_class is not None:
+            self.xsd_element_class = xsd_class
 
         self._nillable_relation = False
         if model is not None:
@@ -258,6 +264,7 @@ class ComplexFeatureField(FeatureField):
         model_attribute=None,
         model=None,
         abstract=None,
+        xsd_class=None,
     ):
         """
         :param name: Name of the model field.
@@ -266,7 +273,11 @@ class ComplexFeatureField(FeatureField):
             Using ``__all__`` also works but is not recommended outside testing.
         """
         super().__init__(
-            name, model_attribute=model_attribute, model=model, abstract=abstract
+            name,
+            model_attribute=model_attribute,
+            model=model,
+            abstract=abstract,
+            xsd_class=xsd_class,
         )
         self._fields = fields
 
@@ -314,6 +325,7 @@ def field(
     model_attribute=None,
     abstract: Optional[str] = None,
     fields: Optional[_FieldDefinitions] = None,
+    xsd_class: Optional[Type[XsdElement]] = None,
 ) -> FeatureField:
     """Shortcut to define a WFS field.
 
@@ -327,10 +339,19 @@ def field(
     """
     if fields is not None:
         return ComplexFeatureField(
-            name=name, model_attribute=model_attribute, fields=fields, abstract=abstract
+            name=name,
+            model_attribute=model_attribute,
+            fields=fields,
+            abstract=abstract,
+            xsd_class=xsd_class,
         )
     else:
-        return FeatureField(name, model_attribute=model_attribute, abstract=abstract)
+        return FeatureField(
+            name,
+            model_attribute=model_attribute,
+            abstract=abstract,
+            xsd_class=xsd_class,
+        )
 
 
 class FeatureType:
