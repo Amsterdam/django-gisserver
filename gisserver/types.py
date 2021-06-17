@@ -250,9 +250,30 @@ class XsdNode:
         if ":" in self.name:
             raise ValueError("Use 'prefix' argument for namespaces")
 
-        # Using operator.attrgetter() instead of getattr() gives built-in
-        # support to traversing model attributes with dots.
         self._attrgetter = operator.attrgetter(self.model_attribute)
+        self._valuegetter = self._build_valuegetter(self.model_attribute, self.source)
+
+    @staticmethod
+    def _build_valuegetter(model_attribute: str, field: Optional[models.Field]):
+        if field is None:
+            # No model field, can only use getattr(). The attrgetter function has
+            # built-in support for traversing model attributes with dots.
+            return operator.attrgetter(model_attribute)
+        elif "." not in model_attribute:
+            # Shortcut, can just use Django's value_from_object.
+            # This allows Django fields to override the object retrieval.
+            # Not using value_to_string() as different output formats may serialize differently.
+            return field.value_from_object
+        else:
+            # Need to traverse foreign key relations before using value_from_objec().
+            names = model_attribute.split(".")
+
+            def _related_get_value_from_object(instance):
+                for name in names[:-1]:
+                    instance = getattr(instance, name)
+                return field.value_from_object(instance)
+
+            return _related_get_value_from_object
 
     @cached_property
     def is_geometry(self) -> bool:
@@ -308,7 +329,13 @@ class XsdNode:
         # For foreign keys, it's not possible to use the model value,
         # as that would conflict with the field type in the XSD schema.
         try:
-            return self.format_value(self._attrgetter(instance))
+            if self.type.is_complex_type:
+                # This element has sub elements, which need the Django model instance.
+                # Avoid unwanted value_from_object(), instead return the model instance.
+                return self._attrgetter(instance)
+            else:
+                # Support value_from_object() on custom fields.
+                return self.format_value(self._valuegetter(instance))
         except (AttributeError, ObjectDoesNotExist):
             # E.g. Django foreign keys that point to a non-existing member.
             return None
