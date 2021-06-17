@@ -137,3 +137,40 @@ assumes it's a flattened relation.
 
 In the example above, the ``owner.id`` field is linked to the ``owner_id`` model attribute
 so no additional JOIN is needed to filter against ``owner.id``.
+
+Overriding Value Retrieval
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. versionchanged:: 1.0.4
+   The ``xsd_class`` simplifies field overriding, and ``value_from_object()`` is now used.
+
+Deep down, each feature fields are exposed as an ``XsdElement`` that
+defines how the WFS-server generates it's type definitions and retrieves the value.
+Field values are retrieved using ``XsdElement.get_value()``,
+which calls Django's ``field.value_from_object()``.
+This logic can be overwritten:
+
+.. code-block:: python
+
+    from gisserver.features import field
+    from gisserver.types import XsdElement
+    from gisserver.views import WFSView
+
+
+    class CustomXsdElement(XsdElement):
+        def get_value(self, instance):
+            return self.source.object_from_image(instance)
+
+
+    class CustomWFSView(WFSView):
+        ...
+
+        feature_types = [
+            FeatureType(
+                fields=[
+                   "id",
+                   "name",
+                   field("image", xsd_class=CustomXsdElement),
+                ]
+            )
+        ]
