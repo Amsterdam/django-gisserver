@@ -680,7 +680,7 @@ class TestGetFeature:
                 "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
                 "&outputformat=geojson"
             )
-            assert response["content-type"] == "application/json; charset=utf-8"
+            assert response["content-type"] == "application/geo+json; charset=utf-8"
             content = read_response(response)
             assert response.status_code == 200, content
 
@@ -739,7 +739,7 @@ class TestGetFeature:
             "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
             "&outputformat=geojson&COUNT=1000"
         )
-        assert response["content-type"] == "application/json; charset=utf-8"
+        assert response["content-type"] == "application/geo+json; charset=utf-8"
         content = read_response(response)
 
         # If the response is invalid json, there was likely
@@ -763,7 +763,7 @@ class TestGetFeature:
                 "/v1/wfs-complextypes/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
                 "&TYPENAMES=restaurant&outputformat=geojson"
             )
-            assert response["content-type"] == "application/json; charset=utf-8"
+            assert response["content-type"] == "application/geo+json; charset=utf-8"
             content = read_response(response)
             assert response.status_code == 200, content
 
@@ -824,7 +824,7 @@ class TestGetFeature:
                 "/v1/wfs-flattened/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
                 "&TYPENAMES=restaurant&outputformat=geojson"
             )
-            assert response["content-type"] == "application/json; charset=utf-8"
+            assert response["content-type"] == "application/geo+json; charset=utf-8"
             content = read_response(response)
             assert response.status_code == 200, content
 
