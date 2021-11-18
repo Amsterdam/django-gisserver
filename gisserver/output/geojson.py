@@ -36,7 +36,7 @@ class GeoJsonRenderer(OutputRenderer):
     it does not offer streaming response handling.
     """
 
-    content_type = "application/json; charset=utf-8"
+    content_type = "application/geo+json; charset=utf-8"
     content_disposition = 'inline; filename="{typenames} {page} {date}.geojson"'
     max_page_size = conf.GISSERVER_GEOJSON_MAX_PAGE_SIZE
 
