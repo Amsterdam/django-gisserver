@@ -577,7 +577,7 @@ class TestGetFeature:
         names = []
         url = (
             "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
-            "&SORTBY=name"
+            "&SORTBY=name&vendor-arg=foobar"
         )
         for _ in range(4):  # test whether last page stops
             response = client.get(f"{url}&COUNT=1")
@@ -598,9 +598,27 @@ class TestGetFeature:
             names.extend(
                 res.find("app:name", namespaces=NAMESPACES).text for res in restaurants
             )
-            url = xml_doc.attrib.get("next")
-            if not url:
-                break
+
+            # Test pagination links
+            next_url = xml_doc.attrib.get("next")
+            if not next_url:
+                assert xml_doc.attrib.get("previous") == (
+                    "http://testserver/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
+                    "&TYPENAMES=restaurant&SORTBY=name"
+                    "&vendor-arg=foobar"
+                    "&COUNT=1&STARTINDEX=0"
+                )
+                break  # last page reached
+
+            assert next_url == (
+                "http://testserver/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
+                "&TYPENAMES=restaurant&SORTBY=name"
+                "&vendor-arg=foobar"
+                "&COUNT=1&STARTINDEX=1"
+            )
+
+            # Resolve next page!
+            url = next_url
 
         # Prove that both items were returned
         assert len(names) == 2
@@ -737,7 +755,7 @@ class TestGetFeature:
 
         response = client.get(
             "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
-            "&outputformat=geojson&COUNT=1000"
+            "&vendor-arg=foobar&outputformat=geojson&COUNT=1000"
         )
         assert response["content-type"] == "application/geo+json; charset=utf-8"
         content = read_response(response)
@@ -749,6 +767,22 @@ class TestGetFeature:
         assert len(data["features"]) == 1000
         assert data["numberReturned"] == 1000
         assert data["numberMatched"] == 1500
+
+        # Check that the generates links are as expected, and don't mangle casing
+        # as some project/vendor specific parameters might be case sensitive.
+        assert data["links"] == [
+            {
+                "href": (
+                    "http://testserver/v1/wfs/"
+                    "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
+                    "&vendor-arg=foobar"
+                    "&outputformat=geojson&COUNT=1000&STARTINDEX=1000"
+                ),
+                "rel": "next",
+                "type": "application/geo+json",
+                "title": "next page",
+            }
+        ]
 
     def test_get_geojson_complex(
         self, client, restaurant, bad_restaurant, django_assert_max_num_queries
