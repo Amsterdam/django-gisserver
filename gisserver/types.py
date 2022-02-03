@@ -73,6 +73,7 @@ RE_XPATH_ATTR = re.compile(r"\[[^\]]+\]$")  # match [@attr=..]
 class XsdAnyType:
     """Base class for all types used in the XML definition"""
 
+    name: str
     prefix = None
     is_complex_type = False
     is_geometry = False

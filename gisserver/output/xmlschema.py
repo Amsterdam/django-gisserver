@@ -1,6 +1,6 @@
 from collections import deque
 
-from typing import List
+from typing import Iterable, List, cast
 
 from gisserver.features import FeatureType
 from gisserver.operations.base import WFSMethod
@@ -100,21 +100,22 @@ class XMLSchemaRenderer(OutputRenderer):
         )
         return output.getvalue()
 
-    def _get_complex_types(self, root: XsdComplexType) -> List[XsdComplexType]:
-        """Find which fields of the XSDElements reference to complex types."""
-        worklist = deque(root.elements)
+    def _get_complex_types(self, root: XsdComplexType) -> Iterable[XsdComplexType]:
+        """Find all fields that reference to complex types, including nested elements."""
+        elements = deque(root.elements)
         complex_types = {}
 
         # Walk through next types, unless they are already seen.
         # No recursion is used here to handle circular loops of types.
-        while worklist:
-            element = worklist.popleft()
+        while elements:
+            element = elements.popleft()
             element_type = element.type
             if element_type.is_complex_type and element_type.name not in complex_types:
                 # ComplexType was not seen before, register it.
-                # It's members are added to the worklist.
-                complex_types[element_type.name] = element_type
-                worklist.extend(element_type.elements)
+                # It's members are added to the deque for recursive processing.
+                xsd_element_type = cast(XsdComplexType, element_type)
+                complex_types[element_type.name] = xsd_element_type
+                elements.extend(xsd_element_type.elements)
 
         # Present in a consistent order
         return complex_types.values()
