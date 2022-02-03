@@ -5,7 +5,8 @@ from typing import List
 from gisserver.features import FeatureType
 from gisserver.operations.base import WFSMethod
 from gisserver.types import XsdComplexType
-from .base import OutputRenderer, StringBuffer
+from .base import OutputRenderer
+from .buffer import StringBuffer
 
 
 class XMLSchemaRenderer(OutputRenderer):

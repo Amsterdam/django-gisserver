@@ -1,4 +1,3 @@
-import io
 import math
 from collections import defaultdict
 from typing import List, Set, Tuple, Type
@@ -175,16 +174,21 @@ class OutputRenderer:
         """Render the output as streaming response."""
         stream = self.render_stream()
         if isinstance(stream, (str, bytes)):
+            # Not a real stream, output anyway as regular HTTP response.
             response = HttpResponse(content=stream, content_type=self.content_type)
         else:
+            # A actual generator.
             stream = self._trap_exceptions(stream)
             response = StreamingHttpResponse(
                 streaming_content=stream,
                 content_type=self.content_type,
             )
 
+        # Add HTTP headers
         for name, value in self.get_headers().items():
             response[name] = value
+
+        # Handover to WSGI server (starts streaming when reading the contents)
         return response
 
     def get_headers(self):
@@ -240,52 +244,3 @@ class OutputRenderer:
     def render_stream(self):
         """Implement this in subclasses to implement a custom output format."""
         raise NotImplementedError()
-
-
-class BaseBuffer:
-    """Fast buffer to write data in chunks.
-    This avoids performing too many yields in the output writing.
-    Especially for GeoJSON, that slows down the response times.
-    """
-
-    buffer_class = None
-
-    def __init__(self, chunk_size=4096):
-        self.data = self.buffer_class()
-        self.size = 0
-        self.chunk_size = chunk_size
-
-    def is_full(self):
-        return self.size >= self.chunk_size
-
-    def write(self, value):
-        if value is None:
-            return
-        self.size += len(value)
-        self.data.write(value)
-
-    def getvalue(self):
-        return self.data.getvalue()
-
-    def clear(self):
-        self.data.seek(0)
-        self.data.truncate(0)
-        self.size = 0
-
-
-class BytesBuffer(BaseBuffer):
-    """Collect the data as bytes."""
-
-    buffer_class = io.BytesIO
-
-    def __bytes__(self):
-        return self.getvalue()
-
-
-class StringBuffer(BaseBuffer):
-    """Collect the data as string"""
-
-    buffer_class = io.StringIO
-
-    def __str__(self):
-        return self.getvalue()

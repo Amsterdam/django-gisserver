@@ -16,10 +16,8 @@ from gisserver.db import (
 )
 from gisserver.features import FeatureType
 from gisserver.types import XsdComplexType, XsdElement
-from .base import (
-    OutputRenderer,
-    StringBuffer,
-)
+from .base import OutputRenderer
+from .buffer import StringBuffer
 
 
 class CSVRenderer(OutputRenderer):
@@ -66,7 +64,7 @@ class CSVRenderer(OutputRenderer):
                 is_first_collection = False
             else:
                 # Multiple feature types requested, add newlines to separate them
-                output.write(b"\n\n")
+                output.write("\n\n")
 
             # Write the header
             fields = [f for f in sub_collection.feature_type.xsd_type.elements]
@@ -81,10 +79,9 @@ class CSVRenderer(OutputRenderer):
                 # Only perform a 'yield' every once in a while,
                 # as it goes back-and-forth for writing it to the client.
                 if output.is_full():
-                    yield output.getvalue()
-                    output.clear()
+                    yield output.flush()
 
-        yield output.getvalue()
+        yield output.flush()
 
     def render_exception(self, exception: Exception):
         """Render the exception in a format that fits with the output."""

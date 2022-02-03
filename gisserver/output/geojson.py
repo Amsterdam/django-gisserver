@@ -15,7 +15,8 @@ from gisserver.db import get_db_geometry_target
 from gisserver.features import FeatureType
 from gisserver.types import XsdComplexType
 
-from .base import BytesBuffer, OutputRenderer
+from .base import OutputRenderer
+from .buffer import BytesBuffer
 
 
 def _json_default(obj):
@@ -101,8 +102,7 @@ class GeoJsonRenderer(OutputRenderer):
                 # Only perform a 'yield' every once in a while,
                 # as it goes back-and-forth for writing it to the client.
                 if output.is_full():
-                    yield output.getvalue()
-                    output.clear()
+                    yield output.flush()
 
         # Instead of performing an expensive .count() on the start of the page,
         # write this as a last field at the end of the response.
@@ -111,7 +111,7 @@ class GeoJsonRenderer(OutputRenderer):
         footer = self.get_footer()
         output.write(orjson.dumps(footer)[1:])
         output.write(b"\n")
-        yield output.getvalue()
+        yield output.flush()
 
     def render_exception(self, exception: Exception):
         """Render the exception in a format that fits with the output."""

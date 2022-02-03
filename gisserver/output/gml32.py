@@ -29,10 +29,8 @@ from gisserver.geometries import CRS
 from gisserver.parsers.fes20 import ValueReference
 from gisserver.types import XsdComplexType, XsdElement
 
-from .base import (
-    OutputRenderer,
-    StringBuffer,
-)
+from .base import OutputRenderer
+from .buffer import StringBuffer
 
 GML_RENDER_FUNCTIONS = {}
 RE_GML_ID = re.compile(r'gml:id="[^"]+"')
@@ -176,8 +174,7 @@ class GML32Renderer(OutputRenderer):
                     # Only perform a 'yield' every once in a while,
                     # as it goes back-and-forth for writing it to the client.
                     if output.is_full():
-                        yield output.getvalue()
-                        output.clear()
+                        yield output.flush()
 
                 if has_multiple_collections:
                     output.write(
@@ -185,7 +182,7 @@ class GML32Renderer(OutputRenderer):
                     )
 
         output.write(f"</wfs:{self.xml_collection_tag}>\n")
-        yield output.getvalue()
+        yield output.flush()
 
     def start_collection(self, sub_collection):
         """Hook to allow initialization per feature type"""
