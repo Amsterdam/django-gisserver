@@ -614,7 +614,7 @@ class GmlBoundedByElement(XsdElement):
 
     def build_rhs_part(self, compiler, match: "ORMPath"):
         """Give the ORM part when this element would be used as right-hand-side"""
-        return
+        raise NotImplementedError("queries against <gml:boundedBy> are not supported")
 
     def get_value(self, instance: models.Model, crs: Optional[CRS] = None):
         """Provide the value of the <gml:boundedBy> field
