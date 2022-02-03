@@ -229,7 +229,7 @@ class GML32Renderer(OutputRenderer):
                     if gml is not None:
                         output.write(gml)
                 else:
-                    # e.g. <gml:name>
+                    # e.g. <gml:name>, or all other <app:...> nodes.
                     output.write(
                         self.render_element(feature_type, xsd_element, instance)
                     )
@@ -568,18 +568,23 @@ class GML32ValueRenderer(GML32Renderer):
     ):
         """Overwritten to handle attribute support."""
         if self.xsd_node.is_attribute:
-            # Attributes are rendered without any spaces.
+            # When GetPropertyValue selects an attribute, it's value is rendered
+            # as plain-text (without spaces!) inside a <wfs:member> element.
             # The format_value() is needed for @gml:id
             body = self.xsd_node.format_value(instance["member"])
             return f"  <wfs:member>{body}</wfs:member>\n"
         else:
+            # The call to GetPropertyValue selected an element.
+            # Render this single element tag inside the <wfs:member> parent.
             body = self.render_wfs_member_contents(feature_type, instance)
             return f"  <wfs:member>\n{body}  </wfs:member>\n"
 
     def render_wfs_member_contents(
         self, feature_type: FeatureType, instance: dict, extra_xmlns=""
     ) -> str:
-        """Write the XML for a single object."""
+        """Write the XML for a single object.
+        In this case, it's only a single XML tag.
+        """
         value = instance["member"]
         if self.xsd_node.is_geometry:
             gml_id = self.get_gml_id(feature_type, instance["pk"], seq=1)
@@ -594,7 +599,7 @@ class GML32ValueRenderer(GML32Renderer):
             # The xsd_element is needed so render_xml_field() can render complex types.
             value = self.xsd_node.format_value(value)  # needed for @gml:id
             if self.xsd_node.is_attribute:
-                # For GetFeatureById, allow to return raw values
+                # For GetFeatureById, allow returning raw values
                 return str(value)
             else:
                 return self.render_xml_field(

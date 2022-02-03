@@ -1,8 +1,27 @@
 """Internal XSD type definitions.
 
-These types are the internal definition on which all output is generated.
-It's constructed from the model metadata by the `FeatureType` / `FeatureField`
-classes. Custom field types could also generate these field types.
+These types are the internal schema definition on which all output is generated.
+
+The end-users of this library typically create a WFS feature type definition by using
+the :class:~gisserver.features.FeatureType` / :class:`~gisserver.features.FeatureField` classes.
+
+The feature type classes use the model metadata to construct the internal XMLSchema structure.
+Nearly all WFS requests are handled by walking this structure (like ``DescribeFeatureType``
+or ``GetFeature``). The rendered output is created by walking through this structure,
+and writing the XML elements. All search queries (using XPath) are processed by
+resolving the corresponding element/attributes, to find to the underlying Django model field.
+
+The structure has the following elements:
+
+* :class:`XsdElement` to define the schema of a single XML element (``<xsd:element>``).
+* :class:`XsdAttribute` to define the schema of a single XML attribute (``<xsd:attribute>``).
+
+Each XMLSchema node defines it's "data type" as either:
+
+* :class:`XsdTypes` for simple well-known data types (e.g. text/int, etc..)
+* :class:`XsdComplexType` for a complete class definition (holding elements and attributes)
+
+Custom field types could also generate these field types.
 """
 import operator
 import re
@@ -48,9 +67,7 @@ GML32 = "http://www.opengis.net/gml/3.2"
 XSI = "http://www.w3.org/2001/XMLSchema-instance"
 FES20 = "http://www.opengis.net/fes/2.0"
 
-
-RE_XPATH_ATTR = re.compile(r"\[[^\]]+\]$")
-RE_NON_NAME = re.compile(r"[^a-zA-Z0-9_/]")
+RE_XPATH_ATTR = re.compile(r"\[[^\]]+\]$")  # match [@attr=..]
 
 
 class XsdAnyType:
@@ -77,7 +94,10 @@ class XsdAnyType:
 
 
 class XsdTypes(XsdAnyType, Enum):
-    """Brief enumeration of basic XSD-types.
+    """Brief enumeration of basic XMLSchema types.
+
+    The :class:`XsdElement` and :class:`XsdAttribute` can use these enum members
+    to indicate their value is a well-known XML Schema. Some GML types are included as well.
 
     The default namespace is the "xs:" (XMLSchema).
     Based on https://www.w3.org/TR/xmlschema-2/#built-in-datatypes
@@ -190,6 +210,7 @@ def parse_bool(raw_value: str):
         raise ExternalParsingError(f"Can't cast '{raw_value}' to boolean")
 
 
+# Define how well-known scalar types are parsed into python (mimicking Django's to_python()):
 as_is = lambda v: v
 TYPES_TO_PYTHON = {
     XsdTypes.date: parse_date,
@@ -214,7 +235,12 @@ TYPES_TO_PYTHON = {
 
 
 class XsdNode:
-    """Common logic for XsdElement and XsdAttribute."""
+    """Base class for :class:`XsdElement` and :class:`XsdAttribute`.
+
+    This contains all common mapping/resolving that both elements and attributes share.
+    For instance, how XML nodes are mapped into ORM paths, converted into ORM filters,
+    parse query input and read model attributes to write as output.
+    """
 
     is_attribute = False
 
@@ -255,6 +281,7 @@ class XsdNode:
 
     @staticmethod
     def _build_valuegetter(model_attribute: str, field: Optional[models.Field]):
+        """Select the most efficient read function to retrieves the value."""
         if field is None:
             # No model field, can only use getattr(). The attrgetter function has
             # built-in support for traversing model attributes with dots.
@@ -277,6 +304,7 @@ class XsdNode:
 
     @cached_property
     def is_geometry(self) -> bool:
+        """Tell whether the XML node/element should be handed as GML geometry."""
         return self.type.is_geometry or isinstance(self.source, GeometryField)
 
     @cached_property
@@ -286,6 +314,7 @@ class XsdNode:
 
     @cached_property
     def xml_name(self):
+        """The XML element/attribute name."""
         return f"{self.prefix}:{self.name}" if self.prefix else self.name
 
     @cached_property
@@ -316,12 +345,15 @@ class XsdNode:
             return path.replace(".", "__"), field
 
     def build_lhs_part(self, compiler, match: "ORMPath"):
-        """Give the ORM part when this element is used as
-        left-hand-side of a comparison."""
+        """Give the ORM part when this element is used as left-hand-side of a comparison.
+        This is needed for queries like "<element> == <value>"
+        """
         return match.orm_path
 
     def build_rhs_part(self, compiler, match: "ORMPath"):
-        """Give the ORM part when this element would be used as right-hand-side"""
+        """Give the ORM part when this element would be used as right-hand-side.
+        This is needed for queries like "<value> == <element>" or "<element> == <element>".
+        """
         return F(match.orm_path)
 
     def get_value(self, instance: models.Model):
@@ -400,8 +432,10 @@ class XsdNode:
 class XsdElement(XsdNode):
     """Declare an XSD element.
 
+    Typically, this maps into a Django model field.
+
     This holds the definition for a single property in the WFS server.
-    It's used in ``DescribeFeatureType`` to output the field meta data,
+    It's used in ``DescribeFeatureType`` to output the field metadata,
     and used in ``GetFeature`` to access the actual value from the object.
     Overriding :meth:`get_value` allows to override this logic.
 
@@ -461,7 +495,11 @@ class _XsdElement_WithComplexType(XsdElement):
 class XsdAttribute(XsdNode):
     """Declare an XSD attribute.
 
-    This is needed to support filters against attributes like gml:id.
+    Typically, this maps into a Django model field.
+
+    Most fields are mapped into XML Elements (:class:`XsdElement`).
+    However, WFS also supports XML attributes, and queries against them.
+    This class is uses to support filters against attributes like "gml:id".
     """
 
     is_attribute = True
@@ -487,7 +525,7 @@ class XsdAttribute(XsdNode):
 
 class GmlIdAttribute(XsdAttribute):
     """A virtual 'gml:id' attribute that can be queried.
-    This subclass has overwritten get_value() logic.
+    This subclass has overwritten get_value() logic to format the value.
     """
 
     type_name: str
@@ -508,13 +546,17 @@ class GmlIdAttribute(XsdAttribute):
         return f"{self.type_name}.{pk}"
 
     def format_value(self, value):
+        """Format the value as retrieved from the database."""
         return f"{self.type_name}.{value}"
 
 
 class GmlNameElement(XsdElement):
     """A subclass to handle the <gml:name> element.
-    Currently this just reads a single attribute,
-    but it can be extended to support formatted names.
+    This displays a human-readable title for the object.
+
+    Currently, this just reads a single attribute,
+    but it can be extended to support formatted names
+    (although that would make comparisons on ``element@gml:name`` more complex).
     """
 
     def __init__(
@@ -535,16 +577,22 @@ class GmlNameElement(XsdElement):
         self.feature_type = feature_type
 
     def get_value(self, instance: models.Model):
-        # Redirect to FeatureType
+        """Override value retrieval to retrieve the value from the feature type."""
         if self.feature_type is not None:
+            # Let FeatureType provide a nice display/title for the object.
             return self.feature_type.get_display_value(instance)
         else:
-            # Using this class at a sub-level object.
+            # Fallback, when using this class at a sub-level object.
             return super().get_value(instance)
 
 
 class GmlBoundedByElement(XsdElement):
-    """A subclass to handle the <gml:boundedBy> element."""
+    """A subclass to handle the <gml:boundedBy> element.
+
+    This override makes sure this non-model element data
+    can be included in the XML tree like every other element.
+    Its value is the complete bounding box of the feature type data.
+    """
 
     is_geometry = True  # Override type
 
@@ -578,22 +626,42 @@ class GmlBoundedByElement(XsdElement):
 class XsdComplexType(XsdAnyType):
     """Define an <xsd:complexType> that represents a whole class definition.
 
+    Typically, this maps into a Django model, with each element pointing to a model field.
+
+    The complex can hold multiple :class:`XsdElement` and :class:`XsdAttribute`
+    nodes as children, composing an object. The elements themselves can point
+    to a complex type themselves, to create a nested class structure.
+    That also allows embedding models with their relations into a single response.
+
+    This object definition is the internal "source of truth" regarding
+    which field names and field elements are used in the WFS server.
+    The ``DescribeFeatureType`` request uses this definition to render the matching XMLSchema.
+    Incoming XPath queries are parsed using this object to resolve the XPath to model attributes.
+
     Objects of this type are typically generated by the ``FeatureType`` and
     ``ComplexFeatureField`` classes, using the Django model data.
-
-    This element defines the field names and field elements used in the
-    WFS server. This is the basis for ``DescribeFeatureType`` and locating
-    the queried properties in FES filter queries.
 
     By default, The type is declared as subclass of <gml:AbstractFeatureType>,
     which allows child elements like <gml:name> and <gml:boundedBy>.
     """
 
+    #: Internal class name (without XML prefix)
     name: str
+
+    #: All elements in this class
     elements: List[XsdElement]
+
+    #: All attributes in this class
     attributes: List[XsdAttribute] = field(default_factory=list)
+
+    #: The base class of this type. Typically gml:AbstractFeatureType,
+    #: which provides the <gml:name> and <gml:boundedBy> elements.
     base: XsdAnyType = XsdTypes.gmlAbstractFeatureType
+
+    #: The prefix alias to use for the namespace.
     prefix: str = "app"
+
+    #: The Django model class that this type was based on.
     source: Optional[Type[models.Model]] = None
 
     def __str__(self):
@@ -601,11 +669,12 @@ class XsdComplexType(XsdAnyType):
 
     @cached_property
     def xml_name(self):
+        """Name in the XMLSchema (e.g. app:SomeClass)."""
         return f"{self.prefix}:{self.name}"
 
     @property
     def is_complex_type(self):
-        return True
+        return True  # a property to avoid being used as field.
 
     @cached_property
     def geometry_elements(self) -> List[XsdElement]:
@@ -623,8 +692,11 @@ class XsdComplexType(XsdAnyType):
         return [e for e in self.elements if e.is_flattened]
 
     def resolve_element_path(self, xpath: str) -> Optional[List[XsdNode]]:
-        """Resolve an xpath reference to the actual node.
-        This returns the list of all levels if a match was found.
+        """Resolve a xpath reference to the actual node.
+        This returns the whole path, including in-between relations, if a match was found.
+
+        This is used by :meth:`~gisserver.features.FeatureType.resolve_element`
+        to convert a request XPath element into the ORM attributes for database queries.
         """
         try:
             pos = xpath.rindex("/")
@@ -712,31 +784,45 @@ def split_xml_name(xml_name: str) -> Tuple[Optional[str], str]:
 
 
 class ORMPath:
-    """Base class to provide raw XPath results."""
+    """Base class to provide raw XPath results.
+
+    This base class is designed to allow other query types (besides XPath) too,
+    and allows to insert raw data directly to the query compiler (for unit testing).
+    """
 
     def __init__(self, orm_path: str, orm_filters: Optional[Q] = None):
+        """Base constructor just assigns items.
+        Overwritten classes likely replace this with properties.
+        """
         self.orm_path = orm_path
         self.orm_filters = orm_filters
 
     def __repr__(self):
         return (
-            f"XPathMatch(orm_path={self.orm_path!r}, orm_filters={self.orm_filters!r})"
+            f"{self.__class__.__name__}(orm_path={self.orm_path!r}"
+            f", orm_filters={self.orm_filters!r})"
         )
 
     def build_lhs(self, compiler):
-        """Give the ORM part when this element is used as
-        left-hand-side of a comparison."""
+        """Give the ORM part when this element is used as left-hand-side of a comparison.
+        For example: "path == value".
+        """
         if self.orm_filters:
             compiler.add_extra_lookup(self.orm_filters)
         return self.orm_path
 
     def build_rhs(self, compiler):
-        """Give the ORM part when this element would be used as right-hand-side"""
+        """Give the ORM part when this element would be used as right-hand-side.
+        For example: "path == path" or "value == path".
+        """
         return F(self.build_lhs(compiler))
 
 
 class XPathMatch(ORMPath):
-    """Wrapper class to provide XPath results."""
+    """The ORM path result from am XPath query.
+
+    This result object defines how to resolve an XPath to a ORM object.
+    """
 
     #: The matched element, with all it's parents.
     nodes: List[XsdNode]
@@ -762,7 +848,7 @@ class XPathMatch(ORMPath):
 
     @cached_property
     def orm_path(self) -> str:
-        # Become on demand, sometimes
+        """Give the Django ORM path (field__relation__relation2) to the result."""
         return "__".join(xsd_node.orm_path for xsd_node in self.nodes)
 
     def __iter__(self):

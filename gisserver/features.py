@@ -1,4 +1,18 @@
-"""Dataclasses that expose the metadata for the GetCapabilities call."""
+"""The configuration of a "feature type" in the WFS server.
+
+The "feature type" definitions define what models and attributes are exposed in the WFS server.
+When a model attribute is mentioned in the feature type, it can be exposed and queried against.
+Any field that is not mentioned in a definition, will therefore not be available, nor queryable.
+This metadata is used in the ``GetCapabilities`` call to advertise all available feature types.
+
+To handle other WFS request types besides ``GetCapabilities``, the "feature type" definition
+is translated internally into an internal XML Schema Definition (:mod:`gisserver.types`).
+That schema maps all model attributes to a specific XML layout, and includes
+all XSD Complex Types, elements and attributes linked to the Django model metadata.
+The feature type classes (and field types) offer a flexible translation
+from attribute listings into a schema definition.
+For example, model relationships can be modelled to a different XML layout.
+"""
 import html
 import operator
 from dataclasses import dataclass
@@ -142,7 +156,7 @@ class ServiceDescription:
 
 
 class FeatureField:
-    """The configuration for an field inside a WFS Feature.
+    """The configuration for a field inside a WFS Feature.
 
     This defines how a Django model field is mapped into
     an XSD definition that the remaining application uses.
@@ -192,6 +206,7 @@ class FeatureField:
     ):
         """Late-binding for the model.
 
+        This resolves the model field object from the provided model.
         This method is called internally when the field definition wasn't
         linked to a model yet. This allows the fields to be defined first,
         in external code, and then become part of the ``FeatureType`` fields
@@ -294,7 +309,7 @@ class ComplexFeatureField(FeatureField):
             name=f"{self.target_model._meta.object_name}Type",
             elements=[field.xsd_element for field in self.fields],
             attributes=[
-                # Add gml:id attribute definition so it can be resolved in xpath
+                # Add gml:id attribute definition, so it can be resolved in xpath
                 GmlIdAttribute(
                     type_name=self.name,
                     source=pk_field,
@@ -610,6 +625,10 @@ class FeatureType:
 
     def resolve_element(self, xpath: str) -> XPathMatch:
         """Resolve the element, and the matching object.
+
+        This is used to convert XPath references in requests
+        to the actual elements and model attributes for queries.
+
         Internally, this method caches results.
         """
         nodes = self._cached_resolver(xpath)  # calls _inner_resolve_element

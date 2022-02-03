@@ -42,9 +42,8 @@ class CompiledQuery:
         self.is_empty = False
 
     def add_annotation(self, value: Union[Combinable, Q]) -> str:
-        """Create an named-alias for a function/Q object.
-
-        This alias can be used as left-hand-side of the query expression.
+        """Create a named-alias for a function/Q object.
+        This alias can be used in a comparison, where expressions are used as left-hand-side.
         """
         self.aliases += 1
         name = f"a{self.aliases}"
@@ -52,7 +51,9 @@ class CompiledQuery:
         return name
 
     def add_lookups(self, q_object: Q, type_name: Optional[str] = None):
-        """Register an extra 'WHERE' clause of the query."""
+        """Register an extra 'WHERE' clause of the query.
+        This is used for comparisons, ID selectors and other query types.
+        """
         if not isinstance(q_object, Q):
             raise TypeError()
 
@@ -64,12 +65,16 @@ class CompiledQuery:
             self.lookups.append(q_object)
 
     def add_extra_lookup(self, q_object: Q):
-        """Temporary stash an extra lookup that the expression can't return yet."""
+        """Temporary stash an extra lookup that the expression can't return yet.
+        This is used for XPath selectors that also filter on attributes,
+        e.g. "element[@attr=..]/child". The attribute lookup is processed as another filter.
+        """
         if not isinstance(q_object, Q):
             raise TypeError()
         self.extra_lookups.append(q_object)
 
     def add_sort_by(self, sort_by: sorting.SortBy):
+        """Read the desired result ordering from a ``<fes:SortBy>`` element."""
         self.ordering += sort_by.build_ordering(self.feature_type)
 
     def add_value_reference(self, value_reference: expressions.ValueReference) -> str:
@@ -82,11 +87,21 @@ class CompiledQuery:
         """
         return value_reference.build_rhs(self)
 
-    def apply_extra_lookups(self, result: Q) -> Q:
-        """Combine stashed lookups with the produced result."""
-        if self.extra_lookups:
-            result = reduce(operator.and_, [result] + self.extra_lookups)
-            self.extra_lookups.clear()
+    def apply_extra_lookups(self, comparison: Q) -> Q:
+        """Combine stashed lookups with the provided Q object.
+
+        This is called for functions that compile a "Q" object.
+        In case a node added extra lookups (for attributes), these are combined here
+        with the actual comparison.
+        """
+        if not self.extra_lookups:
+            return comparison
+
+        # The extra lookups are used for XPath queries such as "/node[@attr=..]/foo".
+        # A <ValueReference> with such lookup also requires to limit the filtered results,
+        # in addition to the comparison operator code that is wrapped up here.
+        result = reduce(operator.and_, [comparison] + self.extra_lookups)
+        self.extra_lookups.clear()
         return result
 
     def mark_empty(self):
