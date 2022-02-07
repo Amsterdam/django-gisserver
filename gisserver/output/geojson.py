@@ -53,18 +53,19 @@ class GeoJsonRenderer(OutputRenderer):
 
         if cls.max_page_size > 50_000:
             # Won't do prefetch_relation, so results can be streamed.
-            # Geometry fields are again excluded as 'properties' doesn't render these.
             relations = feature_type.xsd_type.complex_elements
             if relations:
-                related = [e.orm_path for e in relations]
-                defer_related = [
+                related = [e.orm_path for e in relations if not e.is_many]
+                queryset = queryset.select_related(*related)
+
+                # All nested geometry fields are excluded as 'properties' doesn't render these.
+                defer_related_geometries = [
                     f"{e.orm_path}__{child.orm_path}"
                     for e in relations
                     for child in e.type.geometry_elements
                 ]
-                queryset = queryset.select_related(*related)
-                if defer_related:
-                    queryset = queryset.defer(*defer_related)
+                if defer_related_geometries:
+                    queryset = queryset.defer(*defer_related_geometries)
                 return queryset
 
         return super().decorate_queryset(feature_type, queryset, output_crs, **params)

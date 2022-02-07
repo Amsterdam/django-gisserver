@@ -1,10 +1,9 @@
 import math
 from collections import defaultdict
-from typing import List, Set, Tuple, Type
+from typing import List, Set
 
 from django.conf import settings
 from django.db import models
-from django.db.models import Prefetch
 from django.http import HttpResponse, StreamingHttpResponse
 from django.utils.html import escape
 
@@ -13,7 +12,7 @@ from gisserver.exceptions import InvalidParameterValue
 from gisserver.features import FeatureType
 from gisserver.geometries import CRS
 from gisserver.operations.base import WFSMethod
-from gisserver.types import XsdComplexType, XsdElement
+from gisserver.types import XsdElement
 
 from .results import FeatureCollection
 
@@ -102,20 +101,7 @@ class OutputRenderer:
     ):
         """Apply presentation layer logic to the queryset."""
         # Avoid fetching relations, fetch these within the same query,
-        related = [
-            # All complex elements directly reference a relation,
-            # which can be prefetched directly.
-            Prefetch(
-                obj_path,
-                queryset=cls.get_prefetch_queryset(
-                    feature_type, xsd_elements, fields, output_crs
-                ),
-            )
-            for obj_path, xsd_elements, fields in cls._get_prefetch_summary(
-                feature_type.xsd_type
-            )
-        ]
-
+        related = cls._get_prefetch_related(feature_type, output_crs)
         if related:
             queryset = queryset.prefetch_related(*related)
 
@@ -125,9 +111,9 @@ class OutputRenderer:
         return queryset.only("pk", *fields)
 
     @classmethod
-    def _get_prefetch_summary(
-        cls, xsd_type: XsdComplexType
-    ) -> List[Tuple[str, List[XsdElement], Set[str]]]:
+    def _get_prefetch_related(
+        cls, feature_type: FeatureType, output_crs: CRS
+    ) -> List[models.Prefetch]:
         """Summarize which fields read data from relations.
 
         This combines the input from flattened and complex fields,
@@ -136,19 +122,27 @@ class OutputRenderer:
         fields = defaultdict(set)
         elements = defaultdict(list)
 
-        for xsd_element in xsd_type.flattened_elements:
+        # Check all elements that render as "dotted" flattened relation
+        for xsd_element in feature_type.xsd_type.flattened_elements:
             if xsd_element.source is not None:
                 obj_path, field = xsd_element.orm_relation
                 elements[obj_path].append(xsd_element)
                 fields[obj_path].add(field)
 
-        for xsd_element in xsd_type.complex_elements:
+        # Check all elements that render as "nested" complex type:
+        for xsd_element in feature_type.xsd_type.complex_elements:
             obj_path = xsd_element.orm_path
             elements[obj_path].append(xsd_element)
             fields[obj_path] = set(f.orm_path for f in xsd_element.type.elements)
 
+        # Since all elements directly reference a relation, these can be prefetched:
         return [
-            (obj_path, elements[obj_path], fields[obj_path])
+            models.Prefetch(
+                obj_path,
+                queryset=cls.get_prefetch_queryset(
+                    feature_type, elements[obj_path], fields[obj_path], output_crs
+                ),
+            )
             for obj_path in fields.keys()
         ]
 
@@ -162,13 +156,6 @@ class OutputRenderer:
     ):
         """Generate a custom queryset that's used to prefetch a reation."""
         return None
-
-    @classmethod
-    def get_flattened_prefetch_queryset(
-        cls, model: Type[models.Model], fields: List[str]
-    ):
-        """Give the minimum queryset to query the flattened fields."""
-        return model.objects.only("pk", *fields)
 
     def get_response(self):
         """Render the output as streaming response."""
