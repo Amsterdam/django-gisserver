@@ -2,7 +2,7 @@ from enum import Enum
 from typing import Dict, Type
 from xml.etree.ElementTree import Element, QName
 from gisserver.exceptions import ExternalParsingError
-from .utils import split_ns
+from .tags import split_ns
 
 
 class TagNameEnum(Enum):

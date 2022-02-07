@@ -5,7 +5,7 @@ from defusedxml.ElementTree import ParseError, fromstring
 
 from gisserver.exceptions import ExternalParsingError
 from gisserver.parsers.base import tag_registry
-from gisserver.parsers.utils import expect_tag
+from gisserver.parsers.tags import expect_tag
 from gisserver.types import FES20, GML32
 from . import expressions, identifiers, operators, query
 

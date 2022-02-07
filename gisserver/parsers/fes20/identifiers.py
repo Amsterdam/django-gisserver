@@ -12,12 +12,8 @@ from gisserver import conf
 from gisserver.exceptions import ExternalValueError
 from gisserver.parsers.base import BaseNode, tag_registry
 from gisserver.types import FES20
-from gisserver.parsers.utils import (
-    auto_cast,
-    get_attribute,
-    expect_tag,
-    parse_iso_datetime,
-)
+from gisserver.parsers.tags import get_attribute, expect_tag
+from gisserver.parsers.values import auto_cast, parse_iso_datetime
 
 NoneType = type(None)
 

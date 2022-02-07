@@ -18,7 +18,7 @@ from django.utils.functional import cached_property
 from gisserver.exceptions import ExternalParsingError, OperationProcessingFailed
 from gisserver.parsers import gml
 from gisserver.parsers.base import BaseNode, TagNameEnum, tag_registry
-from gisserver.parsers.utils import expect_tag, get_attribute, get_child
+from gisserver.parsers.tags import expect_tag, get_attribute, get_child
 from gisserver.types import FES20
 from .identifiers import Id
 from .expressions import Expression, Literal, RhsTypes, ValueReference

@@ -24,7 +24,8 @@ from gisserver.parsers.gml import (
     is_gml_element,
     parse_gml_node,
 )
-from gisserver.parsers.utils import auto_cast, expect_tag, get_attribute
+from gisserver.parsers.tags import expect_tag, get_attribute
+from gisserver.parsers.values import auto_cast
 from gisserver.types import ORMPath, FES20, XsdTypes, split_xml_name
 
 NoneType = type(None)

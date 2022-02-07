@@ -25,7 +25,6 @@ Custom field types could also generate these field types.
 """
 import operator
 import re
-from datetime import datetime
 from decimal import Decimal as D
 from dataclasses import dataclass, field
 from enum import Enum
@@ -36,7 +35,7 @@ from django.core.exceptions import (
 )
 from django.db.models import Q
 from django.db.models.fields.related import RelatedField
-from django.utils.dateparse import parse_date, parse_datetime, parse_time
+from django.utils import dateparse
 from typing import List, Optional, Tuple, Type, TYPE_CHECKING
 
 from django.contrib.gis.db.models import F, GeometryField
@@ -68,6 +67,7 @@ XSI = "http://www.w3.org/2001/XMLSchema-instance"
 FES20 = "http://www.opengis.net/fes/2.0"
 
 RE_XPATH_ATTR = re.compile(r"\[[^\]]+\]$")  # match [@attr=..]
+TYPES_TO_PYTHON = {}
 
 
 class XsdAnyType:
@@ -171,6 +171,18 @@ class XsdTypes(XsdAnyType, Enum):
         """Whether the value represents a element which contains a GML element."""
         return self.prefix == "gml" and self.value.endswith("PropertyType")
 
+    @cached_property
+    def _to_python_func(self):
+        if not TYPES_TO_PYTHON:
+            _init_types_to_python()
+
+        try:
+            return TYPES_TO_PYTHON[self]
+        except KeyError:
+            raise NotImplementedError(
+                f'Casting to "{self}" is not implemented.'
+            ) from None
+
     def to_python(self, raw_value):
         """Convert a raw string value to this type representation"""
         if self.is_geometry:
@@ -178,61 +190,43 @@ class XsdTypes(XsdAnyType, Enum):
             return raw_value
 
         try:
-            func = TYPES_TO_PYTHON[self]
-        except KeyError:
-            raise NotImplementedError(
-                f'Casting to "{self}"> is not implemented.'
-            ) from None
-
-        try:
-            return func(raw_value)
+            return self._to_python_func(raw_value)
         except ExternalParsingError:
-            raise
+            raise  # subclass of ValueError so explicitly caught and reraised
         except (TypeError, ValueError, ArithmeticError) as e:
             # ArithmeticError is base of DecimalException
             raise ExternalParsingError(f"Can't cast '{raw_value}' to {self}.") from e
 
 
-def parse_iso_datetime(raw_value: str) -> datetime:
-    value = parse_datetime(raw_value)
-    if value is None:
-        raise ExternalParsingError(
-            "Date must be in YYYY-MM-DD HH:MM[:ss[.uuuuuu]][TZ] format."
-        )
-    return value
+def _init_types_to_python():
+    """Define how well-known scalar types are parsed into python
+    (mimicking Django's to_python()):
+    """
+    global TYPES_TO_PYTHON
+    from gisserver.parsers import values  # avoid cyclic import
 
-
-def parse_bool(raw_value: str):
-    if raw_value in ("true", "1"):
-        return True
-    elif raw_value in ("false", "0"):
-        return False
-    else:
-        raise ExternalParsingError(f"Can't cast '{raw_value}' to boolean")
-
-
-# Define how well-known scalar types are parsed into python (mimicking Django's to_python()):
-as_is = lambda v: v
-TYPES_TO_PYTHON = {
-    XsdTypes.date: parse_date,
-    XsdTypes.dateTime: parse_iso_datetime,
-    XsdTypes.time: parse_time,
-    XsdTypes.string: as_is,
-    XsdTypes.boolean: parse_bool,
-    XsdTypes.integer: int,
-    XsdTypes.int: int,
-    XsdTypes.long: int,
-    XsdTypes.short: int,
-    XsdTypes.byte: int,
-    XsdTypes.unsignedInt: int,
-    XsdTypes.unsignedLong: int,
-    XsdTypes.unsignedShort: int,
-    XsdTypes.unsignedByte: int,
-    XsdTypes.float: D,
-    XsdTypes.double: D,
-    XsdTypes.decimal: D,
-    XsdTypes.gmlCodeType: as_is,
-}
+    as_is = lambda v: v
+    TYPES_TO_PYTHON = {
+        XsdTypes.date: dateparse.parse_date,
+        XsdTypes.dateTime: values.parse_iso_datetime,
+        XsdTypes.time: dateparse.parse_time,
+        XsdTypes.string: as_is,
+        XsdTypes.boolean: values.parse_bool,
+        XsdTypes.integer: int,
+        XsdTypes.int: int,
+        XsdTypes.long: int,
+        XsdTypes.short: int,
+        XsdTypes.byte: int,
+        XsdTypes.unsignedInt: int,
+        XsdTypes.unsignedLong: int,
+        XsdTypes.unsignedShort: int,
+        XsdTypes.unsignedByte: int,
+        XsdTypes.float: D,
+        XsdTypes.double: D,
+        XsdTypes.decimal: D,
+        XsdTypes.gmlCodeType: as_is,
+        XsdTypes.anyType: values.auto_cast,
+    }
 
 
 class XsdNode:

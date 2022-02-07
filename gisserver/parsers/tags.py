@@ -1,13 +1,8 @@
-import re
-from decimal import Decimal as D
 from functools import wraps
 from typing import List, Optional, Tuple
 from xml.etree.ElementTree import Element, QName
 
 from gisserver.exceptions import ExternalParsingError
-from gisserver.types import parse_iso_datetime
-
-RE_FLOAT = re.compile(r"\A[0-9]+(\.[0-9]+)\Z")
 
 
 def expect_tag(namespace, *tag_names, leaf=False):
@@ -64,18 +59,3 @@ def split_ns(tag_name: str) -> Tuple[Optional[str], str]:
         return tag_name[1:end], tag_name[end + 1 :]
     else:
         return None, tag_name
-
-
-def auto_cast(value: str):
-    """Automatically cast a value to a scalar."""
-    if value.isdigit():
-        return int(value)
-    elif RE_FLOAT.match(value):
-        return D(value)
-    elif "T" in value:
-        try:
-            return parse_iso_datetime(value)
-        except ValueError:
-            pass
-
-    return value
