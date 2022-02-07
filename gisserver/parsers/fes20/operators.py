@@ -221,11 +221,15 @@ class NonIdOperator(Operator):
         if isinstance(rhs, (Expression, gml.GM_Object)):
             rhs = rhs.build_rhs(compiler)
 
-        result = Q(**{f"{lhs}__{lookup}": rhs})
-        return compiler.apply_extra_lookups(result)
+        comparison = Q(**{f"{lhs}__{lookup}": rhs})
+        return compiler.apply_extra_lookups(comparison)
 
     def validate_comparison(
-        self, compiler, lhs: Expression, lookup: str, rhs: Union[Expression, RhsTypes]
+        self,
+        compiler: CompiledQuery,
+        lhs: Expression,
+        lookup: str,
+        rhs: Union[Expression, RhsTypes],
     ):
         """Validate whether a given comparison is even possible.
         Where needed, the lhs/rhs are already ordered in a logical sequence.
@@ -265,7 +269,7 @@ class NonIdOperator(Operator):
             self.validate_comparison(compiler, lhs, lookup, rhs[1])
 
         field_name = lhs.build_lhs(compiler)
-        result = Q(
+        comparison = Q(
             **{
                 f"{field_name}__{lookup}": (
                     rhs[0].build_rhs(compiler),
@@ -273,7 +277,7 @@ class NonIdOperator(Operator):
                 )
             }
         )
-        return compiler.apply_extra_lookups(result)
+        return compiler.apply_extra_lookups(comparison)
 
 
 class SpatialOperator(NonIdOperator):

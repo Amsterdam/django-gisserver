@@ -98,7 +98,7 @@ class OutputRenderer:
         queryset: models.QuerySet,
         output_crs: CRS,
         **params,
-    ):
+    ) -> models.QuerySet:
         """Apply presentation layer logic to the queryset."""
         # Avoid fetching relations, fetch these within the same query,
         related = cls._get_prefetch_related(feature_type, output_crs)

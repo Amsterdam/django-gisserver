@@ -339,13 +339,13 @@ class XsdNode:
         else:
             return path.replace(".", "__"), field
 
-    def build_lhs_part(self, compiler, match: "ORMPath"):
+    def build_lhs_part(self, compiler: "CompiledQuery", match: "ORMPath"):
         """Give the ORM part when this element is used as left-hand-side of a comparison.
         This is needed for queries like "<element> == <value>"
         """
         return match.orm_path
 
-    def build_rhs_part(self, compiler, match: "ORMPath"):
+    def build_rhs_part(self, compiler: "CompiledQuery", match: "ORMPath"):
         """Give the ORM part when this element would be used as right-hand-side.
         This is needed for queries like "<value> == <element>" or "<element> == <element>".
         """
@@ -602,12 +602,12 @@ class GmlBoundedByElement(XsdElement):
         self.feature_type = feature_type
         self.model_attribute = None
 
-    def build_lhs_part(self, compiler, match: "ORMPath"):
+    def build_lhs_part(self, compiler: "CompiledQuery", match: "ORMPath"):
         """Give the ORM part when this element is used as
         left-hand-side of a comparison."""
         return compiler.add_annotation(self.build_rhs_part(compiler, match))
 
-    def build_rhs_part(self, compiler, match: "ORMPath"):
+    def build_rhs_part(self, compiler: "CompiledQuery", match: "ORMPath"):
         """Give the ORM part when this element would be used as right-hand-side"""
         raise NotImplementedError("queries against <gml:boundedBy> are not supported")
 
@@ -798,7 +798,7 @@ class ORMPath:
             f", orm_filters={self.orm_filters!r})"
         )
 
-    def build_lhs(self, compiler):
+    def build_lhs(self, compiler: "CompiledQuery"):
         """Give the ORM part when this element is used as left-hand-side of a comparison.
         For example: "path == value".
         """
@@ -806,7 +806,7 @@ class ORMPath:
             compiler.add_extra_lookup(self.orm_filters)
         return self.orm_path
 
-    def build_rhs(self, compiler):
+    def build_rhs(self, compiler: "CompiledQuery"):
         """Give the ORM part when this element would be used as right-hand-side.
         For example: "path == path" or "value == path".
         """
@@ -860,13 +860,13 @@ class XPathMatch(ORMPath):
         """Return only the final element"""
         return self.nodes[-1]
 
-    def build_lhs(self, compiler):
+    def build_lhs(self, compiler: "CompiledQuery"):
         """Delegate the LHS construction to the final XsdNode."""
         if self.orm_filters:
             compiler.add_extra_lookup(self.orm_filters)
         return self.child.build_lhs_part(compiler, self)
 
-    def build_rhs(self, compiler):
+    def build_rhs(self, compiler: "CompiledQuery"):
         """Delegate the RHS construction to the final XsdNode."""
         if self.orm_filters:
             compiler.add_extra_lookup(self.orm_filters)
@@ -875,3 +875,4 @@ class XPathMatch(ORMPath):
 
 if TYPE_CHECKING:
     from .features import FeatureType
+    from .parsers.fes20 import CompiledQuery

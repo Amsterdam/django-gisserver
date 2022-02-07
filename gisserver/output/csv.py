@@ -15,6 +15,7 @@ from gisserver.db import (
     get_db_geometry_selects,
 )
 from gisserver.features import FeatureType
+from gisserver.geometries import CRS
 from gisserver.types import XsdComplexType, XsdElement
 from .base import OutputRenderer
 from .buffer import StringBuffer
@@ -36,8 +37,12 @@ class CSVRenderer(OutputRenderer):
 
     @classmethod
     def decorate_queryset(
-        cls, feature_type: FeatureType, queryset, output_crs, **params
-    ):
+        cls,
+        feature_type: FeatureType,
+        queryset: models.QuerySet,
+        output_crs: CRS,
+        **params,
+    ) -> models.QuerySet:
         """Make sure relations are included with select-related to avoid N-queries.
         Using prefetch_related() isn't possible with .iterator().
         """
@@ -137,7 +142,13 @@ class DBCSVRenderer(CSVRenderer):
     """
 
     @classmethod
-    def decorate_queryset(cls, feature_type, queryset, output_crs, **params):
+    def decorate_queryset(
+        cls,
+        feature_type: FeatureType,
+        queryset: models.QuerySet,
+        output_crs: CRS,
+        **params,
+    ) -> models.QuerySet:
         queryset = super().decorate_queryset(
             feature_type, queryset, output_crs, **params
         )

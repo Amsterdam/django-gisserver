@@ -145,7 +145,7 @@ class AdhocQuery(QueryExpression):
             # Generate the internal query object from the BBOX and sortBy args.
             return self._compile_non_filter_query(feature_type, using=using)
 
-    def _compile_non_filter_query(self, feature_type, using=None):
+    def _compile_non_filter_query(self, feature_type: FeatureType, using=None):
         """Generate the query based on the remaining parameters.
 
         This is slightly more efficient then generating the fes Filter object

@@ -31,6 +31,7 @@ from gisserver.types import XsdComplexType, XsdElement
 
 from .base import OutputRenderer
 from .buffer import StringBuffer
+from .results import SimpleFeatureCollection
 
 GML_RENDER_FUNCTIONS = {}
 RE_GML_ID = re.compile(r'gml:id="[^"]+"')
@@ -184,7 +185,7 @@ class GML32Renderer(OutputRenderer):
         output.write(f"</wfs:{self.xml_collection_tag}>\n")
         yield output.flush()
 
-    def start_collection(self, sub_collection):
+    def start_collection(self, sub_collection: SimpleFeatureCollection):
         """Hook to allow initialization per feature type"""
         pass
 
@@ -555,7 +556,7 @@ class GML32ValueRenderer(GML32Renderer):
         # Don't optimize queryset, it only retrieves one value
         return queryset
 
-    def start_collection(self, sub_collection):
+    def start_collection(self, sub_collection: SimpleFeatureCollection):
         # Resolve which XsdNode is being rendered
         match = sub_collection.feature_type.resolve_element(self.value_reference.xpath)
         self.xsd_node = match.child

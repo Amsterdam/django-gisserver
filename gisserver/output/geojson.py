@@ -13,6 +13,7 @@ from django.utils.timezone import utc
 from gisserver import conf
 from gisserver.db import get_db_geometry_target
 from gisserver.features import FeatureType
+from gisserver.geometries import CRS
 from gisserver.types import XsdComplexType
 
 from .base import OutputRenderer
@@ -42,7 +43,13 @@ class GeoJsonRenderer(OutputRenderer):
     max_page_size = conf.GISSERVER_GEOJSON_MAX_PAGE_SIZE
 
     @classmethod
-    def decorate_queryset(cls, feature_type, queryset, output_crs, **params):
+    def decorate_queryset(
+        cls,
+        feature_type: FeatureType,
+        queryset: models.QuerySet,
+        output_crs: CRS,
+        **params,
+    ):
         # Other geometries can be excluded as these are not rendered by 'properties'
         other_geometries = [
             n

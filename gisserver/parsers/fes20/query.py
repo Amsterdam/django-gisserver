@@ -37,8 +37,8 @@ class CompiledQuery:
         self.typed_lookups = typed_lookups or {}
         self.annotations = annotations or {}
         self.aliases = 0
-        self.extra_lookups = []
-        self.ordering = []
+        self.extra_lookups: List[Q] = []
+        self.ordering: List[str] = []
         self.is_empty = False
 
     def add_annotation(self, value: Union[Combinable, Q]) -> str:
