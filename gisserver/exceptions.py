@@ -7,6 +7,7 @@ See:
 https://docs.opengeospatial.org/is/09-025r2/09-025r2.html#35
 https://docs.opengeospatial.org/is/09-025r2/09-025r2.html#411
 """
+from django.conf import settings
 from django.utils.html import format_html
 
 
@@ -50,12 +51,17 @@ class OWSException(Exception):
             ' xml:lang="en-US"'
             ' version="2.0.0">\n'
             '  <ows:Exception exceptionCode="{code}" locator="{locator}">\n'
-            "    <ows:ExceptionText>{text}</ows:ExceptionText>\n"
+            "    <ows:ExceptionText>{text}{debug}</ows:ExceptionText>\n"
             "  </ows:Exception>\n"
             "</ows:ExceptionReport>",
             code=self.code,
             locator=self.locator,
             text=self.text,
+            debug=(
+                ".\n\n(set GISSERVER_WRAP_FILTER_DB_ERRORS=False to see the Django error page)"
+                if settings.DEBUG and self.status_code >= 500
+                else ""
+            ),
         )
 
     def __html__(self):
