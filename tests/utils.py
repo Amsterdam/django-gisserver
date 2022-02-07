@@ -72,8 +72,13 @@ def validate_xsd(
 def assert_xml_equal(got: Union[bytes, str], want: str):
     """Compare two XML strings."""
     checker = LXMLOutputChecker()
+
+    if isinstance(want, str) and isinstance(got, bytes):
+        got = got.decode()
+
     if isinstance(got, str) and got.startswith("<?"):
         # Strip <?xml version='1.0' encoding="UTF-8" ?>
+        # because it's not supported on utf-8 strings
         got = got[got.index("?>") + 3 :]
 
     if not checker.check_output(want, got, PARSE_XML):
