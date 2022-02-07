@@ -306,6 +306,7 @@ class ComplexFeatureField(FeatureField):
         model=None,
         abstract=None,
         xsd_class=None,
+        xsd_base_type=XsdTypes.gmlAbstractFeatureType,
     ):
         """
         :param name: Name of the model field.
@@ -320,6 +321,7 @@ class ComplexFeatureField(FeatureField):
             abstract=abstract,
             xsd_class=xsd_class,
         )
+        self.xsd_base_type = xsd_base_type
         self._fields = fields
 
     @cached_property
@@ -342,6 +344,7 @@ class ComplexFeatureField(FeatureField):
                     model_attribute=pk_field.name,
                 )
             ],
+            base=self.xsd_base_type,
             source=self.target_model,
         )
 
