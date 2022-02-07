@@ -107,7 +107,7 @@ class OutputRenderer:
 
         # Also limit the queryset to the actual fields that are shown.
         # No need to request more data
-        fields = [f.orm_field for f in feature_type.xsd_type.elements]
+        fields = [f.orm_field for f in feature_type.xsd_type.elements if not f.is_many]
         return queryset.only("pk", *fields)
 
     @classmethod
@@ -133,7 +133,9 @@ class OutputRenderer:
         for xsd_element in feature_type.xsd_type.complex_elements:
             obj_path = xsd_element.orm_path
             elements[obj_path].append(xsd_element)
-            fields[obj_path] = set(f.orm_path for f in xsd_element.type.elements)
+            fields[obj_path] = set(
+                f.orm_path for f in xsd_element.type.elements if not f.is_many
+            )
 
         # Since all elements directly reference a relation, these can be prefetched:
         return [

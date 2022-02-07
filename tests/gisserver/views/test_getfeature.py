@@ -195,7 +195,7 @@ class TestGetFeature:
 </wfs:FeatureCollection>""",  # noqa: E501
         )
 
-    def test_get_complex(self, client, restaurant, bad_restaurant):
+    def test_get_complex(self, client, restaurant_m2m, bad_restaurant):
         """Prove that rendering complex types works."""
         response = client.get(
             "/v1/wfs-complextypes/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
@@ -225,7 +225,7 @@ class TestGetFeature:
    timeStamp="{timestamp}" numberMatched="2" numberReturned="2">
 
     <wfs:member>
-      <app:restaurant gml:id="restaurant.{restaurant.id}">
+      <app:restaurant gml:id="restaurant.{restaurant_m2m.id}">
         <gml:name>Café Noir</gml:name>
         <gml:boundedBy>
           <gml:Envelope srsDimension="2" srsName="urn:ogc:def:crs:EPSG::4326">
@@ -233,20 +233,35 @@ class TestGetFeature:
             <gml:upperCorner>{POINT1_XML_WGS84}</gml:upperCorner>
           </gml:Envelope>
         </gml:boundedBy>
-        <app:id>{restaurant.id}</app:id>
+        <app:id>{restaurant_m2m.id}</app:id>
         <app:name>Café Noir</app:name>
         <app:city>
-          <app:id>{restaurant.city_id}</app:id>
+          <app:id>{restaurant_m2m.city_id}</app:id>
           <app:name>CloudCity</app:name>
         </app:city>
         <app:location>
-          <gml:Point gml:id="restaurant.{restaurant.id}.1" srsName="urn:ogc:def:crs:EPSG::4326">
+          <gml:Point gml:id="restaurant.{restaurant_m2m.id}.1" srsName="urn:ogc:def:crs:EPSG::4326">
             <gml:pos srsDimension="2">{POINT1_XML_WGS84}</gml:pos>
           </gml:Point>
         </app:location>
         <app:rating>5.0</app:rating>
         <app:is_open>true</app:is_open>
         <app:created>2020-04-05T12:11:10+00:00</app:created>
+        <app:opening_hours>
+          <app:weekday>4</app:weekday>
+          <app:start_time>16:00:00</app:start_time>
+          <app:end_time>23:30:00</app:end_time>
+        </app:opening_hours>
+        <app:opening_hours>
+          <app:weekday>5</app:weekday>
+          <app:start_time>16:00:00</app:start_time>
+          <app:end_time>23:30:00</app:end_time>
+        </app:opening_hours>
+        <app:opening_hours>
+          <app:weekday>6</app:weekday>
+          <app:start_time>20:00:00</app:start_time>
+          <app:end_time>23:30:00</app:end_time>
+        </app:opening_hours>
       </app:restaurant>
     </wfs:member>
 
@@ -785,14 +800,14 @@ class TestGetFeature:
         ]
 
     def test_get_geojson_complex(
-        self, client, restaurant, bad_restaurant, django_assert_max_num_queries
+        self, client, restaurant_m2m, bad_restaurant, django_assert_max_num_queries
     ):
         """Prove that the geojson export works for complex field types.
 
         Including 2 objects to prove that the list rendering
         also includes comma's properly.
         """
-        with django_assert_max_num_queries(2):
+        with django_assert_max_num_queries(3):
             response = client.get(
                 "/v1/wfs-complextypes/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
                 "&TYPENAMES=restaurant&outputformat=geojson"
@@ -816,20 +831,37 @@ class TestGetFeature:
             "features": [
                 {
                     "type": "Feature",
-                    "id": f"restaurant.{restaurant.id}",
+                    "id": f"restaurant.{restaurant_m2m.id}",
                     "geometry_name": "Café Noir",
                     "geometry": {"type": "Point", "coordinates": POINT1_GEOJSON},
                     "properties": {
-                        "id": restaurant.id,
+                        "id": restaurant_m2m.id,
                         "name": "Café Noir",
                         "city": {
                             # City is expanded, following the type definition
-                            "id": restaurant.city_id,
+                            "id": restaurant_m2m.city_id,
                             "name": "CloudCity",
                         },
                         "rating": 5.0,
                         "is_open": True,
                         "created": "2020-04-05T12:11:10+00:00",
+                        "opening_hours": [
+                            {
+                                "weekday": 4,
+                                "start_time": "16:00:00",
+                                "end_time": "23:30:00",
+                            },
+                            {
+                                "weekday": 5,
+                                "start_time": "16:00:00",
+                                "end_time": "23:30:00",
+                            },
+                            {
+                                "weekday": 6,
+                                "start_time": "20:00:00",
+                                "end_time": "23:30:00",
+                            },
+                        ],
                     },
                 },
                 {
@@ -844,6 +876,7 @@ class TestGetFeature:
                         "rating": 1.0,
                         "is_open": False,
                         "created": "2020-04-05T20:11:10+00:00",
+                        "opening_hours": [],
                     },
                 },
             ],
@@ -934,7 +967,7 @@ class TestGetFeature:
         assert content == expect
 
     def test_get_csv_complex(
-        self, client, restaurant, bad_restaurant, django_assert_max_num_queries
+        self, client, restaurant_m2m, bad_restaurant, django_assert_max_num_queries
     ):
         """Prove that the geojson export works, for complex results."""
         with django_assert_max_num_queries(1):
@@ -948,7 +981,7 @@ class TestGetFeature:
 
         expect = f"""
 "id","name","city.id","city.name","location","rating","is_open","created"
-"{restaurant.id}","Café Noir","{restaurant.city_id}","CloudCity","SRID=4326;{POINT1_EWKT}","5.0","True","2020-04-05 12:11:10+00:00"
+"{restaurant_m2m.id}","Café Noir","{restaurant_m2m.city_id}","CloudCity","SRID=4326;{POINT1_EWKT}","5.0","True","2020-04-05 12:11:10+00:00"
 "{bad_restaurant.id}","Foo Bar","","","SRID=4326;{POINT2_EWKT}","1.0","False","2020-04-05 20:11:10+00:00"
 """.lstrip()  # noqa: E501
         assert content == expect

@@ -1,4 +1,5 @@
-from datetime import timedelta
+import calendar
+from datetime import time, timedelta
 
 from pathlib import Path
 import ctypes
@@ -11,7 +12,7 @@ from django.db import connection
 
 from gisserver import conf
 from tests.constants import RD_NEW_PROJ, RD_NEW_SRID, RD_NEW_WKT
-from tests.test_gisserver.models import City, Restaurant, current_datetime
+from tests.test_gisserver.models import City, OpeningHour, Restaurant, current_datetime
 from tests.xsd_download import download_schema
 
 HERE = Path(__file__).parent
@@ -55,6 +56,16 @@ def restaurant(city) -> Restaurant:
         rating=5.0,
         is_open=True,
     )
+
+
+@pytest.fixture()
+def restaurant_m2m(restaurant) -> Restaurant:
+    restaurant.opening_hours.add(
+        OpeningHour.objects.create(weekday=calendar.FRIDAY),
+        OpeningHour.objects.create(weekday=calendar.SATURDAY),
+        OpeningHour.objects.create(weekday=calendar.SUNDAY, start_time=time(20, 0)),
+    )
+    return restaurant
 
 
 @pytest.fixture()

@@ -38,6 +38,7 @@ class PlacesWFSView(WFSView):
         ),
         FeatureType(
             Restaurant.objects.all(),
+            # note: no fields defined.
             name="mini-restaurant",
             keywords=["unittest", "limited-fields"],
             other_crs=[RD_NEW],
@@ -48,7 +49,7 @@ class PlacesWFSView(WFSView):
 
 
 class ComplexTypesWFSView(PlacesWFSView):
-    """An advanced view that has a custom type definition for a foreign key."""
+    """An advanced view that has a custom type definition for a foreign key and M2M relation."""
 
     feature_types = [
         FeatureType(
@@ -61,6 +62,7 @@ class ComplexTypesWFSView(PlacesWFSView):
                 "rating",
                 "is_open",
                 "created",
+                field("opening_hours", fields=["weekday", "start_time", "end_time"]),
             ],
             other_crs=[RD_NEW],
         ),

@@ -245,9 +245,17 @@ class GeoJsonRenderer(OutputRenderer):
                         props[xsd_element.name] = None
                     else:
                         xsd_type = cast(XsdComplexType, xsd_element.type)
-                        props[xsd_element.name] = self.get_properties(xsd_type, value)
+                        if xsd_element.is_many:
+                            # "..._to_many relation; reverse FK or M2M field.
+                            props[xsd_element.name] = [
+                                self.get_properties(xsd_type, item) for item in value
+                            ]
+                        else:
+                            props[xsd_element.name] = self.get_properties(
+                                xsd_type, value
+                            )
                 else:
-                    # Scalar value
+                    # Scalar value, or list (for ArrayField).
                     props[xsd_element.name] = self._format_geojson_value(value)
 
         return props

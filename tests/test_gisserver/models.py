@@ -1,4 +1,5 @@
-from datetime import datetime
+import calendar
+from datetime import datetime, time
 
 from django.contrib.gis.db.models import PointField
 from django.db import models
@@ -16,6 +17,13 @@ class City(models.Model):
         return self.name
 
 
+class OpeningHour(models.Model):
+    # 0 = mon, 6 = sun.
+    weekday = models.IntegerField(choices=list(enumerate(calendar.day_name)))
+    start_time = models.TimeField(default=time(16, 0))
+    end_time = models.TimeField(default=time(23, 30))
+
+
 class Restaurant(models.Model):
     name = models.CharField(max_length=200)
     city = models.ForeignKey(City, on_delete=models.SET_NULL, null=True)
@@ -23,6 +31,8 @@ class Restaurant(models.Model):
     rating = models.FloatField(default=0)
     is_open = models.BooleanField(default=False)
     created = models.DateTimeField(default=current_datetime)
+
+    opening_hours = models.ManyToManyField(OpeningHour)
 
     def __str__(self):
         return self.name

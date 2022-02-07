@@ -47,12 +47,17 @@ class CSVRenderer(OutputRenderer):
         Using prefetch_related() isn't possible with .iterator().
         """
         xsd_type: XsdComplexType = feature_type.xsd_type
+
         # Take all relations that are expanded to complex elements,
         # and all relations that are fetched for flattened elements.
         related = set(
-            xsd_element.orm_path for xsd_element in xsd_type.complex_elements
+            xsd_element.orm_path
+            for xsd_element in xsd_type.complex_elements
+            if not xsd_element.is_many
         ) | set(
-            xsd_element.orm_relation[0] for xsd_element in xsd_type.flattened_elements
+            xsd_element.orm_relation[0]
+            for xsd_element in xsd_type.flattened_elements
+            if not xsd_element.is_many
         )
         if related:
             queryset = queryset.select_related(*related)
@@ -72,7 +77,11 @@ class CSVRenderer(OutputRenderer):
                 output.write("\n\n")
 
             # Write the header
-            fields = [f for f in sub_collection.feature_type.xsd_type.elements]
+            fields = [
+                f
+                for f in sub_collection.feature_type.xsd_type.elements
+                if not f.is_many
+            ]
             writer.writerow(self.get_header(fields))
 
             # By using .iterator(), the results are streamed with as little memory as

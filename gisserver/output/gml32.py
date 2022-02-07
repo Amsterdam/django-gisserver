@@ -273,20 +273,28 @@ class GML32Renderer(OutputRenderer):
         self, feature_type: FeatureType, xsd_element: XsdElement, value, extra_xmlns=""
     ) -> str:
         """Write the value of a single field."""
+        if xsd_element.is_many:
+            # Render the tag multiple times
+            return "".join(
+                self._render_xml_field(
+                    feature_type, xsd_element, value=item, extra_xmlns=extra_xmlns
+                )
+                for item in value
+            )
+        else:
+            return self._render_xml_field(
+                feature_type, xsd_element, value, extra_xmlns=extra_xmlns
+            )
+
+    def _render_xml_field(
+        self, feature_type: FeatureType, xsd_element: XsdElement, value, extra_xmlns=""
+    ) -> str:
         xml_name = xsd_element.xml_name
         if value is None:
             return f'      <{xml_name} xsi:nil="true"{extra_xmlns} />\n'
         elif xsd_element.type.is_complex_type:
             # Expanded foreign relation / dictionary
-            xsd_type = cast(XsdComplexType, xsd_element.type)
-            output = StringBuffer()
-            output.write(f"      <{xml_name}>\n")
-            for sub_element in xsd_type.elements:
-                output.write(
-                    self.render_element(feature_type, sub_element, instance=value)
-                )
-            output.write(f"      </{xml_name}>\n")
-            return output.getvalue()
+            return self.render_xml_complex_type(feature_type, xsd_element, value)
         elif isinstance(value, datetime):
             value = value.astimezone(utc).isoformat()
         elif isinstance(value, (date, time)):
@@ -297,6 +305,16 @@ class GML32Renderer(OutputRenderer):
             value = escape(str(value))
 
         return f"      <{xml_name}{extra_xmlns}>{value}</{xml_name}>\n"
+
+    def render_xml_complex_type(self, feature_type, xsd_element, value) -> str:
+        """Write a single field, that consists of sub elements"""
+        xsd_type = cast(XsdComplexType, xsd_element.type)
+        output = StringBuffer()
+        output.write(f"      <{xsd_element.xml_name}>\n")
+        for sub_element in xsd_type.elements:
+            output.write(self.render_element(feature_type, sub_element, instance=value))
+        output.write(f"      </{xsd_element.xml_name}>\n")
+        return output.getvalue()
 
     def render_gml_field(
         self,

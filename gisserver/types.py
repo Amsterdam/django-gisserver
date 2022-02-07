@@ -36,7 +36,7 @@ from django.core.exceptions import (
 from django.db.models import Q
 from django.db.models.fields.related import RelatedField
 from django.utils import dateparse
-from typing import List, Optional, Tuple, Type, TYPE_CHECKING
+from typing import List, Optional, Tuple, Type, Union, TYPE_CHECKING
 
 from django.contrib.gis.db.models import F, GeometryField
 from django.db import models
@@ -44,6 +44,13 @@ from django.utils.functional import cached_property
 
 from gisserver.exceptions import ExternalParsingError, OperationProcessingFailed
 from gisserver.geometries import CRS, WGS84  # noqa, for backwards compatibility
+
+try:
+    from typing import Literal  # Python 3.8
+
+    _unbounded = Literal["unbounded"]
+except ImportError:
+    _unbounded = str
 
 __all__ = [
     "ORMPath",
@@ -238,6 +245,7 @@ class XsdNode:
     """
 
     is_attribute = False
+    is_many = False
 
     name: str
     type: XsdAnyType  # Both XsdComplexType and XsdType are allowed
@@ -245,7 +253,7 @@ class XsdNode:
 
     #: Which field to read from the model to get the value
     #: This supports dot notation to access related attributes.
-    source: Optional[models.Field]
+    source: Optional[Union[models.Field, models.ForeignObjectRel]]
 
     #: Which field to read from the model to get the value
     #: This supports dot notation to access related attributes.
@@ -257,7 +265,7 @@ class XsdNode:
         type: XsdAnyType,
         *,
         prefix: Optional[str] = "app",
-        source: Optional[models.Field] = None,
+        source: Optional[Union[models.Field, models.ForeignObjectRel]] = None,
         model_attribute: Optional[str] = None,
     ):
         # Using plain assignment instead of dataclass turns out to be needed
@@ -274,12 +282,24 @@ class XsdNode:
         self._attrgetter = operator.attrgetter(self.model_attribute)
         self._valuegetter = self._build_valuegetter(self.model_attribute, self.source)
 
+    def __repr__(self):
+        return (
+            f"<{self.__class__.__name__}: {self.xml_name}"
+            f", model_attribute={self.model_attribute}>"
+        )
+
     @staticmethod
-    def _build_valuegetter(model_attribute: str, field: Optional[models.Field]):
+    def _build_valuegetter(
+        model_attribute: str,
+        field: Optional[Union[models.Field, models.ForeignObjectRel]],
+    ):
         """Select the most efficient read function to retrieves the value."""
         if field is None:
             # No model field, can only use getattr(). The attrgetter function has
             # built-in support for traversing model attributes with dots.
+            return operator.attrgetter(model_attribute)
+        elif isinstance(field, models.ForeignObjectRel):
+            # Special handling, has no value_from_object()
             return operator.attrgetter(model_attribute)
         elif "." not in model_attribute:
             # Shortcut, can just use Django's value_from_object.
@@ -359,7 +379,11 @@ class XsdNode:
             if self.type.is_complex_type:
                 # This element has sub elements, which need the Django model instance.
                 # Avoid unwanted value_from_object(), instead return the model instance.
-                return self._attrgetter(instance)
+                value = self._attrgetter(instance)
+                if self.is_many and isinstance(value, models.Manager):
+                    # Make sure callers can read the individual items by iterating over the value.
+                    value = value.all()
+                return value
             else:
                 # Support value_from_object() on custom fields.
                 return self.format_value(self._valuegetter(instance))
@@ -453,8 +477,8 @@ class XsdElement(XsdNode):
         prefix: Optional[str] = "app",
         nillable: Optional[bool] = None,
         min_occurs: Optional[int] = None,
-        max_occurs: Optional[int] = None,
-        source: Optional[models.Field] = None,
+        max_occurs: Optional[Union[int, _unbounded]] = None,
+        source: Optional[Union[models.Field, models.ForeignObjectRel]] = None,
         model_attribute: Optional[str] = None,
     ):
         super().__init__(
@@ -479,6 +503,15 @@ class XsdElement(XsdNode):
 
     def __str__(self):
         return self.as_xml
+
+    @cached_property
+    def is_many(self) -> bool:
+        """Tell whether the XML element can be rendered multiple times.
+        Note this happens both with array fields and "..._to_many" relations.
+        """
+        return self.max_occurs and (
+            self.max_occurs == "unbounded" or self.max_occurs > 1
+        )
 
 
 class _XsdElement_WithComplexType(XsdElement):
@@ -509,7 +542,7 @@ class XsdAttribute(XsdNode):
         *,
         prefix: Optional[str] = "app",
         use: str = "optional",
-        source: Optional[models.Field] = None,
+        source: Optional[Union[models.Field, models.ForeignObjectRel]] = None,
         model_attribute: Optional[str] = None,
     ):
         super().__init__(
@@ -528,7 +561,7 @@ class GmlIdAttribute(XsdAttribute):
     def __init__(
         self,
         type_name: str,
-        source: Optional[models.Field] = None,
+        source: Optional[Union[models.Field, models.ForeignObjectRel]] = None,
         model_attribute="pk",
     ):
         super().__init__(
@@ -557,7 +590,7 @@ class GmlNameElement(XsdElement):
     def __init__(
         self,
         model_attribute: str,
-        source: Optional[models.Field] = None,
+        source: Optional[Union[models.Field, models.ForeignObjectRel]] = None,
         feature_type=None,
     ):
         # Prefill most known fields

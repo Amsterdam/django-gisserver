@@ -19,11 +19,11 @@ from dataclasses import dataclass
 from functools import lru_cache, reduce
 from typing import List, Optional, Type, Union
 
+from django.conf import settings
 from django.contrib.gis.db import models as gis_models
 from django.contrib.gis.db.models import Extent, GeometryField
 from django.core.exceptions import FieldDoesNotExist, ImproperlyConfigured
 from django.db import models
-from django.db.models.fields.reverse_related import ForeignObjectRel
 from django.utils.functional import cached_property  # py3.8: functools
 
 from gisserver.db import conditional_transform
@@ -39,6 +39,11 @@ from gisserver.types import (
     GmlIdAttribute,
 )
 from gisserver.geometries import BoundingBox, CRS, WGS84
+
+if "django.contrib.postgres" in settings.INSTALLED_APPS:
+    from django.contrib.postgres.fields import ArrayField
+else:
+    ArrayField = None
 
 try:
     from typing import Literal  # Python 3.8
@@ -81,8 +86,15 @@ XSD_TYPES = {
 DEFAULT_XSD_TYPE = XsdTypes.anyType
 
 
-def get_basic_field_type(field_name: str, model_field: models.Field) -> XsdAnyType:
+def get_basic_field_type(
+    field_name: str, model_field: Union[models.Field, models.ForeignObjectRel]
+) -> XsdAnyType:
     """Determine the XSD field type for a Django field."""
+    if ArrayField is not None and isinstance(model_field, ArrayField):
+        # Determine the type based on the contents.
+        # The array notation is written as "is_many"
+        model_field = model_field.base_field
+
     try:
         # Direct instance, quickly resolved!
         return XSD_TYPES[model_field.__class__]
@@ -92,7 +104,7 @@ def get_basic_field_type(field_name: str, model_field: models.Field) -> XsdAnyTy
     if isinstance(model_field, models.ForeignKey):
         # Don't let it query on the relation value yet
         return get_basic_field_type(field_name, model_field.target_field)
-    elif isinstance(model_field, ForeignObjectRel):
+    elif isinstance(model_field, models.ForeignObjectRel):
         # e.g. ManyToOneRel descriptor of a foreignkey_id field.
         return get_basic_field_type(field_name, model_field.remote_field.target_field)
     else:
@@ -109,30 +121,22 @@ def get_basic_field_type(field_name: str, model_field: models.Field) -> XsdAnyTy
         return DEFAULT_XSD_TYPE
 
 
-def _get_target_model(model_field) -> Type[models.Model]:
-    """Find which model a related field points at"""
-    if isinstance(model_field, models.ForeignKey):
-        return model_field.target_field.model
-    elif isinstance(model_field, ForeignObjectRel):
-        # e.g. ManyToOneRel descriptor of a foreignkey_id field.
-        return model_field.remote_field.model
-    else:
-        raise NotImplementedError(
-            f"Model field is not supported as relation: {model_field.__class__.__name__}"
-        )
-
-
 def _get_model_fields(model, fields, parent=None):
     if fields == "__all__":
         # All regular fields
+        # Relationships will not be expanded since it can expose so many other fields.
+        # Only the relationships that store an ID on the model itself will be exposed.
         return [
             FeatureField(
-                name=f.attname if isinstance(f, models.ForeignKey) else f.name,
-                # .bind() is called directly:
+                name=f.attname,  # using attname so foreignkeys use the name_id field.
+                # .bind() is called directly by providing these arguments via init:
                 model=model,
                 parent=parent,
             )
             for f in model._meta.get_fields()
+            if not f.is_relation
+            or f.many_to_one  # ForeignKey
+            or f.one_to_one  # OneToOneField
         ]
     else:
         # Only defined fields
@@ -166,7 +170,7 @@ class FeatureField:
     xsd_element_class: Type[XsdElement] = XsdElement
 
     model: Optional[Type[models.Model]]
-    model_field: Optional[models.Field]
+    model_field: Optional[Union[models.Field, models.ForeignObjectRel]]
 
     def __init__(
         self,
@@ -232,10 +236,20 @@ class FeatureField:
                     f" model_attribute: '{self.model_attribute}' can't be"
                     f" resolved for model '{self.model.__name__}'."
                 ) from e
+
             for name in field_path[1:]:
                 if field.null:
                     self._nillable_relation = True
-                field = _get_target_model(field)._meta.get_field(name)
+
+                if not field.is_relation:
+                    # Note this tests the previous loop variable, so it checks whether the
+                    # field can be walked into in order to resolve the next dotted name below.
+                    raise ImproperlyConfigured(
+                        f"FeatureField '{field.name}' has an invalid model_attribute: "
+                        f"field '{name}' is a '{field.__class__.__name__}', not a relation."
+                    )
+
+                field = field.related_model._meta.get_field(name)
             self.model_field = field
         else:
             self.model_field = self.model._meta.get_field(self.name)
@@ -251,12 +265,22 @@ class FeatureField:
         if self.model_field is None:
             raise RuntimeError(f"bind() was not called for {self!r}")
 
+        # Determine max number of occurrences.
+        if isinstance(self.model_field, GeometryField):
+            max_occurs = 1  # be explicit here, like mapserver does.
+        elif self.model_field.many_to_many or self.model_field.one_to_many:
+            max_occurs = "unbounded"  # M2M or reverse FK field
+        elif ArrayField is not None and isinstance(self.model_field, ArrayField):
+            max_occurs = "unbounded"
+        else:
+            max_occurs = None  # default is 1, but attribute can be left out.
+
         return self.xsd_element_class(
             name=self.name,
             type=self._get_xsd_type(),
             nillable=self.model_field.null or self._nillable_relation,
             min_occurs=0,
-            max_occurs=1 if isinstance(self.model_field, GeometryField) else None,
+            max_occurs=max_occurs,
             model_attribute=self.model_attribute,
             source=self.model_field,
         )
@@ -267,9 +291,11 @@ _FieldDefinitions = Union[_all_, List[_FieldDefinition]]
 
 
 class ComplexFeatureField(FeatureField):
-    """The configuration for an embedded foreign-key field.
+    """The configuration for an embedded relation field.
 
-    This translates the foreign key into an embedded XSD complex type.
+    This field type is suitable for any relational object, including
+    foreign keys, reverse relations and M2M fields. The internal logic
+    translates the relation into an embedded XSD complex type.
     """
 
     def __init__(
@@ -320,18 +346,17 @@ class ComplexFeatureField(FeatureField):
         )
 
     @property
-    def target_model(self):
+    def target_model(self) -> Type[models.Model]:
         """Detect which model the relation points to."""
         if self.model_field is None:
             raise RuntimeError("FeatureField.bind() is not called yet")
-
-        try:
-            return _get_target_model(self.model_field)
-        except NotImplementedError:
+        elif not self.model_field.is_relation:
             raise ImproperlyConfigured(
                 f"{self.__class__.__name__} does not support fields of "
                 f"type {self.model_field.__class__.__name__}."
-            ) from None
+            )
+        else:
+            return self.model_field.related_model
 
 
 def field(

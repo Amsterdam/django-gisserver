@@ -113,6 +113,7 @@ class TestDescribeFeatureType:
           <element name="rating" type="double" minOccurs="0" />
           <element name="is_open" type="boolean" minOccurs="0" />
           <element name="created" type="dateTime" minOccurs="0" />
+          <element name="opening_hours" type="app:OpeningHourType" minOccurs="0" maxOccurs="unbounded" />
         </sequence>
       </extension>
     </complexContent>
@@ -129,7 +130,20 @@ class TestDescribeFeatureType:
     </complexContent>
   </complexType>
 
-</schema>""",  # noqa: E501
+  <complexType name="OpeningHourType">
+    <complexContent>
+      <extension base="gml:AbstractFeatureType">
+        <sequence>
+          <element name="weekday" type="integer" minOccurs="0" />
+          <element name="start_time" type="time" minOccurs="0" />
+          <element name="end_time" type="time" minOccurs="0" />
+        </sequence>
+      </extension>
+    </complexContent>
+  </complexType>
+
+</schema>
+""",  # noqa: E501
         )
 
     def test_describe_flattened(self, client):
