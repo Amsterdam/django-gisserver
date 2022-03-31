@@ -42,7 +42,7 @@ class Filter:
             if "xmlns" not in first_tag:
                 # Allow KVP requests without a namespace
                 # Both geoserver and mapserver support this.
-                if "<Filter" in first_tag:
+                if first_tag == "<Filter" or first_tag.startswith("<Filter "):
                     text = f'{first_tag} xmlns="{FES20}" xmlns:gml="{GML32}"{text[end_first:]}'
 
         try:

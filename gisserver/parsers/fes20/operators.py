@@ -9,7 +9,7 @@ from decimal import Decimal
 from enum import Enum
 from functools import reduce
 from typing import Any, Dict, List, Optional, Tuple, Union
-from xml.etree.ElementTree import Element
+from xml.etree.ElementTree import Element, QName
 
 from django.contrib.gis import measure
 from django.db.models import Q
@@ -18,7 +18,7 @@ from django.utils.functional import cached_property
 from gisserver.exceptions import ExternalParsingError, OperationProcessingFailed
 from gisserver.parsers import gml
 from gisserver.parsers.base import BaseNode, TagNameEnum, tag_registry
-from gisserver.parsers.tags import expect_tag, get_attribute, get_child
+from gisserver.parsers.tags import expect_children, expect_tag, get_attribute, get_child
 from gisserver.types import FES20
 from .identifiers import Id
 from .expressions import Expression, Literal, RhsTypes, ValueReference
@@ -192,7 +192,11 @@ class IdOperator(Operator):
 
 
 class NonIdOperator(Operator):
-    """Abstract base class, as defined by FES spec."""
+    """Abstract base class, as defined by FES spec.
+
+    This is used for nearly all operators,
+    except those that have <fes:ResourceId> elements as children.
+    """
 
     _source = None
     allow_geometries = False
@@ -298,6 +302,7 @@ class DistanceOperator(SpatialOperator):
     _source: Optional[str] = field(compare=False, default=None)
 
     @classmethod
+    @expect_children(3, ValueReference, gml.GM_Object, Measure)
     def from_xml(cls, element: Element):
         geometries = gml.find_gml_nodes(element)
         if not geometries:
@@ -383,6 +388,7 @@ class TemporalOperator(NonIdOperator):
     _source: Optional[str] = field(compare=False, default=None)
 
     @classmethod
+    @expect_children(2, ValueReference, TemporalOperand)
     def from_xml(cls, element: Element):
         return cls(
             operatorType=TemporalOperatorName.from_xml(element),
@@ -414,6 +420,7 @@ class BinaryComparisonOperator(ComparisonOperator):
     _source: Optional[str] = field(compare=False, default=None)
 
     @classmethod
+    @expect_children(2, Expression, Expression)
     def from_xml(cls, element: Element):
         return cls(
             operatorType=BinaryComparisonName.from_xml(element),
@@ -446,9 +453,28 @@ class BetweenComparisonOperator(ComparisonOperator):
     _source: Optional[str] = field(compare=False, default=None)
 
     @classmethod
+    @expect_children(3, Expression, "LowerBoundary", "UpperBoundary")
     def from_xml(cls, element: Element):
+        if element[1].tag != QName(FES20, "LowerBoundary") or element[2].tag != QName(
+            FES20, "UpperBoundary"
+        ):
+            raise ExternalParsingError(
+                f"{element.tag} should have 3 child nodes: "
+                f"(expression), <LowerBoundary>, <UpperBoundary>"
+            )
+
         lower = get_child(element, FES20, "LowerBoundary")
         upper = get_child(element, FES20, "UpperBoundary")
+
+        if len(lower) != 1:
+            raise ExternalParsingError(
+                f"{lower.tag} should have 1 expression child node"
+            )
+        if len(upper) != 1:
+            raise ExternalParsingError(
+                f"{upper.tag} should have 1 expression child node"
+            )
+
         return cls(
             expression=Expression.from_child_xml(element[0]),
             lowerBoundary=Expression.from_child_xml(lower[0]),
@@ -477,12 +503,14 @@ class LikeOperator(ComparisonOperator):
     _source: Optional[str] = field(compare=False, default=None)
 
     @classmethod
+    @expect_children(2, Expression, Expression)
     def from_xml(cls, element: Element):
         return cls(
             expression=(
                 Expression.from_child_xml(element[0]),
                 Expression.from_child_xml(element[1]),
             ),
+            # These attributes are required by the WFS spec:
             wildCard=get_attribute(element, "wildCard"),
             singleChar=get_attribute(element, "singleChar"),
             escapeChar=get_attribute(element, "escapeChar"),
@@ -516,7 +544,7 @@ class LikeOperator(ComparisonOperator):
 @tag_registry.register("PropertyIsNil")
 class NilOperator(ComparisonOperator):
     """Check whether the value evaluates to null/None.
-    If the WFS would return a property element with <tns:p xsi:nil='true'>, this returns true.
+    If the WFS returned a property element with <tns:p xsi:nil='true'>, this returns true.
     """
 
     expression: Optional[Expression]
@@ -524,6 +552,7 @@ class NilOperator(ComparisonOperator):
     _source: Optional[str] = field(compare=False, default=None)
 
     @classmethod
+    @expect_children(1, Expression)
     def from_xml(cls, element: Element):
         return cls(
             expression=Expression.from_child_xml(element[0]) if element else None,
@@ -549,6 +578,7 @@ class NullOperator(ComparisonOperator):
     _source: Optional[str] = field(compare=False, default=None)
 
     @classmethod
+    @expect_children(1, Expression)
     def from_xml(cls, element: Element):
         return cls(
             expression=Expression.from_child_xml(element[0]), _source=element.tag
@@ -578,6 +608,7 @@ class BinaryLogicOperator(LogicalOperator):
     _source: Optional[str] = field(compare=False, default=None)
 
     @classmethod
+    @expect_children(2, NonIdOperator, NonIdOperator)
     def from_xml(cls, element: Element):
         return cls(
             operands=[NonIdOperator.from_child_xml(child) for child in element],
@@ -601,6 +632,7 @@ class UnaryLogicOperator(LogicalOperator):
     _source: Optional[str] = field(compare=False, default=None)
 
     @classmethod
+    @expect_children(1, NonIdOperator)
     def from_xml(cls, element: Element):
         return cls(
             operands=NonIdOperator.from_child_xml(element[0]),

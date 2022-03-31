@@ -35,6 +35,9 @@ class BaseNode:
     xml_ns = None
     xml_tags = []
 
+    def __init_subclass__(cls):
+        cls.xml_tags = []
+
     @classmethod
     def from_xml(cls, element: Element):
         raise NotImplementedError(
@@ -60,7 +63,7 @@ class TagRegistry:
     def __init__(self):
         self.parsers = {}
 
-    def register(self, name=None, namespace=None):
+    def register(self, name=None, namespace=None, hidden=False):
         """Decorator to register an class as XML node parser.
 
         This registers the decorated class as the designated parser
@@ -89,7 +92,8 @@ class TagRegistry:
             qname = QName(namespace or sub_class.xml_ns, localname)
 
             self.parsers[qname] = sub_class  # Track this parser to resolve the tag.
-            sub_class.xml_tags.append(name)  # Allow fetching all names later
+            if not hidden:
+                sub_class.xml_tags.append(name)  # Allow fetching all names later
             return sub_class  # allow decorator usage
 
         return _dec
@@ -113,7 +117,15 @@ class TagRegistry:
         This locates the parser from the registered tag.
         It's assumed that the tag has an "from_xml()" method too.
         """
-        real_cls = self.resolve_class(element.tag)
+        try:
+            real_cls = self.resolve_class(element.tag)
+        except ExternalParsingError as e:
+            if allowed_types:
+                # Show better exception message
+                types = ", ".join(c.__name__ for c in allowed_types)
+                raise ExternalParsingError(f"{e}, expected one of: {types}") from None
+
+            raise
 
         # Check whether the resolved class is indeed a valid option here.
         if allowed_types is not None and not issubclass(real_cls, allowed_types):
@@ -130,7 +142,7 @@ class TagRegistry:
         try:
             return self.parsers[tag_name]
         except KeyError:
-            raise NotImplementedError(f"Unsupported tag: <{tag_name}>") from None
+            raise ExternalParsingError(f"Unsupported tag: <{tag_name}>") from None
 
 
 tag_registry = TagRegistry()

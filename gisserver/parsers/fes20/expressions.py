@@ -164,7 +164,9 @@ class Literal(Expression):
 
 @dataclass
 @tag_registry.register("ValueReference")
-@tag_registry.register("PropertyName")  # FES 1.0 name, some clients still use this.
+@tag_registry.register(
+    "PropertyName", hidden=True
+)  # FES 1.0 name that old clients still use.
 class ValueReference(Expression):
     """The <fes:ValueReference> element that holds an XPath string.
     In the fes XSD, this is declared as a subclass of xsd:string.

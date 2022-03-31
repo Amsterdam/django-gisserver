@@ -1,22 +1,22 @@
 from functools import wraps
-from typing import List, Optional, Tuple
+from itertools import chain
+from typing import List, Optional, Tuple, Type, TYPE_CHECKING, Union
 from xml.etree.ElementTree import Element, QName
 
 from gisserver.exceptions import ExternalParsingError
 
 
-def expect_tag(namespace, *tag_names, leaf=False):
+def expect_tag(namespace: str, *tag_names: str, leaf=False):
     """Validate whether a given tag is need"""
     valid_tags = set(str(QName(namespace, name)) for name in tag_names)
     expect0 = str(QName(namespace, tag_names[0]))
 
     def _wrapper(func):
         @wraps(func)
-        def _from_xml_expect(cls, element, *args, **kwargs):
+        def _expect_tag_decorator(cls, element: Element, *args, **kwargs):
             if element.tag not in valid_tags:
                 raise ExternalParsingError(
-                    f"{cls.__name__}.{func.__name__}(element) expects an <{expect0}> node, "
-                    f"got <{element.tag}>"
+                    f"{cls.__name__} parser expects an <{expect0}> node, got <{element.tag}>"
                 )
             if leaf and len(element):
                 raise ExternalParsingError(
@@ -25,7 +25,42 @@ def expect_tag(namespace, *tag_names, leaf=False):
 
             return func(cls, element, *args, **kwargs)
 
-        return _from_xml_expect
+        return _expect_tag_decorator
+
+    return _wrapper
+
+
+def expect_children(min_child_nodes, *expect_types: "Union[str, Type[BaseNode]]"):
+    def _wrapper(func):
+        @wraps(func)
+        def _expect_children_decorator(cls, element: Element, *args, **kwargs):
+            if len(element) < min_child_nodes:
+                type_names = ", ".join(
+                    sorted(
+                        set(
+                            chain.from_iterable(
+                                (
+                                    [child_type]
+                                    if isinstance(child_type, str)
+                                    else chain.from_iterable(
+                                        sub_type.xml_tags
+                                        for sub_type in child_type.__subclasses__()
+                                    )
+                                )
+                                for child_type in expect_types
+                            )
+                        )
+                    )
+                )
+                suffix = f" (possible tags: {type_names})" if type_names else ""
+                raise ExternalParsingError(
+                    f"<{element.tag}> should have {min_child_nodes} child nodes, "
+                    f"got {len(element)}{suffix}"
+                )
+
+            return func(cls, element, *args, **kwargs)
+
+        return _expect_children_decorator
 
     return _wrapper
 
@@ -59,3 +94,7 @@ def split_ns(tag_name: str) -> Tuple[Optional[str], str]:
         return tag_name[1:end], tag_name[end + 1 :]
     else:
         return None, tag_name
+
+
+if TYPE_CHECKING:
+    from gisserver.parsers.base import BaseNode

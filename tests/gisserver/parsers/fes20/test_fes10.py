@@ -28,7 +28,7 @@ def test_fes10_add_sub():
             xsi:schemaLocation="http://www.opengis.net/fes/2.0
             http://schemas.opengis.net/filter/2.0/filterAll.xsd">
             <fes:PropertyIsEqualTo>
-                <fes:ValueReference>SomeProperty</fes:ValueReference>
+                <fes:PropertyName>SomeProperty</fes:PropertyName>
                 <fes:Add>
                     <fes:Sub>
                         <fes:Literal>100</fes:Literal>
@@ -79,3 +79,29 @@ def test_fes10_add_sub():
             )
         ]
     ), repr(query)
+
+
+def test_fes10_no_namespace():
+    """Test that omitting a namespace still parses the object."""
+    xml_text = """
+        <Filter>
+            <PropertyIsEqualTo>
+                <ValueReference>SomeProperty</ValueReference>
+                <Literal>100</Literal>
+            </PropertyIsEqualTo>
+        </Filter>
+    """.strip()
+
+    expected = Filter(
+        predicate=BinaryComparisonOperator(
+            operatorType=BinaryComparisonName.PropertyIsEqualTo,
+            expression=(
+                ValueReference(xpath="SomeProperty"),
+                Literal(raw_value="100"),
+            ),
+            matchCase=True,
+            matchAction=MatchAction.Any,
+        )
+    )
+    result = Filter.from_string(xml_text)
+    assert result == expected, f"result={result!r}"
