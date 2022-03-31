@@ -40,6 +40,7 @@ class CompiledQuery:
         self.extra_lookups: List[Q] = []
         self.ordering: List[str] = []
         self.is_empty = False
+        self.distinct = False
 
     def add_annotation(self, value: Union[Combinable, Q]) -> str:
         """Create a named-alias for a function/Q object.
@@ -49,6 +50,9 @@ class CompiledQuery:
         name = f"a{self.aliases}"
         self.annotations[name] = value
         return name
+
+    def add_distinct(self):
+        self.distinct = True
 
     def add_lookups(self, q_object: Q, type_name: Optional[str] = None):
         """Register an extra 'WHERE' clause of the query.
@@ -139,6 +143,9 @@ class CompiledQuery:
 
         if self.ordering:
             queryset = queryset.order_by(*self.ordering)
+
+        if self.distinct:
+            queryset = queryset.distinct()
 
         return queryset
 

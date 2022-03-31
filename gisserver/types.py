@@ -815,15 +815,16 @@ class ORMPath:
     """Base class to provide raw XPath results.
 
     This base class is designed to allow other query types (besides XPath) too,
-    and allows to insert raw data directly to the query compiler (for unit testing).
+    and allows inserting raw data directly to the query compiler (for unit testing).
     """
 
-    def __init__(self, orm_path: str, orm_filters: Optional[Q] = None):
+    def __init__(self, orm_path: str, orm_filters: Optional[Q] = None, is_many=False):
         """Base constructor just assigns items.
         Overwritten classes likely replace this with properties.
         """
         self.orm_path = orm_path
         self.orm_filters = orm_filters
+        self.is_many = is_many
 
     def __repr__(self):
         return (
@@ -835,6 +836,8 @@ class ORMPath:
         """Give the ORM part when this element is used as left-hand-side of a comparison.
         For example: "path == value".
         """
+        if self.is_many:
+            compiler.add_distinct()
         if self.orm_filters:
             compiler.add_extra_lookup(self.orm_filters)
         return self.orm_path
@@ -843,6 +846,8 @@ class ORMPath:
         """Give the ORM part when this element would be used as right-hand-side.
         For example: "path == path" or "value == path".
         """
+        if self.is_many:
+            compiler.add_distinct()
         return F(self.build_lhs(compiler))
 
 
@@ -893,14 +898,23 @@ class XPathMatch(ORMPath):
         """Return only the final element"""
         return self.nodes[-1]
 
+    @property
+    def is_many(self) -> bool:
+        """Return whether this ORM path walks over an element that occurs multiple times"""
+        return any(node.is_many for node in self.nodes)
+
     def build_lhs(self, compiler: "CompiledQuery"):
         """Delegate the LHS construction to the final XsdNode."""
+        if self.is_many:
+            compiler.add_distinct()
         if self.orm_filters:
             compiler.add_extra_lookup(self.orm_filters)
         return self.child.build_lhs_part(compiler, self)
 
     def build_rhs(self, compiler: "CompiledQuery"):
         """Delegate the RHS construction to the final XsdNode."""
+        if self.is_many:
+            compiler.add_distinct()
         if self.orm_filters:
             compiler.add_extra_lookup(self.orm_filters)
         return self.child.build_rhs_part(compiler, self)

@@ -157,7 +157,9 @@ class TestGetPropertyValue:
         assert name == expect
 
     @pytest.mark.parametrize("filter_name", list(COMPLEX_FILTERS.keys()))
-    def test_get_filter_complex(self, client, restaurant, bad_restaurant, filter_name):
+    def test_get_filter_complex(
+        self, client, restaurant_m2m, bad_restaurant, filter_name
+    ):
         """Prove that that parsing FILTER=<fes:Filter>... works for complex types"""
         filter = COMPLEX_FILTERS[filter_name].strip()
         response = client.get(

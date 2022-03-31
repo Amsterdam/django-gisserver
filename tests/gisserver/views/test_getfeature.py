@@ -468,9 +468,9 @@ class TestGetFeature:
             "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
             "&FILTER=" + quote_plus(filter)
         )
-        self._assert_filter(response)
+        self._assert_filter(response, expect_name="Café Noir")
 
-    def _assert_filter(self, response, expect="Café Noir"):
+    def _assert_filter(self, response, expect_name):
         """Common part of filter logic"""
         content = read_response(response)
         assert response["content-type"] == "text/xml; charset=utf-8", content
@@ -489,17 +489,19 @@ class TestGetFeature:
 
         # Assert that the correct object was matched
         name = feature.find("app:name", namespaces=NAMESPACES).text
-        assert name == expect
+        assert name == expect_name
 
     @pytest.mark.parametrize("filter_name", list(COMPLEX_FILTERS.keys()))
-    def test_get_filter_complex(self, client, restaurant, bad_restaurant, filter_name):
+    def test_get_filter_complex(
+        self, client, restaurant_m2m, bad_restaurant, filter_name
+    ):
         """Prove that that parsing FILTER=<fes:Filter>... works"""
         filter = COMPLEX_FILTERS[filter_name].strip()
         response = client.get(
             "/v1/wfs-complextypes/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
             "&TYPENAMES=restaurant&FILTER=" + quote_plus(filter)
         )
-        self._assert_filter(response)
+        self._assert_filter(response, expect_name="Café Noir")
 
     @pytest.mark.parametrize("filter_name", list(FLATTENED_FILTERS.keys()))
     def test_get_filter_flattened(
@@ -513,7 +515,7 @@ class TestGetFeature:
             "/v1/wfs-flattened/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
             "&TYPENAMES=restaurant&FILTER=" + quote_plus(filter)
         )
-        self._assert_filter(response)
+        self._assert_filter(response, expect_name="Café Noir")
 
     @pytest.mark.parametrize("filter_name", list(INVALID_FILTERS.keys()))
     def test_get_filter_invalid(self, client, restaurant, filter_name):
