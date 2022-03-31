@@ -1,3 +1,24 @@
+# 2022-04-11 (1.2)
+
+* Added support for `maxOccurs=unbounded` elements (M2M, reverse foreign key, array fields).
+* Added support for filtering on M2M and reverse foreign keys.
+* Added `field(..., xsd_class=...)` parameter to simplify overriding `FeatureField.xsd_element_class`.
+* Added `xsd_base_typez parameter to `ComplexFeatureField` to allow overriding it.
+* Added `GISSERVER_DB_PRECISION` setting and made precision consistent between output formats.
+* Added `.prefetch_related()` support to large GeoJSON responses (using prefetching on iterator chunks).
+* Added `FeatureType.filter_related_queryset()` that allows adjusting all retrieved querysets.
+* Using `.only()` to reduce transferred data to the actual fields.
+* Optimized large responses through the chunked-iterator and `.only()` usage (seen 2x improvement on GeoJSON on some large datasets).
+* Improved `<fes:Filter>` error handling, avoid internal server errors for missing XML child elements.
+* Improved GeoJSON content type in HTTP responses, using `application/geo+json` instead of `application/json`.
+* Fixed next/previous pagination links, to preserve lowercase querystring fields that project-specific code might use.
+* Fixed preserving extra querystring fields in HTML pages.
+* Fixed integration with custom fields, using `value_from_object()` instead of `getattr()` to retrieve field values.
+* Fixed calculating extent over feature with mixed geometry types.
+* Various code cleanups.
+* Dropped Python 3.6 support.
+
+
 # 2021-05-17 (1.1.3)
 
 * Included Django 3.2 in test matrix.
