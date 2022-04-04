@@ -271,7 +271,7 @@ class FeatureField:
         elif self.model_field.many_to_many or self.model_field.one_to_many:
             max_occurs = "unbounded"  # M2M or reverse FK field
         elif ArrayField is not None and isinstance(self.model_field, ArrayField):
-            max_occurs = "unbounded"
+            max_occurs = self.model_field.size or "unbounded"
         else:
             max_occurs = None  # default is 1, but attribute can be left out.
 
