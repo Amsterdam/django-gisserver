@@ -273,7 +273,7 @@ class GML32Renderer(OutputRenderer):
         self, feature_type: FeatureType, xsd_element: XsdElement, value, extra_xmlns=""
     ) -> str:
         """Write the value of a single field."""
-        if xsd_element.is_many:
+        if xsd_element.is_many and value is not None:
             # Render the tag multiple times
             return "".join(
                 self._render_xml_field(
@@ -282,6 +282,9 @@ class GML32Renderer(OutputRenderer):
                 for item in value
             )
         else:
+            if xsd_element.min_occurs == 0 and xsd_element.is_many:
+                return ""  # No tag for optional element (see PropertyIsNull)
+
             return self._render_xml_field(
                 feature_type, xsd_element, value, extra_xmlns=extra_xmlns
             )

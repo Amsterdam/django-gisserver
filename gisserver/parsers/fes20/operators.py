@@ -588,6 +588,7 @@ class NullOperator(ComparisonOperator):
         # For now, the implementation is identical to PropertyIsNil.
         # According to the WFS spec, this should only be true when the element
         # is not returned at all (minOccurs=0).
+        # TODO: this happens for maxOccurs=unbounded with a null value.
         return self.build_compare(
             compiler, lhs=self.expression, lookup="isnull", rhs=True
         )
