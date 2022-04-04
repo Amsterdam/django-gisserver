@@ -84,7 +84,7 @@ class Expression(BaseNode):
         raise NotImplementedError(f"{self.__class__.__name__}.build_rhs()")
 
 
-@dataclass
+@dataclass(repr=False)
 @tag_registry.register("Literal")
 class Literal(Expression):
     """The <fes:Literal> element that holds a literal value"""
@@ -95,6 +95,9 @@ class Literal(Expression):
 
     def __str__(self):
         return self.value
+
+    def __repr__(self):
+        return f"Literal({self.raw_value!r}, raw_type={self.raw_type!r}, type={self.type!r})"
 
     @cached_property
     def value(self) -> ParsedValue:  # officially <xsd:any>
@@ -162,7 +165,7 @@ class Literal(Expression):
             self.__dict__.pop("value", None)  # reset cached_property
 
 
-@dataclass
+@dataclass(repr=False)
 @tag_registry.register("ValueReference")
 @tag_registry.register(
     "PropertyName", hidden=True
@@ -179,6 +182,9 @@ class ValueReference(Expression):
 
     def __str__(self):
         return self.xpath
+
+    def __repr__(self):
+        return f"ValueReference({self.xpath!r})"
 
     @classmethod
     @expect_tag(FES20, "ValueReference", "PropertyName", leaf=True)
