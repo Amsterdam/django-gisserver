@@ -1,7 +1,8 @@
 import operator
 from functools import reduce
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Type, Union
 
+from django.conf import settings
 from django.contrib.gis.db.models.fields import BaseSpatialField
 from django.contrib.gis.db.models.lookups import DWithinLookup
 from django.db import models
@@ -194,7 +195,7 @@ class FesLike(lookups.Lookup):
 
 @models.Field.register_lookup
 @models.ForeignObject.register_lookup
-class FesNotEqualTo(lookups.Lookup):
+class FesNotEqual(lookups.Lookup):
     """Allow fieldname__fes_notequal=... lookups in querysets."""
 
     lookup_name = "fes_notequal"
@@ -203,7 +204,7 @@ class FesNotEqualTo(lookups.Lookup):
         """Generate the required SQL."""
         lhs, lhs_params = self.process_lhs(compiler, connection)  # = (table.field, %s)
         rhs, rhs_params = self.process_rhs(compiler, connection)  # = ("prep-value", [])
-        return f"{lhs} != {rhs}", lhs_params + rhs_params
+        return f"{lhs} != {rhs}", (lhs_params + rhs_params)
 
 
 @BaseSpatialField.register_lookup
@@ -223,3 +224,52 @@ class FesBeyondLookup(DWithinLookup):
         # Allow the SQL $(func)s to be different from the ORM lookup name.
         # This uses ST_DWithin() on PostGIS
         return connection.ops.gis_operators["dwithin"]
+
+
+if "django.contrib.postgres" in settings.INSTALLED_APPS:
+    from django.contrib.postgres.fields import ArrayField
+
+    class ArrayAnyMixin:
+        any_operators = {
+            "exact": "= ANY(%s)",
+            "ne": "!= ANY(%s)",
+            "gt": "< ANY(%s)",
+            "gte": "<= ANY(%s)",
+            "lt": "> ANY(%s)",
+            "lte": ">= ANY(%s)",
+        }
+
+        def as_sql(self, compiler, connection):
+            # For the ANY() comparison, the filter operands need to be reversed.
+            # So instead of "field < value", it becomes "value > ANY(field)
+            lhs_sql, lhs_params = self.process_lhs(compiler, connection)
+            rhs_sql, rhs_params = self.process_rhs(compiler, connection)
+            lhs_sql = self.get_rhs_op(connection, lhs_sql)
+            return "%s %s" % (rhs_sql, lhs_sql), (rhs_params + lhs_params)
+
+        def get_rhs_op(self, connection, rhs):
+            return self.any_operators[self.lookup_name] % rhs
+
+    def _register_any_lookup(base: Type[lookups.BuiltinLookup]):
+        """Register array lookups under a different name."""
+        cls = type(f"FesArrayAny{base.__name__}", (ArrayAnyMixin, base), {})
+        ArrayField.register_lookup(cls, lookup_name=f"fes_any{base.lookup_name}")
+
+    _register_any_lookup(lookups.Exact)
+    _register_any_lookup(lookups.Exact)
+    _register_any_lookup(lookups.GreaterThan)
+    _register_any_lookup(lookups.GreaterThanOrEqual)
+    _register_any_lookup(lookups.LessThan)
+    _register_any_lookup(lookups.LessThanOrEqual)
+
+    @ArrayField.register_lookup
+    class FesArrayAnyNotEqual(FesNotEqual):
+        """Inequality test for a single item in the array"""
+
+        lookup_name = "fes_anynotequal"
+
+        def as_sql(self, compiler, connection):
+            """Generate the required SQL."""
+            lhs, lhs_params = self.process_lhs(compiler, connection)
+            rhs, rhs_params = self.process_rhs(compiler, connection)
+            return f"{rhs} != ANY({lhs})", (rhs_params + lhs_params)

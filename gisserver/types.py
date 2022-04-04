@@ -29,6 +29,7 @@ from decimal import Decimal as D
 from dataclasses import dataclass, field
 from enum import Enum
 
+from django.conf import settings
 from django.core.exceptions import (
     ObjectDoesNotExist,
     ValidationError,
@@ -51,6 +52,11 @@ try:
     _unbounded = Literal["unbounded"]
 except ImportError:
     _unbounded = str
+
+if "django.contrib.postgres" in settings.INSTALLED_APPS:
+    from django.contrib.postgres.fields import ArrayField
+else:
+    ArrayField = None
 
 __all__ = [
     "ORMPath",
@@ -321,6 +327,11 @@ class XsdNode:
     def is_geometry(self) -> bool:
         """Tell whether the XML node/element should be handed as GML geometry."""
         return self.type.is_geometry or isinstance(self.source, GeometryField)
+
+    @cached_property
+    def is_array(self) -> bool:
+        """Tell whether this node is backed by an PostgreSQL Array Field."""
+        return ArrayField is not None and isinstance(self.source, ArrayField)
 
     @cached_property
     def is_flattened(self) -> bool:
@@ -898,7 +909,7 @@ class XPathMatch(ORMPath):
         """Return only the final element"""
         return self.nodes[-1]
 
-    @property
+    @cached_property
     def is_many(self) -> bool:
         """Return whether this ORM path walks over an element that occurs multiple times"""
         return any(node.is_many for node in self.nodes)

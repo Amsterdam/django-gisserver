@@ -11,6 +11,7 @@ from functools import reduce
 from typing import Any, Dict, List, Optional, Tuple, Union
 from xml.etree.ElementTree import Element, QName
 
+from django.conf import settings
 from django.contrib.gis import measure
 from django.db.models import Q
 from django.utils.functional import cached_property
@@ -38,6 +39,23 @@ else:
     class HasBuildRhs(Protocol):
         def build_rhs(self, compiler) -> RhsTypes:
             ...
+
+
+if "django.contrib.postgres" in settings.INSTALLED_APPS:
+    # Comparisons with array fields go through a separate ORM lookup expression,
+    # so these can check whether ANY element matches in the array.
+    # This gives consistency between other repeated elements (e.g. M2M, reverse FK)
+    # where the whole object is returned when one of the sub-objects match.
+    ARRAY_LOOKUPS = {
+        "exact": "fes_anyexact",
+        "fes_notequal": "fes_anynotequal",
+        "lt": "fes_anylt",
+        "lte": "fes_anylte",
+        "gt": "fes_anygt",
+        "gte": "fes_anygte",
+    }
+else:
+    ARRAY_LOOKUPS = None
 
 
 class MatchAction(Enum):
@@ -218,8 +236,9 @@ class NonIdOperator(Operator):
             lhs, rhs = rhs, lhs
 
         if compiler.feature_type is not None:
-            self.validate_comparison(compiler, lhs, lookup, rhs)
+            lookup = self.validate_comparison(compiler, lhs, lookup, rhs)
 
+        # Build Django Q-object
         lhs = lhs.build_lhs(compiler)
 
         if isinstance(rhs, (Expression, gml.GM_Object)):
@@ -259,6 +278,22 @@ class NonIdOperator(Operator):
                 # When a common case of value comparison is done, the inputs
                 # can be validated before the ORM query is constructed.
                 xsd_element.validate_comparison(rhs.raw_value, lookup=lookup, tag=tag)
+
+            # Checking scalar values against array fields will fail.
+            # However, to make the queries consistent with other unbounded types (i.e. M2M fields),
+            # it makes sense to return an object when *one* entry in the array matches.
+            if xsd_element.is_array:
+                try:
+                    return ARRAY_LOOKUPS[lookup]
+                except KeyError:
+                    raise OperationProcessingFailed(
+                        "filter",
+                        f"Operator '{tag}' is not supported for "
+                        f"the '{xsd_element.name}' property.",
+                        status_code=400,  # not HTTP 500 here. Spec allows both.
+                    ) from None
+
+        return lookup
 
     def build_compare_between(
         self,
