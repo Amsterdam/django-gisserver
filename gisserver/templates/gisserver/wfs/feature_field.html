@@ -1,5 +1,9 @@
-<tr{% if level %} class="complex-field-member complex-level-{{ level }}"{% endif %}><th><code>{{ field.name }}</code></th><td>{{ field.xsd_element.type }}</td><td>{{ field.abstract|default:'' }}</td></tr>
-{% if field.fields %}
+<tr{% if level %} class="complex-field-member complex-level-{{ level }}"{% endif %}>
+  <th><code>{{ field.name }}</code></th>
+  <td>{{ field.xsd_element.type }}{% if field.xsd_element.is_many %} <em>(maxOccurs={{ field.xsd_element.max_occurs }})</em>{% endif %}</td>
+  <td>{{ field.abstract|default:'' }}</td>
+</tr>
+{% if field.xsd_element.type.is_complex_type and field.fields %}
   {% for sub_field in field.fields %}
     {% include "gisserver/wfs/feature_field.html" with field=sub_field level=level|add:1 %}
   {% endfor %}
