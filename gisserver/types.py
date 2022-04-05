@@ -35,7 +35,10 @@ from django.core.exceptions import (
     ValidationError,
 )
 from django.db.models import Q
-from django.db.models.fields.related import RelatedField
+from django.db.models.fields.related import (
+    RelatedField,
+    ForeignObjectRel,
+)  # Django 2 imports
 from django.utils import dateparse
 from typing import List, Optional, Tuple, Type, Union, TYPE_CHECKING
 
@@ -259,7 +262,7 @@ class XsdNode:
 
     #: Which field to read from the model to get the value
     #: This supports dot notation to access related attributes.
-    source: Optional[Union[models.Field, models.ForeignObjectRel]]
+    source: Optional[Union[models.Field, ForeignObjectRel]]
 
     #: Which field to read from the model to get the value
     #: This supports dot notation to access related attributes.
@@ -271,7 +274,7 @@ class XsdNode:
         type: XsdAnyType,
         *,
         prefix: Optional[str] = "app",
-        source: Optional[Union[models.Field, models.ForeignObjectRel]] = None,
+        source: Optional[Union[models.Field, ForeignObjectRel]] = None,
         model_attribute: Optional[str] = None,
     ):
         # Using plain assignment instead of dataclass turns out to be needed
@@ -297,14 +300,14 @@ class XsdNode:
     @staticmethod
     def _build_valuegetter(
         model_attribute: str,
-        field: Optional[Union[models.Field, models.ForeignObjectRel]],
+        field: Optional[Union[models.Field, ForeignObjectRel]],
     ):
         """Select the most efficient read function to retrieves the value."""
         if field is None:
             # No model field, can only use getattr(). The attrgetter function has
             # built-in support for traversing model attributes with dots.
             return operator.attrgetter(model_attribute)
-        elif isinstance(field, models.ForeignObjectRel):
+        elif isinstance(field, ForeignObjectRel):
             # Special handling, has no value_from_object()
             return operator.attrgetter(model_attribute)
         elif "." not in model_attribute:
@@ -489,7 +492,7 @@ class XsdElement(XsdNode):
         nillable: Optional[bool] = None,
         min_occurs: Optional[int] = None,
         max_occurs: Optional[Union[int, _unbounded]] = None,
-        source: Optional[Union[models.Field, models.ForeignObjectRel]] = None,
+        source: Optional[Union[models.Field, ForeignObjectRel]] = None,
         model_attribute: Optional[str] = None,
     ):
         super().__init__(
@@ -555,7 +558,7 @@ class XsdAttribute(XsdNode):
         *,
         prefix: Optional[str] = "app",
         use: str = "optional",
-        source: Optional[Union[models.Field, models.ForeignObjectRel]] = None,
+        source: Optional[Union[models.Field, ForeignObjectRel]] = None,
         model_attribute: Optional[str] = None,
     ):
         super().__init__(
@@ -574,7 +577,7 @@ class GmlIdAttribute(XsdAttribute):
     def __init__(
         self,
         type_name: str,
-        source: Optional[Union[models.Field, models.ForeignObjectRel]] = None,
+        source: Optional[Union[models.Field, ForeignObjectRel]] = None,
         model_attribute="pk",
     ):
         super().__init__(
@@ -603,7 +606,7 @@ class GmlNameElement(XsdElement):
     def __init__(
         self,
         model_attribute: str,
-        source: Optional[Union[models.Field, models.ForeignObjectRel]] = None,
+        source: Optional[Union[models.Field, ForeignObjectRel]] = None,
         feature_type=None,
     ):
         # Prefill most known fields

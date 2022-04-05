@@ -24,6 +24,7 @@ from django.contrib.gis.db import models as gis_models
 from django.contrib.gis.db.models import Extent, GeometryField
 from django.core.exceptions import FieldDoesNotExist, ImproperlyConfigured
 from django.db import models
+from django.db.models.fields.related import ForeignObjectRel  # Django 2.2 import
 from django.utils.functional import cached_property  # py3.8: functools
 
 from gisserver.db import conditional_transform
@@ -87,7 +88,7 @@ DEFAULT_XSD_TYPE = XsdTypes.anyType
 
 
 def get_basic_field_type(
-    field_name: str, model_field: Union[models.Field, models.ForeignObjectRel]
+    field_name: str, model_field: Union[models.Field, ForeignObjectRel]
 ) -> XsdAnyType:
     """Determine the XSD field type for a Django field."""
     if ArrayField is not None and isinstance(model_field, ArrayField):
@@ -104,7 +105,7 @@ def get_basic_field_type(
     if isinstance(model_field, models.ForeignKey):
         # Don't let it query on the relation value yet
         return get_basic_field_type(field_name, model_field.target_field)
-    elif isinstance(model_field, models.ForeignObjectRel):
+    elif isinstance(model_field, ForeignObjectRel):
         # e.g. ManyToOneRel descriptor of a foreignkey_id field.
         return get_basic_field_type(field_name, model_field.remote_field.target_field)
     else:
@@ -170,7 +171,7 @@ class FeatureField:
     xsd_element_class: Type[XsdElement] = XsdElement
 
     model: Optional[Type[models.Model]]
-    model_field: Optional[Union[models.Field, models.ForeignObjectRel]]
+    model_field: Optional[Union[models.Field, ForeignObjectRel]]
 
     def __init__(
         self,
