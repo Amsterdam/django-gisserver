@@ -45,19 +45,19 @@ class ST_Union(functions.Union):
 
 
 def get_geometries_union(
-    field_names: List[str], using="default"
+    expressions: List[Union[str, functions.GeoFunc]], using="default"
 ) -> Union[str, functions.Union]:
     """Generate a union of multiple geometry fields."""
-    if len(field_names) == 1:
-        return next(iter(field_names))  # fastest in set data type
-    elif len(field_names) == 2:
-        return functions.Union(*field_names)
+    if len(expressions) == 1:
+        return next(iter(expressions))  # fastest in set data type
+    elif len(expressions) == 2:
+        return functions.Union(*expressions)
     elif connections[using].vendor == "postgresql":
         # postgres can handle multiple field names
-        return ST_Union(field_names)
+        return ST_Union(expressions)
     else:
         # other databases do Union(Union(1, 2), 3)
-        return reduce(functions.Union, field_names)
+        return reduce(functions.Union, expressions)
 
 
 def conditional_transform(

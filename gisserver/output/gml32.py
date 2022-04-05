@@ -498,10 +498,17 @@ class DBGML32Renderer(GML32Renderer):
     @classmethod
     def _get_geometries_union(cls, feature_type: FeatureType, queryset, output_crs):
         """Combine all geometries of the model in a single SQL function."""
-        return conditional_transform(
-            get_geometries_union(feature_type.geometry_field_names, using=queryset.db),
-            feature_type.geometry_field.srid,
-            output_srid=output_crs.srid,
+        # Apply transforms where needed, in case some geometries use a different SRID.
+        return get_geometries_union(
+            [
+                conditional_transform(
+                    model_field.name,
+                    model_field.srid,
+                    output_srid=output_crs.srid,
+                )
+                for model_field in feature_type.geometry_fields
+            ],
+            using=queryset.db,
         )
 
     def render_element(

@@ -52,9 +52,9 @@ class GeoJsonRenderer(OutputRenderer):
     ):
         # Other geometries can be excluded as these are not rendered by 'properties'
         other_geometries = [
-            n
-            for n in feature_type.geometry_field_names
-            if n != feature_type.geometry_field_name
+            model_field.name
+            for model_field in feature_type.geometry_fields
+            if model_field is not feature_type.geometry_field
         ]
         queryset = queryset.defer(*other_geometries)
 

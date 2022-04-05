@@ -475,12 +475,6 @@ class FeatureType:
         if html.escape(self.name) != self.name or " " in self.name or ":" in self.name:
             raise ValueError(f"Invalid feature name for XML: <{self.xml_name}>")
 
-        # Auto-detect geometry fields (also fills geometry_field_name)
-        self.geometry_fields = [
-            f
-            for f in self.model._meta.get_fields()
-            if isinstance(f, gis_models.GeometryField)
-        ]
         self._cached_resolver = lru_cache(100)(self._inner_resolve_element)
 
     def check_permissions(self, request):
@@ -500,8 +494,15 @@ class FeatureType:
         return [self.crs] + self.other_crs
 
     @cached_property
-    def geometry_field_names(self):
-        return {f.name for f in self.geometry_fields}
+    def geometry_fields(self) -> List[GeometryField]:
+        """Tell which fields of the model have a geometry field.
+        This only compares against fields that are mentioned in this feature type.
+        """
+        return [
+            ff.model_field or getattr(self.model, ff.model_attribute)
+            for ff in self.fields
+            if ff.xsd_element.is_geometry
+        ]
 
     @cached_property
     def fields(self) -> List[FeatureField]:
@@ -537,6 +538,16 @@ class FeatureType:
     def geometry_field_name(self) -> str:
         if self._geometry_field_name:
             return self._geometry_field_name
+        elif self._fields is None:
+            # No fields defined. The feature only consists of a geometry field.
+            # Take the first geometry field from the model.
+            return next(
+                (
+                    f.name
+                    for f in self.model._meta.get_fields()
+                    if isinstance(f, gis_models.GeometryField)
+                )
+            )
         else:
             if not self.geometry_fields:
                 raise ImproperlyConfigured(
