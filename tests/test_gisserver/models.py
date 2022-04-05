@@ -2,6 +2,7 @@ import calendar
 from datetime import datetime, time
 
 from django.contrib.gis.db.models import PointField
+from django.contrib.postgres.fields import ArrayField
 from django.db import models
 from django.utils.timezone import utc
 
@@ -33,6 +34,7 @@ class Restaurant(models.Model):
     created = models.DateTimeField(default=current_datetime)
 
     opening_hours = models.ManyToManyField(OpeningHour)
+    tags = ArrayField(base_field=models.CharField(max_length=100), null=True)
 
     def __str__(self):
         return self.name

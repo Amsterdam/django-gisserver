@@ -98,6 +98,8 @@ class TestGetFeature:
         <app:rating>5.0</app:rating>
         <app:is_open>true</app:is_open>
         <app:created>2020-04-05T12:11:10+00:00</app:created>
+        <app:tags>cafe</app:tags>
+        <app:tags>black</app:tags>
       </app:restaurant>
     </wfs:member>
 </wfs:FeatureCollection>""",  # noqa: E501
@@ -262,6 +264,8 @@ class TestGetFeature:
           <app:start_time>20:00:00</app:start_time>
           <app:end_time>23:30:00</app:end_time>
         </app:opening_hours>
+        <app:tags>cafe</app:tags>
+        <app:tags>black</app:tags>
       </app:restaurant>
     </wfs:member>
 
@@ -341,6 +345,8 @@ class TestGetFeature:
         <app:rating>5.0</app:rating>
         <app:is_open>true</app:is_open>
         <app:created>2020-04-05T12:11:10+00:00</app:created>
+        <app:tags>cafe</app:tags>
+        <app:tags>black</app:tags>
       </app:restaurant>
     </wfs:member>
 
@@ -424,6 +430,8 @@ class TestGetFeature:
             <app:rating>5.0</app:rating>
             <app:is_open>true</app:is_open>
             <app:created>2020-04-05T12:11:10+00:00</app:created>
+            <app:tags>cafe</app:tags>
+            <app:tags>black</app:tags>
           </app:restaurant>
         </wfs:member>
     </wfs:FeatureCollection>""",  # noqa: E501
@@ -745,6 +753,7 @@ class TestGetFeature:
                         "rating": 5.0,
                         "is_open": True,
                         "created": "2020-04-05T12:11:10+00:00",
+                        "tags": ["cafe", "black"],
                     },
                 },
                 {
@@ -759,6 +768,7 @@ class TestGetFeature:
                         "rating": 1.0,
                         "is_open": False,
                         "created": "2020-04-05T20:11:10+00:00",
+                        "tags": None,
                     },
                 },
             ],
@@ -864,6 +874,7 @@ class TestGetFeature:
                                 "end_time": "23:30:00",
                             },
                         ],
+                        "tags": ["cafe", "black"],
                     },
                 },
                 {
@@ -879,6 +890,7 @@ class TestGetFeature:
                         "is_open": False,
                         "created": "2020-04-05T20:11:10+00:00",
                         "opening_hours": [],
+                        "tags": None,
                     },
                 },
             ],
@@ -924,6 +936,7 @@ class TestGetFeature:
                         "rating": 5.0,
                         "is_open": True,
                         "created": "2020-04-05T12:11:10+00:00",
+                        "tags": ["cafe", "black"],
                     },
                 },
                 {
@@ -939,6 +952,7 @@ class TestGetFeature:
                         "rating": 1.0,
                         "is_open": False,
                         "created": "2020-04-05T20:11:10+00:00",
+                        "tags": None,
                     },
                 },
             ],
@@ -1169,6 +1183,8 @@ class TestGetFeature:
     <app:rating>5.0</app:rating>
     <app:is_open>true</app:is_open>
     <app:created>2020-04-05T12:11:10+00:00</app:created>
+    <app:tags>cafe</app:tags>
+    <app:tags>black</app:tags>
 </app:restaurant>""",  # noqa: E501
         )
 

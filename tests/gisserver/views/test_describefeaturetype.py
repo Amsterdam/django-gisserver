@@ -38,6 +38,7 @@ class TestDescribeFeatureType:
             "rating",
             "is_open",
             "created",
+            "tags",
         ]
 
         assert_xml_equal(
@@ -65,6 +66,7 @@ class TestDescribeFeatureType:
           <element name="rating" type="double" minOccurs="0" />
           <element name="is_open" type="boolean" minOccurs="0" />
           <element name="created" type="dateTime" minOccurs="0" />
+          <element name="tags" type="string" minOccurs="0" maxOccurs="unbounded" nillable="true" />
         </sequence>
       </extension>
     </complexContent>
@@ -114,6 +116,7 @@ class TestDescribeFeatureType:
           <element name="is_open" type="boolean" minOccurs="0" />
           <element name="created" type="dateTime" minOccurs="0" />
           <element name="opening_hours" type="app:OpeningHourType" minOccurs="0" maxOccurs="unbounded" />
+          <element name="tags" type="string" minOccurs="0" maxOccurs="unbounded" nillable="true" />
         </sequence>
       </extension>
     </complexContent>
@@ -187,6 +190,7 @@ class TestDescribeFeatureType:
           <element name="rating" type="double" minOccurs="0" />
           <element name="is_open" type="boolean" minOccurs="0" />
           <element name="created" type="dateTime" minOccurs="0" />
+          <element name="tags" type="string" minOccurs="0" maxOccurs="unbounded" nillable="true" />
         </sequence>
       </extension>
     </complexContent>

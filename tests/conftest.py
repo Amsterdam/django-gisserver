@@ -55,6 +55,7 @@ def restaurant(city) -> Restaurant:
         location=Point(122411, 486250, srid=RD_NEW_SRID),
         rating=5.0,
         is_open=True,
+        tags=["cafe", "black"],
     )
 
 

@@ -102,6 +102,22 @@ FILTERS = {
                 <fes:ValueReference>is_open</fes:ValueReference>
             </fes:PropertyIsEqualTo>
         </fes:Filter>""",
+    "value_array": """
+        <?xml version="1.0"?>
+        <fes:Filter xmlns:fes="http://www.opengis.net/fes/2.0">
+            <fes:PropertyIsEqualTo>
+                <fes:ValueReference>tags</fes:ValueReference>
+                <fes:Literal>black</fes:Literal>
+            </fes:PropertyIsEqualTo>
+        </fes:Filter>""",
+    "value_array_lt": """
+        <?xml version="1.0"?>
+        <fes:Filter xmlns:fes="http://www.opengis.net/fes/2.0">
+            <fes:PropertyIsLessThan>
+                <fes:ValueReference>tags</fes:ValueReference>
+                <fes:Literal>color</fes:Literal>
+            </fes:PropertyIsLessThan>
+        </fes:Filter>""",
     "fes1": """
         <Filter>
             <PropertyIsGreaterThanOrEqualTo>

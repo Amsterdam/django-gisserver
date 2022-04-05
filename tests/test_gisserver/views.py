@@ -31,7 +31,7 @@ class PlacesWFSView(WFSView):
     feature_types = [
         FeatureType(
             Restaurant.objects.all(),
-            fields="__all__",
+            fields="__all__",  # includes 'tags' as array field, but no relations.
             keywords=["unittest"],
             other_crs=[RD_NEW],
             metadata_url="/feature/restaurants/",
@@ -63,6 +63,7 @@ class ComplexTypesWFSView(PlacesWFSView):
                 "is_open",
                 "created",
                 field("opening_hours", fields=["weekday", "start_time", "end_time"]),
+                "tags",  # array field
             ],
             other_crs=[RD_NEW],
         ),
@@ -84,6 +85,7 @@ class FlattenedWFSView(PlacesWFSView):
                 "rating",
                 "is_open",
                 "created",
+                "tags",  # array field
             ],
         ),
     ]

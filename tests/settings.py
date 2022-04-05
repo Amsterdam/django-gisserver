@@ -19,6 +19,7 @@ GISSERVER_USE_DB_RENDERING = env.bool("GISSERVER_USE_DB_RENDERING", default=True
 INSTALLED_APPS = [
     "gisserver",
     "tests.test_gisserver",
+    "django.contrib.postgres",
 ]
 
 # Test session requirements
