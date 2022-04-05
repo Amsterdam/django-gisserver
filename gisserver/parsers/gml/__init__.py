@@ -2,7 +2,7 @@
 
 These functions locate GML objects, and redirect to the proper parser.
 """
-from typing import List, Union
+from __future__ import annotations
 from xml.etree.ElementTree import Element
 
 from defusedxml.ElementTree import fromstring
@@ -26,13 +26,13 @@ __all__ = [
 ]
 
 
-def parse_gml(text: Union[str, bytes]) -> Union[FES_GML_NODES]:
+def parse_gml(text: str | bytes) -> FES_GML_NODES:
     """Parse an XML <gml:...> string."""
     root_element = fromstring(text)
     return parse_gml_node(root_element)
 
 
-def parse_gml_node(element: Element) -> Union[FES_GML_NODES]:
+def parse_gml_node(element: Element) -> FES_GML_NODES:
     """Parse the element"""
     if not is_gml_element(element):
         raise ExternalParsingError(f"Expected GML namespace for {element.tag}")
@@ -40,7 +40,7 @@ def parse_gml_node(element: Element) -> Union[FES_GML_NODES]:
     return tag_registry.from_child_xml(element, allowed_types=FES_GML_NODES)
 
 
-def find_gml_nodes(element: Element) -> List[Element]:
+def find_gml_nodes(element: Element) -> list[Element]:
     """Find all gml elements in a node"""
     result = []
     for child in element:

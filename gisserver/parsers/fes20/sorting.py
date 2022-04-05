@@ -1,6 +1,6 @@
+from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
-from typing import List
 
 from gisserver.exceptions import InvalidParameterValue
 from gisserver.parsers.fes20 import ValueReference
@@ -36,7 +36,7 @@ class SortProperty:
 class SortBy:
     """The sortBy clause."""
 
-    sort_properties: List[SortProperty]
+    sort_properties: list[SortProperty]
 
     @classmethod
     def from_string(cls, value: str):
@@ -61,7 +61,7 @@ class SortBy:
 
         return cls(sort_properties=props)
 
-    def build_ordering(self, feature_type=None) -> List[str]:
+    def build_ordering(self, feature_type=None) -> list[str]:
         """Build the ordering for the Django ORM call."""
         ordering = []
         for prop in self.sort_properties:

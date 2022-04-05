@@ -1,6 +1,6 @@
+from __future__ import annotations
 import operator
 from functools import reduce
-from typing import Dict, List, Optional, Type, Union
 
 from django.conf import settings
 from django.contrib.gis.db.models.fields import BaseSpatialField
@@ -25,11 +25,11 @@ class CompiledQuery:
 
     def __init__(
         self,
-        feature_type: Optional[FeatureType] = None,
-        using: Optional[str] = None,
-        lookups: Optional[List[Q]] = None,
-        typed_lookups: Optional[Dict[str, List[Q]]] = None,
-        annotations: Optional[Dict[str, Union[Combinable, Q]]] = None,
+        feature_type: FeatureType | None = None,
+        using: str | None = None,
+        lookups: list[Q] | None = None,
+        typed_lookups: dict[str, list[Q]] | None = None,
+        annotations: dict[str, Combinable | Q] | None = None,
     ):
         """The init method is typically used only in unit tests."""
         self.feature_type = feature_type
@@ -38,12 +38,12 @@ class CompiledQuery:
         self.typed_lookups = typed_lookups or {}
         self.annotations = annotations or {}
         self.aliases = 0
-        self.extra_lookups: List[Q] = []
-        self.ordering: List[str] = []
+        self.extra_lookups: list[Q] = []
+        self.ordering: list[str] = []
         self.is_empty = False
         self.distinct = False
 
-    def add_annotation(self, value: Union[Combinable, Q]) -> str:
+    def add_annotation(self, value: Combinable | Q) -> str:
         """Create a named-alias for a function/Q object.
         This alias can be used in a comparison, where expressions are used as left-hand-side.
         """
@@ -55,7 +55,7 @@ class CompiledQuery:
     def add_distinct(self):
         self.distinct = True
 
-    def add_lookups(self, q_object: Q, type_name: Optional[str] = None):
+    def add_lookups(self, q_object: Q, type_name: str | None = None):
         """Register an extra 'WHERE' clause of the query.
         This is used for comparisons, ID selectors and other query types.
         """
@@ -245,12 +245,12 @@ if "django.contrib.postgres" in settings.INSTALLED_APPS:
             lhs_sql, lhs_params = self.process_lhs(compiler, connection)
             rhs_sql, rhs_params = self.process_rhs(compiler, connection)
             lhs_sql = self.get_rhs_op(connection, lhs_sql)
-            return "%s %s" % (rhs_sql, lhs_sql), (rhs_params + lhs_params)
+            return f"{rhs_sql} {lhs_sql}", (rhs_params + lhs_params)
 
         def get_rhs_op(self, connection, rhs):
             return self.any_operators[self.lookup_name] % rhs
 
-    def _register_any_lookup(base: Type[lookups.BuiltinLookup]):
+    def _register_any_lookup(base: type[lookups.BuiltinLookup]):
         """Register array lookups under a different name."""
         cls = type(f"FesArrayAny{base.__name__}", (ArrayAnyMixin, base), {})
         ArrayField.register_lookup(cls, lookup_name=f"fes_any{base.lookup_name}")

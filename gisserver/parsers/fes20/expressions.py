@@ -1,13 +1,14 @@
 """These classes map to the FES 2.0 specification for expressions.
 The class names are identical to those in the FES spec.
 """
+from __future__ import annotations
 import operator
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal as D
 from django.db import models
 from django.utils.functional import cached_property
-from typing import List, Optional, Tuple, Union
+from typing import Union
 from xml.etree.ElementTree import Element
 
 from django.contrib.gis.geos import GEOSGeometry
@@ -90,8 +91,8 @@ class Literal(Expression):
     """The <fes:Literal> element that holds a literal value"""
 
     # The XSD definition even defines a sequence of xsd:any as possible member!
-    raw_value: Union[NoneType, str, GM_Object, GM_Envelope, TM_Object]
-    raw_type: Optional[str] = None
+    raw_value: NoneType | str | GM_Object | GM_Envelope | TM_Object
+    raw_type: str | None = None
 
     def __str__(self):
         return self.value
@@ -112,7 +113,7 @@ class Literal(Expression):
             return auto_cast(self.raw_value)
 
     @cached_property
-    def type(self) -> Optional[XsdTypes]:
+    def type(self) -> XsdTypes | None:
         if not self.raw_type:
             return None
 
@@ -154,7 +155,7 @@ class Literal(Expression):
         # When the value is used a left-hand-side, Django needs to know the output type.
         return OUTPUT_FIELDS.get(type(self.value))
 
-    def build_rhs(self, compiler) -> Union[Combinable, Q, ParsedValue]:
+    def build_rhs(self, compiler) -> Combinable | Q | ParsedValue:
         """Return the value when it's used in the right-hand-side"""
         return self.value
 
@@ -228,7 +229,7 @@ class Function(Expression):
     """The <fes:Function name="..."> element."""
 
     name: str  # scoped name
-    arguments: List[Expression]  # xsd:element ref="fes20:expression"
+    arguments: list[Expression]  # xsd:element ref="fes20:expression"
 
     @classmethod
     @expect_tag(FES20, "Function")
@@ -255,7 +256,7 @@ class BinaryOperator(Expression):
     """
 
     _operatorType: BinaryOperatorType
-    expression: Tuple[Expression, Expression]
+    expression: tuple[Expression, Expression]
 
     @classmethod
     def from_xml(cls, element: Element):
@@ -273,7 +274,7 @@ class BinaryOperator(Expression):
         return self._operatorType.value(value1, value2)
 
 
-def _make_combinable(value) -> Union[Combinable, Q]:
+def _make_combinable(value) -> Combinable | Q:
     """Make sure the scalar value is wrapped inside a compilable object"""
     if isinstance(value, (Combinable, Q)):
         return value

@@ -1,6 +1,7 @@
 """Functions to be callable from fes."""
+from __future__ import annotations
 from dataclasses import dataclass
-from typing import Callable, Dict, Optional, Union
+from typing import Callable, Union
 
 from django.db import models
 from django.db.models import functions
@@ -29,10 +30,10 @@ class FesFunction:
     body: FesFunctionBody
 
     #: The argument names with their XSD types
-    arguments: Optional[Dict[str, XsdTypes]] = None
+    arguments: dict[str, XsdTypes] | None = None
 
     #: The XSD return type
-    returns: Optional[XsdTypes] = None
+    returns: XsdTypes | None = None
 
     def build_query(self, *expressions: FesArg) -> models.Func:
         """Build the query expression for the function."""
@@ -65,10 +66,10 @@ class FesFunctionRegistry:
     def register(
         self,
         name=None,
-        body: Optional[FesFunctionBody] = None,
+        body: FesFunctionBody | None = None,
         *,
-        arguments: Optional[Dict[str, XsdTypes]] = None,
-        returns: Optional[XsdTypes] = None,
+        arguments: dict[str, XsdTypes] | None = None,
+        returns: XsdTypes | None = None,
     ):
         """Decorator to register a function.
 

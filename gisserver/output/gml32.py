@@ -3,11 +3,12 @@
 Note that the Django format_html() / mark_safe() logic is not used here,
 as it's quite a performance improvement to just use html.escape().
 """
+from __future__ import annotations
 import itertools
 import re
 from datetime import date, datetime, time
 from html import escape
-from typing import List, Optional, cast
+from typing import cast
 
 from django.contrib.gis import geos
 from django.db import models
@@ -239,7 +240,7 @@ class GML32Renderer(OutputRenderer):
         output.write(f"    </{feature_type.xml_name}>\n")
         return output.getvalue()
 
-    def render_bounds(self, feature_type, instance) -> Optional[str]:
+    def render_bounds(self, feature_type, instance) -> str | None:
         """Render the GML bounds for the complete instance"""
         envelope = feature_type.get_envelope(instance, self.output_crs)
         if envelope is not None:
@@ -459,8 +460,8 @@ class DBGML32Renderer(GML32Renderer):
     def get_prefetch_queryset(
         cls,
         feature_type: FeatureType,
-        xsd_elements: List[XsdElement],
-        fields: List[str],
+        xsd_elements: list[XsdElement],
+        fields: list[str],
         output_crs: CRS,
     ):
         """Perform DB annotations for prefetched relations too."""

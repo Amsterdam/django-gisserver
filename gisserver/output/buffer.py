@@ -2,6 +2,7 @@
 
 This builds on top of StringIO/BytesIO to write data and regularly flush it.
 """
+from __future__ import annotations
 from typing import Generic, TypeVar
 import io
 

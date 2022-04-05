@@ -1,10 +1,10 @@
 """These classes map to the FES 2.0 specification for identifiers.
 The class names are identical to those in the FES spec.
 """
+from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Optional, Union
 
 from django.db.models import Q
 
@@ -44,9 +44,9 @@ class ResourceId(Id):
     """The <fes:ResourceId> element."""
 
     rid: str
-    version: Union[int, datetime, VersionActionTokens, NoneType] = None
-    startTime: Optional[datetime] = None
-    endTime: Optional[datetime] = None
+    version: int | datetime | VersionActionTokens | NoneType = None
+    startTime: datetime | None = None
+    endTime: datetime | None = None
 
     def __post_init__(self):
         try:

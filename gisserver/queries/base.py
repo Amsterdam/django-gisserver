@@ -1,5 +1,5 @@
+from __future__ import annotations
 from django.db.models import QuerySet
-from typing import Dict, List, Optional, Tuple
 
 from gisserver.exceptions import InvalidParameterValue
 from gisserver.features import FeatureType
@@ -29,8 +29,8 @@ class QueryExpression:
 
     def bind(
         self,
-        all_feature_types: Dict[str, FeatureType],
-        value_reference: Optional[fes20.ValueReference],
+        all_feature_types: dict[str, FeatureType],
+        value_reference: fes20.ValueReference | None,
     ):
         """Bind the query to presentation-layer logic"""
         self.all_feature_types = all_feature_types
@@ -73,7 +73,7 @@ class QueryExpression:
                 )
                 for ft, qs in querysets
             ],
-            number_matched=sum([qs.count() for ft, qs in querysets]),
+            number_matched=sum(qs.count() for ft, qs in querysets),
         )
 
     def get_results(self, start_index=0, count=100) -> FeatureCollection:
@@ -93,7 +93,7 @@ class QueryExpression:
             ]
         )
 
-    def get_querysets(self) -> List[Tuple[FeatureType, QuerySet]]:
+    def get_querysets(self) -> list[tuple[FeatureType, QuerySet]]:
         """Construct the querysets that return the database results."""
         results = []
         for feature_type in self.get_type_names():
@@ -129,7 +129,7 @@ class QueryExpression:
         else:
             return compiler.filter_queryset(queryset, feature_type=feature_type)
 
-    def get_type_names(self) -> List[FeatureType]:
+    def get_type_names(self) -> list[FeatureType]:
         """Tell which type names this query applies to.
 
         This method needs to be defined in subclasses.

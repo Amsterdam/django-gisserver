@@ -1,7 +1,7 @@
 """Output rendering logic for GeoJSON."""
+from __future__ import annotations
 import csv
 from datetime import datetime
-from typing import List
 
 from django.conf import settings
 from django.db import models
@@ -50,15 +50,15 @@ class CSVRenderer(OutputRenderer):
 
         # Take all relations that are expanded to complex elements,
         # and all relations that are fetched for flattened elements.
-        related = set(
+        related = {
             xsd_element.orm_path
             for xsd_element in xsd_type.complex_elements
             if not xsd_element.is_many
-        ) | set(
+        } | {
             xsd_element.orm_relation[0]
             for xsd_element in xsd_type.flattened_elements
             if not xsd_element.is_many
-        )
+        }
         if related:
             queryset = queryset.select_related(*related)
 
@@ -104,7 +104,7 @@ class CSVRenderer(OutputRenderer):
         else:
             return f"\n\n{exception.__class__.__name__} during rendering!\n"
 
-    def get_header(self, fields: List[XsdElement]) -> List[str]:
+    def get_header(self, fields: list[XsdElement]) -> list[str]:
         """Return all field names."""
         names = []
         append = names.append
@@ -118,7 +118,7 @@ class CSVRenderer(OutputRenderer):
 
         return names
 
-    def get_row(self, instance: models.Model, fields: List[XsdElement]):
+    def get_row(self, instance: models.Model, fields: list[XsdElement]):
         """Return all field values for a single row."""
         values = []
         append = values.append

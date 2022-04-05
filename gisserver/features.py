@@ -13,11 +13,13 @@ The feature type classes (and field types) offer a flexible translation
 from attribute listings into a schema definition.
 For example, model relationships can be modelled to a different XML layout.
 """
+from __future__ import annotations
+
 import html
 import operator
 from dataclasses import dataclass
 from functools import lru_cache, reduce
-from typing import List, Optional, Type, Union
+from typing import List, Union
 
 from django.conf import settings
 from django.contrib.gis.db import models as gis_models
@@ -88,7 +90,7 @@ DEFAULT_XSD_TYPE = XsdTypes.anyType
 
 
 def get_basic_field_type(
-    field_name: str, model_field: Union[models.Field, ForeignObjectRel]
+    field_name: str, model_field: models.Field | ForeignObjectRel
 ) -> XsdAnyType:
     """Determine the XSD field type for a Django field."""
     if ArrayField is not None and isinstance(model_field, ArrayField):
@@ -152,12 +154,12 @@ class ServiceDescription:
     """Basic metadata for an exposed GIS service."""
 
     title: str
-    abstract: Optional[str] = None
-    keywords: Optional[List[str]] = None
+    abstract: str | None = None
+    keywords: list[str] | None = None
 
-    provider_name: Optional[str] = None
-    provider_site: Optional[str] = None
-    contact_person: Optional[str] = None
+    provider_name: str | None = None
+    provider_site: str | None = None
+    contact_person: str | None = None
 
 
 class FeatureField:
@@ -168,19 +170,19 @@ class FeatureField:
     """
 
     #: Allow to override the XSD element type that this field will generate.
-    xsd_element_class: Type[XsdElement] = XsdElement
+    xsd_element_class: type[XsdElement] = XsdElement
 
-    model: Optional[Type[models.Model]]
-    model_field: Optional[Union[models.Field, ForeignObjectRel]]
+    model: type[models.Model] | None
+    model_field: models.Field | ForeignObjectRel | None
 
     def __init__(
         self,
         name,
         model_attribute=None,
         model=None,
-        parent: "Optional[ComplexFeatureField]" = None,
+        parent: ComplexFeatureField | None = None,
         abstract=None,
-        xsd_class: Optional[Type[XsdElement]] = None,
+        xsd_class: type[XsdElement] | None = None,
     ):
         self.name = name
         self.model_attribute = model_attribute
@@ -206,8 +208,8 @@ class FeatureField:
 
     def bind(
         self,
-        model: Type[models.Model],
-        parent: "Optional[ComplexFeatureField]" = None,
+        model: type[models.Model],
+        parent: ComplexFeatureField | None = None,
     ):
         """Late-binding for the model.
 
@@ -326,7 +328,7 @@ class ComplexFeatureField(FeatureField):
         self._fields = fields
 
     @cached_property
-    def fields(self) -> List[FeatureField]:
+    def fields(self) -> list[FeatureField]:
         """Provide all fields that will be rendered as part of this complex field."""
         return _get_model_fields(self.target_model, self._fields, parent=self)
 
@@ -350,7 +352,7 @@ class ComplexFeatureField(FeatureField):
         )
 
     @property
-    def target_model(self) -> Type[models.Model]:
+    def target_model(self) -> type[models.Model]:
         """Detect which model the relation points to."""
         if self.model_field is None:
             raise RuntimeError("FeatureField.bind() is not called yet")
@@ -367,9 +369,9 @@ def field(
     name: str,
     *,
     model_attribute=None,
-    abstract: Optional[str] = None,
-    fields: Optional[_FieldDefinitions] = None,
-    xsd_class: Optional[Type[XsdElement]] = None,
+    abstract: str | None = None,
+    fields: _FieldDefinitions | None = None,
+    xsd_class: type[XsdElement] | None = None,
 ) -> FeatureField:
     """Shortcut to define a WFS field.
 
@@ -409,23 +411,23 @@ class FeatureType:
     """
 
     #: Allow to override the XSD complex type that this feature will generate.
-    xsd_type_class: Type[XsdComplexType] = XsdComplexType
+    xsd_type_class: type[XsdComplexType] = XsdComplexType
 
     def __init__(
         self,
         queryset: models.QuerySet,
         *,
-        fields: Optional[_FieldDefinitions] = None,
+        fields: _FieldDefinitions | None = None,
         display_field_name: str = None,
         geometry_field_name: str = None,
         name: str = None,
         # WFS Metadata:
         title: str = None,
         abstract: str = None,
-        keywords: List[str] = None,
+        keywords: list[str] = None,
         crs: CRS = None,
-        other_crs: List[CRS] = None,
-        metadata_url: Optional[str] = None,
+        other_crs: list[CRS] = None,
+        metadata_url: str | None = None,
         # Settings
         show_name_field: bool = True,
         xml_prefix: str = "app",
@@ -490,12 +492,12 @@ class FeatureType:
         return f"{self.xml_prefix}:{self.name}"
 
     @cached_property
-    def supported_crs(self) -> List[CRS]:
+    def supported_crs(self) -> list[CRS]:
         """Return all spatial reference system ID's that this feature supports."""
         return [self.crs] + self.other_crs
 
     @cached_property
-    def geometry_fields(self) -> List[GeometryField]:
+    def geometry_fields(self) -> list[GeometryField]:
         """Tell which fields of the model have a geometry field.
         This only compares against fields that are mentioned in this feature type.
         """
@@ -506,7 +508,7 @@ class FeatureType:
         ]
 
     @cached_property
-    def fields(self) -> List[FeatureField]:
+    def fields(self) -> list[FeatureField]:
         """Define which fields to render."""
         # This lazy reading allows providing 'fields' as lazy value.
         if self._fields is None:
@@ -515,7 +517,7 @@ class FeatureType:
             return _get_model_fields(self.model, self._fields)
 
     @cached_property
-    def display_field(self) -> Optional[models.Field]:
+    def display_field(self) -> models.Field | None:
         """Give access to the field that holds the string-representation."""
         if not self.show_name_field or not self.display_field_name:
             return None
@@ -543,11 +545,9 @@ class FeatureType:
             # No fields defined. The feature only consists of a geometry field.
             # Take the first geometry field from the model.
             return next(
-                (
-                    f.name
-                    for f in self.model._meta.get_fields()
-                    if isinstance(f, gis_models.GeometryField)
-                )
+                f.name
+                for f in self.model._meta.get_fields()
+                if isinstance(f, gis_models.GeometryField)
             )
         else:
             if not self.geometry_fields:
@@ -570,7 +570,7 @@ class FeatureType:
         # Adding .all() to avoid filling the caches.
         return self.queryset.all()
 
-    def get_bounding_box(self) -> Optional[BoundingBox]:
+    def get_bounding_box(self) -> BoundingBox | None:
         """Returns a WGS84 BoundingBox for the complete feature.
 
         This is used by the GetCapabilities request. It may return ``None``
@@ -584,9 +584,7 @@ class FeatureType:
         bbox = self.get_queryset().aggregate(a=Extent(geo_expression))["a"]
         return BoundingBox(*bbox, crs=WGS84) if bbox else None
 
-    def get_envelope(
-        self, instance, crs: Optional[CRS] = None
-    ) -> Optional[BoundingBox]:
+    def get_envelope(self, instance, crs: CRS | None = None) -> BoundingBox | None:
         """Get the bounding box for a single instance.
 
         This is only used for native Python rendering. When the database

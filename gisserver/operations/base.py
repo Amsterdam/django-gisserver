@@ -4,12 +4,13 @@ All operations extend from an WFSMethod class.
 This defines the parameters and output formats of the method.
 This introspection data is also parsed by the GetCapabilities call.
 """
+from __future__ import annotations
 import math
 
 import re
 from dataclasses import dataclass, field
 
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Callable
 
 from django.core.exceptions import ImproperlyConfigured, SuspiciousOperation
 from django.http import HttpResponse
@@ -43,7 +44,7 @@ class Parameter:
     name: str
 
     #: Alias name (e.g. typenames/typename)
-    alias: Optional[str] = None
+    alias: str | None = None
 
     #: Whether the parameter is required
     required: bool = False
@@ -55,7 +56,7 @@ class Parameter:
     in_capabilities: bool = False
 
     #: List of allowed values (also shown in GetCapabilities)
-    allowed_values: Union[list, tuple, set, NoneType] = None
+    allowed_values: list | tuple | set | NoneType = None
 
     #: Default value if it's not given
     default: Any = None
@@ -198,10 +199,10 @@ class WFSMethod:
     do_not_call_in_templates = True  # avoid __call__ execution in Django templates
 
     #: List the suported parameters for this method, extended by get_parameters()
-    parameters: List[Parameter] = []
+    parameters: list[Parameter] = []
 
     #: List the supported output formats for this method.
-    output_formats: List[OutputFormat] = []
+    output_formats: list[OutputFormat] = []
 
     #: Default template to use for rendering
     xml_template_name = None
@@ -267,7 +268,7 @@ class WFSMethod:
                 f"'{value}' is not a permitted output format for this operation.",
             ) from None
 
-    def _parse_namespaces(self, value) -> Dict[str, str]:
+    def _parse_namespaces(self, value) -> dict[str, str]:
         """Parse the namespaces definition.
 
         The NAMESPACES parameter defines which namespaces are used in the KVP request.
@@ -304,7 +305,7 @@ class WFSMethod:
 
         return namespaces
 
-    def parse_request(self, KVP: dict) -> Dict[str, Any]:
+    def parse_request(self, KVP: dict) -> dict[str, Any]:
         """Parse the parameters of the request"""
         self.namespaces.update(self._parse_namespaces(KVP.get("NAMESPACES")))
         param_values = {
@@ -407,7 +408,7 @@ class WFSTypeNamesMethod(WFSMethod):
             ),
         ]
 
-    def _parse_type_names(self, type_names) -> List[FeatureType]:
+    def _parse_type_names(self, type_names) -> list[FeatureType]:
         """Find the requested feature types by name"""
         if "(" in type_names:
             # This allows to perform multiple queries in a single request:
@@ -440,16 +441,14 @@ class WFSTypeNamesMethod(WFSMethod):
             ) from None
 
 
-def _get_feature_types_by_name(feature_types) -> Dict[str, FeatureType]:
+def _get_feature_types_by_name(feature_types) -> dict[str, FeatureType]:
     """Create a lookup for feature types by name."""
     features_by_name = {ft.name: ft for ft in feature_types}
 
     # Check against bad configuration
     if len(features_by_name) != len(feature_types):
         all_names = [ft.name for ft in feature_types]
-        duplicates = ", ".join(
-            sorted(set(n for n in all_names if all_names.count(n) > 1))
-        )
+        duplicates = ", ".join(sorted({n for n in all_names if all_names.count(n) > 1}))
         raise ImproperlyConfigured(f"FeatureType names should be unique: {duplicates}")
 
     return features_by_name

@@ -2,10 +2,10 @@
 
 These definitions follow the WFS spec.
 """
+from __future__ import annotations
 from dataclasses import dataclass
 
 from django.db.models import Q, QuerySet
-from typing import Dict, List, Optional, Type
 
 from gisserver.exceptions import InvalidParameterValue, MissingParameterValue, NotFound
 from gisserver.features import FeatureType
@@ -23,7 +23,7 @@ class QueryExpressionText:
     It may contain a wfs:Query or wfs:StoredQuery element.
     """
 
-    return_feature_types: Optional[List[str]] = None
+    return_feature_types: list[str] | None = None
     language: str = fes20.Filter.query_language
     is_private: bool = False
 
@@ -35,9 +35,9 @@ class StoredQueryDescription:
     """
 
     id: str = None
-    title: Optional[str] = None
-    abstract: Optional[str] = None
-    parameters: Optional[Dict[str, XsdTypes]] = None
+    title: str | None = None
+    abstract: str | None = None
+    parameters: dict[str, XsdTypes] | None = None
     expressions: list = None  # TODO: support multiple body expressions
 
 
@@ -69,7 +69,7 @@ class StoredQuery(QueryExpression):
         self.parameters = parameters
 
     @classmethod
-    def extract_parameters(cls, KVP) -> Dict[str, str]:
+    def extract_parameters(cls, KVP) -> dict[str, str]:
         """Extract the arguments from the key-value-pair (=HTTP GET) request."""
         args = {}
         for name, _xsd_type in cls.meta.parameters.items():
@@ -102,17 +102,17 @@ class StoredQueryRegistry:
     def __iter__(self):
         return iter(self.stored_queries.values())
 
-    def register(self, meta: Optional[StoredQueryDescription] = None, **meta_kwargs):
+    def register(self, meta: StoredQueryDescription | None = None, **meta_kwargs):
         """Register a custom class that handles a stored query"""
 
-        def _metadata_dec(query: Type[StoredQuery]):
+        def _metadata_dec(query: type[StoredQuery]):
             query.meta = meta or StoredQueryDescription(**meta_kwargs)
             self.stored_queries[query.meta.id] = query
             return query
 
         return _metadata_dec
 
-    def resolve_query(self, query_id) -> Type[StoredQuery]:
+    def resolve_query(self, query_id) -> type[StoredQuery]:
         """Find the stored procedure using the ID."""
         try:
             return self.stored_queries[query_id]
@@ -173,7 +173,7 @@ class GetFeatureById(StoredQuery):
         self.type_name = type_name
         self.id = id
 
-    def get_type_names(self) -> List[FeatureType]:
+    def get_type_names(self) -> list[FeatureType]:
         """Tell which type names this query applies to."""
         feature_type = self.all_feature_types[self.type_name]
         return [feature_type]

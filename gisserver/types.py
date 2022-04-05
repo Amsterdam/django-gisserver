@@ -23,6 +23,7 @@ Each XMLSchema node defines it's "data type" as either:
 
 Custom field types could also generate these field types.
 """
+from __future__ import annotations
 import operator
 import re
 from decimal import Decimal as D
@@ -40,7 +41,7 @@ from django.db.models.fields.related import (
     ForeignObjectRel,
 )  # Django 2 imports
 from django.utils import dateparse
-from typing import List, Optional, Tuple, Type, Union, TYPE_CHECKING
+from typing import TYPE_CHECKING
 
 from django.contrib.gis.db.models import F, GeometryField
 from django.db import models
@@ -176,7 +177,7 @@ class XsdTypes(XsdAnyType, Enum):
         return self.value
 
     @property
-    def prefix(self) -> Optional[str]:
+    def prefix(self) -> str | None:
         """Extrapolate the prefix from the type name"""
         xml_name = str(self)
         colon = xml_name.find(":")
@@ -258,24 +259,24 @@ class XsdNode:
 
     name: str
     type: XsdAnyType  # Both XsdComplexType and XsdType are allowed
-    prefix: Optional[str]
+    prefix: str | None
 
     #: Which field to read from the model to get the value
     #: This supports dot notation to access related attributes.
-    source: Optional[Union[models.Field, ForeignObjectRel]]
+    source: models.Field | ForeignObjectRel | None
 
     #: Which field to read from the model to get the value
     #: This supports dot notation to access related attributes.
-    model_attribute: Optional[str]
+    model_attribute: str | None
 
     def __init__(
         self,
         name: str,
         type: XsdAnyType,
         *,
-        prefix: Optional[str] = "app",
-        source: Optional[Union[models.Field, ForeignObjectRel]] = None,
-        model_attribute: Optional[str] = None,
+        prefix: str | None = "app",
+        source: models.Field | ForeignObjectRel | None = None,
+        model_attribute: str | None = None,
     ):
         # Using plain assignment instead of dataclass turns out to be needed
         # for flexibility and easier subclassing.
@@ -300,7 +301,7 @@ class XsdNode:
     @staticmethod
     def _build_valuegetter(
         model_attribute: str,
-        field: Optional[Union[models.Field, ForeignObjectRel]],
+        field: models.Field | ForeignObjectRel | None,
     ):
         """Select the most efficient read function to retrieves the value."""
         if field is None:
@@ -361,7 +362,7 @@ class XsdNode:
         return self.model_attribute.split(".", 1)[0]
 
     @cached_property
-    def orm_relation(self) -> Tuple[Optional[str], str]:
+    def orm_relation(self) -> tuple[str | None, str]:
         """The ORM field and parent relation"""
         if self.model_attribute is None:
             raise ValueError(f"Node {self.xml_name} has no 'model_attribute' set.")
@@ -373,13 +374,13 @@ class XsdNode:
         else:
             return path.replace(".", "__"), field
 
-    def build_lhs_part(self, compiler: "CompiledQuery", match: "ORMPath"):
+    def build_lhs_part(self, compiler: CompiledQuery, match: ORMPath):
         """Give the ORM part when this element is used as left-hand-side of a comparison.
         This is needed for queries like "<element> == <value>"
         """
         return match.orm_path
 
-    def build_rhs_part(self, compiler: "CompiledQuery", match: "ORMPath"):
+    def build_rhs_part(self, compiler: CompiledQuery, match: ORMPath):
         """Give the ORM part when this element would be used as right-hand-side.
         This is needed for queries like "<value> == <element>" or "<element> == <element>".
         """
@@ -479,21 +480,21 @@ class XsdElement(XsdNode):
     a related field. For the WFS client, the data appears to be flattened.
     """
 
-    nillable: Optional[bool]
-    min_occurs: Optional[int]
-    max_occurs: Optional[int]
+    nillable: bool | None
+    min_occurs: int | None
+    max_occurs: int | None
 
     def __init__(
         self,
         name: str,
         type: XsdAnyType,
         *,
-        prefix: Optional[str] = "app",
-        nillable: Optional[bool] = None,
-        min_occurs: Optional[int] = None,
-        max_occurs: Optional[Union[int, _unbounded]] = None,
-        source: Optional[Union[models.Field, ForeignObjectRel]] = None,
-        model_attribute: Optional[str] = None,
+        prefix: str | None = "app",
+        nillable: bool | None = None,
+        min_occurs: int | None = None,
+        max_occurs: int | _unbounded | None = None,
+        source: models.Field | ForeignObjectRel | None = None,
+        model_attribute: str | None = None,
     ):
         super().__init__(
             name, type, prefix=prefix, source=source, model_attribute=model_attribute
@@ -533,7 +534,7 @@ class XsdElement(XsdNode):
 class _XsdElement_WithComplexType(XsdElement):
     """This only exists as "protocol" for the type annotations"""
 
-    type: "XsdComplexType"
+    type: XsdComplexType
 
 
 class XsdAttribute(XsdNode):
@@ -556,10 +557,10 @@ class XsdAttribute(XsdNode):
         name: str,
         type: XsdAnyType = XsdTypes.string,  # added default
         *,
-        prefix: Optional[str] = "app",
+        prefix: str | None = "app",
         use: str = "optional",
-        source: Optional[Union[models.Field, ForeignObjectRel]] = None,
-        model_attribute: Optional[str] = None,
+        source: models.Field | ForeignObjectRel | None = None,
+        model_attribute: str | None = None,
     ):
         super().__init__(
             name, type, prefix=prefix, source=source, model_attribute=model_attribute
@@ -577,7 +578,7 @@ class GmlIdAttribute(XsdAttribute):
     def __init__(
         self,
         type_name: str,
-        source: Optional[Union[models.Field, ForeignObjectRel]] = None,
+        source: models.Field | ForeignObjectRel | None = None,
         model_attribute="pk",
     ):
         super().__init__(
@@ -606,7 +607,7 @@ class GmlNameElement(XsdElement):
     def __init__(
         self,
         model_attribute: str,
-        source: Optional[Union[models.Field, ForeignObjectRel]] = None,
+        source: models.Field | ForeignObjectRel | None = None,
         feature_type=None,
     ):
         # Prefill most known fields
@@ -651,16 +652,16 @@ class GmlBoundedByElement(XsdElement):
         self.feature_type = feature_type
         self.model_attribute = None
 
-    def build_lhs_part(self, compiler: "CompiledQuery", match: "ORMPath"):
+    def build_lhs_part(self, compiler: CompiledQuery, match: ORMPath):
         """Give the ORM part when this element is used as
         left-hand-side of a comparison."""
         return compiler.add_annotation(self.build_rhs_part(compiler, match))
 
-    def build_rhs_part(self, compiler: "CompiledQuery", match: "ORMPath"):
+    def build_rhs_part(self, compiler: CompiledQuery, match: ORMPath):
         """Give the ORM part when this element would be used as right-hand-side"""
         raise NotImplementedError("queries against <gml:boundedBy> are not supported")
 
-    def get_value(self, instance: models.Model, crs: Optional[CRS] = None):
+    def get_value(self, instance: models.Model, crs: CRS | None = None):
         """Provide the value of the <gml:boundedBy> field
         (if this is not given by the database already)."""
         return self.feature_type.get_envelope(instance, crs=crs)
@@ -693,10 +694,10 @@ class XsdComplexType(XsdAnyType):
     name: str
 
     #: All elements in this class
-    elements: List[XsdElement]
+    elements: list[XsdElement]
 
     #: All attributes in this class
-    attributes: List[XsdAttribute] = field(default_factory=list)
+    attributes: list[XsdAttribute] = field(default_factory=list)
 
     #: The base class of this type. Typically gml:AbstractFeatureType,
     #: which provides the <gml:name> and <gml:boundedBy> elements.
@@ -706,7 +707,7 @@ class XsdComplexType(XsdAnyType):
     prefix: str = "app"
 
     #: The Django model class that this type was based on.
-    source: Optional[Type[models.Model]] = None
+    source: type[models.Model] | None = None
 
     def __str__(self):
         return self.xml_name
@@ -721,21 +722,21 @@ class XsdComplexType(XsdAnyType):
         return True  # a property to avoid being used as field.
 
     @cached_property
-    def geometry_elements(self) -> List[XsdElement]:
+    def geometry_elements(self) -> list[XsdElement]:
         """Shortcut to get all geometry elements"""
         return [e for e in self.elements if e.is_geometry]
 
     @cached_property
-    def complex_elements(self) -> List[_XsdElement_WithComplexType]:
+    def complex_elements(self) -> list[_XsdElement_WithComplexType]:
         """Shortcut to get all elements with a complex type"""
         return [e for e in self.elements if e.type.is_complex_type]
 
     @cached_property
-    def flattened_elements(self) -> List[XsdElement]:
+    def flattened_elements(self) -> list[XsdElement]:
         """Shortcut to get all elements with a flattened model attribite"""
         return [e for e in self.elements if e.is_flattened]
 
-    def resolve_element_path(self, xpath: str) -> Optional[List[XsdNode]]:
+    def resolve_element_path(self, xpath: str) -> list[XsdNode] | None:
         """Resolve a xpath reference to the actual node.
         This returns the whole path, including in-between relations, if a match was found.
 
@@ -776,7 +777,7 @@ class XsdComplexType(XsdAnyType):
             else:
                 return [element]
 
-    def _find_element(self, xml_name) -> Optional[XsdElement]:
+    def _find_element(self, xml_name) -> XsdElement | None:
         """Locate an element by name"""
         for element in self.elements:
             if element.xml_name == xml_name:
@@ -798,7 +799,7 @@ class XsdComplexType(XsdAnyType):
             return self.base._find_element(xml_name)
         return None
 
-    def _find_attribute(self, xml_name) -> Optional[XsdAttribute]:
+    def _find_attribute(self, xml_name) -> XsdAttribute | None:
         """Locate an attribute by name"""
         for attribute in self.attributes:
             if attribute.xml_name == xml_name:
@@ -818,7 +819,7 @@ class XsdComplexType(XsdAnyType):
         return None
 
 
-def split_xml_name(xml_name: str) -> Tuple[Optional[str], str]:
+def split_xml_name(xml_name: str) -> tuple[str | None, str]:
     """Remove the namespace prefix from an element."""
     try:
         prefix, name = xml_name.split(":", 1)
@@ -834,7 +835,7 @@ class ORMPath:
     and allows inserting raw data directly to the query compiler (for unit testing).
     """
 
-    def __init__(self, orm_path: str, orm_filters: Optional[Q] = None, is_many=False):
+    def __init__(self, orm_path: str, orm_filters: Q | None = None, is_many=False):
         """Base constructor just assigns items.
         Overwritten classes likely replace this with properties.
         """
@@ -848,7 +849,7 @@ class ORMPath:
             f", orm_filters={self.orm_filters!r})"
         )
 
-    def build_lhs(self, compiler: "CompiledQuery"):
+    def build_lhs(self, compiler: CompiledQuery):
         """Give the ORM part when this element is used as left-hand-side of a comparison.
         For example: "path == value".
         """
@@ -858,7 +859,7 @@ class ORMPath:
             compiler.add_extra_lookup(self.orm_filters)
         return self.orm_path
 
-    def build_rhs(self, compiler: "CompiledQuery"):
+    def build_rhs(self, compiler: CompiledQuery):
         """Give the ORM part when this element would be used as right-hand-side.
         For example: "path == path" or "value == path".
         """
@@ -874,15 +875,15 @@ class XPathMatch(ORMPath):
     """
 
     #: The matched element, with all it's parents.
-    nodes: List[XsdNode]
+    nodes: list[XsdNode]
 
     #: The source XPath query
     query: str
 
     #: The additional filters are needed (due to [@attr=..] syntax).
-    orm_filters: Optional[Q]
+    orm_filters: Q | None
 
-    def __init__(self, feature_type: "FeatureType", nodes: List[XsdNode], query: str):
+    def __init__(self, feature_type: FeatureType, nodes: list[XsdNode], query: str):
         self.feature_type = feature_type
         self.nodes = nodes
         self.query = query
@@ -919,7 +920,7 @@ class XPathMatch(ORMPath):
         """Return whether this ORM path walks over an element that occurs multiple times"""
         return any(node.is_many for node in self.nodes)
 
-    def build_lhs(self, compiler: "CompiledQuery"):
+    def build_lhs(self, compiler: CompiledQuery):
         """Delegate the LHS construction to the final XsdNode."""
         if self.is_many:
             compiler.add_distinct()
@@ -927,7 +928,7 @@ class XPathMatch(ORMPath):
             compiler.add_extra_lookup(self.orm_filters)
         return self.child.build_lhs_part(compiler, self)
 
-    def build_rhs(self, compiler: "CompiledQuery"):
+    def build_rhs(self, compiler: CompiledQuery):
         """Delegate the RHS construction to the final XsdNode."""
         if self.is_many:
             compiler.add_distinct()

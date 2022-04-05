@@ -1,5 +1,5 @@
+from __future__ import annotations
 from enum import Enum
-from typing import Dict, Type
 from xml.etree.ElementTree import Element, QName
 from gisserver.exceptions import ExternalParsingError
 from .tags import split_ns
@@ -45,7 +45,7 @@ class BaseNode:
         )
 
     @classmethod
-    def from_child_xml(cls, element: Element) -> "BaseNode":
+    def from_child_xml(cls, element: Element) -> BaseNode:
         """By default, the node attempts to locate a child-class from the registry.
         The individual tags should override `from_xml()` to return their own type.
         """
@@ -58,7 +58,7 @@ class TagRegistry:
     The same class can be registered multiple times for different tag names.
     """
 
-    parsers: Dict[str, Type[BaseNode]]
+    parsers: dict[str, type[BaseNode]]
 
     def __init__(self):
         self.parsers = {}
@@ -84,7 +84,7 @@ class TagRegistry:
 
         """
 
-        def _dec(sub_class: Type[BaseNode]) -> Type[BaseNode]:
+        def _dec(sub_class: type[BaseNode]) -> type[BaseNode]:
             if sub_class.xml_ns is None:
                 raise RuntimeError(f"{sub_class.__name__}.xml_ns should be set")
 
@@ -98,12 +98,12 @@ class TagRegistry:
 
         return _dec
 
-    def register_names(self, names: Type[TagNameEnum], namespace=None):
+    def register_names(self, names: type[TagNameEnum], namespace=None):
         """Decorator to register the 'tag_class' as the
         parser-backend for all member-names in this enum.
         """
 
-        def _dec(sub_class: Type[BaseNode]):
+        def _dec(sub_class: type[BaseNode]):
             # Looping over _member_names_ will skip aliased items (like BBOX/Within)
             for member_name in names.__members__.keys():
                 self.register(name=member_name, namespace=namespace)(sub_class)
@@ -137,7 +137,7 @@ class TagRegistry:
 
         return real_cls.from_xml(element)
 
-    def resolve_class(self, tag_name) -> Type[BaseNode]:
+    def resolve_class(self, tag_name) -> type[BaseNode]:
         # Resolve the dataclass using the tag name
         try:
             return self.parsers[tag_name]

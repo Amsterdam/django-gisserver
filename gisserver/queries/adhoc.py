@@ -5,11 +5,11 @@ such as the "FILTER", "BBOX" and "RESOURCEID" parameters.
 
 These definitions follow the WFS spec.
 """
+from __future__ import annotations
 import logging
 from dataclasses import dataclass
 
 from django.db.models import Q
-from typing import List, Optional
 
 from gisserver import conf
 from gisserver.exceptions import (
@@ -41,7 +41,7 @@ class AdhocQuery(QueryExpression):
     one single XML request for HTTP POST requests later.
     """
 
-    typeNames: List[FeatureType]  # typeNames in WFS/FES spec
+    typeNames: list[FeatureType]  # typeNames in WFS/FES spec
     # aliases: Optional[List[str]] = None
     handle: str = ""  # only for XML POST requests
 
@@ -51,21 +51,21 @@ class AdhocQuery(QueryExpression):
     # Selection clause:
     # - for XML POST this is encoded in a <fes:Query>
     # - for HTTP GET, this is encoded as FILTER, FILTER_LANGUAGE, RESOURCEID, BBOX.
-    filter: Optional[fes20.Filter] = None
+    filter: fes20.Filter | None = None
     filter_language: str = fes20.Filter.query_language
-    bbox: Optional[BoundingBox] = None
+    bbox: BoundingBox | None = None
 
     # Sorting Clause
-    sortBy: Optional[fes20.SortBy] = None
+    sortBy: fes20.SortBy | None = None
 
     # Officially part of the GetFeature/GetPropertyValue request object,
     # but included here for ease of query implementation.
-    resourceId: Optional[fes20.IdOperator] = None
+    resourceId: fes20.IdOperator | None = None
 
     # GetPropertyValue:
     # In the WFS spec, this is only part of the operation/presentation.
     # For Django, we'd like to make this part of the query too.
-    value_reference: Optional[fes20.ValueReference] = None
+    value_reference: fes20.ValueReference | None = None
 
     @classmethod
     def from_kvp_request(cls, **params):

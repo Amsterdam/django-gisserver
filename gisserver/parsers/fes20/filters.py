@@ -1,4 +1,5 @@
-from typing import AnyStr, Optional, Union
+from __future__ import annotations
+from typing import AnyStr, Union
 from xml.etree.ElementTree import Element, QName
 
 from defusedxml.ElementTree import ParseError, fromstring
@@ -21,14 +22,14 @@ class Filter:
     query_language = "urn:ogc:def:queryLanguage:OGC-FES:Filter"
 
     predicate: FilterPredicates
-    source: Optional[AnyStr]
+    source: AnyStr | None
 
-    def __init__(self, predicate: FilterPredicates, source: Optional[AnyStr] = None):
+    def __init__(self, predicate: FilterPredicates, source: AnyStr | None = None):
         self.predicate = predicate
         self.source = source
 
     @classmethod
-    def from_string(cls, text: AnyStr) -> "Filter":
+    def from_string(cls, text: AnyStr) -> Filter:
         """Parse an XML <fes20:Filter> string.
 
         This uses defusedxml by default, to avoid various XML injection attacks.
@@ -54,7 +55,7 @@ class Filter:
 
     @classmethod
     @expect_tag(FES20, "Filter")
-    def from_xml(cls, element: Element, source: Optional[AnyStr] = None) -> "Filter":
+    def from_xml(cls, element: Element, source: AnyStr | None = None) -> Filter:
         """Parse the <fes20:Filter> element."""
         if len(element) > 1 or element[0].tag == QName(FES20, "ResourceId"):
             # fes20:ResourceId is the only element that may appear multiple times.

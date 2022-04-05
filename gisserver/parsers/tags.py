@@ -1,6 +1,7 @@
+from __future__ import annotations
 from functools import wraps
 from itertools import chain
-from typing import List, Optional, Tuple, Type, TYPE_CHECKING, Union
+from typing import TYPE_CHECKING
 from xml.etree.ElementTree import Element, QName
 
 from gisserver.exceptions import ExternalParsingError
@@ -8,7 +9,7 @@ from gisserver.exceptions import ExternalParsingError
 
 def expect_tag(namespace: str, *tag_names: str, leaf=False):
     """Validate whether a given tag is need"""
-    valid_tags = set(str(QName(namespace, name)) for name in tag_names)
+    valid_tags = {str(QName(namespace, name)) for name in tag_names}
     expect0 = str(QName(namespace, tag_names[0]))
 
     def _wrapper(func):
@@ -30,7 +31,7 @@ def expect_tag(namespace: str, *tag_names: str, leaf=False):
     return _wrapper
 
 
-def expect_children(min_child_nodes, *expect_types: "Union[str, Type[BaseNode]]"):
+def expect_children(min_child_nodes, *expect_types: str | type[BaseNode]):
     def _wrapper(func):
         @wraps(func)
         def _expect_children_decorator(cls, element: Element, *args, **kwargs):
@@ -70,7 +71,7 @@ def get_child(root, namespace, localname) -> Element:
     return root.find(QName(namespace, localname).text)
 
 
-def get_children(root, namespace, localname) -> List[Element]:
+def get_children(root, namespace, localname) -> list[Element]:
     """Find the element using a fully qualified name."""
     return root.findall(QName(namespace, localname).text)
 
@@ -85,7 +86,7 @@ def get_attribute(element: Element, name) -> str:
         ) from None
 
 
-def split_ns(tag_name: str) -> Tuple[Optional[str], str]:
+def split_ns(tag_name: str) -> tuple[str | None, str]:
     """Split the element tag into the namespace and local name.
     The stdlib etree doesn't have the properties for this (lxml does).
     """

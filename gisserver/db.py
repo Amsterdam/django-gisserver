@@ -1,7 +1,8 @@
 """Internal module for additional GIS database functions."""
+from __future__ import annotations
 from functools import reduce
 
-from typing import List, Union, cast
+from typing import cast
 
 from django.contrib.gis.db.models import GeometryField, functions
 from django.db import connection, connections, models
@@ -59,8 +60,8 @@ class ST_Union(functions.Union):
 
 
 def get_geometries_union(
-    expressions: List[Union[str, functions.GeoFunc]], using="default"
-) -> Union[str, functions.Union]:
+    expressions: list[str | functions.GeoFunc], using="default"
+) -> str | functions.Union:
     """Generate a union of multiple geometry fields."""
     if len(expressions) == 1:
         return next(iter(expressions))  # fastest in set data type
@@ -75,8 +76,8 @@ def get_geometries_union(
 
 
 def conditional_transform(
-    expression: Union[str, functions.GeoFunc], expression_srid: int, output_srid: int
-) -> Union[str, functions.Transform]:
+    expression: str | functions.GeoFunc, expression_srid: int, output_srid: int
+) -> str | functions.Transform:
     """Apply a CRS Transform to the queried field if that is needed."""
     if expression_srid != output_srid:
         expression = functions.Transform(expression, srid=output_srid)
@@ -111,7 +112,7 @@ def escape_xml_name(name: str, template="{name}") -> str:
     return template.format(name=name.replace(".", "_"))
 
 
-def get_db_geometry_selects(gml_elements: List[XsdElement], output_crs: CRS) -> dict:
+def get_db_geometry_selects(gml_elements: list[XsdElement], output_crs: CRS) -> dict:
     """Utility to generate select clauses for the geometry fields of a type."""
     return {
         xsd_element.name: _get_db_geometry_target(xsd_element, output_crs)

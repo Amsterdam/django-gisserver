@@ -3,12 +3,12 @@
 This includes the CRS parsing, coordinate transforms and bounding box object.
 The bounding box can be calculated within Python, or read from a database result.
 """
+from __future__ import annotations
 import re
 from decimal import Decimal
 from dataclasses import dataclass, field
 
 from django.contrib.gis.geos import GEOSGeometry, Polygon
-from typing import Optional, Union
 
 from django.contrib.gis.gdal import CoordTransform, SpatialReference
 from functools import lru_cache
@@ -51,7 +51,7 @@ def _get_spatial_reference(srs_input, srs_type="user", axis_order=None):
 
 @lru_cache(maxsize=100)
 def _get_coord_transform(
-    source: Union[int, SpatialReference], target: Union[int, SpatialReference]
+    source: int | SpatialReference, target: int | SpatialReference
 ) -> CoordTransform:
     """Get an efficient coordinate transformation object.
 
@@ -100,7 +100,7 @@ class CRS:
     srid: int
 
     #: GDAL SpatialReference with PROJ.4 / WKT content to describe the exact transformation.
-    backend: Optional[SpatialReference] = None
+    backend: SpatialReference | None = None
 
     #: Original input
     origin: str = field(init=False, default=None)
@@ -113,8 +113,8 @@ class CRS:
 
     @classmethod
     def from_string(
-        cls, uri: Union[str, int], backend: Optional[SpatialReference] = None
-    ) -> "CRS":
+        cls, uri: str | int, backend: SpatialReference | None = None
+    ) -> CRS:
         """
         Parse an CRS (Coordinate Reference System) URI, which preferably follows the URN format
         as specified by `the OGC consortium <http://www.opengeospatial.org/ogcUrnPolicy>`_
@@ -269,7 +269,7 @@ class CRS:
                 )
         return self.backend
 
-    def apply_to(self, geometry: GEOSGeometry, clone=False) -> Optional[GEOSGeometry]:
+    def apply_to(self, geometry: GEOSGeometry, clone=False) -> GEOSGeometry | None:
         """Transform the geometry using this coordinate reference.
 
         This method caches the used CoordTransform object
@@ -300,7 +300,7 @@ class BoundingBox:
     west: Decimal  # latitude
     north: Decimal  # longitude
     east: Decimal  # latitude
-    crs: Optional[CRS] = None
+    crs: CRS | None = None
 
     @classmethod
     def from_string(cls, bbox):
@@ -323,7 +323,7 @@ class BoundingBox:
         )
 
     @classmethod
-    def from_geometry(cls, geometry: GEOSGeometry, crs: Optional[CRS] = None):
+    def from_geometry(cls, geometry: GEOSGeometry, crs: CRS | None = None):
         """Construct the bounding box for a geometry"""
         if crs is None:
             crs = CRS.from_srid(geometry.srid)

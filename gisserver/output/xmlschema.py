@@ -1,6 +1,7 @@
+from __future__ import annotations
 from collections import deque
 
-from typing import Iterable, List, cast
+from typing import Iterable, cast
 
 from gisserver.features import FeatureType
 from gisserver.operations.base import WFSMethod
@@ -17,7 +18,7 @@ class XMLSchemaRenderer(OutputRenderer):
 
     content_type = "application/gml+xml; version=3.2"  # mandatory for WFS
 
-    def __init__(self, method: WFSMethod, feature_types: List[FeatureType]):
+    def __init__(self, method: WFSMethod, feature_types: list[FeatureType]):
         """Overwritten method to handle the DescribeFeatureType context."""
         self.server_url = method.view.server_url
         self.app_xml_namespace = method.view.xml_namespace
@@ -29,7 +30,7 @@ class XMLSchemaRenderer(OutputRenderer):
         xmlns_features = "\n   ".join(
             f'xmlns:{p}="{self.app_xml_namespace}"'
             for p in sorted(
-                set(feature_type.xml_prefix for feature_type in self.feature_types)
+                {feature_type.xml_prefix for feature_type in self.feature_types}
             )
         )
 

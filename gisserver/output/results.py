@@ -3,11 +3,12 @@
 The "SimpleFeatureCollection" and "FeatureCollection" and their
 properties match the WFS 2.0 spec closely.
 """
+from __future__ import annotations
 import django
 import math
 import operator
 from functools import reduce
-from typing import List, Optional, Iterable
+from typing import Iterable
 
 from django.db import models
 from django.utils.functional import cached_property
@@ -197,10 +198,10 @@ class FeatureCollection:
 
     def __init__(
         self,
-        results: List[SimpleFeatureCollection],
-        number_matched: Optional[int] = CALCULATE,
-        next: Optional[str] = None,
-        previous: Optional[str] = None,
+        results: list[SimpleFeatureCollection],
+        number_matched: int | None = CALCULATE,
+        next: str | None = None,
+        previous: str | None = None,
     ):
         """
         :param results: All retrieved feature collections (one per FeatureType)
@@ -226,7 +227,7 @@ class FeatureCollection:
         return sum(c.number_returned for c in self.results)
 
     @cached_property
-    def number_matched(self) -> Optional[int]:
+    def number_matched(self) -> int | None:
         """The number of features matched, None means "unknown"."""
         if self._number_matched is None:
             return None  # WFS allows returning this as "unknown"

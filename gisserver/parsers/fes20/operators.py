@@ -1,6 +1,7 @@
 """These classes map to the FES 2.0 specification for operators.
 The class names and attributes are identical to those in the FES spec.
 """
+from __future__ import annotations
 from itertools import groupby
 
 import operator
@@ -8,7 +9,7 @@ from dataclasses import dataclass, field
 from decimal import Decimal
 from enum import Enum
 from functools import reduce
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Union
 from xml.etree.ElementTree import Element, QName
 
 from django.conf import settings
@@ -146,7 +147,7 @@ class Measure(BaseNode):
     xml_ns = FES20
 
     value: Decimal
-    uom: str  # Unit of measurement, Union[fes20:UomSymbol fes20:UomURI]
+    uom: str  # Unit of measurement, fes20:UomSymbol | fes20:UomURI
 
     @classmethod
     @expect_tag(FES20, "Distance")
@@ -162,7 +163,7 @@ class Operator(BaseNode):
 
     xml_ns = FES20
 
-    def build_query(self, compiler: CompiledQuery) -> Optional[Q]:
+    def build_query(self, compiler: CompiledQuery) -> Q | None:
         raise NotImplementedError(
             f"Using {self.__class__.__name__} is not supported yet."
         )
@@ -172,17 +173,17 @@ class Operator(BaseNode):
 class IdOperator(Operator):
     """List of ResourceId objects"""
 
-    id: List[Id]
+    id: list[Id]
 
     @property
-    def type_names(self) -> List[str]:
+    def type_names(self) -> list[str]:
         """Provide a list of all type names accessed by this operator"""
         return [
             type_name for type_name in self.grouped_ids.keys() if type_name is not None
         ]
 
     @cached_property
-    def grouped_ids(self) -> Dict[str, List[Id]]:
+    def grouped_ids(self) -> dict[str, list[Id]]:
         # For itertools.groupby(), items have to be sorted first.
         ids = sorted(self.id, key=operator.attrgetter("rid"))
         return {
@@ -224,7 +225,7 @@ class NonIdOperator(Operator):
         compiler: CompiledQuery,
         lhs: Expression,
         lookup: str,
-        rhs: Union[Expression, RhsTypes],
+        rhs: Expression | RhsTypes,
     ) -> Q:
         """Use the value in comparison with some other expression.
 
@@ -252,7 +253,7 @@ class NonIdOperator(Operator):
         compiler: CompiledQuery,
         lhs: Expression,
         lookup: str,
-        rhs: Union[Expression, RhsTypes],
+        rhs: Expression | RhsTypes,
     ):
         """Validate whether a given comparison is even possible.
         Where needed, the lhs/rhs are already ordered in a logical sequence.
@@ -300,7 +301,7 @@ class NonIdOperator(Operator):
         compiler: CompiledQuery,
         lhs: Expression,
         lookup: str,
-        rhs: Tuple[HasBuildRhs, HasBuildRhs],
+        rhs: tuple[HasBuildRhs, HasBuildRhs],
     ) -> Q:
         """Use the value in comparison with 2 other values (e.g. between query)"""
         if compiler.feature_type is not None:
@@ -334,7 +335,7 @@ class DistanceOperator(SpatialOperator):
     operatorType: DistanceOperatorName
     geometry: gml.GM_Object
     distance: Measure
-    _source: Optional[str] = field(compare=False, default=None)
+    _source: str | None = field(compare=False, default=None)
 
     @classmethod
     @expect_children(3, ValueReference, gml.GM_Object, Measure)
@@ -374,9 +375,9 @@ class BinarySpatialOperator(SpatialOperator):
     allow_geometries = True  # override static attribute
 
     operatorType: SpatialOperatorName
-    operand1: Optional[ValueReference]
+    operand1: ValueReference | None
     operand2: SpatialDescription
-    _source: Optional[str] = field(compare=False, default=None)
+    _source: str | None = field(compare=False, default=None)
 
     @classmethod
     def from_xml(cls, element: Element):
@@ -420,7 +421,7 @@ class TemporalOperator(NonIdOperator):
     operatorType: TemporalOperatorName
     operand1: ValueReference
     operand2: TemporalOperand
-    _source: Optional[str] = field(compare=False, default=None)
+    _source: str | None = field(compare=False, default=None)
 
     @classmethod
     @expect_children(2, ValueReference, TemporalOperand)
@@ -449,10 +450,10 @@ class BinaryComparisonOperator(ComparisonOperator):
     """A comparison between 2 values, e.g. A == B."""
 
     operatorType: BinaryComparisonName
-    expression: Tuple[Expression, Expression]
+    expression: tuple[Expression, Expression]
     matchCase: bool = True
     matchAction: MatchAction = MatchAction.Any
-    _source: Optional[str] = field(compare=False, default=None)
+    _source: str | None = field(compare=False, default=None)
 
     @classmethod
     @expect_children(2, Expression, Expression)
@@ -485,7 +486,7 @@ class BetweenComparisonOperator(ComparisonOperator):
     expression: Expression
     lowerBoundary: Expression
     upperBoundary: Expression
-    _source: Optional[str] = field(compare=False, default=None)
+    _source: str | None = field(compare=False, default=None)
 
     @classmethod
     @expect_children(3, Expression, "LowerBoundary", "UpperBoundary")
@@ -531,11 +532,11 @@ class BetweenComparisonOperator(ComparisonOperator):
 class LikeOperator(ComparisonOperator):
     """Perform wildcard matching."""
 
-    expression: Tuple[Expression, Expression]
+    expression: tuple[Expression, Expression]
     wildCard: str
     singleChar: str
     escapeChar: str
-    _source: Optional[str] = field(compare=False, default=None)
+    _source: str | None = field(compare=False, default=None)
 
     @classmethod
     @expect_children(2, Expression, Expression)
@@ -582,9 +583,9 @@ class NilOperator(ComparisonOperator):
     If the WFS returned a property element with <tns:p xsi:nil='true'>, this returns true.
     """
 
-    expression: Optional[Expression]
+    expression: Expression | None
     nilReason: str
-    _source: Optional[str] = field(compare=False, default=None)
+    _source: str | None = field(compare=False, default=None)
 
     @classmethod
     @expect_children(1, Expression)
@@ -610,7 +611,7 @@ class NullOperator(ComparisonOperator):
     """
 
     expression: Expression
-    _source: Optional[str] = field(compare=False, default=None)
+    _source: str | None = field(compare=False, default=None)
 
     @classmethod
     @expect_children(1, Expression)
@@ -639,9 +640,9 @@ class LogicalOperator(NonIdOperator):
 class BinaryLogicOperator(LogicalOperator):
     """Apply an AND or OR operator"""
 
-    operands: List[NonIdOperator]
+    operands: list[NonIdOperator]
     operatorType: BinaryLogicType
-    _source: Optional[str] = field(compare=False, default=None)
+    _source: str | None = field(compare=False, default=None)
 
     @classmethod
     @expect_children(2, NonIdOperator, NonIdOperator)
@@ -665,7 +666,7 @@ class UnaryLogicOperator(LogicalOperator):
 
     operands: NonIdOperator
     operatorType: UnaryLogicType
-    _source: Optional[str] = field(compare=False, default=None)
+    _source: str | None = field(compare=False, default=None)
 
     @classmethod
     @expect_children(1, NonIdOperator)

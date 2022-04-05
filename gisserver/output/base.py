@@ -1,6 +1,6 @@
+from __future__ import annotations
 import math
 from collections import defaultdict
-from typing import List, Set
 
 from django.conf import settings
 from django.db import models
@@ -117,7 +117,7 @@ class OutputRenderer:
     @classmethod
     def _get_prefetch_related(
         cls, feature_type: FeatureType, output_crs: CRS
-    ) -> List[models.Prefetch]:
+    ) -> list[models.Prefetch]:
         """Summarize which fields read data from relations.
 
         This combines the input from flattened and complex fields,
@@ -137,11 +137,11 @@ class OutputRenderer:
         for xsd_element in feature_type.xsd_type.complex_elements:
             obj_path = xsd_element.orm_path
             elements[obj_path].append(xsd_element)
-            fields[obj_path] = set(
+            fields[obj_path] = {
                 f.orm_path
                 for f in xsd_element.type.elements
                 if not f.is_many or f.is_array  # exclude M2M, but include ArrayField
-            )
+            }
 
         # Since all elements directly reference a relation, these can be prefetched:
         return [
@@ -158,8 +158,8 @@ class OutputRenderer:
     def get_prefetch_queryset(
         cls,
         feature_type: FeatureType,
-        xsd_elements: List[XsdElement],
-        fields: Set[str],
+        xsd_elements: list[XsdElement],
+        fields: set[str],
         output_crs: CRS,
     ):
         """Generate a custom queryset that's used to prefetch a reation."""

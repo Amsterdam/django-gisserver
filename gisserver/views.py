@@ -1,7 +1,7 @@
 """The view layer parses the request, and dispatches it to an operation."""
+from __future__ import annotations
 import re
 from django.shortcuts import render
-from typing import List, Optional, Type
 
 from django.core.exceptions import (
     ImproperlyConfigured,
@@ -47,7 +47,7 @@ class GISView(View):
     accept_operations = {}
 
     #: Metadata of the service:
-    service_description: Optional[ServiceDescription] = None
+    service_description: ServiceDescription | None = None
 
     #: Template to render a HTML welcome page for non-OGC requests.
     index_template_name = None
@@ -174,7 +174,7 @@ class GISView(View):
                 "gisserver/index.html",
             ]
 
-    def get_operation_class(self) -> Type[base.WFSMethod]:
+    def get_operation_class(self) -> type[base.WFSMethod]:
         """Resolve the method that the client wants to call."""
         if not self.accept_operations:
             raise ImproperlyConfigured("View has no operations")
@@ -204,7 +204,7 @@ class GISView(View):
                 f"'{operation.lower()}' is not implemented, supported are: {allowed}.",
             ) from None
 
-    def call_operation(self, wfs_method_cls: Type[base.WFSMethod]):
+    def call_operation(self, wfs_method_cls: type[base.WFSMethod]):
         """Call the resolved method."""
         wfs_method = wfs_method_cls(self)
         param_values = wfs_method.parse_request(self.KVP)
@@ -251,7 +251,7 @@ class WFSView(GISView):
     max_page_size = conf.GISSERVER_DEFAULT_MAX_PAGE_SIZE
 
     #: Define the features (=tables) in this dataset.
-    feature_types: List[FeatureType] = []
+    feature_types: list[FeatureType] = []
 
     #: Internal configuration of all available RPC calls.
     accept_operations = {
@@ -309,7 +309,7 @@ class WFSView(GISView):
         "ImplementsSchemaElementFunc": False,
     }
 
-    def get_feature_types(self) -> List[FeatureType]:
+    def get_feature_types(self) -> list[FeatureType]:
         """Return all available feature types this server exposes"""
         return self.feature_types
 
