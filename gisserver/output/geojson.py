@@ -283,7 +283,8 @@ class DBGeoJsonRenderer(GeoJsonRenderer):
         match = feature_type.resolve_element(feature_type.geometry_field_name)
         return queryset.defer(feature_type.geometry_field_name).annotate(
             _as_db_geojson=AsGeoJSON(
-                get_db_geometry_target(match, output_crs), precision=16
+                get_db_geometry_target(match, output_crs),
+                precision=conf.GISSERVER_DB_PRECISION,
             )
         )
 

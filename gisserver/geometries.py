@@ -4,6 +4,7 @@ This includes the CRS parsing, coordinate transforms and bounding box object.
 The bounding box can be calculated within Python, or read from a database result.
 """
 import re
+from decimal import Decimal
 from dataclasses import dataclass, field
 
 from django.contrib.gis.geos import GEOSGeometry, Polygon
@@ -295,10 +296,10 @@ WGS84 = CRS.from_srid(4326)  # aka EPSG:4326
 class BoundingBox:
     """A bounding box that describes the extent of a map layer"""
 
-    south: float  # longitude
-    west: float  # latitude
-    north: float  # longitude
-    east: float  # latitude
+    south: Decimal  # longitude
+    west: Decimal  # latitude
+    north: Decimal  # longitude
+    east: Decimal  # latitude
     crs: Optional[CRS] = None
 
     @classmethod
@@ -314,10 +315,10 @@ class BoundingBox:
                 f"expected 4 or 5 values, not {bbox}."
             )
         return cls(
-            float(bbox[0]),
-            float(bbox[1]),
-            float(bbox[2]),
-            float(bbox[3]),
+            Decimal(bbox[0]),
+            Decimal(bbox[1]),
+            Decimal(bbox[2]),
+            Decimal(bbox[3]),
             CRS.from_string(bbox[4]) if len(bbox) == 5 else None,
         )
 

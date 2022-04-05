@@ -1,6 +1,7 @@
 import pytest
 from lxml import etree
 from tests.constants import NAMESPACES, OWS_NS, WFS_NS, XLINK_NS
+from tests.gisserver.views.input import POINT1_XML_WGS84
 from tests.utils import WFS_20_XSD, assert_xml_equal, validate_xsd
 
 # enable for all tests in this file
@@ -67,8 +68,8 @@ class TestGetCapabilities:
           <Format>text/csv; subtype=csv; charset=utf-8</Format>
         </OutputFormats>
         <ows:WGS84BoundingBox dimensions="2">
-          <ows:LowerCorner>4.90876101285122 52.3631712637357</ows:LowerCorner>
-          <ows:UpperCorner>4.90876101285122 52.3631712637357</ows:UpperCorner>
+          <ows:LowerCorner>{POINT1_XML_WGS84}</ows:LowerCorner>
+          <ows:UpperCorner>{POINT1_XML_WGS84}</ows:UpperCorner>
         </ows:WGS84BoundingBox>
         <MetadataURL xlink:href="http://testserver/v1/wfs/" />
       </FeatureType>
@@ -88,8 +89,8 @@ class TestGetCapabilities:
           <Format>text/csv; subtype=csv; charset=utf-8</Format>
         </OutputFormats>
         <ows:WGS84BoundingBox dimensions="2">
-          <ows:LowerCorner>4.90876101285122 52.3631712637357</ows:LowerCorner>
-          <ows:UpperCorner>4.90876101285122 52.3631712637357</ows:UpperCorner>
+          <ows:LowerCorner>{POINT1_XML_WGS84}</ows:LowerCorner>
+          <ows:UpperCorner>{POINT1_XML_WGS84}</ows:UpperCorner>
         </ows:WGS84BoundingBox>
         <MetadataURL xlink:href="http://testserver/v1/wfs/" />
       </FeatureType>

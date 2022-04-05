@@ -4,8 +4,9 @@ from functools import reduce
 from typing import List, Union, cast
 
 from django.contrib.gis.db.models import GeometryField, functions
-from django.db import connections, models
+from django.db import connection, connections, models
 
+from gisserver import conf
 from gisserver.geometries import CRS
 from gisserver.types import XPathMatch, XsdElement
 
@@ -16,11 +17,24 @@ class AsEWKT(functions.GeoFunc):
     name = "AsEWKT"
     output_field = models.TextField()
 
+    def __init__(self, field, precision=conf.GISSERVER_DB_PRECISION, **extra):
+        if connection.ops.spatial_version >= (3, 1):
+            super().__init__(field, precision, **extra)
+        else:
+            super().__init__(field, **extra)
+
 
 class AsGML(functions.AsGML):
     name = "AsGML"
 
-    def __init__(self, expression, version=3, precision=14, envelope=False, **extra):
+    def __init__(
+        self,
+        expression,
+        version=3,
+        precision=conf.GISSERVER_DB_PRECISION,
+        envelope=False,
+        **extra,
+    ):
         # Note that Django's AsGml, version=2, precision=8
         # the options is postgres-only.
         super().__init__(expression, version, precision, **extra)

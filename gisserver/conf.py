@@ -16,6 +16,9 @@ GISSERVER_CAPABILITIES_BOUNDING_BOX = getattr(
 # This gives a better performance overall, but output may vary between database vendors.
 GISSERVER_USE_DB_RENDERING = getattr(settings, "GISSERVER_USE_DB_RENDERING", True)
 
+# The precision to use for DB rendering. (PostGIS stores reliably up till 15 decimals)
+GISSERVER_DB_PRECISION = getattr(settings, "GISSERVER_DB_PRECISION", 15)
+
 # Whether to strictly check whether the provided CRS is accepted.
 # Otherwise, all database-supported SRID's are allowed.
 GISSERVER_SUPPORTED_CRS_ONLY = getattr(settings, "GISSERVER_SUPPORTED_CRS_ONLY", True)
