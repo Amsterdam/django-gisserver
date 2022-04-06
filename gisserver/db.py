@@ -84,7 +84,11 @@ def conditional_transform(
     return expression
 
 
-def build_db_annotations(selects: dict, name_template: str, wrapper_func) -> dict:
+def build_db_annotations(
+    selects: dict[str, str | functions.Func],
+    name_template: str,
+    wrapper_func: type[functions.Func],
+) -> dict:
     """Utility to build annotations for all geometry fields for an XSD type.
     This is used by various DB-optimized rendering methods.
     """
@@ -112,8 +116,12 @@ def escape_xml_name(name: str, template="{name}") -> str:
     return template.format(name=name.replace(".", "_"))
 
 
-def get_db_geometry_selects(gml_elements: list[XsdElement], output_crs: CRS) -> dict:
-    """Utility to generate select clauses for the geometry fields of a type."""
+def get_db_geometry_selects(
+    gml_elements: list[XsdElement], output_crs: CRS
+) -> dict[str, str | functions.Transform]:
+    """Utility to generate select clauses for the geometry fields of a type.
+    Key is the xsd element name, value is the database select expression.
+    """
     return {
         xsd_element.name: _get_db_geometry_target(xsd_element, output_crs)
         for xsd_element in gml_elements
@@ -121,7 +129,9 @@ def get_db_geometry_selects(gml_elements: list[XsdElement], output_crs: CRS) -> 
     }
 
 
-def _get_db_geometry_target(xsd_element: XsdElement, output_crs: CRS):
+def _get_db_geometry_target(
+    xsd_element: XsdElement, output_crs: CRS
+) -> str | functions.Transform:
     """Wrap the selection of a geometry field in a CRS Transform if needed."""
     field = cast(GeometryField, xsd_element.source)
     return conditional_transform(
