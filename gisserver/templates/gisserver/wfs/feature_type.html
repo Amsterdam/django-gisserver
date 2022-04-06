@@ -6,7 +6,7 @@
   <p>
     {% trans "Formats" %}:
     {% for output_format in wfs_output_formats %}
-      <a href="?SERVICE=WFS&VERSION={{ version }}&REQUEST=GetFeature&TYPENAMES={{ feature_type.name }}&OUTPUTFORMAT={{ output_format.identifier }}">{{ output_format.title|default:output_format }}</a>{% if not forloop.last %},{% endif %}
+      <a href="?{{ base_query }}SERVICE=WFS&VERSION={{ version }}&REQUEST=GetFeature&TYPENAMES={{ feature_type.name }}&OUTPUTFORMAT={{ output_format.identifier }}">{{ output_format.title|default:output_format }}</a>{% if not forloop.last %},{% endif %}
     {% endfor %}
   </p>
 {% endif %}{% endblock %}

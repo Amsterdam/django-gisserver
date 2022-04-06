@@ -1,6 +1,8 @@
 """The view layer parses the request, and dispatches it to an operation."""
 from __future__ import annotations
 import re
+from urllib.parse import urlencode
+
 from django.shortcuts import render
 
 from django.core.exceptions import (
@@ -140,10 +142,22 @@ class GISView(View):
         """Provide the context data for the index page."""
         service = self.KVP.get("SERVICE", self.default_service)
         root_url = self.request.build_absolute_uri()
+
+        # Allow passing extra vendor parameters to the links generated in the template
+        # (e.g. expand/embed logic)
+        base_qs = {
+            key: value
+            for key, value in self.request.GET.items()
+            if key.upper()
+            not in ("SERVICE", "REQUEST", "VERSION", "OUTPUTFORMAT", "TYPENAMES")
+        }
+        base_query = urlencode(base_qs) + "&" if base_qs else ""
+
         return {
             "view": self,
             "service": service,
             "root_url": root_url,
+            "base_query": base_query,
             "connect_url": root_url,
             "version": self.version,
             "service_description": self.get_service_description(service),
