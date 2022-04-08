@@ -37,6 +37,7 @@ setup(
         "Django >= 2.0",
         "dataclasses;python_version=='3.6'",
         "defusedxml >= 0.6.0",
+        "lru_dict >= 1.1.7",
         "orjson >= 2.4.0",
     ],
     tests_require=tests_require,

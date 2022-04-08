@@ -16,6 +16,7 @@ from django.utils.timezone import now, utc
 
 from gisserver.features import FeatureType
 from gisserver.geometries import BoundingBox
+from .utils import ChunkedQuerySetIterator, CountingIterator
 
 
 class SimpleFeatureCollection:
@@ -37,8 +38,7 @@ class SimpleFeatureCollection:
         self.start = start
         self.stop = stop
         self._result_cache = None
-        self._used_iterator = False
-        self._iterator_calls = None
+        self._result_iterator = None
 
     def __iter__(self) -> Iterable[models.Model]:
         """Iterate through all results.
@@ -47,16 +47,18 @@ class SimpleFeatureCollection:
         the results can either be cached first, or be streamed without caching.
         This picks the best-performance scenario in most cases.
         """
-        if self._result_cache is None:
-            if self.queryset._prefetch_related_lookups:
-                # Since our caller requested related lookups, Django can only
-                # honor this when the queryset is read in memory first.
-                self.fetch_results()
-            else:
-                # No need to fetch everything first, can just stream the results.
-                return self.iterator()
+        if self.start == self.stop == 0:
+            self._result_cache = []
 
-        return iter(self._result_cache)
+        if self._result_cache is not None:
+            # Repeat what's cached if reading again.
+            return iter(self._result_cache)
+        elif self.queryset._prefetch_related_lookups:
+            # Optimal solution to have an iterator that also handles prefetches
+            return self._chunked_iterator()
+        else:
+            # No need to fetch everything first, can just stream the results.
+            return self.iterator()
 
     def iterator(self):
         """Explicitly request the results to be streamed.
@@ -64,10 +66,9 @@ class SimpleFeatureCollection:
         This can be used by output formats that stream may results, and don't
         access `number_returned`. Note this is not compatible with prefetch_related().
         """
-        if self._used_iterator:
+        if self._result_iterator is not None:
             raise RuntimeError("Results for feature collection are read twice.")
 
-        self._used_iterator = True
         if self._result_cache is not None:
             # In case the results were read already, reuse that.
             return iter(self._result_cache)
@@ -75,25 +76,26 @@ class SimpleFeatureCollection:
             # resulttype=hits
             return iter([])
         else:
-            if self.stop == math.inf:
-                # Infinite page requested
-                if self.start:
-                    model_iter = self.queryset[self.start :].iterator()
-                else:
-                    model_iter = self.queryset.iterator()
+            model_iter = self._paginated_queryset().iterator()
+            self._result_iterator = CountingIterator(model_iter)
+            return iter(self._result_iterator)
+
+    def _chunked_iterator(self):
+        """Generate an interator that processes results in chunks."""
+        # Private function so the same logic of .iterator() is not repeated.
+        self._result_iterator = ChunkedQuerySetIterator(self._paginated_queryset())
+        return iter(self._result_iterator)
+
+    def _paginated_queryset(self) -> models.QuerySet:
+        """Apply the pagination to the queryset."""
+        if self.stop == math.inf:
+            # Infinite page requested
+            if self.start:
+                return self.queryset[self.start :]
             else:
-                model_iter = self.queryset[self.start : self.stop].iterator()
-
-            # Count the number of returned items while reading them. Tried
-            # using map(itemgetter(0), zip(model_iter, count_iter)) but that didn't really matter.
-            self._iterator_calls = 0
-
-            def _counting_iter():
-                for instance in model_iter:
-                    self._iterator_calls += 1
-                    yield instance
-
-            return _counting_iter()
+                return self.queryset
+        else:
+            return self.queryset[self.start : self.stop]
 
     def first(self):
         try:
@@ -107,7 +109,7 @@ class SimpleFeatureCollection:
         """Forcefully read the results early."""
         if self._result_cache is not None:
             return
-        if self._used_iterator:
+        if self._result_iterator is not None:
             raise RuntimeError("Results for feature collection are read twice.")
 
         if self.start == self.stop == 0:
@@ -132,9 +134,9 @@ class SimpleFeatureCollection:
         """Return the number of results for this page."""
         if self.start == self.stop == 0:
             return 0  # resulttype=hits
-        elif self._used_iterator:
+        elif self._result_iterator is not None:
             # When requesting the data after the fact, results are counted.
-            return self._iterator_calls
+            return self._result_iterator.number_returned
         else:
             # Count by fetching all data. Otherwise the results are queried twice.
             # For GML/XML, it's not possible the stream the queryset results
