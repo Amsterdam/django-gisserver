@@ -122,7 +122,7 @@ class GeoJsonRenderer(OutputRenderer):
         """Render the output of a single feature"""
 
         # Get all instance attributes:
-        properties = self.get_properties(feature_type.xsd_type, instance)
+        properties = self.get_properties(feature_type, feature_type.xsd_type, instance)
 
         if feature_type.show_name_field:
             name = feature_type.get_display_value(instance)
@@ -217,7 +217,12 @@ class GeoJsonRenderer(OutputRenderer):
             )
         return links
 
-    def get_properties(self, xsd_type: XsdComplexType, instance: models.Model) -> dict:
+    def get_properties(
+        self,
+        feature_type: FeatureType,
+        xsd_type: XsdComplexType,
+        instance: models.Model,
+    ) -> dict:
         """Collect the data for the 'properties' field.
 
         This is based on the original XSD definition,
@@ -232,15 +237,21 @@ class GeoJsonRenderer(OutputRenderer):
                     if value is None:
                         props[xsd_element.name] = None
                     else:
-                        xsd_type = cast(XsdComplexType, xsd_element.type)
+                        value_xsd_type = cast(XsdComplexType, xsd_element.type)
                         if xsd_element.is_many:
-                            # "..._to_many relation; reverse FK or M2M field.
+                            # If the retrieved QuerySet was not filtered yet, do so now.
+                            # This can't be done in get_value() because the FeatureType
+                            # is not known there.
+                            value = feature_type.filter_related_queryset(value)
+
+                            # "..._to_many relation; reverse FK, M2M or array field.
                             props[xsd_element.name] = [
-                                self.get_properties(xsd_type, item) for item in value
+                                self.get_properties(feature_type, value_xsd_type, item)
+                                for item in value
                             ]
                         else:
                             props[xsd_element.name] = self.get_properties(
-                                xsd_type, value
+                                feature_type, value_xsd_type, value
                             )
                 else:
                     # Scalar value, or list (for ArrayField).

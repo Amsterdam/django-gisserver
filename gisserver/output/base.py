@@ -1,6 +1,5 @@
 from __future__ import annotations
 import math
-from collections import defaultdict
 
 from django.conf import settings
 from django.db import models
@@ -9,10 +8,9 @@ from django.utils.html import escape
 
 from gisserver import conf
 from gisserver.exceptions import InvalidParameterValue
-from gisserver.features import FeatureType
+from gisserver.features import FeatureRelation, FeatureType
 from gisserver.geometries import CRS
 from gisserver.operations.base import WFSMethod
-from gisserver.types import XsdElement
 
 from .results import FeatureCollection
 
@@ -123,47 +121,29 @@ class OutputRenderer:
         This combines the input from flattened and complex fields,
         in the unlikely case both variations are used in the same feature.
         """
-        fields = defaultdict(set)
-        elements = defaultdict(list)
-
-        # Check all elements that render as "dotted" flattened relation
-        for xsd_element in feature_type.xsd_type.flattened_elements:
-            if xsd_element.source is not None:
-                obj_path, field = xsd_element.orm_relation
-                elements[obj_path].append(xsd_element)
-                fields[obj_path].add(field)
-
-        # Check all elements that render as "nested" complex type:
-        for xsd_element in feature_type.xsd_type.complex_elements:
-            obj_path = xsd_element.orm_path
-            elements[obj_path].append(xsd_element)
-            fields[obj_path] = {
-                f.orm_path
-                for f in xsd_element.type.elements
-                if not f.is_many or f.is_array  # exclude M2M, but include ArrayField
-            }
-
-        # Since all elements directly reference a relation, these can be prefetched:
         return [
             models.Prefetch(
-                obj_path,
+                orm_relation.orm_path,
                 queryset=cls.get_prefetch_queryset(
-                    feature_type, elements[obj_path], fields[obj_path], output_crs
+                    feature_type, orm_relation, output_crs
                 ),
             )
-            for obj_path in fields.keys()
+            for orm_relation in feature_type.orm_relations
         ]
 
     @classmethod
     def get_prefetch_queryset(
         cls,
         feature_type: FeatureType,
-        xsd_elements: list[XsdElement],
-        fields: set[str],
+        feature_relation: FeatureRelation,
         output_crs: CRS,
-    ):
-        """Generate a custom queryset that's used to prefetch a reation."""
-        return None
+    ) -> models.QuerySet | None:
+        """Generate a custom queryset that's used to prefetch a relation."""
+        # Multiple elements could be referencing the same model, just take first that is filled in.
+        if feature_relation.related_model is None:
+            return None
+
+        return feature_type.get_related_queryset(feature_relation)
 
     def get_response(self):
         """Render the output as streaming response."""

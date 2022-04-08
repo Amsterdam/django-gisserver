@@ -25,7 +25,7 @@ from gisserver.db import (
     get_db_geometry_target,
 )
 from gisserver.exceptions import NotFound
-from gisserver.features import FeatureType
+from gisserver.features import FeatureRelation, FeatureType
 from gisserver.geometries import CRS
 from gisserver.parsers.fes20 import ValueReference
 from gisserver.types import XsdComplexType, XsdElement
@@ -274,18 +274,27 @@ class GML32Renderer(OutputRenderer):
         self, feature_type: FeatureType, xsd_element: XsdElement, value, extra_xmlns=""
     ) -> str:
         """Write the value of a single field."""
-        if xsd_element.is_many and value is not None:
-            # Render the tag multiple times
-            return "".join(
-                self._render_xml_field(
-                    feature_type, xsd_element, value=item, extra_xmlns=extra_xmlns
-                )
-                for item in value
-            )
-        else:
-            if xsd_element.min_occurs == 0 and xsd_element.is_many:
-                return ""  # No tag for optional element (see PropertyIsNull)
+        if xsd_element.is_many:
+            if value is None:
+                # No tag for optional element (see PropertyIsNull), otherwise xsi:nil node.
+                if xsd_element.min_occurs == 0:
+                    return ""
+                else:
+                    return f'      <{xsd_element.xml_name} xsi:nil="true"{extra_xmlns} />\n'
+            else:
+                # Render the tag multiple times
+                if xsd_element.type.is_complex_type:
+                    # If the retrieved QuerySet was not filtered yet, do so now. This can't
+                    # be done in get_value() because the FeatureType is not known there.
+                    value = feature_type.filter_related_queryset(value)
 
+                return "".join(
+                    self._render_xml_field(
+                        feature_type, xsd_element, value=item, extra_xmlns=extra_xmlns
+                    )
+                    for item in value
+                )
+        else:
             return self._render_xml_field(
                 feature_type, xsd_element, value, extra_xmlns=extra_xmlns
             )
@@ -446,6 +455,7 @@ class DBGML32Renderer(GML32Renderer):
             feature_type, queryset, output_crs, **params
         )
 
+        # Retrieve geometries as pre-rendered instead.
         geometries = get_db_geometry_selects(
             feature_type.xsd_type.geometry_elements, output_crs
         )
@@ -460,18 +470,17 @@ class DBGML32Renderer(GML32Renderer):
     def get_prefetch_queryset(
         cls,
         feature_type: FeatureType,
-        xsd_elements: list[XsdElement],
-        fields: list[str],
+        feature_relation: FeatureRelation,
         output_crs: CRS,
-    ):
+    ) -> models.QuerySet | None:
         """Perform DB annotations for prefetched relations too."""
-        model = xsd_elements[0].source
-        if model is None:
+        base = super().get_prefetch_queryset(feature_type, feature_relation, output_crs)
+        if base is None:
             return None
 
         # Find which fields are GML elements
         gml_elements = []
-        for e in xsd_elements:
+        for e in feature_relation.xsd_elements:
             if e.is_geometry:
                 # Prefetching a flattened relation
                 gml_elements.append(e)
@@ -481,11 +490,13 @@ class DBGML32Renderer(GML32Renderer):
                 gml_elements.extend(xsd_type.geometry_elements)
 
         geometries = get_db_geometry_selects(gml_elements, output_crs)
-        fields = set(fields) - set(geometries.keys())
         if geometries:
-            return model.objects.only("pk", *fields).annotate(
+            # Exclude geometries from the fields, fetch them as pre-rendered annotations instead.
+            return base.defer(geometries.keys()).annotate(
                 **build_db_annotations(geometries, "_as_gml_{name}", AsGML),
             )
+        else:
+            return base
 
     @classmethod
     def get_db_envelope_as_gml(cls, feature_type, queryset, output_crs) -> AsGML:

@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import html
 import operator
+from collections import defaultdict
 from dataclasses import dataclass
 from functools import lru_cache, reduce
 from typing import List, Union
@@ -400,6 +401,42 @@ def field(
         )
 
 
+@dataclass
+class FeatureRelation:
+    """Tell which related fields are queried by the feature.
+    Each dict holds an ORM-path, with the relevant sub-elements.
+    """
+
+    #: The ORM path that is queried for this particular relation
+    orm_path: str
+    #: The fields that will be retrieved for that path
+    orm_fields: set[str]
+    #: The model that is accessed for this relation (if set)
+    related_model: type[models.Model] | None
+    #: The source elements that access this relation.
+    xsd_elements: list[XsdElement]
+
+    @cached_property
+    def _local_model_field_names(self) -> list[str]:
+        """Tell which local fields of the model will be accessed by this feature."""
+
+        meta = self.related_model._meta
+        result = []
+        for name in self.orm_fields:
+            model_field = meta.get_field(name)
+            if not model_field.many_to_many and not model_field.one_to_many:
+                result.append(name)
+
+        # When this relation is retrieved through a ManyToOneRel (reverse FK),
+        # the prefetch_related() also needs to have the original foreign key
+        # in order to link all prefetches to the proper parent instance.
+        for xsd_element in self.xsd_elements:
+            if xsd_element.source is not None and xsd_element.source.one_to_many:
+                result.append(xsd_element.source.field.name)
+
+        return result
+
+
 class FeatureType:
     """Declare a feature that is exposed on the map.
 
@@ -508,6 +545,61 @@ class FeatureType:
         ]
 
     @cached_property
+    def orm_relations(self) -> list[FeatureRelation]:
+        """Tell which fields will be retrieved from related fields.
+
+        This gives an object layout based on the XSD elements,
+        that can be used for prefetching data.
+        """
+        models = dict()
+        fields = defaultdict(set)
+        elements = defaultdict(list)
+
+        # Check all elements that render as "dotted" flattened relation
+        for xsd_element in self.xsd_type.flattened_elements:
+            if xsd_element.source is not None:
+                # Split "relation.field" notation into path, and take the field as child attribute.
+                obj_path, field = xsd_element.orm_relation
+                elements[obj_path].append(xsd_element)
+                fields[obj_path].add(field)
+                # field is already on relation:
+                models[obj_path] = xsd_element.source.model
+
+        # Check all elements that render as "nested" complex type:
+        for xsd_element in self.xsd_type.complex_elements:
+            # The complex element itself points to the root of the path,
+            # all sub elements become the child attributes.
+            obj_path = xsd_element.orm_path
+            elements[obj_path].append(xsd_element)
+            fields[obj_path] = {
+                f.orm_path
+                for f in xsd_element.type.elements
+                if not f.is_many or f.is_array  # exclude M2M, but include ArrayField
+            }
+            if xsd_element.source:
+                # field references a related object:
+                models[obj_path] = xsd_element.source.related_model
+
+        return [
+            FeatureRelation(
+                orm_path=obj_path,
+                orm_fields=sub_fields,
+                related_model=models.get(obj_path),
+                xsd_elements=elements[obj_path],
+            )
+            for obj_path, sub_fields in fields.items()
+        ]
+
+    @cached_property
+    def _local_model_field_names(self) -> list[str]:
+        """Tell which local fields of the model will be accessed by this feature."""
+        return [
+            (ff.model_field.name if ff.model_field else ff.model_attribute)
+            for ff in self.fields
+            if not ff.model_field.many_to_many and not ff.model_field.one_to_many
+        ]
+
+    @cached_property
     def fields(self) -> list[FeatureField]:
         """Define which fields to render."""
         # This lazy reading allows providing 'fields' as lazy value.
@@ -567,8 +659,29 @@ class FeatureType:
 
     def get_queryset(self) -> models.QuerySet:
         """Return the queryset that is used as basis for this feature."""
-        # Adding .all() to avoid filling the caches.
-        return self.queryset.all()
+        # Return a queryset that only retrieves the fields that are actually displayed.
+        # That that without .only(), use at least `self.queryset.all()` so a clone is returned.
+        return self.queryset.only(*self._local_model_field_names)
+
+    def get_related_queryset(
+        self, feature_relation: FeatureRelation
+    ) -> models.QuerySet:
+        """Return the queryset that is used for prefetching related data."""
+        if feature_relation.related_model is None:
+            raise RuntimeError(
+                f"Unable to create prefetch queryset for relation {feature_relation.orm_path}, "
+                f"source model is not defined for: {feature_relation.xsd_elements!r}"
+            )
+        # Return a queryset that only retrieves the fields that are displayed.
+        return self.filter_related_queryset(
+            feature_relation.related_model.objects.only(
+                *feature_relation._local_model_field_names
+            )
+        )
+
+    def filter_related_queryset(self, queryset: models.QuerySet) -> models.QuerySet:
+        """When a related object returns a queryset, this hook allows extra filtering."""
+        return queryset
 
     def get_bounding_box(self) -> BoundingBox | None:
         """Returns a WGS84 BoundingBox for the complete feature.
