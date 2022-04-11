@@ -1,9 +1,9 @@
 # 2022-04-11 (1.2)
 
 * Added support for `maxOccurs=unbounded` elements (M2M, reverse foreign key, array fields).
-* Added support for filtering on M2M and reverse foreign keys.
+* Added support for filtering on M2M, reverse foreign key and array fields.
 * Added `field(..., xsd_class=...)` parameter to simplify overriding `FeatureField.xsd_element_class`.
-* Added `xsd_base_typez parameter to `ComplexFeatureField` to allow overriding it.
+* Added `xsd_base_type` parameter to `ComplexFeatureField` to allow overriding it.
 * Added `GISSERVER_DB_PRECISION` setting and made precision consistent between output formats.
 * Added `.prefetch_related()` support to large GeoJSON responses (using prefetching on iterator chunks).
 * Added `FeatureType.filter_related_queryset()` that allows adjusting all retrieved querysets.
