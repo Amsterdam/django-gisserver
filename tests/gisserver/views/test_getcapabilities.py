@@ -1,7 +1,6 @@
 import pytest
 from lxml import etree
 from tests.constants import NAMESPACES, OWS_NS, WFS_NS, XLINK_NS
-from tests.gisserver.views.input import POINT1_XML_WGS84
 from tests.utils import WFS_20_XSD, assert_xml_equal, validate_xsd
 
 # enable for all tests in this file
@@ -12,7 +11,7 @@ pytestmark = [pytest.mark.urls("tests.test_gisserver.urls")]
 class TestGetCapabilities:
     """All tests for the GetCapabilities method."""
 
-    def test_get(self, client, restaurant):
+    def test_get(self, client, restaurant, coordinates):
         """Prove that the happy flow works"""
         response = client.get(
             "/v1/wfs/?SERVICE=WFS&REQUEST=GetCapabilities&ACCEPTVERSIONS=2.0.0"
@@ -68,8 +67,8 @@ class TestGetCapabilities:
           <Format>text/csv; subtype=csv; charset=utf-8</Format>
         </OutputFormats>
         <ows:WGS84BoundingBox dimensions="2">
-          <ows:LowerCorner>{POINT1_XML_WGS84}</ows:LowerCorner>
-          <ows:UpperCorner>{POINT1_XML_WGS84}</ows:UpperCorner>
+          <ows:LowerCorner>{coordinates.point1_xml_wgs84}</ows:LowerCorner>
+          <ows:UpperCorner>{coordinates.point1_xml_wgs84}</ows:UpperCorner>
         </ows:WGS84BoundingBox>
         <MetadataURL xlink:href="http://testserver/v1/wfs/" />
       </FeatureType>
@@ -89,8 +88,8 @@ class TestGetCapabilities:
           <Format>text/csv; subtype=csv; charset=utf-8</Format>
         </OutputFormats>
         <ows:WGS84BoundingBox dimensions="2">
-          <ows:LowerCorner>{POINT1_XML_WGS84}</ows:LowerCorner>
-          <ows:UpperCorner>{POINT1_XML_WGS84}</ows:UpperCorner>
+          <ows:LowerCorner>{coordinates.point1_xml_wgs84}</ows:LowerCorner>
+          <ows:UpperCorner>{coordinates.point1_xml_wgs84}</ows:UpperCorner>
         </ows:WGS84BoundingBox>
         <MetadataURL xlink:href="http://testserver/v1/wfs/" />
       </FeatureType>

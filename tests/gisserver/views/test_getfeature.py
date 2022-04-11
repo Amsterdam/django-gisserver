@@ -1,8 +1,8 @@
-import json
 from urllib.parse import quote_plus
 from xml.etree.ElementTree import QName
 
 import django
+import orjson
 import pytest
 from gisserver.geometries import WGS84
 from tests.constants import NAMESPACES
@@ -11,13 +11,6 @@ from tests.gisserver.views.input import (
     FILTERS,
     FLATTENED_FILTERS,
     INVALID_FILTERS,
-    POINT1_EWKT,
-    POINT1_GEOJSON,
-    POINT1_XML_RD,
-    POINT1_XML_WGS84,
-    POINT2_EWKT,
-    POINT2_GEOJSON,
-    POINT2_XML_WGS84,
     SORT_BY,
 )
 from tests.test_gisserver.models import Restaurant
@@ -41,13 +34,13 @@ class TestGetFeature:
     @staticmethod
     def read_json(content) -> dict:
         try:
-            return json.loads(content)
-        except json.JSONDecodeError as e:
+            return orjson.loads(content)
+        except orjson.JSONDecodeError as e:
             snippet = content[e.pos - 300 : e.pos + 300]
             snippet = snippet[snippet.index("\n") :]  # from last newline
             raise AssertionError(f"Parsing JSON failed: {e}\nNear: {snippet}") from None
 
-    def test_get(self, client, restaurant):
+    def test_get(self, client, restaurant, coordinates):
         """Prove that the happy flow works"""
         response = client.get(
             "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
@@ -83,8 +76,8 @@ class TestGetFeature:
         <gml:name>Café Noir</gml:name>
         <gml:boundedBy>
           <gml:Envelope srsDimension="2" srsName="urn:ogc:def:crs:EPSG::4326">
-            <gml:lowerCorner>{POINT1_XML_WGS84}</gml:lowerCorner>
-            <gml:upperCorner>{POINT1_XML_WGS84}</gml:upperCorner>
+            <gml:lowerCorner>{coordinates.point1_xml_wgs84}</gml:lowerCorner>
+            <gml:upperCorner>{coordinates.point1_xml_wgs84}</gml:upperCorner>
           </gml:Envelope>
         </gml:boundedBy>
         <app:id>{restaurant.id}</app:id>
@@ -92,7 +85,7 @@ class TestGetFeature:
         <app:city_id>{restaurant.city_id}</app:city_id>
         <app:location>
           <gml:Point gml:id="restaurant.{restaurant.id}.1" srsName="urn:ogc:def:crs:EPSG::4326">
-            <gml:pos srsDimension="2">{POINT1_XML_WGS84}</gml:pos>
+            <gml:pos srsDimension="2">{coordinates.point1_xml_wgs84}</gml:pos>
           </gml:Point>
         </app:location>
         <app:rating>5.0</app:rating>
@@ -147,7 +140,7 @@ class TestGetFeature:
     </wfs:FeatureCollection>""",  # noqa: E501
         )
 
-    def test_get_limited_fields(self, client, restaurant):
+    def test_get_limited_fields(self, client, restaurant, coordinates):
         """Prove that the 'FeatureType(fields=..)' reduces the returned fields."""
         response = client.get(
             "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=mini-restaurant"
@@ -183,13 +176,13 @@ class TestGetFeature:
         <gml:name>Café Noir</gml:name>
         <gml:boundedBy>
           <gml:Envelope srsDimension="2" srsName="urn:ogc:def:crs:EPSG::4326">
-            <gml:lowerCorner>{POINT1_XML_WGS84}</gml:lowerCorner>
-            <gml:upperCorner>{POINT1_XML_WGS84}</gml:upperCorner>
+            <gml:lowerCorner>{coordinates.point1_xml_wgs84}</gml:lowerCorner>
+            <gml:upperCorner>{coordinates.point1_xml_wgs84}</gml:upperCorner>
           </gml:Envelope>
         </gml:boundedBy>
         <app:location>
           <gml:Point gml:id="mini-restaurant.{restaurant.id}.1" srsName="urn:ogc:def:crs:EPSG::4326">
-            <gml:pos srsDimension="2">{POINT1_XML_WGS84}</gml:pos>
+            <gml:pos srsDimension="2">{coordinates.point1_xml_wgs84}</gml:pos>
           </gml:Point>
         </app:location>
       </app:mini-restaurant>
@@ -197,7 +190,7 @@ class TestGetFeature:
 </wfs:FeatureCollection>""",  # noqa: E501
         )
 
-    def test_get_complex(self, client, restaurant_m2m, bad_restaurant):
+    def test_get_complex(self, client, restaurant_m2m, bad_restaurant, coordinates):
         """Prove that rendering complex types works."""
         response = client.get(
             "/v1/wfs-complextypes/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
@@ -231,8 +224,8 @@ class TestGetFeature:
         <gml:name>Café Noir</gml:name>
         <gml:boundedBy>
           <gml:Envelope srsDimension="2" srsName="urn:ogc:def:crs:EPSG::4326">
-            <gml:lowerCorner>{POINT1_XML_WGS84}</gml:lowerCorner>
-            <gml:upperCorner>{POINT1_XML_WGS84}</gml:upperCorner>
+            <gml:lowerCorner>{coordinates.point1_xml_wgs84}</gml:lowerCorner>
+            <gml:upperCorner>{coordinates.point1_xml_wgs84}</gml:upperCorner>
           </gml:Envelope>
         </gml:boundedBy>
         <app:id>{restaurant_m2m.id}</app:id>
@@ -243,7 +236,7 @@ class TestGetFeature:
         </app:city>
         <app:location>
           <gml:Point gml:id="restaurant.{restaurant_m2m.id}.1" srsName="urn:ogc:def:crs:EPSG::4326">
-            <gml:pos srsDimension="2">{POINT1_XML_WGS84}</gml:pos>
+            <gml:pos srsDimension="2">{coordinates.point1_xml_wgs84}</gml:pos>
           </gml:Point>
         </app:location>
         <app:rating>5.0</app:rating>
@@ -274,8 +267,8 @@ class TestGetFeature:
         <gml:name>Foo Bar</gml:name>
         <gml:boundedBy>
           <gml:Envelope srsDimension="2" srsName="urn:ogc:def:crs:EPSG::4326">
-            <gml:lowerCorner>{POINT2_XML_WGS84}</gml:lowerCorner>
-            <gml:upperCorner>{POINT2_XML_WGS84}</gml:upperCorner>
+            <gml:lowerCorner>{coordinates.point2_xml_wgs84}</gml:lowerCorner>
+            <gml:upperCorner>{coordinates.point2_xml_wgs84}</gml:upperCorner>
           </gml:Envelope>
         </gml:boundedBy>
         <app:id>{bad_restaurant.id}</app:id>
@@ -283,7 +276,7 @@ class TestGetFeature:
         <app:city xsi:nil="true" />
         <app:location>
           <gml:Point gml:id="restaurant.{bad_restaurant.id}.1" srsName="urn:ogc:def:crs:EPSG::4326">
-            <gml:pos srsDimension="2">{POINT2_XML_WGS84}</gml:pos>
+            <gml:pos srsDimension="2">{coordinates.point2_xml_wgs84}</gml:pos>
           </gml:Point>
         </app:location>
         <app:rating>1.0</app:rating>
@@ -295,7 +288,7 @@ class TestGetFeature:
 </wfs:FeatureCollection>""",  # noqa: E501
         )
 
-    def test_get_flattened(self, client, restaurant, bad_restaurant):
+    def test_get_flattened(self, client, restaurant, bad_restaurant, coordinates):
         """Prove that rendering complex types works."""
         response = client.get(
             "/v1/wfs-flattened/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
@@ -329,8 +322,8 @@ class TestGetFeature:
         <gml:name>Café Noir</gml:name>
         <gml:boundedBy>
           <gml:Envelope srsDimension="2" srsName="urn:ogc:def:crs:EPSG::4326">
-            <gml:lowerCorner>{POINT1_XML_WGS84}</gml:lowerCorner>
-            <gml:upperCorner>{POINT1_XML_WGS84}</gml:upperCorner>
+            <gml:lowerCorner>{coordinates.point1_xml_wgs84}</gml:lowerCorner>
+            <gml:upperCorner>{coordinates.point1_xml_wgs84}</gml:upperCorner>
           </gml:Envelope>
         </gml:boundedBy>
         <app:id>{restaurant.id}</app:id>
@@ -339,7 +332,7 @@ class TestGetFeature:
         <app:city-name>CloudCity</app:city-name>
         <app:location>
           <gml:Point gml:id="restaurant.{restaurant.id}.1" srsName="urn:ogc:def:crs:EPSG::4326">
-            <gml:pos srsDimension="2">{POINT1_XML_WGS84}</gml:pos>
+            <gml:pos srsDimension="2">{coordinates.point1_xml_wgs84}</gml:pos>
           </gml:Point>
         </app:location>
         <app:rating>5.0</app:rating>
@@ -355,8 +348,8 @@ class TestGetFeature:
         <gml:name>Foo Bar</gml:name>
         <gml:boundedBy>
           <gml:Envelope srsDimension="2" srsName="urn:ogc:def:crs:EPSG::4326">
-            <gml:lowerCorner>{POINT2_XML_WGS84}</gml:lowerCorner>
-            <gml:upperCorner>{POINT2_XML_WGS84}</gml:upperCorner>
+            <gml:lowerCorner>{coordinates.point2_xml_wgs84}</gml:lowerCorner>
+            <gml:upperCorner>{coordinates.point2_xml_wgs84}</gml:upperCorner>
           </gml:Envelope>
         </gml:boundedBy>
         <app:id>{bad_restaurant.id}</app:id>
@@ -365,7 +358,7 @@ class TestGetFeature:
         <app:city-name xsi:nil="true" />
         <app:location>
           <gml:Point gml:id="restaurant.{bad_restaurant.id}.1" srsName="urn:ogc:def:crs:EPSG::4326">
-            <gml:pos srsDimension="2">{POINT2_XML_WGS84}</gml:pos>
+            <gml:pos srsDimension="2">{coordinates.point2_xml_wgs84}</gml:pos>
           </gml:Point>
         </app:location>
         <app:rating>1.0</app:rating>
@@ -378,7 +371,7 @@ class TestGetFeature:
 """,  # noqa: E501
         )
 
-    def test_get_srs_name(self, client, restaurant):
+    def test_get_srs_name(self, client, restaurant, coordinates):
         """Prove that specifying SRSNAME works"""
         response = client.get(
             "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
@@ -415,8 +408,8 @@ class TestGetFeature:
             <gml:name>Café Noir</gml:name>
             <gml:boundedBy>
               <gml:Envelope srsDimension="2" srsName="urn:ogc:def:crs:EPSG::28992">
-                <gml:lowerCorner>{POINT1_XML_RD}</gml:lowerCorner>
-                <gml:upperCorner>{POINT1_XML_RD}</gml:upperCorner>
+                <gml:lowerCorner>{coordinates.point1_xml_rd}</gml:lowerCorner>
+                <gml:upperCorner>{coordinates.point1_xml_rd}</gml:upperCorner>
               </gml:Envelope>
             </gml:boundedBy>
             <app:id>{restaurant.id}</app:id>
@@ -424,7 +417,7 @@ class TestGetFeature:
             <app:city_id>{restaurant.city_id}</app:city_id>
             <app:location>
               <gml:Point gml:id="restaurant.{restaurant.id}.1" srsName="urn:ogc:def:crs:EPSG::28992">
-                <gml:pos srsDimension="2">{POINT1_XML_RD}</gml:pos>
+                <gml:pos srsDimension="2">{coordinates.point1_xml_rd}</gml:pos>
               </gml:Point>
             </app:location>
             <app:rating>5.0</app:rating>
@@ -711,7 +704,12 @@ class TestGetFeature:
         self._assert_sort(response, expect)
 
     def test_get_geojson(
-        self, client, restaurant, bad_restaurant, django_assert_max_num_queries
+        self,
+        client,
+        restaurant,
+        bad_restaurant,
+        django_assert_max_num_queries,
+        coordinates,
     ):
         """Prove that the geojson export works.
 
@@ -729,7 +727,9 @@ class TestGetFeature:
 
         data = self.read_json(content)
 
-        assert data["features"][0]["geometry"]["coordinates"] == POINT1_GEOJSON
+        assert (
+            data["features"][0]["geometry"]["coordinates"] == coordinates.point1_geojson
+        )
         assert data == {
             "type": "FeatureCollection",
             "links": [],
@@ -745,7 +745,10 @@ class TestGetFeature:
                     "type": "Feature",
                     "id": f"restaurant.{restaurant.id}",
                     "geometry_name": "Café Noir",
-                    "geometry": {"type": "Point", "coordinates": POINT1_GEOJSON},
+                    "geometry": {
+                        "type": "Point",
+                        "coordinates": coordinates.point1_geojson,
+                    },
                     "properties": {
                         "id": restaurant.id,
                         "name": "Café Noir",
@@ -760,7 +763,10 @@ class TestGetFeature:
                     "type": "Feature",
                     "id": f"restaurant.{bad_restaurant.id}",
                     "geometry_name": "Foo Bar",
-                    "geometry": {"type": "Point", "coordinates": POINT2_GEOJSON},
+                    "geometry": {
+                        "type": "Point",
+                        "coordinates": coordinates.point2_geojson,
+                    },
                     "properties": {
                         "id": bad_restaurant.id,
                         "name": "Foo Bar",
@@ -812,7 +818,12 @@ class TestGetFeature:
         ]
 
     def test_get_geojson_complex(
-        self, client, restaurant_m2m, bad_restaurant, django_assert_max_num_queries
+        self,
+        client,
+        restaurant_m2m,
+        bad_restaurant,
+        django_assert_max_num_queries,
+        coordinates,
     ):
         """Prove that the geojson export works for complex field types.
 
@@ -845,7 +856,10 @@ class TestGetFeature:
                     "type": "Feature",
                     "id": f"restaurant.{restaurant_m2m.id}",
                     "geometry_name": "Café Noir",
-                    "geometry": {"type": "Point", "coordinates": POINT1_GEOJSON},
+                    "geometry": {
+                        "type": "Point",
+                        "coordinates": coordinates.point1_geojson,
+                    },
                     "properties": {
                         "id": restaurant_m2m.id,
                         "name": "Café Noir",
@@ -881,7 +895,10 @@ class TestGetFeature:
                     "type": "Feature",
                     "id": f"restaurant.{bad_restaurant.id}",
                     "geometry_name": "Foo Bar",
-                    "geometry": {"type": "Point", "coordinates": POINT2_GEOJSON},
+                    "geometry": {
+                        "type": "Point",
+                        "coordinates": coordinates.point2_geojson,
+                    },
                     "properties": {
                         "id": bad_restaurant.id,
                         "name": "Foo Bar",
@@ -897,7 +914,12 @@ class TestGetFeature:
         }
 
     def test_get_geojson_flattened(
-        self, client, restaurant, bad_restaurant, django_assert_max_num_queries
+        self,
+        client,
+        restaurant,
+        bad_restaurant,
+        django_assert_max_num_queries,
+        coordinates,
     ):
         """Prove that the geojson export works for flattened field types."""
         with django_assert_max_num_queries(2):
@@ -926,7 +948,10 @@ class TestGetFeature:
                     "type": "Feature",
                     "id": f"restaurant.{restaurant.id}",
                     "geometry_name": "Café Noir",
-                    "geometry": {"type": "Point", "coordinates": POINT1_GEOJSON},
+                    "geometry": {
+                        "type": "Point",
+                        "coordinates": coordinates.point1_geojson,
+                    },
                     "properties": {
                         "id": restaurant.id,
                         "name": "Café Noir",
@@ -943,7 +968,10 @@ class TestGetFeature:
                     "type": "Feature",
                     "id": f"restaurant.{bad_restaurant.id}",
                     "geometry_name": "Foo Bar",
-                    "geometry": {"type": "Point", "coordinates": POINT2_GEOJSON},
+                    "geometry": {
+                        "type": "Point",
+                        "coordinates": coordinates.point2_geojson,
+                    },
                     "properties": {
                         "id": bad_restaurant.id,
                         "name": "Foo Bar",
@@ -959,7 +987,12 @@ class TestGetFeature:
         }
 
     def test_get_csv(
-        self, client, restaurant, bad_restaurant, django_assert_max_num_queries
+        self,
+        client,
+        restaurant,
+        bad_restaurant,
+        django_assert_max_num_queries,
+        coordinates,
     ):
         """Prove that the geojson export works.
 
@@ -977,13 +1010,18 @@ class TestGetFeature:
 
         expect = f"""
 "id","name","city_id","location","rating","is_open","created"
-"{restaurant.id}","Café Noir","{restaurant.city_id}","SRID=4326;{POINT1_EWKT}","5.0","True","2020-04-05 12:11:10+00:00"
-"{bad_restaurant.id}","Foo Bar","","SRID=4326;{POINT2_EWKT}","1.0","False","2020-04-05 20:11:10+00:00"
+"{restaurant.id}","Café Noir","{restaurant.city_id}","{coordinates.point1_ewkt}","5.0","True","2020-04-05 12:11:10+00:00"
+"{bad_restaurant.id}","Foo Bar","","{coordinates.point2_ewkt}","1.0","False","2020-04-05 20:11:10+00:00"
 """.lstrip()  # noqa: E501
         assert content == expect
 
     def test_get_csv_complex(
-        self, client, restaurant_m2m, bad_restaurant, django_assert_max_num_queries
+        self,
+        client,
+        restaurant_m2m,
+        bad_restaurant,
+        django_assert_max_num_queries,
+        coordinates,
     ):
         """Prove that the geojson export works, for complex results."""
         with django_assert_max_num_queries(1):
@@ -997,13 +1035,19 @@ class TestGetFeature:
 
         expect = f"""
 "id","name","city.id","city.name","location","rating","is_open","created"
-"{restaurant_m2m.id}","Café Noir","{restaurant_m2m.city_id}","CloudCity","SRID=4326;{POINT1_EWKT}","5.0","True","2020-04-05 12:11:10+00:00"
-"{bad_restaurant.id}","Foo Bar","","","SRID=4326;{POINT2_EWKT}","1.0","False","2020-04-05 20:11:10+00:00"
+"{restaurant_m2m.id}","Café Noir","{restaurant_m2m.city_id}","CloudCity","{coordinates.point1_ewkt}","5.0","True","2020-04-05 12:11:10+00:00"
+"{bad_restaurant.id}","Foo Bar","","","{coordinates.point2_ewkt}","1.0","False","2020-04-05 20:11:10+00:00"
 """.lstrip()  # noqa: E501
         assert content == expect
+        assert "SRID=4326;" in content
 
     def test_get_csv_flattened(
-        self, client, restaurant, bad_restaurant, django_assert_max_num_queries
+        self,
+        client,
+        restaurant,
+        bad_restaurant,
+        django_assert_max_num_queries,
+        coordinates,
     ):
         """Prove that the geojson export works, for flattened results."""
         with django_assert_max_num_queries(1):
@@ -1017,10 +1061,11 @@ class TestGetFeature:
 
         expect = f"""
 "id","name","city-id","city-name","location","rating","is_open","created"
-"{restaurant.id}","Café Noir","{restaurant.city_id}","CloudCity","SRID=4326;{POINT1_EWKT}","5.0","True","2020-04-05 12:11:10+00:00"
-"{bad_restaurant.id}","Foo Bar","","","SRID=4326;{POINT2_EWKT}","1.0","False","2020-04-05 20:11:10+00:00"
+"{restaurant.id}","Café Noir","{restaurant.city_id}","CloudCity","{coordinates.point1_ewkt}","5.0","True","2020-04-05 12:11:10+00:00"
+"{bad_restaurant.id}","Foo Bar","","","{coordinates.point2_ewkt}","1.0","False","2020-04-05 20:11:10+00:00"
 """.lstrip()  # noqa: E501
         assert content == expect
+        assert "SRID=4326;" in content
 
     def test_resource_id(self, client, restaurant, bad_restaurant):
         """Prove that fetching objects by ID works."""
@@ -1134,7 +1179,9 @@ class TestGetFeature:
         ]
         assert names == ["Café Noir", "Foo Bar"]
 
-    def test_get_feature_by_id_stored_query(self, client, restaurant, bad_restaurant):
+    def test_get_feature_by_id_stored_query(
+        self, client, restaurant, bad_restaurant, coordinates
+    ):
         """Prove that fetching objects by ID works."""
         response = client.get(
             "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
@@ -1168,8 +1215,8 @@ class TestGetFeature:
     <gml:name>Café Noir</gml:name>
     <gml:boundedBy>
         <gml:Envelope srsDimension="2" srsName="urn:ogc:def:crs:EPSG::4326">
-            <gml:lowerCorner>{POINT1_XML_WGS84}</gml:lowerCorner>
-            <gml:upperCorner>{POINT1_XML_WGS84}</gml:upperCorner>
+            <gml:lowerCorner>{coordinates.point1_xml_wgs84}</gml:lowerCorner>
+            <gml:upperCorner>{coordinates.point1_xml_wgs84}</gml:upperCorner>
         </gml:Envelope>
     </gml:boundedBy>
     <app:id>{restaurant.id}</app:id>
@@ -1177,7 +1224,7 @@ class TestGetFeature:
     <app:city_id>{restaurant.city_id}</app:city_id>
     <app:location>
         <gml:Point gml:id="restaurant.{restaurant.id}.1" srsName="urn:ogc:def:crs:EPSG::4326">
-            <gml:pos srsDimension="2">{POINT1_XML_WGS84}</gml:pos>
+            <gml:pos srsDimension="2">{coordinates.point1_xml_wgs84}</gml:pos>
         </gml:Point>
     </app:location>
     <app:rating>5.0</app:rating>

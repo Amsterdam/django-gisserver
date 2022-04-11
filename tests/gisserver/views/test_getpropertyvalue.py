@@ -8,7 +8,6 @@ from tests.gisserver.views.input import (
     FILTERS,
     FLATTENED_FILTERS,
     INVALID_FILTERS,
-    POINT1_XML_WGS84,
     SORT_BY,
 )
 from tests.utils import WFS_20_XSD, assert_xml_equal, validate_xsd
@@ -64,7 +63,7 @@ class TestGetPropertyValue:
 </wfs:ValueCollection>""",  # noqa: E501
         )
 
-    def test_get_location(self, client, restaurant):
+    def test_get_location(self, client, restaurant, coordinates):
         """Prove that rendering geometry values also works"""
         response = client.get(
             "/v1/wfs/?SERVICE=WFS&REQUEST=GetPropertyValue&VERSION=2.0.0&TYPENAMES=restaurant"
@@ -93,7 +92,7 @@ class TestGetPropertyValue:
   <wfs:member>
     <app:location>
       <gml:Point gml:id="restaurant.{restaurant.id}.1" srsName="urn:ogc:def:crs:EPSG::4326">
-        <gml:pos srsDimension="2">{POINT1_XML_WGS84}</gml:pos>
+        <gml:pos srsDimension="2">{coordinates.point1_xml_wgs84}</gml:pos>
       </gml:Point>
     </app:location>
   </wfs:member>

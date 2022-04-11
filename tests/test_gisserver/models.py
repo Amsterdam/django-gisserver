@@ -28,7 +28,7 @@ class OpeningHour(models.Model):
 class Restaurant(models.Model):
     name = models.CharField(max_length=200)
     city = models.ForeignKey(City, on_delete=models.SET_NULL, null=True)
-    location = PointField(null=True)
+    location = PointField(null=True)  # no srid, stored as WGS84
     rating = models.FloatField(default=0)
     is_open = models.BooleanField(default=False)
     created = models.DateTimeField(default=current_datetime)
