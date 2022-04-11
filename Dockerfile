@@ -1,29 +1,30 @@
 # This is a dockerfile to run the unit tests against the Travis Ubuntu version,
 # to allow debugging proj/gdal differences between your local machine and Travis.
-FROM ubuntu:bionic
-ARG POSTGRES_VERSION=10
-ARG POSTGIS_VERSION=2.5
+FROM ubuntu:focal
+ARG POSTGRES_VERSION=13
+ARG POSTGIS_VERSION=3
 ARG DEBIAN_FRONTEND=noninteractive
 ARG PG_CTL=/usr/lib/postgresql/${POSTGRES_VERSION}/bin/pg_ctl
 
 # Allow pg_ctl to work without -D
 ENV PGDATA=/var/lib/postgresql/${POSTGRES_VERSION}/main/
 
-# Install dependencies (python + postgis)
-# Purposefully not using docker links, so simulate Travis exactly.
-# The software-properties-common + ppa install are needed for bionic,
-# newer ubuntu versions have recent postgis/gdal versions backed in.
+# Install PostgreSQL apt repository
 RUN apt-get update \
- && apt-get install -y --no-install-recommends software-properties-common \
- && apt-add-repository 'ppa:ubuntugis/ppa' \
+ && apt-get install -y --no-install-recommends curl ca-certificates gnupg \
+ && curl https://www.postgresql.org/media/keys/ACCC4CF8.asc | gpg --dearmor > /etc/apt/trusted.gpg.d/apt.postgresql.org.gpg \
+ && echo "deb http://apt.postgresql.org/pub/repos/apt focal-pgdg main" > /etc/apt/sources.list.d/pgdg.list
+
+# No longer using ppa:ubuntugis repo, everything is part of ubuntu:focal
+# python3-dev is needed for lru_dict
+RUN apt-get update \
  && apt-get install -y --no-install-recommends \
        python3 \
        python3-pip \
        python3-setuptools \
        python3-wheel \
+       python3-dev gcc \
        make \
-       libgdal20 \
-       libproj13 \
        postgresql-${POSTGRES_VERSION}-postgis-${POSTGIS_VERSION} \
        postgresql-${POSTGRES_VERSION}-postgis-${POSTGIS_VERSION}-scripts \
  && echo "PostGIS is linked to:" \
