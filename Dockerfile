@@ -32,7 +32,7 @@ RUN apt-get update \
 # Install dependencies first (so layer is cached for fast rebuilds)
 # Need to create some stubs for setup.py to run.
 WORKDIR /host/
-COPY setup.py ./
+COPY setup.py setup.cfg ./
 RUN mkdir gisserver \
  && touch README.md \
  && echo '__version__ = "0.1.dev0"' > gisserver/__init__.py \
