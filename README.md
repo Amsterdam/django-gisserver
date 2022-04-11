@@ -1,5 +1,5 @@
 [![Documentation](https://readthedocs.org/projects/django-gisserver/badge/?version=latest)](https://django-gisserver.readthedocs.io/en/latest/?badge=latest)
-[![Travis](https://img.shields.io/travis/amsterdam/django-gisserver.svg)](http://travis-ci.org/amsterdam/django-gisserver)
+[![Actions](https://github.com/django-fluent/django-fluent-contents/actions/workflows/tests.yaml/badge.svg?branch=master)](https://github.com/Amsterdam/django-gisserver/actions/workflows/tests.yaml)
 [![PyPI](https://img.shields.io/pypi/v/django-gisserver.svg)](https://pypi.python.org/pypi/django-gisserver)
 [![MPL License](https://img.shields.io/badge/license-MPL%202.0-blue.svg)](https://pypi.python.org/pypi/django-gisserver)
 [![Coverage](https://img.shields.io/codecov/c/github/amsterdam/django-gisserver/master.svg)](https://codecov.io/github/amsterdam/django-gisserver?branch=master)

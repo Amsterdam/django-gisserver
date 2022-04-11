@@ -37,13 +37,14 @@ COPY setup.py setup.cfg ./
 RUN mkdir gisserver \
  && touch README.md \
  && echo '__version__ = "0.1.dev0"' > gisserver/__init__.py \
- && pip3 wheel --no-cache-dir --wheel-dir=/wheelhouse/ .[test] \
+ && sed -i -e 's/ >= / == /' ./setup.py \
+ && pip3 wheel --no-cache-dir --wheel-dir=/wheelhouse/ .[tests] \
  && rm -vf /wheelhouse/django_gisserver* \
  && pip3 install --no-cache-dir /wheelhouse/*
 
 # Install app
 COPY . /host/
-RUN pip3 install --find-links=/wheelhouse/ -e .[test]
+RUN pip3 install --find-links=/wheelhouse/ -e .[tests]
 ENV LANG=C.UTF-8 DATABASE_URL=postgresql://postgres@localhost/django-gisserver
 
 # Make sure Postgres starts on startup

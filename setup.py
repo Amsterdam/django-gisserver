@@ -42,7 +42,7 @@ setup(
     ],
     tests_require=tests_require,
     extras_require={
-        "test": tests_require,
+        "tests": tests_require,
     },
     requires=["Django (>=2.0)"],
     description="Django speaking WFS 2.0 (exposing GeoDjango model fields)",

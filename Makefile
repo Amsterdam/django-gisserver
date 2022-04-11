@@ -6,7 +6,7 @@ help:
 	@fgrep -h "##" $(MAKEFILE_LIST) | fgrep -v fgrep | sed -e 's/##//'
 
 install:       ## Install the package into the current virtualenv
-	pip install -e .[test]
+	pip install -e .[tests]
 	pip install pre-commit
 	pre-commit install
 

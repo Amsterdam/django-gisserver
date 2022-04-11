@@ -1,0 +1,88 @@
+name: CI Testing
+on:
+  pull_request:
+    branches:
+      - master
+  push:
+    branches:
+      - master
+
+jobs:
+  run_tests:
+    name: "Django ${{ matrix.django }} on Python ${{ matrix.python }}"
+    runs-on: ubuntu-20.04  # focal
+
+    services:
+      postgres:
+        image: postgis/postgis:13-3.2
+        env:
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: test_gisserver
+        ports:
+          - 5432:5432
+        # needed because the postgres container does not provide a healthcheck
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+
+    strategy:
+      # max-parallel: 8  # default is max available
+      fail-fast: false
+      matrix:
+        include:
+          # Django 2.2
+          - django: "2.2"
+            python: "3.7"
+          - django: "2.2"
+            python: "3.8"
+          - django: "2.2"
+            python: "3.9"
+          # Django 3.1
+          - django: "3.1"
+            python: "3.7"
+          - django: "3.1"
+            python: "3.8"
+          - django: "3.1"
+            python: "3.9"
+          # Django 3.2
+          - django: "3.2"
+            python: "3.7"
+          - django: "3.2"
+            python: "3.8"
+          - django: "3.2"
+            python: "3.9"
+          # Django 4.0
+          - django: "4.0"
+            python: "3.9"
+
+    steps:
+      - name: Install GeoDjango dependencies
+        run: sudo apt-get install -y gettext libgdal26 libgeos-c1v5
+
+      - name: Install Python ${{ matrix.python }}
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Install Python Packages
+        run: |
+          python -m pip install -U pip
+          python -m pip install "Django~=${{ matrix.django }}" codecov -e .[tests]
+
+      - name: Cache schemas.opengis.net
+        uses: actions/cache@v3
+        with:
+          key: "schemas.opengis.net"
+          path: "tests/files/xsd/"
+
+      - name: Run Tests
+        run: |
+          echo "Python ${{ matrix.python }} / Django ${{ matrix.django }}"
+          PYTHONPATH=. GISSERVER_USE_DB_RENDERING=1 coverage run --rcfile=.coveragerc -m pytest
+          PYTHONPATH=. GISSERVER_USE_DB_RENDERING=0 coverage run --rcfile=.coveragerc --append -m pytest
+          codecov
+        env:
+          PGUSER: postgres
+          PGPASSWORD: password
+        continue-on-error: ${{ contains(matrix.django, 'b') }}
