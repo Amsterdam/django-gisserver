@@ -1,4 +1,5 @@
 """Additional tests for FES 1.0 Arithmetic operators."""
+import pytest
 from django.db import models
 from django.db.models import Value, Q
 
@@ -81,7 +82,8 @@ def test_fes10_add_sub():
     ), repr(query)
 
 
-def test_fes10_no_namespace():
+@pytest.mark.parametrize("leading_whitespace", [1, 0])
+def test_fes10_no_namespace(leading_whitespace):
     """Test that omitting a namespace still parses the object."""
     xml_text = """
         <Filter>
@@ -90,7 +92,10 @@ def test_fes10_no_namespace():
                 <Literal>100</Literal>
             </PropertyIsEqualTo>
         </Filter>
-    """.strip()
+    """
+
+    if leading_whitespace:
+        xml_text = xml_text.strip()
 
     expected = Filter(
         predicate=BinaryComparisonOperator(

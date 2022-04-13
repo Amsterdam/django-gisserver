@@ -39,7 +39,7 @@ class Filter:
         """
         if isinstance(text, str):
             end_first = text.index(">")
-            first_tag = text[:end_first]
+            first_tag = text[:end_first].lstrip()
             if "xmlns" not in first_tag:
                 # Allow KVP requests without a namespace
                 # Both geoserver and mapserver support this.
