@@ -110,7 +110,11 @@ class SpatialOperatorName(TagNameEnum):
 
 
 class TemporalOperatorName(TagNameEnum):
-    """XML tag names for datetime operators."""
+    """XML tag names for datetime operators.
+
+    Explanation here: http://old.geotools.org/Temporal-Filters_211091519.html
+    and: https://github.com/geotools/geotools/wiki/temporal-filters
+    """
 
     After = "after"
     Before = "before"
