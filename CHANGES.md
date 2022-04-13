@@ -1,3 +1,10 @@
+# 2022-04-13 (1.2.1)
+
+* Fixed regression for auto-correcting xmlns for `<Filter>` tags that have leading whitespace.
+* Fixed weird crashes when geometry field is not provided. 
+* Simplify `FeatureType.geometry_field` logic.
+
+
 # 2022-04-11 (1.2)
 
 * Added support for `maxOccurs=unbounded` elements (M2M, reverse foreign key, array fields).
