@@ -403,7 +403,7 @@ class BinarySpatialOperator(SpatialOperator):
     def build_query(self, compiler: CompiledQuery) -> Q:
         operant1 = self.operand1
         if operant1 is None:
-            operant1 = ValueReference(xpath=compiler.feature_type.geometry_field_name)
+            operant1 = ValueReference(xpath=compiler.feature_type.geometry_field.name)
 
         return self.build_compare(
             compiler,

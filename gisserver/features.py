@@ -604,7 +604,15 @@ class FeatureType:
         """Define which fields to render."""
         # This lazy reading allows providing 'fields' as lazy value.
         if self._fields is None:
-            return [FeatureField(self.geometry_field_name, model=self.model)]
+            # Autoconfig, no fields defined.
+            if not self._geometry_field_name:
+                self._geometry_field_name = next(
+                    f.name
+                    for f in self.model._meta.get_fields()
+                    if isinstance(f, gis_models.GeometryField)
+                )
+
+            return [FeatureField(self._geometry_field_name, model=self.model)]
         else:
             return _get_model_fields(self.model, self._fields)
 
@@ -621,32 +629,38 @@ class FeatureType:
         """Give access to the Django field that holds the geometry."""
         if not self.geometry_fields:
             raise ImproperlyConfigured(
-                f"Django model {self.model.__name__} does not have to a geometry field."
+                f"FeatureType '{self.name}' does not expose a geometry field."
             ) from None
 
-        if self.geometry_field_name:
-            return self.model._meta.get_field(self.geometry_field_name)
+        if self._geometry_field_name:
+            # Explicitly mentioned, use that field.
+            # Check whether the server is not accidentally exposing another field
+            # that is not part of the type definition.
+            field = next(
+                (
+                    field
+                    for field in self.geometry_fields
+                    if field.name == self._geometry_field_name
+                ),
+                None,
+            )
+            if field is None:
+                raise ImproperlyConfigured(
+                    f"FeatureType '{self.name}' does not expose the geometry field "
+                    f"'{self._geometry_field_name}' as part of its definition."
+                )
+
+            return field
         else:
+            # Default: take the first geometry
             return self.geometry_fields[0]
 
     @cached_property
     def geometry_field_name(self) -> str:
-        if self._geometry_field_name:
-            return self._geometry_field_name
-        elif self._fields is None:
-            # No fields defined. The feature only consists of a geometry field.
-            # Take the first geometry field from the model.
-            return next(
-                f.name
-                for f in self.model._meta.get_fields()
-                if isinstance(f, gis_models.GeometryField)
-            )
-        else:
-            if not self.geometry_fields:
-                raise ImproperlyConfigured(
-                    f"Django model {self.model.__name__} does not have to a geometry field."
-                ) from None
-            return self.geometry_fields[0].name
+        """Tell which field is the geometry field."""
+        # Due to internal reorganization this property is no longer needed,
+        # retained for backward compatibility and to reflect any used input parameters.
+        return self.geometry_field.name
 
     @cached_property
     def crs(self) -> CRS:

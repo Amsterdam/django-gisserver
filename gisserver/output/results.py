@@ -178,7 +178,7 @@ class SimpleFeatureCollection:
         # which corrects at the first extend_to_geometry call.
         bbox = BoundingBox(math.inf, math.inf, -math.inf, -math.inf)
         geometry_field = self.feature_type.resolve_element(
-            self.feature_type.geometry_field_name
+            self.feature_type.geometry_field.name
         ).child
         for instance in self:
             geomery_value = geometry_field.get_value(instance)

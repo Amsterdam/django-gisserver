@@ -158,7 +158,7 @@ class GeoJsonRenderer(OutputRenderer):
         """Generate the proper GeoJSON notation for a geometry.
         This calls the GDAL C-API rendering found in 'GEOSGeometry.json'
         """
-        geometry = getattr(instance, feature_type.geometry_field_name)
+        geometry = getattr(instance, feature_type.geometry_field.name)
         if geometry is None:
             return b"null"
 
@@ -279,8 +279,8 @@ class DBGeoJsonRenderer(GeoJsonRenderer):
         )
         # If desired, the entire FeatureCollection could be rendered
         # in PostgreSQL as well: https://postgis.net/docs/ST_AsGeoJSON.html
-        match = feature_type.resolve_element(feature_type.geometry_field_name)
-        return queryset.defer(feature_type.geometry_field_name).annotate(
+        match = feature_type.resolve_element(feature_type.geometry_field.name)
+        return queryset.defer(feature_type.geometry_field.name).annotate(
             _as_db_geojson=AsGeoJSON(
                 get_db_geometry_target(match, output_crs),
                 precision=conf.GISSERVER_DB_PRECISION,

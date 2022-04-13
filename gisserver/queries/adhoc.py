@@ -172,7 +172,7 @@ class AdhocQuery(QueryExpression):
             # that only partially exist within the bbox
             lookup = operators.SpatialOperatorName.BBOX.value  # "intersects"
             filters = {
-                f"{feature_type.geometry_field_name}__{lookup}": self.bbox.as_polygon(),
+                f"{feature_type.geometry_field.name}__{lookup}": self.bbox.as_polygon(),
             }
             compiler.add_lookups(Q(**filters))
 
