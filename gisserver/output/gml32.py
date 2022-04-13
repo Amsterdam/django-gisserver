@@ -456,15 +456,17 @@ class DBGML32Renderer(GML32Renderer):
         )
 
         # Retrieve geometries as pre-rendered instead.
-        geometries = get_db_geometry_selects(
-            feature_type.xsd_type.geometry_elements, output_crs
-        )
-        return queryset.defer(*geometries.keys()).annotate(
-            _as_envelope_gml=cls.get_db_envelope_as_gml(
-                feature_type, queryset, output_crs
-            ),
-            **build_db_annotations(geometries, "_as_gml_{name}", AsGML),
-        )
+        gml_elements = feature_type.xsd_type.geometry_elements
+        geo_selects = get_db_geometry_selects(gml_elements, output_crs)
+        if geo_selects:
+            queryset = queryset.defer(*geo_selects.keys()).annotate(
+                _as_envelope_gml=cls.get_db_envelope_as_gml(
+                    feature_type, queryset, output_crs
+                ),
+                **build_db_annotations(geo_selects, "_as_gml_{name}", AsGML),
+            )
+
+        return queryset
 
     @classmethod
     def get_prefetch_queryset(

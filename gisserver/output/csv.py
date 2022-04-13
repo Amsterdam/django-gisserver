@@ -164,12 +164,12 @@ class DBCSVRenderer(CSVRenderer):
 
         # Instead of reading the binary geometry data,
         # ask the database to generate EWKT data directly.
-        geometries = get_db_geometry_selects(
+        geo_selects = get_db_geometry_selects(
             feature_type.xsd_type.geometry_elements, output_crs
         )
-        if geometries:
-            queryset = queryset.defer(*geometries.keys()).annotate(
-                **build_db_annotations(geometries, "_as_ewkt_{name}", AsEWKT)
+        if geo_selects:
+            queryset = queryset.defer(*geo_selects.keys()).annotate(
+                **build_db_annotations(geo_selects, "_as_ewkt_{name}", AsEWKT)
             )
 
         return queryset

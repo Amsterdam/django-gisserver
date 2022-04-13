@@ -279,16 +279,22 @@ class DBGeoJsonRenderer(GeoJsonRenderer):
         )
         # If desired, the entire FeatureCollection could be rendered
         # in PostgreSQL as well: https://postgis.net/docs/ST_AsGeoJSON.html
-        match = feature_type.resolve_element(feature_type.geometry_field.name)
-        return queryset.defer(feature_type.geometry_field.name).annotate(
-            _as_db_geojson=AsGeoJSON(
-                get_db_geometry_target(match, output_crs),
-                precision=conf.GISSERVER_DB_PRECISION,
+        if feature_type.geometry_fields:
+            match = feature_type.resolve_element(feature_type.geometry_field.name)
+            queryset = queryset.defer(feature_type.geometry_field.name).annotate(
+                _as_db_geojson=AsGeoJSON(
+                    get_db_geometry_target(match, output_crs),
+                    precision=conf.GISSERVER_DB_PRECISION,
+                )
             )
-        )
+
+        return queryset
 
     def render_geometry(self, feature_type, instance: models.Model) -> bytes:
         """Generate the proper GeoJSON notation for a geometry"""
         # Database server rendering
+        if not feature_type.geometry_fields:
+            return b"null"
+
         geojson = instance._as_db_geojson
         return b"null" if geojson is None else geojson.encode()

@@ -704,6 +704,9 @@ class FeatureType:
         when the database table is empty, or the custom queryset doesn't
         return any results.
         """
+        if not self.geometry_fields:
+            return None
+
         geo_expression = conditional_transform(
             self.geometry_field.name, self.geometry_field.srid, WGS84.srid
         )
@@ -752,8 +755,12 @@ class FeatureType:
         """
         pk_field = self.model._meta.pk
 
-        # Define <gml:boundedBy>
-        base_elements = [GmlBoundedByElement(feature_type=self)]
+        # Define <gml:boundedBy>, if the feature has a geometry
+        base_elements = []
+        if self.geometry_fields:
+            # Without a geometry, boundaries are not possible.
+            base_elements.append(GmlBoundedByElement(feature_type=self))
+
         if self.show_name_field:
             # Add <gml:name>
             gml_name = GmlNameElement(
