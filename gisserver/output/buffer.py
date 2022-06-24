@@ -17,18 +17,16 @@ class BaseBuffer(Generic[V]):
 
     buffer_class = None
 
-    def __init__(self, chunk_size=4096):
+    def __init__(self, chunk_size=8192):
         self.data = self.buffer_class()
-        self.size = 0
         self.chunk_size = chunk_size
 
     def is_full(self):
-        return self.size >= self.chunk_size
+        return self.data.tell() >= self.chunk_size
 
     def write(self, value: V):
         if value is None:
             return
-        self.size += len(value)
         self.data.write(value)
 
     def flush(self) -> V:
@@ -43,7 +41,6 @@ class BaseBuffer(Generic[V]):
     def clear(self):
         self.data.seek(0)
         self.data.truncate(0)
-        self.size = 0
 
 
 class BytesBuffer(BaseBuffer[bytes]):
