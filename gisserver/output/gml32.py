@@ -179,9 +179,7 @@ class GML32Renderer(OutputRenderer):
                         yield output.flush()
 
                 if has_multiple_collections:
-                    output.write(
-                        f"</wfs:{self.xml_collection_tag}>\n</wfs:member>\n"
-                    )
+                    output.write(f"</wfs:{self.xml_collection_tag}>\n</wfs:member>\n")
 
         output.write(f"</wfs:{self.xml_collection_tag}>\n")
         yield output.flush()
