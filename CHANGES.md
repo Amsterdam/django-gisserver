@@ -1,3 +1,9 @@
+# 2022-07-28 (1.2.2)
+
+* Optimized response writing, buffering provement gave ~12-15% speedup.
+* Optimized GML response, reduced response size by ~9% by removing whitespace.
+
+
 # 2022-04-13 (1.2.1)
 
 * Fixed regression for auto-correcting xmlns for `<Filter>` tags that have leading whitespace.
