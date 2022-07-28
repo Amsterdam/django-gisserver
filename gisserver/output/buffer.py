@@ -22,6 +22,8 @@ class BaseBuffer(Generic[V]):
         self.chunk_size = chunk_size
 
     def is_full(self):
+        # Calling data.seek() is faster than doing self.size += len(value)
+        # because each integer increment is a new object allocation.
         return self.data.tell() >= self.chunk_size
 
     def write(self, value: V):
