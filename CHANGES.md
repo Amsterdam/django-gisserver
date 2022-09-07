@@ -1,3 +1,8 @@
+# 2022-09-07 (1.2.3)
+
+* Added "geojson" as output format alias in `GetCapabilities` for ESRI ArcGIS online.
+
+
 # 2022-07-28 (1.2.2)
 
 * Optimized response writing, buffering provement gave ~12-15% speedup.

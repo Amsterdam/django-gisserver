@@ -24,11 +24,11 @@ django.setup()
 # -- Project information -----------------------------------------------------
 
 project = "django-gisserver"
-copyright = "2020, City of Amsterdam"
+copyright = "2020-2022, City of Amsterdam"
 author = "Datapunt > OIS > City of Amsterdam"
 
 # The full version, including alpha/beta/rc tags
-release = "1.2.2"
+release = "1.2.3"
 
 
 # -- General configuration ---------------------------------------------------
