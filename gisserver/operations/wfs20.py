@@ -439,6 +439,9 @@ class GetFeature(BaseWFSGetDataMethod):
             renderer_class=output.csv_renderer,
             title="CSV",
         ),
+        # Output format that is redundant, however it is required
+        # to make ESRI ArcGIS online accept the WFS.
+        OutputFormat("GEOJSON", renderer_class=output.geojson_renderer),
         # OutputFormat("shapezip"),
         # OutputFormat("application/zip"),
     ]
