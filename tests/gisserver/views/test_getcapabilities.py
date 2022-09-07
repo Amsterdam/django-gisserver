@@ -64,6 +64,7 @@ class TestGetCapabilities:
           <Format>application/gml+xml; version=3.2</Format>
           <Format>text/xml; subtype=gml/3.2.1</Format>
           <Format>application/json; subtype=geojson; charset=utf-8</Format>
+          <Format>geojson</Format>
           <Format>text/csv; subtype=csv; charset=utf-8</Format>
         </OutputFormats>
         <ows:WGS84BoundingBox dimensions="2">
@@ -85,6 +86,7 @@ class TestGetCapabilities:
           <Format>application/gml+xml; version=3.2</Format>
           <Format>text/xml; subtype=gml/3.2.1</Format>
           <Format>application/json; subtype=geojson; charset=utf-8</Format>
+          <Format>geojson</Format>
           <Format>text/csv; subtype=csv; charset=utf-8</Format>
         </OutputFormats>
         <ows:WGS84BoundingBox dimensions="2">
@@ -101,6 +103,7 @@ class TestGetCapabilities:
           <Format>application/gml+xml; version=3.2</Format>
           <Format>text/xml; subtype=gml/3.2.1</Format>
           <Format>application/json; subtype=geojson; charset=utf-8</Format>
+          <Format>geojson</Format>
           <Format>text/csv; subtype=csv; charset=utf-8</Format>
         </OutputFormats>
       </FeatureType>

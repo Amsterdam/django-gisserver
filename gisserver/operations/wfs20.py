@@ -43,7 +43,7 @@ RE_SAFE_FILENAME = re.compile(r"\A[A-Za-z0-9]+[A-Za-z0-9.]*")  # no dot at the s
 
 
 class GetCapabilities(WFSMethod):
-    """"This operation returns map features, and available operations this WFS server supports."""
+    """ "This operation returns map features, and available operations this WFS server supports."""
 
     output_formats = [OutputFormat("text/xml")]
     xml_template_name = "get_capabilities.xml"
@@ -426,11 +426,18 @@ class GetFeature(BaseWFSGetDataMethod):
         ),
         # OutputFormat("gml"),
         OutputFormat(
+            # identical to mapserver:
             "application/json",
             subtype="geojson",
             charset="utf-8",
             renderer_class=output.geojson_renderer,
             title="GeoJSON",
+        ),
+        OutputFormat(
+            # Alias needed to make ESRI ArcGIS online accept the WFS.
+            # It does not recognize the "subtype" as an alias.
+            "geojson",
+            renderer_class=output.geojson_renderer,
         ),
         OutputFormat(
             "text/csv",
