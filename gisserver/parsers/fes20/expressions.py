@@ -2,18 +2,19 @@
 The class names are identical to those in the FES spec.
 """
 from __future__ import annotations
+
 import operator
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal as D
-from django.db import models
-from django.utils.functional import cached_property
 from typing import Union
 from xml.etree.ElementTree import Element
 
 from django.contrib.gis.geos import GEOSGeometry
+from django.db import models
 from django.db.models import Func, Q, Value
 from django.db.models.expressions import Combinable
+from django.utils.functional import cached_property
 
 from gisserver.exceptions import ExternalParsingError
 from gisserver.parsers.base import BaseNode, TagNameEnum, tag_registry
@@ -27,7 +28,7 @@ from gisserver.parsers.gml import (
 )
 from gisserver.parsers.tags import expect_tag, get_attribute
 from gisserver.parsers.values import auto_cast
-from gisserver.types import ORMPath, FES20, XsdTypes, split_xml_name
+from gisserver.types import FES20, ORMPath, XsdTypes, split_xml_name
 
 NoneType = type(None)
 RhsTypes = Union[

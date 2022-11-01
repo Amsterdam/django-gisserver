@@ -4,18 +4,20 @@ The "SimpleFeatureCollection" and "FeatureCollection" and their
 properties match the WFS 2.0 spec closely.
 """
 from __future__ import annotations
-import django
+
 import math
 import operator
 from functools import reduce
 from typing import Iterable
 
+import django
 from django.db import models
 from django.utils.functional import cached_property
 from django.utils.timezone import now, utc
 
 from gisserver.features import FeatureType
 from gisserver.geometries import BoundingBox
+
 from .utils import ChunkedQuerySetIterator, CountingIterator
 
 

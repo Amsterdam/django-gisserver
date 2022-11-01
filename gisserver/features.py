@@ -32,17 +32,17 @@ from django.utils.functional import cached_property  # py3.8: functools
 
 from gisserver.db import conditional_transform
 from gisserver.exceptions import ExternalValueError
+from gisserver.geometries import CRS, WGS84, BoundingBox
 from gisserver.types import (
     GmlBoundedByElement,
+    GmlIdAttribute,
     GmlNameElement,
     XPathMatch,
     XsdAnyType,
     XsdComplexType,
     XsdElement,
     XsdTypes,
-    GmlIdAttribute,
 )
-from gisserver.geometries import BoundingBox, CRS, WGS84
 
 if "django.contrib.postgres" in settings.INSTALLED_APPS:
     from django.contrib.postgres.fields import ArrayField

@@ -1,5 +1,6 @@
 import pytest
 from lxml import etree
+
 from tests.constants import NAMESPACES, OWS_NS, WFS_NS, XLINK_NS
 from tests.utils import WFS_20_XSD, assert_xml_equal, validate_xsd
 

@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from typing import AnyStr, Union
 from xml.etree.ElementTree import Element, QName
 
@@ -8,6 +9,7 @@ from gisserver.exceptions import ExternalParsingError
 from gisserver.parsers.base import tag_registry
 from gisserver.parsers.tags import expect_tag
 from gisserver.types import FES20, GML32
+
 from . import expressions, identifiers, operators, query
 
 FilterPredicates = Union[expressions.Function, operators.Operator]

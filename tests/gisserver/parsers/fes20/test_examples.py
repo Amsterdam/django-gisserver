@@ -9,7 +9,6 @@ HTML Version: https://docs.opengeospatial.org/is/09-026r2/09-026r2.html
 This test style is inspired by pyfes (which is also Apache licensed)
 """
 from datetime import datetime
-
 from decimal import Decimal as D
 
 import pytest
@@ -18,13 +17,14 @@ from django.contrib.gis.geos import GEOSGeometry
 from django.db.models import F, Q
 from django.db.models.functions import Sin
 
+from gisserver.geometries import WGS84
 from gisserver.parsers.fes20 import Filter
 from gisserver.parsers.fes20.expressions import Function, Literal, ValueReference
 from gisserver.parsers.fes20.functions import function_registry
 from gisserver.parsers.fes20.identifiers import ResourceId
+
+# Direct imports, so copy-paste from assertion errors works:
 from gisserver.parsers.fes20.operators import (
-    # Importing all these elements directly,
-    # so copy-paste from assertion errors works.
     BetweenComparisonOperator,
     BinaryComparisonName,
     BinaryComparisonOperator,
@@ -44,7 +44,6 @@ from gisserver.parsers.fes20.operators import (
 from gisserver.parsers.fes20.query import CompiledQuery
 from gisserver.parsers.gml import geometries
 from gisserver.parsers.gml.geometries import GEOSGMLGeometry
-from gisserver.geometries import WGS84
 from gisserver.types import XsdTypes
 
 

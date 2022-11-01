@@ -4,14 +4,14 @@ This includes the CRS parsing, coordinate transforms and bounding box object.
 The bounding box can be calculated within Python, or read from a database result.
 """
 from __future__ import annotations
-import re
-from decimal import Decimal
-from dataclasses import dataclass, field
 
-from django.contrib.gis.geos import GEOSGeometry, Polygon
+import re
+from dataclasses import dataclass, field
+from decimal import Decimal
+from functools import lru_cache
 
 from django.contrib.gis.gdal import CoordTransform, SpatialReference
-from functools import lru_cache
+from django.contrib.gis.geos import GEOSGeometry, Polygon
 
 from gisserver.exceptions import ExternalParsingError, ExternalValueError
 
@@ -238,7 +238,7 @@ class CRS:
 
     @property
     def urn(self):
-        """Return The OGC URN corresponding to this CRS. """
+        """Return The OGC URN corresponding to this CRS."""
         return f"urn:{self.domain}:def:crs:{self.authority}:{self.version or ''}:{self.crsid}"
 
     def __str__(self):

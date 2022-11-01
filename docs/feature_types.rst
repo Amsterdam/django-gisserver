@@ -106,7 +106,7 @@ Exposing Flattened Relations
 
 Since various clients (like QGis) don't support complex types well,
 relations can also be flattened by defining dotted-names.
-This can be combined with `model_attribute` which allows to access a different field:
+This can be combined with ``model_attribute`` which allows to access a different field:
 
 .. code-block:: python
 

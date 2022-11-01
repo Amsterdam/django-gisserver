@@ -1,5 +1,6 @@
 """Output rendering logic for GeoJSON."""
 from __future__ import annotations
+
 import csv
 from datetime import datetime
 
@@ -17,6 +18,7 @@ from gisserver.db import (
 from gisserver.features import FeatureType
 from gisserver.geometries import CRS
 from gisserver.types import XsdComplexType, XsdElement
+
 from .base import OutputRenderer
 from .buffer import StringBuffer
 

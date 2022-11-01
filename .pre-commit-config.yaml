@@ -3,23 +3,31 @@
 # Running "make format" fixes most issues for you
 repos:
   - repo: https://github.com/ambv/black
-    rev: 20.8b1
+    rev: 22.10.0
     hooks:
       - id: black
-        #language_version: python3.6
+        #language_version: python3.7
+  - repo: https://github.com/pre-commit/mirrors-isort
+    rev: v5.10.1
+    hooks:
+      - id: isort
   - repo: https://github.com/PyCQA/flake8
-    rev: 3.9.0
+    rev: 5.0.4
     hooks:
       - id: flake8
         exclude: migrations/
         additional_dependencies:
-          - flake8-bugbear == 21.4.3
-          - flake8-debugger == 4.0.0
-          - flake8-colors == 0.1.9
-          - flake8-raise == 0.0.5
-
-#  - repo: https://github.com/prettier/prettier
-#    rev: "1.19.1"
-#    hooks:
-#      - id: prettier
-#        files: '\.(js|ts|jsx|tsx|scss|css|yml|yaml|json)$'
+          - flake8-bugbear >= 22.10.27  # finds various bugs, including blind excepts
+          - flake8-colors >= 0.1.9  # looks nice
+          - flake8-debugger >= 4.1.2  # finds pdb code
+          - flake8-implicit-str-concat >= 0.3.0  # finds "str" "str" at a single line
+          - flake8-raise >= 0.0.5  # detect need to use "raise from"
+  -   repo: https://github.com/pre-commit/pygrep-hooks
+      rev: v1.9.0  # Use the ref you want to point at
+      hooks:
+        - id: python-check-blanket-noqa  # Enforce that noqa annotations always occur with specific codes
+        - id: python-no-eval  # A quick check for the eval() built-in function
+        - id: python-no-log-warn  # A quick check for the deprecated .warn() method of python loggers
+        - id: rst-backticks  # Detect common mistake of using single backticks when writing rst
+        - id: rst-directive-colons  # Detect mistake of rst directive not ending with double colon
+        - id: rst-inline-touching-normal  # Detect mistake of inline code touching normal text in rst

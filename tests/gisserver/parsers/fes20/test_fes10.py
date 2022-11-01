@@ -1,7 +1,7 @@
 """Additional tests for FES 1.0 Arithmetic operators."""
 import pytest
 from django.db import models
-from django.db.models import Value, Q
+from django.db.models import Q, Value
 
 from gisserver.parsers.fes20 import Filter
 from gisserver.parsers.fes20.expressions import (
@@ -10,9 +10,9 @@ from gisserver.parsers.fes20.expressions import (
     Literal,
     ValueReference,
 )
+
+# Importing all these elements directly, so copy-paste from assertion errors works:
 from gisserver.parsers.fes20.operators import (
-    # Importing all these elements directly,
-    # so copy-paste from assertion errors works.
     BinaryComparisonName,
     BinaryComparisonOperator,
     MatchAction,

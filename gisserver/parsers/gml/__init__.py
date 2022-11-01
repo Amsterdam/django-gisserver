@@ -3,9 +3,11 @@
 These functions locate GML objects, and redirect to the proper parser.
 """
 from __future__ import annotations
+
 from xml.etree.ElementTree import Element
 
 from defusedxml.ElementTree import fromstring
+
 from gisserver.exceptions import ExternalParsingError
 from gisserver.parsers.base import tag_registry
 

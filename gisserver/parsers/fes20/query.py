@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import operator
 from functools import reduce
 
@@ -10,6 +11,7 @@ from django.db.models import Q, QuerySet, lookups
 from django.db.models.expressions import Combinable
 
 from gisserver.features import FeatureType
+
 from . import expressions, sorting
 
 

@@ -1,7 +1,10 @@
 from __future__ import annotations
+
 from enum import Enum
 from xml.etree.ElementTree import Element, QName
+
 from gisserver.exceptions import ExternalParsingError
+
 from .tags import split_ns
 
 

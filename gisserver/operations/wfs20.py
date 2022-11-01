@@ -7,13 +7,13 @@ Useful docs:
 * https://mapserver.org/development/rfc/ms-rfc-105.html
 * https://enonline.supermap.com/iExpress9D/API/WFS/WFS200/WFS_2.0.0_introduction.htm
 """
-import math
-
 import logging
+import math
 import re
+from urllib.parse import urlencode
+
 from django.core.exceptions import FieldError, ValidationError
 from django.db import InternalError, ProgrammingError
-from urllib.parse import urlencode
 
 from gisserver import conf, output, queries
 from gisserver.exceptions import (
@@ -24,16 +24,16 @@ from gisserver.exceptions import (
     OperationParsingFailed,
     VersionNegotiationFailed,
 )
-from gisserver.geometries import BoundingBox, CRS
+from gisserver.geometries import CRS, BoundingBox
 from gisserver.parsers import fes20
 from gisserver.queries import stored_query_registry
 
 from .base import (
     OutputFormat,
     Parameter,
+    UnsupportedParameter,
     WFSMethod,
     WFSTypeNamesMethod,
-    UnsupportedParameter,
 )
 
 logger = logging.getLogger(__name__)
@@ -261,7 +261,7 @@ class BaseWFSGetDataMethod(WFSTypeNamesMethod):
             # e.g. comparing datetime against integer
             if not conf.GISSERVER_WRAP_FILTER_DB_ERRORS:
                 raise
-            logger.error("WFS request failed: %s\nParams: %r", e, params)
+            logger.exception("WFS request failed: %s\nParams: %r", str(e), params)
             msg = str(e)
             locator = (
                 "srsName" if "Cannot find SRID" in msg else self._get_locator(**params)

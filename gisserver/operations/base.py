@@ -5,11 +5,10 @@ This defines the parameters and output formats of the method.
 This introspection data is also parsed by the GetCapabilities call.
 """
 from __future__ import annotations
-import math
 
+import math
 import re
 from dataclasses import dataclass, field
-
 from typing import Any, Callable
 
 from django.core.exceptions import ImproperlyConfigured, SuspiciousOperation

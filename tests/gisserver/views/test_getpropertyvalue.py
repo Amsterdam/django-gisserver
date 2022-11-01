@@ -1,6 +1,7 @@
+from urllib.parse import quote_plus
+
 import django
 import pytest
-from urllib.parse import quote_plus
 
 from tests.constants import NAMESPACES
 from tests.gisserver.views.input import (

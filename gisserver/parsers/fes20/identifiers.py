@@ -2,6 +2,7 @@
 The class names are identical to those in the FES spec.
 """
 from __future__ import annotations
+
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
@@ -11,9 +12,9 @@ from django.db.models import Q
 from gisserver import conf
 from gisserver.exceptions import ExternalValueError
 from gisserver.parsers.base import BaseNode, tag_registry
-from gisserver.types import FES20
-from gisserver.parsers.tags import get_attribute, expect_tag
+from gisserver.parsers.tags import expect_tag, get_attribute
 from gisserver.parsers.values import auto_cast, parse_iso_datetime
+from gisserver.types import FES20
 
 NoneType = type(None)
 

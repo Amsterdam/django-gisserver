@@ -2,13 +2,13 @@
 The class names and attributes are identical to those in the FES spec.
 """
 from __future__ import annotations
-from itertools import groupby
 
 import operator
 from dataclasses import dataclass, field
 from decimal import Decimal
 from enum import Enum
 from functools import reduce
+from itertools import groupby
 from typing import Any, Union
 from xml.etree.ElementTree import Element, QName
 
@@ -22,8 +22,9 @@ from gisserver.parsers import gml
 from gisserver.parsers.base import BaseNode, TagNameEnum, tag_registry
 from gisserver.parsers.tags import expect_children, expect_tag, get_attribute, get_child
 from gisserver.types import FES20
-from .identifiers import Id
+
 from .expressions import Expression, Literal, RhsTypes, ValueReference
+from .identifiers import Id
 from .query import CompiledQuery
 
 SpatialDescription = Union[gml.GM_Object, gml.GM_Envelope, ValueReference]

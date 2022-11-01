@@ -1,11 +1,11 @@
 from __future__ import annotations
+
 import calendar
+import ctypes
 from dataclasses import dataclass
 from datetime import time, timedelta
 from decimal import Decimal
-
 from pathlib import Path
-import ctypes
 from typing import List, cast
 from xml.etree import ElementTree
 

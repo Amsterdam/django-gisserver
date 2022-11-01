@@ -4,6 +4,7 @@ from xml.etree.ElementTree import QName
 import django
 import orjson
 import pytest
+
 from gisserver.geometries import WGS84
 from tests.constants import NAMESPACES
 from tests.gisserver.views.input import (

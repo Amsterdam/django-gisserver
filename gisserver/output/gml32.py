@@ -4,6 +4,7 @@ Note that the Django format_html() / mark_safe() logic is not used here,
 as it's quite a performance improvement to just use html.escape().
 """
 from __future__ import annotations
+
 import itertools
 import re
 from datetime import date, datetime, time
@@ -17,12 +18,12 @@ from django.utils.timezone import utc
 
 from gisserver.db import (
     AsGML,
-    conditional_transform,
-    get_geometries_union,
     build_db_annotations,
+    conditional_transform,
     get_db_annotation,
     get_db_geometry_selects,
     get_db_geometry_target,
+    get_geometries_union,
 )
 from gisserver.exceptions import NotFound
 from gisserver.features import FeatureRelation, FeatureType

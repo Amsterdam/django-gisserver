@@ -3,6 +3,7 @@ import os
 import re
 import urllib.request
 from urllib.parse import urljoin, urlparse
+
 from lxml import etree
 
 XSD_DIR = "tests/files/xsd"
@@ -80,7 +81,7 @@ def download_schema(url):
 
             except urllib.error.URLError as e:
                 print(
-                    "ERROR loading {} , referenced in {} REASON: {} ".format(
+                    "ERROR loading {}, referenced in {} REASON: {} ".format(
                         url, referring_url, e.reason
                     )
                 )

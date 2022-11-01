@@ -3,7 +3,7 @@ Development
 
 .. contents:: :local:
 
-When you follow the source of the `WFSView`, `WFSMethod` and `Parameter` classes,
+When you follow the source of the ``WFSView``, ``WFSMethod`` and ``Parameter`` classes,
 you'll find that it's written with extensibility in mind. Extra parameters and operations
 can easily be added there. You could even do that within your own projects and implementations.
 
@@ -35,7 +35,7 @@ use `<https://cite.opengeospatial.org/teamengine/>`_.
 * Create a new WFS 2.0 test session
 * At the next page, enter the URL to the ``GetCapabilities`` document, e.g.:
 
-`http://example.org/v1/wfs/?VERSION=2.0.0&REQUEST=GetCapabilities`
+``http://example.org/v1/wfs/?VERSION=2.0.0&REQUEST=GetCapabilities``
 
 Local testing can't be done with NGrok, as it exceeds the rate limiting.
 Instead, consider opening a temporary port-forward at your router/modem.

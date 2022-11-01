@@ -24,31 +24,28 @@ Each XMLSchema node defines it's "data type" as either:
 Custom field types could also generate these field types.
 """
 from __future__ import annotations
+
 import operator
 import re
-from decimal import Decimal as D
 from dataclasses import dataclass, field
+from decimal import Decimal as D
 from enum import Enum
-
-from django.conf import settings
-from django.core.exceptions import (
-    ObjectDoesNotExist,
-    ValidationError,
-)
-from django.db.models import Q
-from django.db.models.fields.related import (
-    RelatedField,
-    ForeignObjectRel,
-)  # Django 2 imports
-from django.utils import dateparse
 from typing import TYPE_CHECKING
 
+from django.conf import settings
 from django.contrib.gis.db.models import F, GeometryField
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db import models
+from django.db.models import Q
+from django.db.models.fields.related import (  # Django 2 imports
+    ForeignObjectRel,
+    RelatedField,
+)
+from django.utils import dateparse
 from django.utils.functional import cached_property
 
 from gisserver.exceptions import ExternalParsingError, OperationProcessingFailed
-from gisserver.geometries import CRS, WGS84  # noqa, for backwards compatibility
+from gisserver.geometries import CRS, WGS84  # noqa: F401 / for backwards compatibility
 
 try:
     from typing import Literal  # Python 3.8

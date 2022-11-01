@@ -1,11 +1,12 @@
 from __future__ import annotations
-from collections import deque
 
+from collections import deque
 from typing import Iterable, cast
 
 from gisserver.features import FeatureType
 from gisserver.operations.base import WFSMethod
 from gisserver.types import XsdComplexType
+
 from .base import OutputRenderer
 from .buffer import StringBuffer
 

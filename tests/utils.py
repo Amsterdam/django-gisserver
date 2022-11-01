@@ -16,7 +16,7 @@ WFS_20_XSD = str(XSD_ROOT.joinpath("schemas.opengis.net/wfs/2.0/wfs.xsd"))
 
 @lru_cache(maxsize=100)
 def compile_xsd(xsd_file, xsd_content=None) -> etree.XMLSchema:
-    """Compile the XSD files into an lxml """
+    """Compile the XSD files into an lxml"""
     if xsd_file:
         if xsd_file[0] == "<":
             raise TypeError("XML passed to xsd_file parameter")

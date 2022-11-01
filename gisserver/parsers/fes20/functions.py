@@ -1,11 +1,12 @@
 """Functions to be callable from fes."""
 from __future__ import annotations
+
 from dataclasses import dataclass
 from typing import Callable, Union
 
+from django.contrib.gis.db.models import functions as gis
 from django.db import models
 from django.db.models import functions
-from django.contrib.gis.db.models import functions as gis
 from django.db.models.expressions import Combinable
 
 from gisserver.exceptions import InvalidParameterValue

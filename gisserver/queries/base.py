@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from django.db.models import QuerySet
 
 from gisserver.exceptions import InvalidParameterValue

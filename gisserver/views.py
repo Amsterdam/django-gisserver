@@ -1,24 +1,22 @@
 """The view layer parses the request, and dispatches it to an operation."""
 from __future__ import annotations
+
 import re
 from urllib.parse import urlencode
 
-from django.shortcuts import render
-
-from django.core.exceptions import (
-    ImproperlyConfigured,
-    PermissionDenied as Django_PermissionDenied,
-    SuspiciousOperation,
-)
+from django.core.exceptions import ImproperlyConfigured
+from django.core.exceptions import PermissionDenied as Django_PermissionDenied
+from django.core.exceptions import SuspiciousOperation
 from django.http import HttpResponse
+from django.shortcuts import render
 from django.views import View
 
 from gisserver import conf
 from gisserver.exceptions import (
     InvalidParameterValue,
     MissingParameterValue,
-    OWSException,
     OperationNotSupported,
+    OWSException,
     PermissionDenied,
 )
 from gisserver.features import FeatureType, ServiceDescription
@@ -120,15 +118,12 @@ class GISView(View):
         # (misspelled?) parameters on the query string, this is considered to be an index page.
         # Minimal request has 2 parameters (SERVICE=WFS&REQUEST=GetCapabilities).
         # Some servers also allow a default of SERVICE, thus needing even less.
-        return (
-            len(self.KVP) < 2
-            and {
-                "REQUEST",
-                "SERVICE",
-                "VERSION",
-                "ACCEPTVERSIONS",
-            }.isdisjoint(self.KVP.keys())
-        )
+        return len(self.KVP) < 2 and {
+            "REQUEST",
+            "SERVICE",
+            "VERSION",
+            "ACCEPTVERSIONS",
+        }.isdisjoint(self.KVP.keys())
 
     def render_index(self):
         """Render the index page."""

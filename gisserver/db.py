@@ -1,7 +1,7 @@
 """Internal module for additional GIS database functions."""
 from __future__ import annotations
-from functools import reduce
 
+from functools import reduce
 from typing import cast
 
 from django.contrib.gis.db.models import GeometryField, functions

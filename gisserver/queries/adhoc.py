@@ -6,20 +6,19 @@ such as the "FILTER", "BBOX" and "RESOURCEID" parameters.
 These definitions follow the WFS spec.
 """
 from __future__ import annotations
+
 import logging
 from dataclasses import dataclass
 
 from django.db.models import Q
 
 from gisserver import conf
-from gisserver.exceptions import (
-    InvalidParameterValue,
-    MissingParameterValue,
-)
+from gisserver.exceptions import InvalidParameterValue, MissingParameterValue
 from gisserver.features import FeatureType
 from gisserver.geometries import BoundingBox
 from gisserver.parsers import fes20
 from gisserver.parsers.fes20 import operators
+
 from .base import QueryExpression
 
 logger = logging.getLogger(__name__)

@@ -3,6 +3,7 @@
 These definitions follow the WFS spec.
 """
 from __future__ import annotations
+
 from dataclasses import dataclass
 
 from django.db.models import Q, QuerySet
@@ -13,6 +14,7 @@ from gisserver.operations.base import Parameter
 from gisserver.output import FeatureCollection
 from gisserver.parsers import fes20
 from gisserver.types import XsdTypes
+
 from .base import QueryExpression
 
 
