@@ -52,6 +52,9 @@ jobs:
           # Django 4.0
           - django: "4.0"
             python: "3.9"
+          # Django 4.1
+          - django: "4.1"
+            python: "3.10"
 
     steps:
       - name: Install GeoDjango dependencies
