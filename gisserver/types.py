@@ -524,7 +524,8 @@ class XsdElement(XsdNode):
         return self.max_occurs and (
             self.max_occurs == "unbounded"
             or self.max_occurs > 1
-            or isinstance(self.source, ArrayField)  # needed for ArrayField(size=1)
+            # needed for ArrayField(size=1):
+            or (ArrayField is not None and isinstance(self.source, ArrayField))
         )
 
 
