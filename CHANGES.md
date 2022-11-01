@@ -1,3 +1,8 @@
+# 2022-11-01 (1.2.4)
+
+* Fixed type assertion when `django.contrib.postgres` was not installed.
+
+
 # 2022-09-07 (1.2.3)
 
 * Added "geojson" as output format alias in `GetCapabilities` for ESRI ArcGIS online.
