@@ -174,7 +174,7 @@ class CRS:
             try:
                 srid = int(crsid)
             except ValueError:
-                raise SyntaxError(
+                raise ExternalValueError(
                     f"CRS URI [{urn}] should contain a numeric SRID value."
                 ) from None
         elif authority == "OGC":
@@ -214,7 +214,7 @@ class CRS:
                 try:
                     srid = int(crsid)
                 except ValueError:
-                    raise SyntaxError(
+                    raise ExternalValueError(
                         f"CRS URI [{uri}] should contain a numeric SRID value."
                     ) from None
 

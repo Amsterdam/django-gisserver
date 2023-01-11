@@ -1,3 +1,7 @@
+# 2023-01-11 (1.2.5)
+
+* CRS parsing no longer raises SyntaxErrors.
+
 # 2022-11-01 (1.2.4)
 
 * Fixed type assertion when `django.contrib.postgres` was not installed.
