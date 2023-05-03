@@ -88,7 +88,7 @@ class GML32Renderer(OutputRenderer):
 
         if body.startswith("<"):
             return HttpResponse(
-                content=f'<?xml version="1.0" encoding="UTF-8"?>\n{body.lstrip()}',
+                content=f'<?xml version="1.0" encoding="UTF-8"?>\n{body}',
                 content_type=self.content_type,
             )
         else:
@@ -97,7 +97,7 @@ class GML32Renderer(OutputRenderer):
             return HttpResponse(body, content_type="text/plain")
 
     def render_xmlns(self):
-        """Generate the xmlns block that the documente needs"""
+        """Generate the xmlns block that the document needs"""
         xsd_typenames = ",".join(
             sub_collection.feature_type.name
             for sub_collection in self.collection.results
