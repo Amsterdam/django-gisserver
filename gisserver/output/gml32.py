@@ -372,13 +372,14 @@ class GML32Renderer(OutputRenderer):
     def render_gml_polygon(self, value: geos.Polygon, base_attrs=""):
         # lol: http://erouault.blogspot.com/2014/04/gml-madness.html
         ext_ring = self.render_gml_linear_ring(value.exterior_ring)
-        tags = [f"<gml:Polygon{base_attrs}><gml:exterior>{ext_ring}</gml:exterior>"]
+        buf = StringBuffer()
+        buf.write(f"<gml:Polygon{base_attrs}><gml:exterior>{ext_ring}</gml:exterior>")
         for i in range(value.num_interior_rings):
-            tags.append("<gml:interior>")
-            tags.append(self.render_gml_linear_ring(value[i + 1]))
-            tags.append("</gml:interior>")
-        tags.append("</gml:Polygon>")
-        return "".join(tags)
+            buf.write("<gml:interior>")
+            buf.write(self.render_gml_linear_ring(value[i + 1]))
+            buf.write("</gml:interior>")
+        buf.write("</gml:Polygon>")
+        return buf.getvalue()
 
     @register_geos_type(geos.MultiPolygon)
     def render_gml_multi_geometry(self, value: geos.GeometryCollection, base_attrs):
