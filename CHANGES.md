@@ -1,3 +1,8 @@
+# Upcoming release
+
+* Dropped support for Django versions < 3.2 and Python < 3.9.
+* Minor optimizations.
+
 # 2023-01-11 (1.2.5)
 
 * CRS parsing no longer raises SyntaxErrors.

@@ -10,15 +10,10 @@ from dataclasses import dataclass, field
 from decimal import Decimal
 from functools import lru_cache
 
-from django.contrib.gis.gdal import CoordTransform, SpatialReference
+from django.contrib.gis.gdal import AxisOrder, CoordTransform, SpatialReference
 from django.contrib.gis.geos import GEOSGeometry, Polygon
 
 from gisserver.exceptions import ExternalParsingError, ExternalValueError
-
-try:
-    from django.contrib.gis.gdal import AxisOrder  # Django 3.1+
-except ImportError:
-    AxisOrder = None
 
 CRS_URN_REGEX = re.compile(
     r"^urn:(?P<domain>[a-z]+)"
@@ -40,13 +35,7 @@ __all__ = [
 def _get_spatial_reference(srs_input, srs_type="user", axis_order=None):
     """Construct an GDAL object reference"""
     # Using lru-cache to avoid repeated GDAL c-object construction
-    if AxisOrder is not None:
-        # Django 3.1+ only, allow to define the axis ordering with GDAL 3.0
-        # https://gdal.org/tutorials/osr_api_tut.html#crs-and-axis-order
-        # https://github.com/django/django/commit/58f1b07e49a98bb391c9e38b91f078ab2c302703
-        return SpatialReference(srs_input, srs_type=srs_type, axis_order=axis_order)
-    else:
-        return SpatialReference(srs_input, srs_type=srs_type)
+    return SpatialReference(srs_input, srs_type=srs_type, axis_order=axis_order)
 
 
 @lru_cache(maxsize=100)
