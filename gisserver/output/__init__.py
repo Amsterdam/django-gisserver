@@ -13,10 +13,7 @@ from .gml32 import (
 from .results import FeatureCollection, SimpleFeatureCollection
 from .xmlschema import XMLSchemaRenderer
 
-try:
-    from django.utils.functional import classproperty  # Django 3.1+
-except ImportError:
-    from django.utils.decorators import classproperty
+from django.utils.functional import classproperty
 
 __all__ = [
     "OutputRenderer",
