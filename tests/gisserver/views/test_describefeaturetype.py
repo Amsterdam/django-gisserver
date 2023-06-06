@@ -1,3 +1,5 @@
+import urllib.parse
+
 import pytest
 from lxml import etree
 
@@ -198,6 +200,15 @@ class TestDescribeFeatureType:
 
 </schema>""",  # noqa: E501
         )
+
+    def test_describe_outputformat(self, client):
+        """Test workaround for FME's outputformat."""
+        gml32 = urllib.parse.quote("application/gml+xml; version=3.2")
+        response = client.get(
+            f"/v1/wfs/?SERVICE=WFS&REQUEST=DescribeFeatureType&VERSION=2.0.0&TYPENAMES=restaurant&outputformat={gml32}"
+        )
+        content = response.content.decode()
+        assert response.status_code == 200, content
 
     def test_empty_typenames(self, client):
         """Prove that missing arguments are handled"""

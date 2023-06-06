@@ -1,5 +1,6 @@
-# Upcoming release
+# 2023-06-07 (1.2.6)
 
+* Workaround for FME doing a DescribeFeatureType with the wrong outputformat.
 * Dropped support for Django versions < 3.2 and Python < 3.9.
 * Minor optimizations.
 
