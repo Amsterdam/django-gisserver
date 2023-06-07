@@ -258,14 +258,16 @@ class WFSMethod:
 
     def _parse_output_format(self, value) -> OutputFormat:
         """Select the proper OutputFormat object based on the input value"""
-        value = value.replace(" ", "+")  # allow application/gml+xml on the KVP.
-        try:
-            return next(o for o in self.output_formats if o.matches(value))
-        except StopIteration:
-            raise InvalidParameterValue(
-                "outputformat",
-                f"'{value}' is not a permitted output format for this operation.",
-            ) from None
+        # The str.replace is here to "allow application/gml+xml on the KVP",
+        # but I'm not sure what that comment was supposed to mean.
+        for v in [value, value.replace(" ", "+")]:
+            for o in self.output_formats:
+                if o.matches(v):
+                    return o
+        raise InvalidParameterValue(
+            "outputformat",
+            f"'{value}' is not a permitted output format for this operation.",
+        ) from None
 
     def _parse_namespaces(self, value) -> dict[str, str]:
         """Parse the namespaces definition.

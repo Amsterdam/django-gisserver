@@ -141,6 +141,11 @@ class DescribeFeatureType(WFSTypeNamesMethod):
 
     output_formats = [
         OutputFormat("XMLSCHEMA", renderer_class=output.XMLSchemaRenderer),
+        # At least one version of FME seems to sends a DescribeFeatureType
+        # request with this output format. Do what mapserver does and just
+        # send it XML Schema.
+        OutputFormat("application/gml+xml; version=3.2",
+                     renderer_class=output.XMLSchemaRenderer)
         # OutputFormat("text/xml", subtype="gml/3.1.1"),
     ]
 
