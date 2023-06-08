@@ -1,3 +1,7 @@
+# 2023-06-08 (1.2.7)
+
+* WFS endpoints now accept a GML version number in their OUTPUTFORMAT.
+
 # 2023-06-07 (1.2.6)
 
 * Workaround for FME doing a DescribeFeatureType with the wrong outputformat.
