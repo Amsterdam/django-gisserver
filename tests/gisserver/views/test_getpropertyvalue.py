@@ -31,9 +31,10 @@ class TestGetPropertyValue:
     )
     def test_get(self, client, restaurant, bad_restaurant, xpath):
         """Prove that the happy flow works"""
+        gml32 = quote_plus("application/gml+xml; version=3.2")
         response = client.get(
             "/v1/wfs/?SERVICE=WFS&REQUEST=GetPropertyValue&VERSION=2.0.0&TYPENAMES=restaurant"
-            f"&VALUEREFERENCE={xpath}"
+            f"&VALUEREFERENCE={xpath}&OUTPUTFORMAT={gml32}"
         )
         content = read_response(response)
         assert response["content-type"] == "text/xml; charset=utf-8", content

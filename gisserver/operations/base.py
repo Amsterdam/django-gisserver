@@ -158,6 +158,10 @@ class OutputFormat:
 
     def matches(self, value):
         """Test whether the 'value' is matched by this object."""
+        if self.content_type == "application/gml+xml":
+            # Allow "application/gml+xml; version=3.2" as sent by FME.
+            # TODO rewrite this matching code in a clean way.
+            value = value.split("; ", 1)[0]
         return self.content_type == value or self.subtype == value
 
     @property

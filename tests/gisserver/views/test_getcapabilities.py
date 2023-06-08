@@ -1,3 +1,5 @@
+from urllib.parse import quote_plus
+
 import pytest
 from lxml import etree
 
@@ -14,8 +16,9 @@ class TestGetCapabilities:
 
     def test_get(self, client, restaurant, coordinates):
         """Prove that the happy flow works"""
+        gml32 = quote_plus("application/gml+xml; version=3.2")
         response = client.get(
-            "/v1/wfs/?SERVICE=WFS&REQUEST=GetCapabilities&ACCEPTVERSIONS=2.0.0"
+            "/v1/wfs/?SERVICE=WFS&REQUEST=GetCapabilities&ACCEPTVERSIONS=2.0.0&OUTPUTFORMAT={gml32}"
         )
         content = response.content.decode()
         assert response["content-type"] == "text/xml; charset=utf-8", content

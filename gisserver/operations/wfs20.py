@@ -45,7 +45,15 @@ RE_SAFE_FILENAME = re.compile(r"\A[A-Za-z0-9]+[A-Za-z0-9.]*")  # no dot at the s
 class GetCapabilities(WFSMethod):
     """ "This operation returns map features, and available operations this WFS server supports."""
 
-    output_formats = [OutputFormat("text/xml")]
+    output_formats = [
+        OutputFormat(
+            "application/gml+xml",
+            version="3.2",
+            renderer_class=output.gml32_value_renderer,
+            title="GML",
+        ),
+        OutputFormat("text/xml"),
+    ]
     xml_template_name = "get_capabilities.xml"
 
     def get_parameters(self):
@@ -144,8 +152,11 @@ class DescribeFeatureType(WFSTypeNamesMethod):
         # At least one version of FME seems to sends a DescribeFeatureType
         # request with this output format. Do what mapserver does and just
         # send it XML Schema.
-        OutputFormat("application/gml+xml; version=3.2",
-                     renderer_class=output.XMLSchemaRenderer)
+        OutputFormat(
+            "application/gml+xml",
+            version="3.2",
+            renderer_class=output.XMLSchemaRenderer,
+        )
         # OutputFormat("text/xml", subtype="gml/3.1.1"),
     ]
 
@@ -462,6 +473,12 @@ class GetPropertyValue(BaseWFSGetDataMethod):
     """
 
     output_formats = [
+        OutputFormat(
+            "application/gml+xml",
+            version="3.2",
+            renderer_class=output.gml32_value_renderer,
+            title="GML",
+        ),
         OutputFormat(
             "text/xml", subtype="gml/3.2", renderer_class=output.gml32_value_renderer
         ),
