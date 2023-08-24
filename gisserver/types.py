@@ -1,6 +1,6 @@
 """Internal XSD type definitions.
 
-These types are the internal schema definition on which all output is generated.
+These types are the internal schema definition, and the foundation for all output generation.
 
 The end-users of this library typically create a WFS feature type definition by using
 the :class:~gisserver.features.FeatureType` / :class:`~gisserver.features.FeatureField` classes.
@@ -671,7 +671,7 @@ class XsdComplexType(XsdAnyType):
 
     Typically, this maps into a Django model, with each element pointing to a model field.
 
-    The complex can hold multiple :class:`XsdElement` and :class:`XsdAttribute`
+    A complex type can hold multiple :class:`XsdElement` and :class:`XsdAttribute`
     nodes as children, composing an object. The elements themselves can point
     to a complex type themselves, to create a nested class structure.
     That also allows embedding models with their relations into a single response.
