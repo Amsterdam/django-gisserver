@@ -262,9 +262,10 @@ class WFSMethod:
 
     def _parse_output_format(self, value) -> OutputFormat:
         """Select the proper OutputFormat object based on the input value"""
-        # The str.replace is here to "allow application/gml+xml on the KVP",
-        # but I'm not sure what that comment was supposed to mean.
-        for v in [value, value.replace(" ", "+")]:
+        # When using ?OUTPUTFORMAT=application/gml+xml", it is actually an URL-encoded space
+        # character. Hence spaces are replaced back to a '+' character to allow such notation
+        # instead of forcing it to to be ?OUTPUTFORMAT=application/gml%2bxml".
+        for v in {value, value.replace(" ", "+")}:
             for o in self.output_formats:
                 if o.matches(v):
                     return o
