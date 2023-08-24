@@ -46,12 +46,7 @@ class GetCapabilities(WFSMethod):
     """ "This operation returns map features, and available operations this WFS server supports."""
 
     output_formats = [
-        OutputFormat(
-            "application/gml+xml",
-            version="3.2",
-            renderer_class=output.gml32_value_renderer,
-            title="GML",
-        ),
+        OutputFormat("application/gml+xml", version="3.2", title="GML"),  # for FME
         OutputFormat("text/xml"),
     ]
     xml_template_name = "get_capabilities.xml"
