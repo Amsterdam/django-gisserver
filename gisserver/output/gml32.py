@@ -7,14 +7,13 @@ from __future__ import annotations
 
 import itertools
 import re
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timezone
 from html import escape
 from typing import cast
 
 from django.contrib.gis import geos
 from django.db import models
 from django.http import HttpResponse
-from django.utils.timezone import utc
 
 from gisserver.db import (
     AsGML,
@@ -306,7 +305,7 @@ class GML32Renderer(OutputRenderer):
             # Expanded foreign relation / dictionary
             return self.render_xml_complex_type(feature_type, xsd_element, value)
         elif isinstance(value, datetime):
-            value = value.astimezone(utc).isoformat()
+            value = value.astimezone(timezone.utc).isoformat()
         elif isinstance(value, (date, time)):
             value = value.isoformat()
         elif isinstance(value, bool):
