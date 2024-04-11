@@ -4,11 +4,11 @@ from datetime import datetime, time
 from django.contrib.gis.db.models import PointField
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
-from django.utils.timezone import utc
 
+from datetime import timezone
 
 def current_datetime():
-    return datetime(2020, 4, 5, 12, 11, 10, 0, tzinfo=utc)
+    return datetime(2020, 4, 5, 12, 11, 10, 0, tzinfo=timezone.utc)
 
 
 class City(models.Model):

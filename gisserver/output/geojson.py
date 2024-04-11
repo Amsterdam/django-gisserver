@@ -1,5 +1,5 @@
 """Output rendering logic for GeoJSON."""
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 from typing import cast
 
@@ -8,7 +8,6 @@ from django.conf import settings
 from django.contrib.gis.db.models.functions import AsGeoJSON
 from django.db import models
 from django.utils.functional import Promise
-from django.utils.timezone import utc
 
 from gisserver import conf
 from gisserver.db import get_db_geometry_target
@@ -147,7 +146,7 @@ class GeoJsonRenderer(OutputRenderer):
 
     def _format_geojson_value(self, value):
         if isinstance(value, datetime):
-            return value.astimezone(utc)
+            return value.astimezone(timezone.utc)
         elif isinstance(value, models.Model):
             # ForeignKey, not defined as complex type.
             return str(value)

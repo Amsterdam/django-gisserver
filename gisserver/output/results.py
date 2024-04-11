@@ -13,7 +13,9 @@ from typing import Iterable
 import django
 from django.db import models
 from django.utils.functional import cached_property
-from django.utils.timezone import now, utc
+from django.utils.timezone import now
+
+from datetime import timezone
 
 from gisserver.features import FeatureType
 from gisserver.geometries import BoundingBox
@@ -218,7 +220,7 @@ class FeatureCollection:
         self.next = next
         self.previous = previous
         self.date = now()
-        self.timestamp = self.date.astimezone(utc).isoformat()
+        self.timestamp = self.date.astimezone(timezone.utc).isoformat()
 
     def get_bounding_box(self) -> BoundingBox:
         """Determine bounding box of all items."""

@@ -2,11 +2,10 @@
 from __future__ import annotations
 
 import csv
-from datetime import datetime
+from datetime import datetime, timezone
 
 from django.conf import settings
 from django.db import models
-from django.utils.timezone import utc
 
 from gisserver import conf
 from gisserver.db import (
@@ -137,7 +136,7 @@ class CSVRenderer(OutputRenderer):
                 # Array field
                 append(",".join(map(str, value)))
             elif isinstance(value, datetime):
-                append(str(value.astimezone(utc)))
+                append(str(value.astimezone(timezone.utc)))
             else:
                 append(value)
         return values
