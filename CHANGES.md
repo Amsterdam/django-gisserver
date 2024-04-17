@@ -1,3 +1,14 @@
+# 2023-06-08 (1.3.0)
+
+## Updates
+* Django 5 support added.
+
+## Contributors
+We would like to thank the following contributors
+for their work on this release.
+
+   - [tomdtp](https://github.com/tomdtp)
+  
 # 2023-06-08 (1.2.7)
 
 * WFS endpoints now accept a GML version number in their OUTPUTFORMAT.
