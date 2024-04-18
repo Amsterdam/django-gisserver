@@ -1,3 +1,7 @@
+# 2024-04-18 (1.2.8)
+
+* Replace UTC import with the one from datetime.
+
 # 2023-06-08 (1.2.7)
 
 * WFS endpoints now accept a GML version number in their OUTPUTFORMAT.
