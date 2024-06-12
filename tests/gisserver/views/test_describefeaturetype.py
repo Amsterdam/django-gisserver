@@ -188,6 +188,7 @@ class TestDescribeFeatureType:
           <element name="name" type="string" minOccurs="0" />
           <element name="city-id" type="integer" minOccurs="0" nillable="true" />
           <element name="city-name" type="string" minOccurs="0" nillable="true" />
+          <element name="city-region" type="string" minOccurs="0" nillable="true" />
           <element name="location" type="gml:PointPropertyType" minOccurs="0" maxOccurs="1" nillable="true" />
           <element name="rating" type="double" minOccurs="0" />
           <element name="is_open" type="boolean" minOccurs="0" />

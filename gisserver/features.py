@@ -189,7 +189,6 @@ class FeatureField:
         self.model_field = None
         self.parent = parent
         self.abstract = abstract
-
         # Allow to override the class attribute on 'self',
         # which avoids having to subclass this field class as well.
         if xsd_class is not None:
@@ -593,7 +592,9 @@ class FeatureType:
         return [
             (ff.model_field.name if ff.model_field else ff.model_attribute)
             for ff in self.fields
-            if not ff.model_field.many_to_many and not ff.model_field.one_to_many
+            if not ff.model_field.many_to_many
+            and not ff.model_field.one_to_many
+            and not (ff.model_attribute and "." in ff.model_attribute)
         ]
 
     @cached_property

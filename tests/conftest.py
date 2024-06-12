@@ -160,7 +160,7 @@ def python_coordinates(db_coordinates):
 
 @pytest.fixture()
 def city() -> City:
-    return City.objects.create(name="CloudCity")
+    return City.objects.create(name="CloudCity", region="OurRegion")
 
 
 @pytest.fixture()
