@@ -8,7 +8,7 @@ import operator
 from dataclasses import dataclass, field
 from decimal import Decimal
 from enum import Enum
-from functools import reduce
+from functools import cached_property, reduce
 from itertools import groupby
 from typing import Any, Union
 from xml.etree.ElementTree import Element, QName
@@ -16,7 +16,6 @@ from xml.etree.ElementTree import Element, QName
 from django.conf import settings
 from django.contrib.gis import measure
 from django.db.models import Q
-from django.utils.functional import cached_property
 
 from gisserver.exceptions import ExternalParsingError, OperationProcessingFailed
 from gisserver.parsers import gml

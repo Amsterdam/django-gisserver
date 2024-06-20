@@ -10,10 +10,9 @@ import math
 import operator
 from collections.abc import Iterable
 from datetime import timezone
-from functools import reduce
+from functools import cached_property, reduce
 
 from django.db import models
-from django.utils.functional import cached_property
 from django.utils.timezone import now
 
 from gisserver.features import FeatureType

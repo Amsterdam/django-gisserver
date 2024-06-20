@@ -31,6 +31,7 @@ import re
 from dataclasses import dataclass, field
 from decimal import Decimal as D
 from enum import Enum
+from functools import cached_property
 from typing import TYPE_CHECKING
 
 from django.conf import settings
@@ -43,7 +44,6 @@ from django.db.models.fields.related import (  # Django 2 imports
     RelatedField,
 )
 from django.utils import dateparse
-from django.utils.functional import cached_property
 
 from gisserver.exceptions import ExternalParsingError, OperationProcessingFailed
 from gisserver.geometries import CRS, WGS84  # noqa: F401 / for backwards compatibility

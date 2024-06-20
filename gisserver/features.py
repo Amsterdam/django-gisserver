@@ -20,7 +20,7 @@ import html
 import operator
 from collections import defaultdict
 from dataclasses import dataclass
-from functools import lru_cache, reduce
+from functools import cached_property, lru_cache, reduce
 from typing import Union
 
 from django.conf import settings
@@ -29,7 +29,6 @@ from django.contrib.gis.db.models import Extent, GeometryField
 from django.core.exceptions import FieldDoesNotExist, ImproperlyConfigured
 from django.db import models
 from django.db.models.fields.related import ForeignObjectRel  # Django 2.2 import
-from django.utils.functional import cached_property  # py3.8: functools
 
 from gisserver.db import conditional_transform
 from gisserver.exceptions import ExternalValueError
