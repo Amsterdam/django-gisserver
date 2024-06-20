@@ -301,29 +301,40 @@ class XsdNode:
         model_attribute: str,
         field: models.Field | ForeignObjectRel | None,
     ):
-        """Select the most efficient read function to retrieves the value."""
-        if field is None:
-            # No model field, can only use getattr(). The attrgetter function has
-            # built-in support for traversing model attributes with dots.
+        """Select the most efficient read function to retrieves the value.
+
+        Since reading a value can be called like 150000+ times, this is heavily optimized.
+
+        This attempts to use ``operator.attrgetter()`` whenever possible,
+        since this will be much faster than using ``getattr()``.
+        The custom ``value_from_object()`` is fully supported too.
+        """
+        if field is None or isinstance(field, ForeignObjectRel):
+            # No model field, can only use getattr(). The attrgetter() function is both faster,
+            # and has built-in support for traversing model attributes with dots.
             return operator.attrgetter(model_attribute)
-        elif isinstance(field, ForeignObjectRel):
-            # Special handling, has no value_from_object()
-            return operator.attrgetter(model_attribute)
-        elif "." not in model_attribute:
-            # Shortcut, can just use Django's value_from_object.
-            # This allows Django fields to override the object retrieval.
-            # Not using value_to_string() as different output formats may serialize differently.
-            return field.value_from_object
-        else:
-            # Need to traverse foreign key relations before using value_from_objec().
+
+        if field.value_from_object.__func__ is models.Field.value_from_object:
+            # No custom value_from_object(), this can be fully emulated with attrgetter() too.
+            # Still allow the final node to have a custom attname,
+            # # which is what Field.value_from_object() does.
             names = model_attribute.split(".")
+            names[-1] = field.attname
+            return operator.attrgetter(".".join(names))
 
-            def _related_get_value_from_object(instance):
-                for name in names[:-1]:
-                    instance = getattr(instance, name)
-                return field.value_from_object(instance)
+        if "." not in model_attribute:
+            # Single level, use the custom value_from_object() directly.
+            return field.value_from_object
 
-            return _related_get_value_from_object
+        # Need to traverse the related field path, and use value_from_object() on the final object.
+        names = model_attribute.split(".")
+        get_related_instance = operator.attrgetter(".".join(names[:-1]))
+
+        def _related_get_value_from_object(instance):
+            related_instance = get_related_instance(instance)
+            return field.value_from_object(related_instance)
+
+        return _related_get_value_from_object
 
     @cached_property
     def is_geometry(self) -> bool:
@@ -398,7 +409,7 @@ class XsdNode:
                     value = value.all()
                 return value
             else:
-                # Support value_from_object() on custom fields.
+                # the _valuegetter() supports value_from_object() on custom fields.
                 return self.format_value(self._valuegetter(instance))
         except (AttributeError, ObjectDoesNotExist):
             # E.g. Django foreign keys that point to a non-existing member.
