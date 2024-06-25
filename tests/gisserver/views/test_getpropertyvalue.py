@@ -11,6 +11,7 @@ from tests.gisserver.views.input import (
     INVALID_FILTERS,
     SORT_BY,
 )
+from tests.test_gisserver.models import Restaurant
 from tests.utils import WFS_20_XSD, assert_xml_equal, validate_xsd
 
 # enable for all tests in this file
@@ -99,6 +100,39 @@ class TestGetPropertyValue:
     </app:location>
   </wfs:member>
 </wfs:ValueCollection>""",  # noqa: E501
+        )
+
+    def test_get_location_null(self, client):
+        """Prove that the empty geometry values don't crash the rendering."""
+        Restaurant.objects.create(name="Empty")
+        response = client.get(
+            "/v1/wfs/?SERVICE=WFS&REQUEST=GetPropertyValue&VERSION=2.0.0&TYPENAMES=restaurant"
+            "&VALUEREFERENCE=location"
+        )
+        content = read_response(response)
+        assert response["content-type"] == "text/xml; charset=utf-8", content
+        assert response.status_code == 200, content
+        assert "</wfs:ValueCollection>" in content
+
+        # Validate against the WFS 2.0 XSD
+        xml_doc = validate_xsd(content, WFS_20_XSD)
+        assert xml_doc.attrib["numberMatched"] == "1"
+        assert xml_doc.attrib["numberReturned"] == "1"
+        timestamp = xml_doc.attrib["timeStamp"]
+
+        assert_xml_equal(
+            content,
+            f"""<wfs:ValueCollection
+               xmlns:app="http://example.org/gisserver"
+               xmlns:gml="http://www.opengis.net/gml/3.2"
+               xmlns:wfs="http://www.opengis.net/wfs/2.0"
+               xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+               xsi:schemaLocation="http://example.org/gisserver http://testserver/v1/wfs/?SERVICE=WFS&amp;VERSION=2.0.0&amp;REQUEST=DescribeFeatureType&amp;TYPENAMES=restaurant http://www.opengis.net/wfs/2.0 http://schemas.opengis.net/wfs/2.0/wfs.xsd http://www.opengis.net/gml/3.2 http://schemas.opengis.net/gml/3.2.1/gml.xsd"
+               timeStamp="{timestamp}" numberMatched="1" numberReturned="1">
+          <wfs:member>
+            <app:location xsi:nil="true"/>
+          </wfs:member>
+        </wfs:ValueCollection>""",  # noqa: E501
         )
 
     def test_get_attribute(self, client, restaurant, bad_restaurant):

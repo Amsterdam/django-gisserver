@@ -113,7 +113,9 @@ class TestGetFeature:
         # Validate against the WFS 2.0 XSD
         xml_doc = validate_xsd(content, WFS_20_XSD)
         feature = xml_doc.find("wfs:member/app:restaurant", namespaces=NAMESPACES)
-        assert feature.find("app:location", namespaces=NAMESPACES).text is None
+        location = feature.find("app:location", namespaces=NAMESPACES)
+        assert location is not None, content
+        assert location.text is None
         timestamp = xml_doc.attrib["timeStamp"]
 
         assert_xml_equal(

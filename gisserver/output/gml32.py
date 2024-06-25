@@ -3,7 +3,7 @@
 Note that the Django format_html() / mark_safe() logic is not used here,
 as it's quite a performance improvement to just use html.escape().
 
-We've tried replacing this code with lxml and that turned out to be 2x slower..
+We've tried replacing this code with lxml and that turned out to be much slower..
 """
 
 from __future__ import annotations
@@ -218,11 +218,11 @@ class GML32Renderer(OutputRenderer):
                         output.write(gml)
                 else:
                     # e.g. <gml:name>, or all other <app:...> nodes.
-                    output.write(self.render_element(feature_type, xsd_element, instance))
+                    self.render_xml_field(feature_type, xsd_element, instance, output)
 
         # Add all members
         for xsd_element in feature_type.xsd_type.elements:
-            output.write(self.render_element(feature_type, xsd_element, instance))
+            self.render_xml_field(feature_type, xsd_element, instance, output)
 
         output.write(f"</{feature_type.xml_name}>\n")
         return output.getvalue()
@@ -240,32 +240,18 @@ class GML32Renderer(OutputRenderer):
         else:
             return None
 
-    def render_element(self, feature_type, xsd_element: XsdElement, instance: models.Model):
+    def render_xml_field(
+        self, feature_type, xsd_element: XsdElement, instance: models.Model, output
+    ):
         """Rendering of a single field."""
         value = xsd_element.get_value(instance)
-        if xsd_element.is_geometry and value is not None:
-            # None check happens here to avoid incrementing for none values
-            self.gml_seq += 1
-            return self.render_gml_field(
-                feature_type,
-                xsd_element,
-                value,
-                gml_id=self.get_gml_id(feature_type, instance.pk, seq=self.gml_seq),
-            )
-        else:
-            return self.render_xml_field(feature_type, xsd_element, value)
-
-    def render_xml_field(
-        self, feature_type: FeatureType, xsd_element: XsdElement, value, extra_xmlns=""
-    ) -> str:
-        """Write the value of a single field."""
         if xsd_element.is_many:
+            # some <app:...> node that has multiple values
             if value is None:
                 # No tag for optional element (see PropertyIsNull), otherwise xsi:nil node.
-                if xsd_element.min_occurs == 0:
-                    return ""
-                else:
-                    return f'<{xsd_element.xml_name} xsi:nil="true"{extra_xmlns}/>\n'
+                if xsd_element.min_occurs:
+                    # <app:field xsi:nil="true"/>
+                    output.write(f'<{xsd_element.xml_name} xsi:nil="true"/>\n')
             else:
                 # Render the tag multiple times
                 if xsd_element.type.is_complex_type:
@@ -273,20 +259,22 @@ class GML32Renderer(OutputRenderer):
                     # be done in get_value() because the FeatureType is not known there.
                     value = feature_type.filter_related_queryset(value)
 
-                return "".join(
-                    self._render_xml_field(
-                        feature_type, xsd_element, value=item, extra_xmlns=extra_xmlns
-                    )
-                    for item in value
-                )
+                for item in value:
+                    output.write(self._render_xml_field(feature_type, xsd_element, value=item))
         else:
-            return self._render_xml_field(
-                feature_type, xsd_element, value, extra_xmlns=extra_xmlns
-            )
+            # Single element node
+            if xsd_element.is_geometry:
+                # Detected first, need to have instance.pk data here (and instance['pk'] for value rendering)
+                output.write(
+                    self.render_gml_field(feature_type, xsd_element, value, object_id=instance.pk)
+                )
+            else:
+                output.write(self._render_xml_field(feature_type, xsd_element, value))
 
     def _render_xml_field(
         self, feature_type: FeatureType, xsd_element: XsdElement, value, extra_xmlns=""
     ) -> str:
+        """Write the value of a single field."""
         xml_name = xsd_element.xml_name
         if value is None:
             return f'<{xml_name} xsi:nil="true"{extra_xmlns}/>\n'
@@ -310,7 +298,7 @@ class GML32Renderer(OutputRenderer):
         output = StringBuffer()
         output.write(f"<{xsd_element.xml_name}>\n")
         for sub_element in xsd_type.elements:
-            output.write(self.render_element(feature_type, sub_element, instance=value))
+            self.render_xml_field(feature_type, sub_element, instance=value, output=output)
         output.write(f"</{xsd_element.xml_name}>\n")
         return output.getvalue()
 
@@ -318,31 +306,37 @@ class GML32Renderer(OutputRenderer):
         self,
         feature_type: FeatureType,
         xsd_element: XsdElement,
-        value: geos.GEOSGeometry,
-        gml_id,
+        value: geos.GEOSGeometry | None,
+        object_id,
         extra_xmlns="",
     ) -> str:
         """Write the value of an GML tag"""
         xml_name = xsd_element.xml_name
+        if value is None:
+            # Avoid incrementing gml_seq
+            return f'<{xml_name} xsi:nil="true"/>\n'
+
         self.output_crs.apply_to(value)
+        self.gml_seq += 1
+        gml_id = self.get_gml_id(feature_type, object_id, seq=self.gml_seq)
 
         # the following is somewhat faster, but will render GML 2, not GML 3.2:
         # gml = value.ogr.gml
         # pos = gml.find(">")  # Will inject the gml:id="..." tag.
-        # return f"<{xml_name}{extra_xmlns}>{gml[:pos]} {gml_id}{gml[pos:]}</{xml_name}>\n"
+        # return f"<{xml_name}{extra_xmlns}>{gml[:pos]} gml:id="{escape(gml_id)}"{gml[pos:]}</{xml_name}>\n"
 
-        base_attrs = f' gml:id="{escape(gml_id)}" srsName="{self.xml_srs_name}"{extra_xmlns}'
+        base_attrs = f' gml:id="{escape(gml_id)}" srsName="{self.xml_srs_name}"'
         gml = self._render_gml_type(value, base_attrs)
         return f"<{xml_name}{extra_xmlns}>{gml}</{xml_name}>\n"
 
     def _render_gml_type(self, value: geos.GEOSGeometry, base_attrs=""):
+        """Render an GML value (this is also called from MultiPolygon)."""
         try:
             # Avoid isinstance checks, do a direct lookup
             method = GML_RENDER_FUNCTIONS[value.__class__]
         except KeyError:
             return f"<!-- No rendering implemented for {value.geom_type} -->"
-        else:
-            return method(self, value, base_attrs=base_attrs)
+        return method(self, value, base_attrs=base_attrs)
 
     @register_geos_type(geos.Point)
     def render_gml_point(self, value: geos.Point, base_attrs=""):
@@ -507,36 +501,39 @@ class DBGML32Renderer(GML32Renderer):
             using=queryset.db,
         )
 
-    def render_element(self, feature_type, xsd_element: XsdElement, instance: models.Model):
+    def render_xml_field(
+        self, feature_type, xsd_element: XsdElement, instance: models.Model, output
+    ):
         if xsd_element.is_geometry:
             # Optimized path, pre-rendered GML
             value = get_db_annotation(instance, xsd_element.name, "_as_gml_{name}")
-            if value is None:
-                # Avoid incrementing gml_seq
-                return f'<{xsd_element.xml_name} xsi:nil="true"/>\n'
-
-            self.gml_seq += 1
-            return self.render_db_gml_field(
-                feature_type,
-                xsd_element,
-                value,
-                gml_id=self.get_gml_id(feature_type, instance.pk, seq=self.gml_seq),
+            output.write(
+                self.render_db_gml_field(
+                    feature_type,
+                    xsd_element,
+                    value,
+                    object_id=instance.pk,
+                )
             )
         else:
-            return super().render_element(feature_type, xsd_element, instance)
+            super().render_xml_field(feature_type, xsd_element, instance, output)
 
     def render_db_gml_field(
         self,
         feature_type: FeatureType,
         xsd_element: XsdElement,
-        value,
-        gml_id,
+        value: str | None,
+        object_id,
         extra_xmlns="",
     ) -> str:
         """Write the value of an GML tag"""
         xml_name = xsd_element.xml_name
         if value is None:
-            return f'<{xml_name} xsi:nil="true"{extra_xmlns}/>\n'
+            # Avoid incrementing gml_seq
+            return f'<{xsd_element.xml_name} xsi:nil="true"/>\n'
+
+        self.gml_seq += 1
+        gml_id = self.get_gml_id(feature_type, object_id, seq=self.gml_seq)
 
         # Write the gml:id inside the first tag
         pos = value.find(">")
@@ -605,12 +602,12 @@ class GML32ValueRenderer(GML32Renderer):
         """
         value = instance["member"]
         if self.xsd_node.is_geometry:
-            gml_id = self.get_gml_id(feature_type, instance["pk"], seq=1)
+            self.gml_seq = 0
             return self.render_gml_field(
                 feature_type,
                 self.xsd_node,
                 value=value,
-                gml_id=gml_id,
+                object_id=instance["pk"],
                 extra_xmlns=extra_xmlns,
             )
         else:
@@ -620,7 +617,7 @@ class GML32ValueRenderer(GML32Renderer):
                 # For GetFeatureById, allow returning raw values
                 return str(value)
             else:
-                return self.render_xml_field(
+                return self._render_xml_field(
                     feature_type,
                     cast(XsdElement, self.xsd_node),
                     value,
@@ -647,12 +644,12 @@ class DBGML32ValueRenderer(DBGML32Renderer, GML32ValueRenderer):
     def render_wfs_member(self, feature_type: FeatureType, instance: dict, extra_xmlns="") -> str:
         """Write the XML for a single object."""
         if "gml_member" in instance:
-            gml_id = self.get_gml_id(feature_type, instance["pk"], seq=1)
+            self.gml_seq = 0
             body = self.render_db_gml_field(
                 feature_type,
                 self.xsd_node,
                 instance["gml_member"],
-                gml_id=gml_id,
+                object_id=instance["pk"],
             )
             return f"<wfs:member>\n{body}</wfs:member>\n"
         else:
