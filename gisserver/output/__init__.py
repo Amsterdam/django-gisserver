@@ -41,6 +41,10 @@ def select_renderer(native_renderer_class, db_renderer_class):
     """
 
     class SelectRenderer:
+        """A proxy to the actual rendering class.
+        Its structure still allows accessing class-properties of the actual class.
+        """
+
         @classproperty
         def real_class(self):
             if conf.GISSERVER_USE_DB_RENDERING:

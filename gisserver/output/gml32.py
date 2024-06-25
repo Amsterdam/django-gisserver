@@ -2,6 +2,8 @@
 
 Note that the Django format_html() / mark_safe() logic is not used here,
 as it's quite a performance improvement to just use html.escape().
+
+We've tried replacing this code with lxml and that turned out to be 2x slower..
 """
 
 from __future__ import annotations
@@ -80,7 +82,7 @@ class GML32Renderer(OutputRenderer):
         if instance is None:
             raise NotFound("Feature not found.")
 
-        body = self.render_wfs_member_contents(
+        body = self.render_feature(
             feature_type=sub_collection.feature_type,
             instance=instance,
             extra_xmlns=self.render_xmlns_standalone(),
@@ -185,10 +187,10 @@ class GML32Renderer(OutputRenderer):
 
     def render_wfs_member(self, feature_type: FeatureType, instance: models.Model, extra_xmlns=""):
         """Write the full <wfs:member> block."""
-        body = self.render_wfs_member_contents(feature_type, instance, extra_xmlns=extra_xmlns)
+        body = self.render_feature(feature_type, instance, extra_xmlns=extra_xmlns)
         return f"<wfs:member>\n{body}</wfs:member>\n"
 
-    def render_wfs_member_contents(
+    def render_feature(
         self, feature_type: FeatureType, instance: models.Model, extra_xmlns=""
     ) -> str:
         """Write the contents of the object value.
@@ -316,20 +318,22 @@ class GML32Renderer(OutputRenderer):
         self,
         feature_type: FeatureType,
         xsd_element: XsdElement,
-        value,
+        value: geos.GEOSGeometry,
         gml_id,
         extra_xmlns="",
     ) -> str:
         """Write the value of an GML tag"""
         xml_name = xsd_element.xml_name
-        gml = self.render_gml_value(value, gml_id=gml_id)
-        return f"<{xml_name}{extra_xmlns}>{gml}</{xml_name}>\n"
-
-    def render_gml_value(self, value: geos.GEOSGeometry, gml_id: str, extra_xmlns="") -> str:
-        """Convert a Geometry into GML syntax."""
         self.output_crs.apply_to(value)
+
+        # the following is somewhat faster, but will render GML 2, not GML 3.2:
+        # gml = value.ogr.gml
+        # pos = gml.find(">")  # Will inject the gml:id="..." tag.
+        # return f"<{xml_name}{extra_xmlns}>{gml[:pos]} {gml_id}{gml[pos:]}</{xml_name}>\n"
+
         base_attrs = f' gml:id="{escape(gml_id)}" srsName="{self.xml_srs_name}"{extra_xmlns}'
-        return self._render_gml_type(value, base_attrs)
+        gml = self._render_gml_type(value, base_attrs)
+        return f"<{xml_name}{extra_xmlns}>{gml}</{xml_name}>\n"
 
     def _render_gml_type(self, value: geos.GEOSGeometry, base_attrs=""):
         try:
@@ -392,6 +396,7 @@ class GML32Renderer(OutputRenderer):
 
     @register_geos_type(geos.LinearRing)
     def render_gml_linear_ring(self, value: geos.LinearRing, base_attrs=""):
+        # NOTE: this is super slow. value.tuple performs a C-API call for every point!
         coords = " ".join(map(str, itertools.chain.from_iterable(value.tuple)))
         dim = "3" if value.hasz else "2"
         # <gml:coordinates> is still valid in GML3, but deprecated (part of GML2).
@@ -403,6 +408,7 @@ class GML32Renderer(OutputRenderer):
 
     @register_geos_type(geos.LineString)
     def render_gml_line_string(self, value: geos.LineString, base_attrs=""):
+        # NOTE: this is super slow. value.tuple performs a C-API call for every point!
         coords = " ".join(map(str, itertools.chain.from_iterable(value.tuple)))
         dim = "3" if value.hasz else "2"
         return (
@@ -590,12 +596,10 @@ class GML32ValueRenderer(GML32Renderer):
         else:
             # The call to GetPropertyValue selected an element.
             # Render this single element tag inside the <wfs:member> parent.
-            body = self.render_wfs_member_contents(feature_type, instance)
+            body = self.render_feature(feature_type, instance)
             return f"<wfs:member>\n{body}</wfs:member>\n"
 
-    def render_wfs_member_contents(
-        self, feature_type: FeatureType, instance: dict, extra_xmlns=""
-    ) -> str:
+    def render_feature(self, feature_type: FeatureType, instance: dict, extra_xmlns="") -> str:
         """Write the XML for a single object.
         In this case, it's only a single XML tag.
         """
