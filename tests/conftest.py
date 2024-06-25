@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from datetime import time, timedelta
 from decimal import Decimal
 from pathlib import Path
-from typing import List, cast
+from typing import cast
 from xml.etree import ElementTree
 
 import django
@@ -49,13 +49,13 @@ class CoordinateInputs:
 
     point1_wgs84: Point  # How GeoDjango retrieved the object from the database
     point1_ewkt: str
-    point1_geojson: List[Decimal]
+    point1_geojson: list[Decimal]
     point1_xml_wgs84: str
     point1_xml_rd: str
 
     point2_wgs84: Point  # Retrieved from db.
     point2_ewkt: str
-    point2_geojson: List[Decimal]
+    point2_geojson: list[Decimal]
     point2_xml_wgs84: str
 
 
@@ -64,7 +64,7 @@ def _get_point(hex_ewkb: str) -> Point:
     return cast(Point, GEOSGeometry(hex_ewkb))
 
 
-def _get_geojson(value: str) -> List[Decimal]:
+def _get_geojson(value: str) -> list[Decimal]:
     """Extract the coordinates from a GeoJSON point"""
     return orjson.loads(value)["coordinates"]
 
@@ -96,44 +96,43 @@ def db_coordinates(django_db_setup, django_db_blocker):
     Despite efforts to sync the PROJ.4 definitions, minor differences between platforms remain.
     So the values are calculated beforehand, so the expected data is included in the tests.
     """
-    with django_db_blocker.unblock():
-        with connection.cursor() as cursor:
-            point1 = "ST_GeomFromEWKB(%(point1)s)"
-            point2 = "ST_GeomFromEWKB(%(point2)s)"
-            pr = conf.GISSERVER_DB_PRECISION
+    with django_db_blocker.unblock(), connection.cursor() as cursor:
+        point1 = "ST_GeomFromEWKB(%(point1)s)"
+        point2 = "ST_GeomFromEWKB(%(point2)s)"
+        pr = conf.GISSERVER_DB_PRECISION
 
-            cursor.execute(
-                "SELECT"
-                f" ST_Transform({point1}, 4326) as point1_wgs84,"
-                f" ST_AsEWKT(ST_Transform({point1}, 4326), {pr}) as point1_ewkt,"
-                f" ST_AsGeoJson(ST_Transform({point1}, 4326), {pr}) as point1_geojson,"
-                f" ST_AsGML(3, ST_Transform({point1}, 4326), {pr}, 1) as point1_xml_wgs84,"
-                f" ST_AsGML(3, ST_Transform(ST_Transform({point1}, 4326), 28992), {pr}, 1) as point1_xml_rd,"  # noqa: E501
-                f" ST_Transform({point2}, 4326) as point2_wgs84,"
-                f" ST_AsEWKT(ST_Transform({point2}, 4326), {pr}) as point2_ewkt,"
-                f" ST_AsGeoJson(ST_Transform({point2}, 4326), {pr}) as point2_geojson,"
-                f" ST_AsGML(3, ST_Transform({point2}, 4326), {pr}, 1) as point2_xml_wgs84",
-                {
-                    "point1": Binary(CoordinateInputs.point1_rd.ewkb),
-                    "point2": Binary(CoordinateInputs.point2_rd.ewkb),
-                },
-            )
+        cursor.execute(
+            "SELECT"
+            f" ST_Transform({point1}, 4326) as point1_wgs84,"
+            f" ST_AsEWKT(ST_Transform({point1}, 4326), {pr}) as point1_ewkt,"
+            f" ST_AsGeoJson(ST_Transform({point1}, 4326), {pr}) as point1_geojson,"
+            f" ST_AsGML(3, ST_Transform({point1}, 4326), {pr}, 1) as point1_xml_wgs84,"
+            f" ST_AsGML(3, ST_Transform(ST_Transform({point1}, 4326), 28992), {pr}, 1) as point1_xml_rd,"  # noqa: E501
+            f" ST_Transform({point2}, 4326) as point2_wgs84,"
+            f" ST_AsEWKT(ST_Transform({point2}, 4326), {pr}) as point2_ewkt,"
+            f" ST_AsGeoJson(ST_Transform({point2}, 4326), {pr}) as point2_geojson,"
+            f" ST_AsGML(3, ST_Transform({point2}, 4326), {pr}, 1) as point2_xml_wgs84",
+            {
+                "point1": Binary(CoordinateInputs.point1_rd.ewkb),
+                "point2": Binary(CoordinateInputs.point2_rd.ewkb),
+            },
+        )
 
-            columns = (x.name for x in cursor.description)
-            result = cursor.fetchone()
-            result = dict(zip(columns, result))
+        columns = (x.name for x in cursor.description)
+        result = cursor.fetchone()
+        result = dict(zip(columns, result))
 
-            return CoordinateInputs(
-                point1_wgs84=_get_point(result["point1_wgs84"]),
-                point1_ewkt=result["point1_ewkt"],
-                point1_geojson=_get_geojson(result["point1_geojson"]),
-                point1_xml_wgs84=_get_gml(result["point1_xml_wgs84"]),
-                point1_xml_rd=_get_gml(result["point1_xml_rd"]),
-                point2_wgs84=_get_point(result["point2_wgs84"]),
-                point2_ewkt=result["point2_ewkt"],
-                point2_geojson=_get_geojson(result["point2_geojson"]),
-                point2_xml_wgs84=_get_gml(result["point2_xml_wgs84"]),
-            )
+        return CoordinateInputs(
+            point1_wgs84=_get_point(result["point1_wgs84"]),
+            point1_ewkt=result["point1_ewkt"],
+            point1_geojson=_get_geojson(result["point1_geojson"]),
+            point1_xml_wgs84=_get_gml(result["point1_xml_wgs84"]),
+            point1_xml_rd=_get_gml(result["point1_xml_rd"]),
+            point2_wgs84=_get_point(result["point2_wgs84"]),
+            point2_ewkt=result["point2_ewkt"],
+            point2_geojson=_get_geojson(result["point2_geojson"]),
+            point2_xml_wgs84=_get_gml(result["point2_xml_wgs84"]),
+        )
 
 
 @pytest.fixture(scope="session")
@@ -202,9 +201,8 @@ def django_db_setup(django_db_setup, django_db_blocker):
     """Still show which version the tests run against.
     This allows to debug issues with older GDAL / proj version.
     """
-    with django_db_blocker.unblock():
-        with connection.cursor() as c:
-            # Show the postgis version for debugging
-            c.callproc("postgis_full_version")  # SELECT postgis_full_version()
-            result = c.fetchone()[0]
-            print(f"Postgresql setup: {result}")
+    with django_db_blocker.unblock(), connection.cursor() as c:
+        # Show the postgis version for debugging
+        c.callproc("postgis_full_version")  # SELECT postgis_full_version()
+        result = c.fetchone()[0]
+        print(f"Postgresql setup: {result}")

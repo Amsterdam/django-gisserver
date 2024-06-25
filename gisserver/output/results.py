@@ -12,7 +12,6 @@ from collections.abc import Iterable
 from datetime import timezone
 from functools import reduce
 
-import django
 from django.db import models
 from django.utils.functional import cached_property
 from django.utils.timezone import now
@@ -123,11 +122,8 @@ class SimpleFeatureCollection:
             # This still allows prefetch_related() to work,
             # since QuerySet.iterator() is avoided.
             if self.stop == math.inf:
-                # Infinite page requested
-                if self.start:
-                    qs = self.queryset[self.start :]
-                else:
-                    qs = self.queryset.all()
+                # Infinite page requested, see if start is still requested
+                qs = self.queryset[self.start :] if self.start else self.queryset.all()
             else:
                 qs = self.queryset[self.start : self.stop]
 
@@ -167,10 +163,7 @@ class SimpleFeatureCollection:
         }
         if clean_annotations != qs.query.annotations:
             qs = self.queryset.all()  # make a clone to allow editing
-            if django.VERSION >= (3, 0):
-                qs.query.annotations = clean_annotations
-            else:
-                qs.query._annotations = clean_annotations
+            qs.query.annotations = clean_annotations
 
         return qs.count()
 

@@ -15,9 +15,7 @@ def url_to_path(url: str) -> str:
     eg "http://www.example.come/a/b/c.xsd" -> "./www.example.come/a/b/c.xsd"
     """
     parsed = urlparse(url)
-
-    path = parsed.netloc + parsed.path
-    return path
+    return parsed.netloc + parsed.path
 
 
 def localize_links(text: str, filename_complete: str) -> str:
@@ -55,10 +53,11 @@ def save_file(url: str, text: str) -> None:
 
 def download_xml_url(url: str) -> str:
     "Fetches URL, returns text of the document"
-    response = urllib.request.urlopen(url).read()
+    if not url.startswith("http"):
+        raise RuntimeError()
+    response = urllib.request.urlopen(url).read()  # noqa: S310
     tree = etree.fromstring(response, parser=etree.XMLParser(remove_comments=True))
-    xml = etree.tostring(tree).decode("utf-8")
-    return xml
+    return etree.tostring(tree).decode("utf-8")
 
 
 def download_schema(url):

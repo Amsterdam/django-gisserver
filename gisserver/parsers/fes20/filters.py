@@ -42,11 +42,12 @@ class Filter:
         if isinstance(text, str):
             end_first = text.index(">")
             first_tag = text[:end_first].lstrip()
-            if "xmlns" not in first_tag:
-                # Allow KVP requests without a namespace
-                # Both geoserver and mapserver support this.
-                if first_tag == "<Filter" or first_tag.startswith("<Filter "):
-                    text = f'{first_tag} xmlns="{FES20}" xmlns:gml="{GML32}"{text[end_first:]}'
+            # Allow KVP requests without a namespace
+            # Both geoserver and mapserver support this.
+            if "xmlns" not in first_tag and (
+                first_tag == "<Filter" or first_tag.startswith("<Filter ")
+            ):
+                text = f'{first_tag} xmlns="{FES20}" xmlns:gml="{GML32}"{text[end_first:]}'
 
         try:
             root_element = fromstring(text)

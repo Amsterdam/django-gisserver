@@ -260,7 +260,7 @@ class CRS:
             if clone:
                 return geometry.clone()
             else:
-                return
+                return None
         else:
             # Convert using GDAL / proj
             transform = _get_coord_transform(geometry.srid, self._as_gdal())

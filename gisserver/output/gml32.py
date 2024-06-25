@@ -182,7 +182,6 @@ class GML32Renderer(OutputRenderer):
 
     def start_collection(self, sub_collection: SimpleFeatureCollection):
         """Hook to allow initialization per feature type"""
-        pass
 
     def render_wfs_member(self, feature_type: FeatureType, instance: models.Model, extra_xmlns=""):
         """Write the full <wfs:member> block."""
@@ -236,6 +235,8 @@ class GML32Renderer(OutputRenderer):
                 <gml:lowerCorner>{lower}</gml:lowerCorner>
                 <gml:upperCorner>{upper}</gml:upperCorner>
               </gml:Envelope></gml:boundedBy>\n"""
+        else:
+            return None
 
     def render_element(self, feature_type, xsd_element: XsdElement, instance: models.Model):
         """Rendering of a single field."""
@@ -547,6 +548,8 @@ class DBGML32Renderer(GML32Renderer):
         gml = instance._as_envelope_gml
         if gml is not None:
             return f"<gml:boundedBy>{gml}</gml:boundedBy>\n"
+        else:
+            return None
 
 
 class GML32ValueRenderer(GML32Renderer):

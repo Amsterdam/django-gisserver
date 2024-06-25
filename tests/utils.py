@@ -1,7 +1,6 @@
 from doctest import Example
 from functools import lru_cache
 from pathlib import Path
-from typing import Union
 
 from lxml import etree
 from lxml.doctestcompare import PARSE_XML, LXMLOutputChecker
@@ -31,7 +30,7 @@ def compile_xsd(xsd_file, xsd_content=None) -> etree.XMLSchema:
         raise TypeError("pass xsd_file or xsd_content)")
 
 
-def validate_xsd(xml_text: Union[bytes, str], xsd_file=None, xsd_content=None) -> etree._Element:
+def validate_xsd(xml_text: bytes | str, xsd_file=None, xsd_content=None) -> etree._Element:
     """Validate an XML file"""
     xml_schema = compile_xsd(xsd_file=xsd_file, xsd_content=xsd_content)
 
@@ -67,7 +66,7 @@ def validate_xsd(xml_text: Union[bytes, str], xsd_file=None, xsd_content=None) -
     return xml_doc
 
 
-def assert_xml_equal(got: Union[bytes, str], want: str):
+def assert_xml_equal(got: bytes | str, want: str):
     """Compare two XML strings."""
     checker = LXMLOutputChecker()
 

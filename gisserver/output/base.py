@@ -169,10 +169,7 @@ class OutputRenderer:
             # Offer a common quick content-disposition logic that works for all possible queries.
             sub_collection = self.collection.results[0]
             if sub_collection.stop == math.inf:
-                if sub_collection.start:
-                    page = f"{sub_collection.start}-end"
-                else:
-                    page = "all"
+                page = f"{sub_collection.start}-end" if sub_collection.start else "all"
             elif sub_collection.stop:
                 page = f"{sub_collection.start}-{sub_collection.stop - 1}"
             else:

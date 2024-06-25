@@ -106,7 +106,7 @@ class TagRegistry:
 
         def _dec(sub_class: type[BaseNode]):
             # Looping over _member_names_ will skip aliased items (like BBOX/Within)
-            for member_name in names.__members__.keys():
+            for member_name in names.__members__:
                 self.register(name=member_name, namespace=namespace)(sub_class)
             return sub_class
 

@@ -535,8 +535,8 @@ def test_fes20_c5_example9():
         lookups=[
             Q(
                 SAMPLE_DATE__range=(
-                    datetime(2001, 1, 15, 20, 7, 48, 110000),
-                    datetime(2001, 3, 6, 12, 0),
+                    datetime(2001, 1, 15, 20, 7, 48, 110000),  # noqa: DTZ001
+                    datetime(2001, 3, 6, 12, 0),  # noqa: DTZ001
                 )
             )
         ]

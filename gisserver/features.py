@@ -21,7 +21,7 @@ import operator
 from collections import defaultdict
 from dataclasses import dataclass
 from functools import lru_cache, reduce
-from typing import List, Union
+from typing import Union
 
 from django.conf import settings
 from django.contrib.gis.db import models as gis_models
@@ -290,7 +290,7 @@ class FeatureField:
 
 
 _FieldDefinition = Union[str, FeatureField]
-_FieldDefinitions = Union[_all_, List[_FieldDefinition]]
+_FieldDefinitions = Union[_all_, list[_FieldDefinition]]
 
 
 class ComplexFeatureField(FeatureField):
@@ -454,15 +454,15 @@ class FeatureType:
         queryset: models.QuerySet,
         *,
         fields: _FieldDefinitions | None = None,
-        display_field_name: str = None,
-        geometry_field_name: str = None,
-        name: str = None,
+        display_field_name: str | None = None,
+        geometry_field_name: str | None = None,
+        name: str | None = None,
         # WFS Metadata:
-        title: str = None,
-        abstract: str = None,
-        keywords: list[str] = None,
-        crs: CRS = None,
-        other_crs: list[CRS] = None,
+        title: str | None = None,
+        abstract: str | None = None,
+        keywords: list[str] | None = None,
+        crs: CRS | None = None,
+        other_crs: list[CRS] | None = None,
         metadata_url: str | None = None,
         # Settings
         show_name_field: bool = True,
@@ -520,7 +520,6 @@ class FeatureType:
         """Hook that allows subclasses to reject access for datasets.
         It may raise a Django PermissionDenied error.
         """
-        pass
 
     @cached_property
     def xml_name(self):
@@ -550,7 +549,7 @@ class FeatureType:
         This gives an object layout based on the XSD elements,
         that can be used for prefetching data.
         """
-        models = dict()
+        models = {}
         fields = defaultdict(set)
         elements = defaultdict(list)
 

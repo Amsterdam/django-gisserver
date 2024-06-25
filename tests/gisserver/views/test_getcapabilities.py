@@ -18,7 +18,7 @@ class TestGetCapabilities:
         """Prove that the happy flow works"""
         gml32 = quote_plus("application/gml+xml; version=3.2")
         response = client.get(
-            "/v1/wfs/?SERVICE=WFS&REQUEST=GetCapabilities&ACCEPTVERSIONS=2.0.0&OUTPUTFORMAT={gml32}"
+            f"/v1/wfs/?SERVICE=WFS&REQUEST=GetCapabilities&ACCEPTVERSIONS=2.0.0&OUTPUTFORMAT={gml32}"
         )
         content = response.content.decode()
         assert response["content-type"] == "text/xml; charset=utf-8", content

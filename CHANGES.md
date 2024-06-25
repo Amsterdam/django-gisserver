@@ -8,7 +8,7 @@ We would like to thank the following contributors
 for their work on this release.
 
    - [tomdtp](https://github.com/tomdtp)
-  
+
 # 2023-06-08 (1.2.7)
 
 * WFS endpoints now accept a GML version number in their OUTPUTFORMAT.
@@ -42,7 +42,7 @@ for their work on this release.
 # 2022-04-13 (1.2.1)
 
 * Fixed regression for auto-correcting xmlns for `<Filter>` tags that have leading whitespace.
-* Fixed weird crashes when geometry field is not provided. 
+* Fixed weird crashes when geometry field is not provided.
 * Simplify `FeatureType.geometry_field` logic.
 
 

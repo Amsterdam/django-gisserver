@@ -324,7 +324,6 @@ class WFSMethod:
 
     def validate(self, **params):
         """Perform final request parameter validation before the method is called"""
-        pass
 
     def __call__(self, **params):
         """Default call implementation: render an XML template."""
@@ -413,10 +412,8 @@ class WFSTypeNamesMethod(WFSMethod):
     def _parse_type_name(self, name, locator="typename") -> FeatureType:
         """Find the requested feature type for a type name"""
         app_prefix = self.namespaces[self.view.xml_namespace]
-        if name.startswith(f"{app_prefix}:"):
-            local_name = name[len(app_prefix) + 1 :]  # strip our XML prefix
-        else:
-            local_name = name
+        # strip our XML prefix
+        local_name = name[len(app_prefix) + 1 :] if name.startswith(f"{app_prefix}:") else name
 
         try:
             return self.all_feature_types_by_name[local_name]

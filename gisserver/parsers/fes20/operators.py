@@ -181,7 +181,7 @@ class IdOperator(Operator):
     @property
     def type_names(self) -> list[str]:
         """Provide a list of all type names accessed by this operator"""
-        return [type_name for type_name in self.grouped_ids.keys() if type_name is not None]
+        return [type_name for type_name in self.grouped_ids if type_name is not None]
 
     @cached_property
     def grouped_ids(self) -> dict[str, list[Id]]:

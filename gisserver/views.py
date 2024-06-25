@@ -86,6 +86,8 @@ class GISView(View):
                 status=exc.status_code,
                 reason=exc.reason,
             )
+        else:
+            return None
 
     def get(self, request, *args, **kwargs):
         """Entry point to handle HTTP GET requests.

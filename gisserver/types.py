@@ -147,7 +147,7 @@ class XsdTypes(XsdAnyType, Enum):
     gYear = "gYear"
     hexBinary = "hexBinary"
     base64Binary = "base64Binary"
-    token = "token"
+    token = "token"  # noqa: S105
     language = "language"
 
     # Types that contain a GML value as member:
@@ -218,7 +218,9 @@ def _init_types_to_python():
     global TYPES_TO_PYTHON
     from gisserver.parsers import values  # avoid cyclic import
 
-    as_is = lambda v: v
+    def as_is(v):
+        return v
+
     TYPES_TO_PYTHON = {
         XsdTypes.date: dateparse.parse_date,
         XsdTypes.dateTime: values.parse_iso_datetime,
