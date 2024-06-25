@@ -31,9 +31,7 @@ def compile_xsd(xsd_file, xsd_content=None) -> etree.XMLSchema:
         raise TypeError("pass xsd_file or xsd_content)")
 
 
-def validate_xsd(
-    xml_text: Union[bytes, str], xsd_file=None, xsd_content=None
-) -> etree._Element:
+def validate_xsd(xml_text: Union[bytes, str], xsd_file=None, xsd_content=None) -> etree._Element:
     """Validate an XML file"""
     xml_schema = compile_xsd(xsd_file=xsd_file, xsd_content=xsd_content)
 

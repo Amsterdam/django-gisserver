@@ -13,6 +13,7 @@ The feature type classes (and field types) offer a flexible translation
 from attribute listings into a schema definition.
 For example, model relationships can be modelled to a different XML layout.
 """
+
 from __future__ import annotations
 
 import html
@@ -138,9 +139,7 @@ def _get_model_fields(model, fields, parent=None):
                 parent=parent,
             )
             for f in model._meta.get_fields()
-            if not f.is_relation
-            or f.many_to_one  # ForeignKey
-            or f.one_to_one  # OneToOneField
+            if not f.is_relation or f.many_to_one or f.one_to_one  # ForeignKey  # OneToOneField
         ]
     else:
         # Only defined fields
@@ -677,9 +676,7 @@ class FeatureType:
         # That that without .only(), use at least `self.queryset.all()` so a clone is returned.
         return self.queryset.only(*self._local_model_field_names)
 
-    def get_related_queryset(
-        self, feature_relation: FeatureRelation
-    ) -> models.QuerySet:
+    def get_related_queryset(self, feature_relation: FeatureRelation) -> models.QuerySet:
         """Return the queryset that is used for prefetching related data."""
         if feature_relation.related_model is None:
             raise RuntimeError(
@@ -688,9 +685,7 @@ class FeatureType:
             )
         # Return a queryset that only retrieves the fields that are displayed.
         return self.filter_related_queryset(
-            feature_relation.related_model.objects.only(
-                *feature_relation._local_model_field_names
-            )
+            feature_relation.related_model.objects.only(*feature_relation._local_model_field_names)
         )
 
     def filter_related_queryset(self, queryset: models.QuerySet) -> models.QuerySet:
@@ -730,9 +725,7 @@ class FeatureType:
             return None
 
         # Perform the combining of geometries inside libgeos
-        geometry = (
-            geometries[0] if len(geometries) == 1 else reduce(operator.or_, geometries)
-        )
+        geometry = geometries[0] if len(geometries) == 1 else reduce(operator.or_, geometries)
         if crs is not None and geometry.srid != crs.srid:
             crs.apply_to(geometry)  # avoid clone
         return BoundingBox.from_geometry(geometry, crs=crs)
@@ -824,9 +817,7 @@ class FeatureType:
                 f"XPath selectors with expanded syntax are not supported: {xpath}"
             )
         elif "(" in xpath:
-            raise NotImplementedError(
-                f"XPath selectors with functions are not supported: {xpath}"
-            )
+            raise NotImplementedError(f"XPath selectors with functions are not supported: {xpath}")
 
         # Allow /app:ElementName/.. as "absolute" path.
         # Given our internal resolver logic, simple solution is to strip it.

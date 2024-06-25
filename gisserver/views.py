@@ -1,12 +1,12 @@
 """The view layer parses the request, and dispatches it to an operation."""
+
 from __future__ import annotations
 
 import re
 from urllib.parse import urlencode
 
-from django.core.exceptions import ImproperlyConfigured
+from django.core.exceptions import ImproperlyConfigured, SuspiciousOperation
 from django.core.exceptions import PermissionDenied as Django_PermissionDenied
-from django.core.exceptions import SuspiciousOperation
 from django.http import HttpResponse
 from django.shortcuts import render
 from django.views import View
@@ -129,9 +129,7 @@ class GISView(View):
         """Render the index page."""
         # Not using the whole TemplateResponseMixin config with configurable parameters.
         # If this really needs more configuration, overriding is likely just as easy.
-        return render(
-            self.request, self.get_index_template_names(), self.get_index_context_data()
-        )
+        return render(self.request, self.get_index_template_names(), self.get_index_context_data())
 
     def get_index_context_data(self, **kwargs):
         """Provide the context data for the index page."""
@@ -143,8 +141,7 @@ class GISView(View):
         base_qs = {
             key: value
             for key, value in self.request.GET.items()
-            if key.upper()
-            not in ("SERVICE", "REQUEST", "VERSION", "OUTPUTFORMAT", "TYPENAMES")
+            if key.upper() not in ("SERVICE", "REQUEST", "VERSION", "OUTPUTFORMAT", "TYPENAMES")
         }
         base_query = urlencode(base_qs) + "&" if base_qs else ""
 
@@ -173,9 +170,7 @@ class GISView(View):
 
         if self.index_template_name:
             # Allow the same substitutions for a manually configured template.
-            return [
-                self.index_template_name.format(service=service, version=self.version)
-            ]
+            return [self.index_template_name.format(service=service, version=self.version)]
         else:
             return [
                 f"gisserver/{service}/{self.version}/index.html",

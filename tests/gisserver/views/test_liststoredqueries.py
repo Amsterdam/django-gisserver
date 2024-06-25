@@ -11,9 +11,7 @@ class TestListStoredQueries:
 
     def test_get(self, client):
         """Prove that the happy flow works"""
-        response = client.get(
-            "/v1/wfs/?SERVICE=WFS&REQUEST=ListStoredQueries&VERSION=2.0.0"
-        )
+        response = client.get("/v1/wfs/?SERVICE=WFS&REQUEST=ListStoredQueries&VERSION=2.0.0")
         content = response.content.decode()
         assert response["content-type"] == "text/xml; charset=utf-8", content
         assert response.status_code == 200, content

@@ -27,9 +27,7 @@ def auto_cast(value: str):
 def parse_iso_datetime(raw_value: str) -> datetime:
     value = parse_datetime(raw_value)
     if value is None:
-        raise ExternalParsingError(
-            "Date must be in YYYY-MM-DD HH:MM[:ss[.uuuuuu]][TZ] format."
-        )
+        raise ExternalParsingError("Date must be in YYYY-MM-DD HH:MM[:ss[.uuuuuu]][TZ] format.")
     return value
 
 

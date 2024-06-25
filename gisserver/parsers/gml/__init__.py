@@ -2,6 +2,7 @@
 
 These functions locate GML objects, and redirect to the proper parser.
 """
+
 from __future__ import annotations
 
 from xml.etree.ElementTree import Element

@@ -23,6 +23,7 @@ Each XMLSchema node defines it's "data type" as either:
 
 Custom field types could also generate these field types.
 """
+
 from __future__ import annotations
 
 import operator
@@ -193,9 +194,7 @@ class XsdTypes(XsdAnyType, Enum):
         try:
             return TYPES_TO_PYTHON[self]
         except KeyError:
-            raise NotImplementedError(
-                f'Casting to "{self}" is not implemented.'
-            ) from None
+            raise NotImplementedError(f'Casting to "{self}" is not implemented.') from None
 
     def to_python(self, raw_value):
         """Convert a raw string value to this type representation"""
@@ -426,9 +425,7 @@ class XsdNode:
                 code=e.code,
             ) from e
         except (ValueError, TypeError) as e:
-            raise ValidationError(
-                f"Invalid data for the '{self.name}' property: {e}"
-            ) from e
+            raise ValidationError(f"Invalid data for the '{self.name}' property: {e}") from e
 
         return raw_value
 
@@ -493,9 +490,7 @@ class XsdElement(XsdNode):
         source: models.Field | ForeignObjectRel | None = None,
         model_attribute: str | None = None,
     ):
-        super().__init__(
-            name, type, prefix=prefix, source=source, model_attribute=model_attribute
-        )
+        super().__init__(name, type, prefix=prefix, source=source, model_attribute=model_attribute)
         self.nillable = nillable
         self.min_occurs = min_occurs
         self.max_occurs = max_occurs
@@ -560,9 +555,7 @@ class XsdAttribute(XsdNode):
         source: models.Field | ForeignObjectRel | None = None,
         model_attribute: str | None = None,
     ):
-        super().__init__(
-            name, type, prefix=prefix, source=source, model_attribute=model_attribute
-        )
+        super().__init__(name, type, prefix=prefix, source=source, model_attribute=model_attribute)
         self.use = use
 
 
@@ -579,9 +572,7 @@ class GmlIdAttribute(XsdAttribute):
         source: models.Field | ForeignObjectRel | None = None,
         model_attribute="pk",
     ):
-        super().__init__(
-            prefix="gml", name="id", source=source, model_attribute=model_attribute
-        )
+        super().__init__(prefix="gml", name="id", source=source, model_attribute=model_attribute)
         object.__setattr__(self, "type_name", type_name)
 
     def get_value(self, instance: models.Model):
@@ -890,9 +881,7 @@ class XPathMatch(ORMPath):
         if "[" in self.query:
             # If there is an element[@attr=...]/field tag,
             # the build_...() logic should return a Q() object.
-            raise NotImplementedError(
-                f"Complex XPath queries are not supported yet: {self.query}"
-            )
+            raise NotImplementedError(f"Complex XPath queries are not supported yet: {self.query}")
 
     @cached_property
     def orm_path(self) -> str:

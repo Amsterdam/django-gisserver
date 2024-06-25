@@ -3,6 +3,7 @@
 Note that the Django format_html() / mark_safe() logic is not used here,
 as it's quite a performance improvement to just use html.escape().
 """
+
 from __future__ import annotations
 
 import itertools
@@ -98,8 +99,7 @@ class GML32Renderer(OutputRenderer):
     def render_xmlns(self):
         """Generate the xmlns block that the document needs"""
         xsd_typenames = ",".join(
-            sub_collection.feature_type.name
-            for sub_collection in self.collection.results
+            sub_collection.feature_type.name for sub_collection in self.collection.results
         )
         schema_location = [
             f"{self.app_xml_namespace} {self.server_url}?SERVICE=WFS&VERSION=2.0.0&REQUEST=DescribeFeatureType&TYPENAMES={xsd_typenames}",  # noqa: E501
@@ -135,9 +135,7 @@ class GML32Renderer(OutputRenderer):
         output = StringBuffer()
         xmlns = self.render_xmlns().strip()
         number_matched = collection.number_matched
-        number_matched = (
-            int(number_matched) if number_matched is not None else "unknown"
-        )
+        number_matched = int(number_matched) if number_matched is not None else "unknown"
         number_returned = collection.number_returned
         next = previous = ""
         if collection.next:
@@ -169,9 +167,7 @@ class GML32Renderer(OutputRenderer):
                     )
 
                 for instance in sub_collection:
-                    output.write(
-                        self.render_wfs_member(sub_collection.feature_type, instance)
-                    )
+                    output.write(self.render_wfs_member(sub_collection.feature_type, instance))
 
                     # Only perform a 'yield' every once in a while,
                     # as it goes back-and-forth for writing it to the client.
@@ -188,13 +184,9 @@ class GML32Renderer(OutputRenderer):
         """Hook to allow initialization per feature type"""
         pass
 
-    def render_wfs_member(
-        self, feature_type: FeatureType, instance: models.Model, extra_xmlns=""
-    ):
+    def render_wfs_member(self, feature_type: FeatureType, instance: models.Model, extra_xmlns=""):
         """Write the full <wfs:member> block."""
-        body = self.render_wfs_member_contents(
-            feature_type, instance, extra_xmlns=extra_xmlns
-        )
+        body = self.render_wfs_member_contents(feature_type, instance, extra_xmlns=extra_xmlns)
         return f"<wfs:member>\n{body}</wfs:member>\n"
 
     def render_wfs_member_contents(
@@ -210,9 +202,7 @@ class GML32Renderer(OutputRenderer):
         # Write <app:FeatureTypeName> start node
         pk = escape(str(instance.pk))
         output = StringBuffer()
-        output.write(
-            f'<{feature_type.xml_name} gml:id="{feature_type.name}.{pk}"{extra_xmlns}>\n'
-        )
+        output.write(f'<{feature_type.xml_name} gml:id="{feature_type.name}.{pk}"{extra_xmlns}>\n')
 
         # Add all base class members, in their correct ordering
         # By having these as XsdElement objects instead of hard-coded writes,
@@ -227,9 +217,7 @@ class GML32Renderer(OutputRenderer):
                         output.write(gml)
                 else:
                     # e.g. <gml:name>, or all other <app:...> nodes.
-                    output.write(
-                        self.render_element(feature_type, xsd_element, instance)
-                    )
+                    output.write(self.render_element(feature_type, xsd_element, instance))
 
         # Add all members
         for xsd_element in feature_type.xsd_type.elements:
@@ -249,9 +237,7 @@ class GML32Renderer(OutputRenderer):
                 <gml:upperCorner>{upper}</gml:upperCorner>
               </gml:Envelope></gml:boundedBy>\n"""
 
-    def render_element(
-        self, feature_type, xsd_element: XsdElement, instance: models.Model
-    ):
+    def render_element(self, feature_type, xsd_element: XsdElement, instance: models.Model):
         """Rendering of a single field."""
         value = xsd_element.get_value(instance)
         if xsd_element.is_geometry and value is not None:
@@ -338,14 +324,10 @@ class GML32Renderer(OutputRenderer):
         gml = self.render_gml_value(value, gml_id=gml_id)
         return f"<{xml_name}{extra_xmlns}>{gml}</{xml_name}>\n"
 
-    def render_gml_value(
-        self, value: geos.GEOSGeometry, gml_id: str, extra_xmlns=""
-    ) -> str:
+    def render_gml_value(self, value: geos.GEOSGeometry, gml_id: str, extra_xmlns="") -> str:
         """Convert a Geometry into GML syntax."""
         self.output_crs.apply_to(value)
-        base_attrs = (
-            f' gml:id="{escape(gml_id)}" srsName="{self.xml_srs_name}"{extra_xmlns}'
-        )
+        base_attrs = f' gml:id="{escape(gml_id)}" srsName="{self.xml_srs_name}"{extra_xmlns}'
         return self._render_gml_type(value, base_attrs)
 
     def _render_gml_type(self, value: geos.GEOSGeometry, base_attrs=""):
@@ -448,18 +430,14 @@ class DBGML32Renderer(GML32Renderer):
         This is far more efficient then GeoDjango's logic, which performs a
         C-API call for every single coordinate of a geometry.
         """
-        queryset = super().decorate_queryset(
-            feature_type, queryset, output_crs, **params
-        )
+        queryset = super().decorate_queryset(feature_type, queryset, output_crs, **params)
 
         # Retrieve geometries as pre-rendered instead.
         gml_elements = feature_type.xsd_type.geometry_elements
         geo_selects = get_db_geometry_selects(gml_elements, output_crs)
         if geo_selects:
             queryset = queryset.defer(*geo_selects.keys()).annotate(
-                _as_envelope_gml=cls.get_db_envelope_as_gml(
-                    feature_type, queryset, output_crs
-                ),
+                _as_envelope_gml=cls.get_db_envelope_as_gml(feature_type, queryset, output_crs),
                 **build_db_annotations(geo_selects, "_as_gml_{name}", AsGML),
             )
 
@@ -522,9 +500,7 @@ class DBGML32Renderer(GML32Renderer):
             using=queryset.db,
         )
 
-    def render_element(
-        self, feature_type, xsd_element: XsdElement, instance: models.Model
-    ):
+    def render_element(self, feature_type, xsd_element: XsdElement, instance: models.Model):
         if xsd_element.is_geometry:
             # Optimized path, pre-rendered GML
             value = get_db_annotation(instance, xsd_element.name, "_as_gml_{name}")
@@ -600,9 +576,7 @@ class GML32ValueRenderer(GML32Renderer):
         match = sub_collection.feature_type.resolve_element(self.value_reference.xpath)
         self.xsd_node = match.child
 
-    def render_wfs_member(
-        self, feature_type: FeatureType, instance: dict, extra_xmlns=""
-    ):
+    def render_wfs_member(self, feature_type: FeatureType, instance: dict, extra_xmlns=""):
         """Overwritten to handle attribute support."""
         if self.xsd_node.is_attribute:
             # When GetPropertyValue selects an attribute, it's value is rendered
@@ -651,9 +625,7 @@ class DBGML32ValueRenderer(DBGML32Renderer, GML32ValueRenderer):
     """Faster GetPropertyValue renderer that uses the database to render GML 3.2"""
 
     @classmethod
-    def decorate_queryset(
-        cls, feature_type: FeatureType, queryset, output_crs, **params
-    ):
+    def decorate_queryset(cls, feature_type: FeatureType, queryset, output_crs, **params):
         """Update the queryset to let the database render the GML output."""
         value_reference = params["valueReference"]
         match = feature_type.resolve_element(value_reference.xpath)
@@ -665,9 +637,7 @@ class DBGML32ValueRenderer(DBGML32Renderer, GML32ValueRenderer):
         else:
             return queryset
 
-    def render_wfs_member(
-        self, feature_type: FeatureType, instance: dict, extra_xmlns=""
-    ) -> str:
+    def render_wfs_member(self, feature_type: FeatureType, instance: dict, extra_xmlns="") -> str:
         """Write the XML for a single object."""
         if "gml_member" in instance:
             gml_id = self.get_gml_id(feature_type, instance["pk"], seq=1)
@@ -679,6 +649,4 @@ class DBGML32ValueRenderer(DBGML32Renderer, GML32ValueRenderer):
             )
             return f"<wfs:member>\n{body}</wfs:member>\n"
         else:
-            return super().render_wfs_member(
-                feature_type, instance, extra_xmlns=extra_xmlns
-            )
+            return super().render_wfs_member(feature_type, instance, extra_xmlns=extra_xmlns)

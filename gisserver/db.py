@@ -1,4 +1,5 @@
 """Internal module for additional GIS database functions."""
+
 from __future__ import annotations
 
 from functools import reduce
@@ -132,19 +133,13 @@ def get_db_geometry_selects(
     }
 
 
-def _get_db_geometry_target(
-    xsd_element: XsdElement, output_crs: CRS
-) -> str | functions.Transform:
+def _get_db_geometry_target(xsd_element: XsdElement, output_crs: CRS) -> str | functions.Transform:
     """Wrap the selection of a geometry field in a CRS Transform if needed."""
     field = cast(GeometryField, xsd_element.source)
-    return conditional_transform(
-        xsd_element.orm_path, field.srid, output_srid=output_crs.srid
-    )
+    return conditional_transform(xsd_element.orm_path, field.srid, output_srid=output_crs.srid)
 
 
 def get_db_geometry_target(xpath_match: XPathMatch, output_crs: CRS):
     """Based on a resolved element, build the proper geometry field select clause."""
     field = cast(GeometryField, xpath_match.child.source)
-    return conditional_transform(
-        xpath_match.orm_path, field.srid, output_srid=output_crs.srid
-    )
+    return conditional_transform(xpath_match.orm_path, field.srid, output_srid=output_crs.srid)

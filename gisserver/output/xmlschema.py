@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from collections import deque
-from typing import Iterable, cast
+from collections.abc import Iterable
+from typing import cast
 
 from gisserver.features import FeatureType
 from gisserver.operations.base import WFSMethod
@@ -30,9 +31,7 @@ class XMLSchemaRenderer(OutputRenderer):
         # the prefixes to be different.
         xmlns_features = "\n   ".join(
             f'xmlns:{p}="{self.app_xml_namespace}"'
-            for p in sorted(
-                {feature_type.xml_prefix for feature_type in self.feature_types}
-            )
+            for p in sorted({feature_type.xml_prefix for feature_type in self.feature_types})
         )
 
         output = StringBuffer()

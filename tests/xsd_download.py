@@ -1,4 +1,5 @@
 """Taken from https://github.com/n-a-t-e/xsd_download"""
+
 import os
 import re
 import urllib.request
@@ -29,9 +30,7 @@ def localize_links(text: str, filename_complete: str) -> str:
 
     for schema_location in schema_locations:
         path_url = url_to_path(schema_location)
-        rel_path = os.path.relpath(
-            os.path.dirname(path_url), os.path.dirname(filename_complete)
-        )
+        rel_path = os.path.relpath(os.path.dirname(path_url), os.path.dirname(filename_complete))
         base_name = os.path.basename(path_url)
         text = text.replace(schema_location, rel_path + "/" + base_name)
     return text
@@ -80,11 +79,7 @@ def download_schema(url):
                 xsd_data = download_xml_url(url)
 
             except urllib.error.URLError as e:
-                print(
-                    "ERROR loading {}, referenced in {} REASON: {} ".format(
-                        url, referring_url, e.reason
-                    )
-                )
+                print(f"ERROR loading {url}, referenced in {referring_url} REASON: {e.reason} ")
                 return
 
             # all the XSDs linked from this file via schemaLocation

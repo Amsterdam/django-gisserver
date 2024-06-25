@@ -1,4 +1,7 @@
 """All supported output formats"""
+
+from django.utils.functional import classproperty
+
 from gisserver import conf
 
 from .base import OutputRenderer
@@ -12,8 +15,6 @@ from .gml32 import (
 )
 from .results import FeatureCollection, SimpleFeatureCollection
 from .xmlschema import XMLSchemaRenderer
-
-from django.utils.functional import classproperty
 
 __all__ = [
     "OutputRenderer",

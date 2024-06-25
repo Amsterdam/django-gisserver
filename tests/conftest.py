@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import calendar
-import ctypes
 from dataclasses import dataclass
 from datetime import time, timedelta
 from decimal import Decimal
@@ -12,7 +11,7 @@ from xml.etree import ElementTree
 import django
 import orjson
 import pytest
-from django.contrib.gis.gdal import gdal_full_version, gdal_version
+from django.contrib.gis.gdal import gdal_full_version
 from django.contrib.gis.geos import Point, geos_version
 from django.contrib.gis.geos.geometry import GEOSGeometry
 from django.db import connection
@@ -31,9 +30,7 @@ XSD_ROOT = HERE.joinpath("files/xsd")
 def pytest_configure():
     gdal_ver = gdal_full_version().decode()
     geos_ver = geos_version().decode()
-    print(
-        f'Running with Django {django.__version__}, GDAL="{gdal_ver}" GEOS="{geos_ver}"'
-    )
+    print(f'Running with Django {django.__version__}, GDAL="{gdal_ver}" GEOS="{geos_ver}"')
     print(f"Using GISSERVER_USE_DB_RENDERING={conf.GISSERVER_USE_DB_RENDERING}")
 
     for url in (

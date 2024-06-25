@@ -4,12 +4,14 @@ All operations extend from an WFSMethod class.
 This defines the parameters and output formats of the method.
 This introspection data is also parsed by the GetCapabilities call.
 """
+
 from __future__ import annotations
 
 import math
 import re
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Any, Callable
+from typing import Any
 
 from django.core.exceptions import ImproperlyConfigured, SuspiciousOperation
 from django.http import HttpResponse
@@ -108,21 +110,15 @@ class Parameter:
         This method can be overwritten by a subclass if needed.
         """
         if self.allowed_values is not None and value not in self.allowed_values:
-            msg = self.error_messages.get(
-                "invalid", "Invalid value for {name}: {value}"
-            )
-            raise InvalidParameterValue(
-                self.name, msg.format(name=self.name, value=value)
-            )
+            msg = self.error_messages.get("invalid", "Invalid value for {name}: {value}")
+            raise InvalidParameterValue(self.name, msg.format(name=self.name, value=value))
 
 
 class UnsupportedParameter(Parameter):
     def value_from_query(self, KVP: dict):
         kvp_name = self.name.upper()
         if kvp_name in KVP:
-            raise InvalidParameterValue(
-                self.name, f"Support for {self.name} is not implemented!"
-            )
+            raise InvalidParameterValue(self.name, f"Support for {self.name} is not implemented!")
         return None
 
 
@@ -291,9 +287,7 @@ class WFSMethod:
         tokens = iter(tokens)
         for prefix in tokens:
             if not prefix.startswith("xmlns("):
-                raise InvalidParameterValue(
-                    "namespaces", f"Expected xmlns(...) format: {value}"
-                )
+                raise InvalidParameterValue("namespaces", f"Expected xmlns(...) format: {value}")
             if prefix.endswith(")"):
                 # xmlns(http://...)
                 prefix = ""
@@ -314,9 +308,7 @@ class WFSMethod:
     def parse_request(self, KVP: dict) -> dict[str, Any]:
         """Parse the parameters of the request"""
         self.namespaces.update(self._parse_namespaces(KVP.get("NAMESPACES")))
-        param_values = {
-            param.name: param.value_from_query(KVP) for param in self.get_parameters()
-        }
+        param_values = {param.name: param.value_from_query(KVP) for param in self.get_parameters()}
         param_values["NAMESPACES"] = self.namespaces
 
         for param in self.get_parameters():
@@ -372,18 +364,12 @@ class WFSMethod:
     def _get_xml_template_name(self):
         """Generate the XML template name for this operation, and check it's file pattern"""
         service = self.view.KVP["SERVICE"].lower()
-        template_name = (
-            f"gisserver/{service}/{self.view.version}/{self.xml_template_name}"
-        )
+        template_name = f"gisserver/{service}/{self.view.version}/{self.xml_template_name}"
 
         # Since 'service' and 'version' are based on external input,
         # these values are double checked again to avoid remove file inclusion.
-        if not RE_SAFE_FILENAME.match(service) or not RE_SAFE_FILENAME.match(
-            self.view.version
-        ):
-            raise SuspiciousOperation(
-                f"Refusing to render template name {template_name}"
-            )
+        if not RE_SAFE_FILENAME.match(service) or not RE_SAFE_FILENAME.match(self.view.version):
+            raise SuspiciousOperation(f"Refusing to render template name {template_name}")
 
         return template_name
 
@@ -398,9 +384,7 @@ class WFSTypeNamesMethod(WFSMethod):
         # This is not delayed until _parse_type_names() as that wraps any TypeError
         # from view.get_feature_types() as an InvalidParameterValue exception.
         self.all_feature_types = self.view.get_feature_types()
-        self.all_feature_types_by_name = _get_feature_types_by_name(
-            self.all_feature_types
-        )
+        self.all_feature_types_by_name = _get_feature_types_by_name(self.all_feature_types)
 
     def get_parameters(self):
         return super().get_parameters() + [
@@ -424,10 +408,7 @@ class WFSTypeNamesMethod(WFSMethod):
                 "Parameter lists to perform multiple queries are not supported yet.",
             )
 
-        return [
-            self._parse_type_name(name, locator="typenames")
-            for name in type_names.split(",")
-        ]
+        return [self._parse_type_name(name, locator="typenames") for name in type_names.split(",")]
 
     def _parse_type_name(self, name, locator="typename") -> FeatureType:
         """Find the requested feature type for a type name"""

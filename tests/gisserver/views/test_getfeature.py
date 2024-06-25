@@ -494,9 +494,7 @@ class TestGetFeature:
         assert name == expect_name
 
     @pytest.mark.parametrize("filter_name", list(COMPLEX_FILTERS.keys()))
-    def test_get_filter_complex(
-        self, client, restaurant_m2m, bad_restaurant, filter_name
-    ):
+    def test_get_filter_complex(self, client, restaurant_m2m, bad_restaurant, filter_name):
         """Prove that that parsing FILTER=<fes:Filter>... works"""
         filter = COMPLEX_FILTERS[filter_name].strip()
         response = client.get(
@@ -506,9 +504,7 @@ class TestGetFeature:
         self._assert_filter(response, expect_name="Café Noir")
 
     @pytest.mark.parametrize("filter_name", list(FLATTENED_FILTERS.keys()))
-    def test_get_filter_flattened(
-        self, client, restaurant, bad_restaurant, filter_name
-    ):
+    def test_get_filter_flattened(self, client, restaurant, bad_restaurant, filter_name):
         """Prove that that parsing FILTER=<fes:Filter>... also works
         when the fields are flattened (model_attribute dot-notation).
         """
@@ -611,12 +607,8 @@ class TestGetFeature:
             assert xml_doc.attrib["numberReturned"] == "1"
 
             # Collect the names
-            restaurants = xml_doc.findall(
-                "wfs:member/app:restaurant", namespaces=NAMESPACES
-            )
-            names.extend(
-                res.find("app:name", namespaces=NAMESPACES).text for res in restaurants
-            )
+            restaurants = xml_doc.findall("wfs:member/app:restaurant", namespaces=NAMESPACES)
+            names.extend(res.find("app:name", namespaces=NAMESPACES).text for res in restaurants)
 
             # Test pagination links
             next_url = xml_doc.attrib.get("next")
@@ -666,12 +658,8 @@ class TestGetFeature:
         assert xml_doc.attrib["numberReturned"] == "2"
 
         # Test sort ordering.
-        restaurants = xml_doc.findall(
-            "wfs:member/app:restaurant", namespaces=NAMESPACES
-        )
-        names = [
-            res.find("app:name", namespaces=NAMESPACES).text for res in restaurants
-        ]
+        restaurants = xml_doc.findall("wfs:member/app:restaurant", namespaces=NAMESPACES)
+        names = [res.find("app:name", namespaces=NAMESPACES).text for res in restaurants]
         assert names == expect
 
     SORT_BY_COMPLEX = {
@@ -728,9 +716,7 @@ class TestGetFeature:
 
         data = self.read_json(content)
 
-        assert (
-            data["features"][0]["geometry"]["coordinates"] == coordinates.point1_geojson
-        )
+        assert data["features"][0]["geometry"]["coordinates"] == coordinates.point1_geojson
         assert data == {
             "type": "FeatureCollection",
             "links": [],
@@ -1085,12 +1071,8 @@ class TestGetFeature:
         assert xml_doc.attrib["numberReturned"] == "1"
 
         # Test sort ordering.
-        restaurants = xml_doc.findall(
-            "wfs:member/app:restaurant", namespaces=NAMESPACES
-        )
-        names = [
-            res.find("app:name", namespaces=NAMESPACES).text for res in restaurants
-        ]
+        restaurants = xml_doc.findall("wfs:member/app:restaurant", namespaces=NAMESPACES)
+        names = [res.find("app:name", namespaces=NAMESPACES).text for res in restaurants]
         assert names == ["Café Noir"]
 
     def test_resource_id_unknown_id(self, client, restaurant, bad_restaurant):
@@ -1139,8 +1121,7 @@ class TestGetFeature:
     def test_resource_id_invalid(self, client, restaurant, bad_restaurant):
         """Prove that TYPENAMES should be omitted, or match the RESOURCEID."""
         response = client.get(
-            "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
-            "&RESOURCEID=restaurant.ABC"
+            "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&RESOURCEID=restaurant.ABC"
         )
         content = read_response(response)
         assert response["content-type"] == "text/xml; charset=utf-8", content
@@ -1172,17 +1153,11 @@ class TestGetFeature:
         assert xml_doc.attrib["numberReturned"] == "2"
 
         # Test sort ordering.
-        restaurants = xml_doc.findall(
-            "wfs:member/app:restaurant", namespaces=NAMESPACES
-        )
-        names = [
-            res.find("app:name", namespaces=NAMESPACES).text for res in restaurants
-        ]
+        restaurants = xml_doc.findall("wfs:member/app:restaurant", namespaces=NAMESPACES)
+        names = [res.find("app:name", namespaces=NAMESPACES).text for res in restaurants]
         assert names == ["Café Noir", "Foo Bar"]
 
-    def test_get_feature_by_id_stored_query(
-        self, client, restaurant, bad_restaurant, coordinates
-    ):
+    def test_get_feature_by_id_stored_query(self, client, restaurant, bad_restaurant, coordinates):
         """Prove that fetching objects by ID works."""
         response = client.get(
             "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"

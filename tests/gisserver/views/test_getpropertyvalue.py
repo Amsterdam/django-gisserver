@@ -158,9 +158,7 @@ class TestGetPropertyValue:
         assert name == expect
 
     @pytest.mark.parametrize("filter_name", list(COMPLEX_FILTERS.keys()))
-    def test_get_filter_complex(
-        self, client, restaurant_m2m, bad_restaurant, filter_name
-    ):
+    def test_get_filter_complex(self, client, restaurant_m2m, bad_restaurant, filter_name):
         """Prove that that parsing FILTER=<fes:Filter>... works for complex types"""
         filter = COMPLEX_FILTERS[filter_name].strip()
         response = client.get(
@@ -170,9 +168,7 @@ class TestGetPropertyValue:
         self._assert_filter(response)
 
     @pytest.mark.parametrize("filter_name", list(FLATTENED_FILTERS.keys()))
-    def test_get_filter_flattened(
-        self, client, restaurant, bad_restaurant, filter_name
-    ):
+    def test_get_filter_flattened(self, client, restaurant, bad_restaurant, filter_name):
         """Prove that that parsing FILTER=<fes:Filter>... works for flattened types"""
         filter = FLATTENED_FILTERS[filter_name].strip()
         response = client.get(
@@ -245,9 +241,7 @@ class TestGetPropertyValue:
 
             # Collect the names
             members = xml_doc.findall("wfs:member", namespaces=NAMESPACES)
-            names.extend(
-                res.find("app:name", namespaces=NAMESPACES).text for res in members
-            )
+            names.extend(res.find("app:name", namespaces=NAMESPACES).text for res in members)
             url = xml_doc.attrib.get("next")
             if not url:
                 break

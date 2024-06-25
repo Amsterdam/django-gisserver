@@ -69,9 +69,7 @@ class QueryExpression:
             results=[
                 # Include empty feature collections,
                 # so the selected feature types are still known.
-                SimpleFeatureCollection(
-                    feature_type=ft, queryset=qs.none(), start=0, stop=0
-                )
+                SimpleFeatureCollection(feature_type=ft, queryset=qs.none(), start=0, stop=0)
                 for ft, qs in querysets
             ],
             number_matched=sum(qs.count() for ft, qs in querysets),
@@ -139,9 +137,7 @@ class QueryExpression:
             f"{self.__class__.__name__}.get_type_names() should be implemented."
         )
 
-    def compile_query(
-        self, feature_type: FeatureType, using=None
-    ) -> fes20.CompiledQuery:
+    def compile_query(self, feature_type: FeatureType, using=None) -> fes20.CompiledQuery:
         """Define the compiled query that filters the queryset.
 
         Subclasses need to define this method, unless

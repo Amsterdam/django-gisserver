@@ -23,9 +23,7 @@ class TagNameEnum(Enum):
 
     @classmethod
     def _missing_(cls, value):
-        raise NotImplementedError(
-            f"<{value}> is not registered as valid {cls.__name__}"
-        )
+        raise NotImplementedError(f"<{value}> is not registered as valid {cls.__name__}")
 
     def __repr__(self):
         # Make repr(filter) easier to copy-paste

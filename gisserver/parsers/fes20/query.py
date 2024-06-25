@@ -115,9 +115,7 @@ class CompiledQuery:
         """Mark as returning no results."""
         self.is_empty = True
 
-    def filter_queryset(
-        self, queryset: QuerySet, feature_type: FeatureType
-    ) -> QuerySet:
+    def filter_queryset(self, queryset: QuerySet, feature_type: FeatureType) -> QuerySet:
         """Apply the filters and lookups to the queryset.
 
         :param queryset: The queryset to filter.

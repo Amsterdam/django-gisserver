@@ -1,8 +1,10 @@
 """Functions to be callable from fes."""
+
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable, Union
+from typing import Union
 
 from django.contrib.gis.db.models import functions as gis
 from django.db import models
@@ -40,9 +42,7 @@ class FesFunction:
         """Build the query expression for the function."""
         if len(expressions) != len(self.arguments):
             # Avoid passing extra parameters to the function if those are not defined.
-            raise TypeError(
-                f'Invalid number of arguments for <fes:Function name="{self.name}">'
-            )
+            raise TypeError(f'Invalid number of arguments for <fes:Function name="{self.name}">')
 
         # Keyword arguments are avoided, since some Django SQL functions had
         # SQL-injection issues with those arguments. Only passing expressions for now.

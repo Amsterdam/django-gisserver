@@ -1,6 +1,7 @@
 """These classes map to the FES 2.0 specification for operators.
 The class names and attributes are identical to those in the FES spec.
 """
+
 from __future__ import annotations
 
 import operator
@@ -39,8 +40,7 @@ except ImportError:
 else:
 
     class HasBuildRhs(Protocol):
-        def build_rhs(self, compiler) -> RhsTypes:
-            ...
+        def build_rhs(self, compiler) -> RhsTypes: ...
 
 
 if "django.contrib.postgres" in settings.INSTALLED_APPS:
@@ -169,9 +169,7 @@ class Operator(BaseNode):
     xml_ns = FES20
 
     def build_query(self, compiler: CompiledQuery) -> Q | None:
-        raise NotImplementedError(
-            f"Using {self.__class__.__name__} is not supported yet."
-        )
+        raise NotImplementedError(f"Using {self.__class__.__name__} is not supported yet.")
 
 
 @dataclass
@@ -183,9 +181,7 @@ class IdOperator(Operator):
     @property
     def type_names(self) -> list[str]:
         """Provide a list of all type names accessed by this operator"""
-        return [
-            type_name for type_name in self.grouped_ids.keys() if type_name is not None
-        ]
+        return [type_name for type_name in self.grouped_ids.keys() if type_name is not None]
 
     @cached_property
     def grouped_ids(self) -> dict[str, list[Id]]:
@@ -209,9 +205,7 @@ class IdOperator(Operator):
             return
 
         for type_name, items in self.grouped_ids.items():
-            ids_subset = reduce(
-                operator.or_, [id.build_query(compiler=None) for id in items]
-            )
+            ids_subset = reduce(operator.or_, [id.build_query(compiler=None) for id in items])
             compiler.add_lookups(ids_subset, type_name=type_name)
 
 
@@ -349,14 +343,10 @@ class DistanceOperator(SpatialOperator):
         if not geometries:
             raise ExternalParsingError(f"Missing gml element in <{element.tag}>")
         elif len(geometries) > 1:
-            raise ExternalParsingError(
-                f"Multiple gml elements found in <{element.tag}>"
-            )
+            raise ExternalParsingError(f"Multiple gml elements found in <{element.tag}>")
 
         return cls(
-            valueReference=ValueReference.from_xml(
-                get_child(element, FES20, "ValueReference")
-            ),
+            valueReference=ValueReference.from_xml(get_child(element, FES20, "ValueReference")),
             operatorType=DistanceOperatorName.from_xml(element),
             geometry=gml.parse_gml_node(geometries[0]),
             distance=Measure.from_xml(get_child(element, FES20, "Distance")),
@@ -470,17 +460,13 @@ class BinaryComparisonOperator(ComparisonOperator):
                 Expression.from_child_xml(element[1]),
             ),
             matchCase=element.get("matchCase", True),
-            matchAction=MatchAction(
-                element.get("matchAction", default=MatchAction.Any)
-            ),
+            matchAction=MatchAction(element.get("matchAction", default=MatchAction.Any)),
             _source=element.tag,
         )
 
     def build_query(self, compiler: CompiledQuery) -> Q:
         lhs, rhs = self.expression
-        return self.build_compare(
-            compiler, lhs=lhs, lookup=self.operatorType.value, rhs=rhs
-        )
+        return self.build_compare(compiler, lhs=lhs, lookup=self.operatorType.value, rhs=rhs)
 
 
 @dataclass
@@ -508,13 +494,9 @@ class BetweenComparisonOperator(ComparisonOperator):
         upper = get_child(element, FES20, "UpperBoundary")
 
         if len(lower) != 1:
-            raise ExternalParsingError(
-                f"{lower.tag} should have 1 expression child node"
-            )
+            raise ExternalParsingError(f"{lower.tag} should have 1 expression child node")
         if len(upper) != 1:
-            raise ExternalParsingError(
-                f"{upper.tag} should have 1 expression child node"
-            )
+            raise ExternalParsingError(f"{upper.tag} should have 1 expression child node")
 
         return cls(
             expression=Expression.from_child_xml(element[0]),
@@ -573,9 +555,7 @@ class LikeOperator(ComparisonOperator):
 
             rhs = Literal(raw_value=value)
         else:
-            raise ExternalParsingError(
-                f"Expected a literal value for the {self.tag} operator."
-            )
+            raise ExternalParsingError(f"Expected a literal value for the {self.tag} operator.")
 
         # Use the FesLike lookup
         return self.build_compare(compiler, lhs=lhs, lookup="fes_like", rhs=rhs)
@@ -603,9 +583,7 @@ class NilOperator(ComparisonOperator):
 
     def build_query(self, compiler: CompiledQuery) -> Q:
         # Any value that evaluates to None is returned as 'xs:nil' in our output.
-        return self.build_compare(
-            compiler, lhs=self.expression, lookup="isnull", rhs=True
-        )
+        return self.build_compare(compiler, lhs=self.expression, lookup="isnull", rhs=True)
 
 
 @dataclass
@@ -621,18 +599,14 @@ class NullOperator(ComparisonOperator):
     @classmethod
     @expect_children(1, Expression)
     def from_xml(cls, element: Element):
-        return cls(
-            expression=Expression.from_child_xml(element[0]), _source=element.tag
-        )
+        return cls(expression=Expression.from_child_xml(element[0]), _source=element.tag)
 
     def build_query(self, compiler: CompiledQuery) -> Q:
         # For now, the implementation is identical to PropertyIsNil.
         # According to the WFS spec, this should only be true when the element
         # is not returned at all (minOccurs=0).
         # TODO: this happens for maxOccurs=unbounded with a null value.
-        return self.build_compare(
-            compiler, lhs=self.expression, lookup="isnull", rhs=True
-        )
+        return self.build_compare(compiler, lhs=self.expression, lookup="isnull", rhs=True)
 
 
 class LogicalOperator(NonIdOperator):

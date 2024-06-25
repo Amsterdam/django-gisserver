@@ -1,4 +1,5 @@
 """Output rendering logic for GeoJSON."""
+
 from datetime import datetime, timezone
 from decimal import Decimal
 from typing import cast
@@ -49,9 +50,7 @@ class GeoJsonRenderer(OutputRenderer):
         output_crs: CRS,
         **params,
     ):
-        queryset = super().decorate_queryset(
-            feature_type, queryset, output_crs, **params
-        )
+        queryset = super().decorate_queryset(feature_type, queryset, output_crs, **params)
 
         # Other geometries can be excluded as these are not rendered by 'properties'
         other_geometries = [
@@ -115,9 +114,7 @@ class GeoJsonRenderer(OutputRenderer):
         else:
             return f"/* {exception.__class__.__name__} during rendering! */\n"
 
-    def render_feature(
-        self, feature_type: FeatureType, instance: models.Model
-    ) -> bytes:
+    def render_feature(self, feature_type: FeatureType, instance: models.Model) -> bytes:
         """Render the output of a single feature"""
 
         # Get all instance attributes:
@@ -266,16 +263,12 @@ class DBGeoJsonRenderer(GeoJsonRenderer):
     """
 
     @classmethod
-    def decorate_queryset(
-        self, feature_type: FeatureType, queryset, output_crs, **params
-    ):
+    def decorate_queryset(self, feature_type: FeatureType, queryset, output_crs, **params):
         """Update the queryset to let the database render the GML output.
         This is far more efficient then GeoDjango's logic, which performs a
         C-API call for every single coordinate of a geometry.
         """
-        queryset = super().decorate_queryset(
-            feature_type, queryset, output_crs, **params
-        )
+        queryset = super().decorate_queryset(feature_type, queryset, output_crs, **params)
         # If desired, the entire FeatureCollection could be rendered
         # in PostgreSQL as well: https://postgis.net/docs/ST_AsGeoJSON.html
         if feature_type.geometry_fields:

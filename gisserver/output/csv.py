@@ -1,4 +1,5 @@
 """Output rendering logic for GeoJSON."""
+
 from __future__ import annotations
 
 import csv
@@ -78,11 +79,7 @@ class CSVRenderer(OutputRenderer):
                 output.write("\n\n")
 
             # Write the header
-            fields = [
-                f
-                for f in sub_collection.feature_type.xsd_type.elements
-                if not f.is_many
-            ]
+            fields = [f for f in sub_collection.feature_type.xsd_type.elements if not f.is_many]
             writer.writerow(self.get_header(fields))
 
             # By using .iterator(), the results are streamed with as little memory as
@@ -159,15 +156,11 @@ class DBCSVRenderer(CSVRenderer):
         output_crs: CRS,
         **params,
     ) -> models.QuerySet:
-        queryset = super().decorate_queryset(
-            feature_type, queryset, output_crs, **params
-        )
+        queryset = super().decorate_queryset(feature_type, queryset, output_crs, **params)
 
         # Instead of reading the binary geometry data,
         # ask the database to generate EWKT data directly.
-        geo_selects = get_db_geometry_selects(
-            feature_type.xsd_type.geometry_elements, output_crs
-        )
+        geo_selects = get_db_geometry_selects(feature_type.xsd_type.geometry_elements, output_crs)
         if geo_selects:
             queryset = queryset.defer(*geo_selects.keys()).annotate(
                 **build_db_annotations(geo_selects, "_as_ewkt_{name}", AsEWKT)

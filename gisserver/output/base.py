@@ -59,9 +59,7 @@ class OutputRenderer:
         self.app_xml_namespace = method.view.xml_namespace
 
     @classmethod
-    def decorate_collection(
-        cls, collection: FeatureCollection, output_crs: CRS, **params
-    ):
+    def decorate_collection(cls, collection: FeatureCollection, output_crs: CRS, **params):
         """Perform presentation-layer logic enhancements on the queryset."""
         for sub_collection in collection.results:
             # Validate the presentation-level parameters for this feature:
@@ -125,9 +123,7 @@ class OutputRenderer:
         return [
             models.Prefetch(
                 orm_relation.orm_path,
-                queryset=cls.get_prefetch_queryset(
-                    feature_type, orm_relation, output_crs
-                ),
+                queryset=cls.get_prefetch_queryset(feature_type, orm_relation, output_crs),
             )
             for orm_relation in feature_type.orm_relations
         ]
@@ -184,9 +180,7 @@ class OutputRenderer:
 
             return {
                 "Content-Disposition": self.content_disposition.format(
-                    typenames="+".join(
-                        sub.feature_type.name for sub in self.collection.results
-                    ),
+                    typenames="+".join(sub.feature_type.name for sub in self.collection.results),
                     page=page,
                     date=self.collection.date.strftime("%Y-%m-%d %H.%M.%S%z"),
                     timestamp=self.collection.timestamp,

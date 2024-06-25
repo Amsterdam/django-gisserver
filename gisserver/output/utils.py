@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from collections.abc import Iterable
 from itertools import islice
-from typing import Iterable, TypeVar
+from typing import TypeVar
 
 from django.db import models
 from lru import LRU
@@ -113,9 +114,7 @@ class ChunkedQuerySetIterator(Iterable[M]):
 
         # Reuse the Django machinery for retrieving missing sub objects.
         # and analyse the ForeignKey caches to allow faster prefetches next time
-        models.prefetch_related_objects(
-            instances, *self.queryset._prefetch_related_lookups
-        )
+        models.prefetch_related_objects(instances, *self.queryset._prefetch_related_lookups)
         self._persist_prefetch_cache(instances)
 
     def _persist_prefetch_cache(self, instances):

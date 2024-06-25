@@ -7,6 +7,7 @@ See:
 https://docs.opengeospatial.org/is/09-025r2/09-025r2.html#35
 https://docs.opengeospatial.org/is/09-025r2/09-025r2.html#411
 """
+
 from django.conf import settings
 from django.utils.html import format_html
 

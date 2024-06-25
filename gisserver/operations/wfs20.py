@@ -7,6 +7,7 @@ Useful docs:
 * https://mapserver.org/development/rfc/ms-rfc-105.html
 * https://enonline.supermap.com/iExpress9D/API/WFS/WFS200/WFS_2.0.0_introduction.htm
 """
+
 import logging
 import math
 import re
@@ -89,9 +90,7 @@ class GetCapabilities(WFSMethod):
                 "AcceptVersions", "Can't provide both ACCEPTVERSIONS and VERSION"
             )
 
-        matched_versions = set(accept_versions.split(",")).intersection(
-            self.view.accept_versions
-        )
+        matched_versions = set(accept_versions.split(",")).intersection(self.view.accept_versions)
         if not matched_versions:
             allowed = ", ".join(self.view.accept_versions)
             raise VersionNegotiationFailed(
@@ -151,7 +150,7 @@ class DescribeFeatureType(WFSTypeNamesMethod):
             "application/gml+xml",
             version="3.2",
             renderer_class=output.XMLSchemaRenderer,
-        )
+        ),
         # OutputFormat("text/xml", subtype="gml/3.1.1"),
     ]
 
@@ -274,9 +273,7 @@ class BaseWFSGetDataMethod(WFSTypeNamesMethod):
                 raise
             logger.exception("WFS request failed: %s\nParams: %r", str(e), params)
             msg = str(e)
-            locator = (
-                "srsName" if "Cannot find SRID" in msg else self._get_locator(**params)
-            )
+            locator = "srsName" if "Cannot find SRID" in msg else self._get_locator(**params)
             raise InvalidParameterValue(locator, f"Invalid request: {msg}") from e
         except (TypeError, ValueError) as e:
             # TypeError/ValueError could reference a datatype mismatch in an
@@ -347,9 +344,7 @@ class BaseWFSGetDataMethod(WFSTypeNamesMethod):
             if not output_crs and collection.results:
                 output_crs = collection.results[0].feature_type.crs
 
-            outputFormat.renderer_class.decorate_collection(
-                collection, output_crs, **params
-            )
+            outputFormat.renderer_class.decorate_collection(collection, output_crs, **params)
 
         if stop != math.inf:
             if start > 0:
@@ -474,9 +469,7 @@ class GetPropertyValue(BaseWFSGetDataMethod):
             renderer_class=output.gml32_value_renderer,
             title="GML",
         ),
-        OutputFormat(
-            "text/xml", subtype="gml/3.2", renderer_class=output.gml32_value_renderer
-        ),
+        OutputFormat("text/xml", subtype="gml/3.2", renderer_class=output.gml32_value_renderer),
     ]
 
     parameters = BaseWFSGetDataMethod.parameters + [

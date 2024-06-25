@@ -2,6 +2,7 @@
 
 These definitions follow the WFS spec.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -131,9 +132,7 @@ class StoredQueryParameter(Parameter):
     """Special parameter parsing for the 'STOREDQUERY_ID' parameter"""
 
     def __init__(self):
-        super().__init__(
-            name="STOREDQUERY_ID", parser=stored_query_registry.resolve_query
-        )
+        super().__init__(name="STOREDQUERY_ID", parser=stored_query_registry.resolve_query)
 
     def value_from_query(self, KVP: dict):
         """Customize the request parsing to read custom parameters too."""
@@ -199,9 +198,7 @@ class GetFeatureById(StoredQuery):
 
         return collection
 
-    def compile_query(
-        self, feature_type: FeatureType, using=None
-    ) -> fes20.CompiledQuery:
+    def compile_query(self, feature_type: FeatureType, using=None) -> fes20.CompiledQuery:
         """Create the internal query object that will be applied to the queryset."""
         compiler = fes20.CompiledQuery(feature_type=feature_type)
         compiler.add_lookups(Q(pk=self.id), type_name=self.type_name)
