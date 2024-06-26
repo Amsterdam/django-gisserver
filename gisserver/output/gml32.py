@@ -11,7 +11,6 @@ from __future__ import annotations
 import itertools
 import re
 from datetime import date, datetime, time, timezone
-from html import escape
 from typing import cast
 
 from django.contrib.gis import geos
@@ -54,6 +53,16 @@ def register_geos_type(geos_type):
         return func
 
     return _inc
+
+
+def _tag_escape(s):
+    return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+def _attr_escape(s):
+    # Slightly faster then html.escape() as it doesn't replace single quotes.
+    # Having tried all possible variants, this code still outperforms other forms of escaping.
+    return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
 
 
 class GML32Renderer(OutputRenderer):
@@ -118,15 +127,15 @@ class GML32Renderer(OutputRenderer):
             'xmlns:app="{app_xml_namespace}" '
             'xsi:schemaLocation="{schema_location}"'
         ).format(
-            app_xml_namespace=escape(self.app_xml_namespace),
-            schema_location=escape(" ".join(schema_location)),
+            app_xml_namespace=_attr_escape(self.app_xml_namespace),
+            schema_location=_attr_escape(" ".join(schema_location)),
         )
 
     def render_xmlns_standalone(self):
         """Generate the xmlns block that the document needs"""
         # xsi is needed for "xsi:nil="true"' attributes.
         return (
-            f' xmlns:app="{escape(self.app_xml_namespace)}"'
+            f' xmlns:app="{_attr_escape(self.app_xml_namespace)}"'
             ' xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"'
             ' xmlns:gml="http://www.opengis.net/gml/3.2"'
         )
@@ -143,9 +152,9 @@ class GML32Renderer(OutputRenderer):
         number_returned = collection.number_returned
         next = previous = ""
         if collection.next:
-            next = f' next="{escape(collection.next)}"'
+            next = f' next="{_attr_escape(collection.next)}"'
         if collection.previous:
-            previous = f' previous="{escape(collection.previous)}"'
+            previous = f' previous="{_attr_escape(collection.previous)}"'
 
         output.write(
             f"""<?xml version='1.0' encoding="UTF-8" ?>\n"""
@@ -206,7 +215,7 @@ class GML32Renderer(OutputRenderer):
         self.gml_seq = 0  # need to increment this between write_xml_field calls
 
         # Write <app:FeatureTypeName> start node
-        pk = escape(str(instance.pk))
+        pk = _tag_escape(str(instance.pk))
         self.output.write(
             f'<{feature_type.xml_name} gml:id="{feature_type.name}.{pk}"{extra_xmlns}>\n'
         )
@@ -278,14 +287,14 @@ class GML32Renderer(OutputRenderer):
         """Write the value of a single field."""
         xml_name = xsd_element.xml_name
         if value is None:
-            self.output.write(f'<{xml_name} xsi:nil="true"{extra_xmlns}/>\n')
+            self._write(f'<{xml_name} xsi:nil="true"{extra_xmlns}/>\n')
         elif xsd_element.type.is_complex_type:
             # Expanded foreign relation / dictionary
             self.write_xml_complex_type(feature_type, xsd_element, value)
         else:
             # Simple scalar value
             if isinstance(value, str):  # most cases
-                value = escape(value)
+                value = _tag_escape(value)
             if isinstance(value, datetime):
                 value = value.astimezone(timezone.utc).isoformat()
             elif isinstance(value, (date, time)):
@@ -293,7 +302,7 @@ class GML32Renderer(OutputRenderer):
             elif isinstance(value, bool):
                 value = "true" if value else "false"
             else:
-                value = escape(str(value))
+                value = _tag_escape(str(value))
 
             self.output.write(f"<{xml_name}{extra_xmlns}>{value}</{xml_name}>\n")
 
@@ -327,9 +336,9 @@ class GML32Renderer(OutputRenderer):
         # the following is somewhat faster, but will render GML 2, not GML 3.2:
         # gml = value.ogr.gml
         # pos = gml.find(">")  # Will inject the gml:id="..." tag.
-        # self.output.write("<{xml_name}{extra_xmlns}>{gml[:pos]} gml:id="{escape(gml_id)}"{gml[pos:]}</{xml_name}>\n")
+        # self.output.write("<{xml_name}{extra_xmlns}>{gml[:pos]} gml:id="{_attr_escape(gml_id)}"{gml[pos:]}</{xml_name}>\n")
 
-        base_attrs = f' gml:id="{escape(gml_id)}" srsName="{self.xml_srs_name}"'
+        base_attrs = f' gml:id="{_attr_escape(gml_id)}" srsName="{self.xml_srs_name}"'
         gml = self._render_gml_type(value, base_attrs)
         self.output.write(f"<{xml_name}{extra_xmlns}>{gml}</{xml_name}>\n")
 
@@ -542,10 +551,10 @@ class DBGML32Renderer(GML32Renderer):
         pos = value.find(">")
         gml_tag = value[:pos]
         if "gml:id" in gml_tag:
-            gml_tag = RE_GML_ID.sub(f'gml:id="{escape(gml_id)}"', gml_tag, 1)
+            gml_tag = RE_GML_ID.sub(f'gml:id="{_attr_escape(gml_id)}"', gml_tag, 1)
             extra_attr = ""
         else:
-            extra_attr = f' gml:id="{escape(gml_id)}"'
+            extra_attr = f' gml:id="{_attr_escape(gml_id)}"'
 
         self.output.write(
             f"<{xml_name}{extra_xmlns}>{gml_tag}{extra_attr}{value[pos:]}</{xml_name}>\n"
