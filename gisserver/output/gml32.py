@@ -11,6 +11,7 @@ from __future__ import annotations
 import itertools
 import re
 from datetime import date, datetime, time, timezone
+from io import StringIO
 from typing import cast
 
 from django.contrib.gis import geos
@@ -33,7 +34,6 @@ from gisserver.parsers.fes20 import ValueReference
 from gisserver.types import XsdComplexType, XsdElement
 
 from .base import OutputRenderer
-from .buffer import StringBuffer
 from .results import SimpleFeatureCollection
 
 GML_RENDER_FUNCTIONS = {}
@@ -70,6 +70,7 @@ class GML32Renderer(OutputRenderer):
 
     content_type = "text/xml; charset=utf-8"
     xml_collection_tag = "FeatureCollection"
+    chunk_size = 40_000
 
     def get_response(self):
         """Render the output as streaming response."""
@@ -91,7 +92,7 @@ class GML32Renderer(OutputRenderer):
         if instance is None:
             raise NotFound("Feature not found.")
 
-        self.output = StringBuffer()
+        self.output = StringIO()
         self.write_feature(
             feature_type=sub_collection.feature_type,
             instance=instance,
@@ -145,7 +146,7 @@ class GML32Renderer(OutputRenderer):
         This renders the standard <wfs:FeatureCollection> / <wfs:ValueCollection>
         """
         collection = self.collection
-        self.output = output = StringBuffer()
+        self.output = output = StringIO()
         xmlns = self.render_xmlns().strip()
         number_matched = collection.number_matched
         number_matched = int(number_matched) if number_matched is not None else "unknown"
@@ -184,8 +185,11 @@ class GML32Renderer(OutputRenderer):
 
                     # Only perform a 'yield' every once in a while,
                     # as it goes back-and-forth for writing it to the client.
-                    if output.is_full():
-                        yield output.flush()
+                    if output.tell() > self.chunk_size:
+                        xml_chunk = output.getvalue()
+                        output.seek(0)
+                        output.truncate(0)
+                        yield xml_chunk
 
                 if has_multiple_collections:
                     output.write(f"</wfs:{self.xml_collection_tag}>\n</wfs:member>\n")
@@ -365,7 +369,7 @@ class GML32Renderer(OutputRenderer):
     def render_gml_polygon(self, value: geos.Polygon, base_attrs=""):
         # lol: http://erouault.blogspot.com/2014/04/gml-madness.html
         ext_ring = self.render_gml_linear_ring(value.exterior_ring)
-        buf = StringBuffer()
+        buf = StringIO()
         buf.write(f"<gml:Polygon{base_attrs}><gml:exterior>{ext_ring}</gml:exterior>")
         for i in range(value.num_interior_rings):
             buf.write("<gml:interior>")

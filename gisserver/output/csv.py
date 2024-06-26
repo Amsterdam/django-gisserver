@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import csv
 from datetime import datetime, timezone
+from io import StringIO
 
 from django.conf import settings
 from django.db import models
@@ -20,7 +21,6 @@ from gisserver.geometries import CRS
 from gisserver.types import XsdComplexType, XsdElement
 
 from .base import OutputRenderer
-from .buffer import StringBuffer
 
 
 class CSVRenderer(OutputRenderer):
@@ -32,6 +32,7 @@ class CSVRenderer(OutputRenderer):
     content_type = "text/csv; charset=utf-8"
     content_disposition = 'attachment; filename="{typenames} {page} {date}.csv"'
     max_page_size = conf.GISSERVER_CSV_MAX_PAGE_SIZE
+    chunk_size = 40_000
 
     #: The outputted CSV dialect. This can be a csv.Dialect subclass
     #: or one of the registered names like: "unix", "excel", "excel-tab"
@@ -67,7 +68,7 @@ class CSVRenderer(OutputRenderer):
         return queryset
 
     def render_stream(self):
-        output = StringBuffer()
+        output = StringIO()
         writer = csv.writer(output, dialect=self.dialect)
 
         is_first_collection = True
@@ -90,10 +91,13 @@ class CSVRenderer(OutputRenderer):
 
                 # Only perform a 'yield' every once in a while,
                 # as it goes back-and-forth for writing it to the client.
-                if output.is_full():
-                    yield output.flush()
+                if output.tell() > self.chunk_size:
+                    csv_chunk = output.getvalue()
+                    output.seek(0)
+                    output.truncate(0)
+                    yield csv_chunk
 
-        yield output.flush()
+        yield output.getvalue()
 
     def render_exception(self, exception: Exception):
         """Render the exception in a format that fits with the output."""
