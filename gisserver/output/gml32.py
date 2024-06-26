@@ -93,6 +93,7 @@ class GML32Renderer(OutputRenderer):
             raise NotFound("Feature not found.")
 
         self.output = StringIO()
+        self._write = self.output.write
         self.write_feature(
             feature_type=sub_collection.feature_type,
             instance=instance,
@@ -147,6 +148,7 @@ class GML32Renderer(OutputRenderer):
         """
         collection = self.collection
         self.output = output = StringIO()
+        self._write = self.output.write
         xmlns = self.render_xmlns().strip()
         number_matched = collection.number_matched
         number_matched = int(number_matched) if number_matched is not None else "unknown"
@@ -157,7 +159,7 @@ class GML32Renderer(OutputRenderer):
         if collection.previous:
             previous = f' previous="{_attr_escape(collection.previous)}"'
 
-        output.write(
+        self._write(
             f"""<?xml version='1.0' encoding="UTF-8" ?>\n"""
             f"<wfs:{self.xml_collection_tag} {xmlns}"
             f' timeStamp="{collection.timestamp}"'
@@ -172,7 +174,7 @@ class GML32Renderer(OutputRenderer):
             for sub_collection in collection.results:
                 self.start_collection(sub_collection)
                 if has_multiple_collections:
-                    output.write(
+                    self._write(
                         f"<wfs:member>\n"
                         f"<wfs:{self.xml_collection_tag}"
                         f' timeStamp="{collection.timestamp}"'
@@ -192,10 +194,10 @@ class GML32Renderer(OutputRenderer):
                         yield xml_chunk
 
                 if has_multiple_collections:
-                    output.write(f"</wfs:{self.xml_collection_tag}>\n</wfs:member>\n")
+                    self._write(f"</wfs:{self.xml_collection_tag}>\n</wfs:member>\n")
 
-        output.write(f"</wfs:{self.xml_collection_tag}>\n")
-        yield output.flush()
+        self._write(f"</wfs:{self.xml_collection_tag}>\n")
+        yield output.getvalue()
 
     def start_collection(self, sub_collection: SimpleFeatureCollection):
         """Hook to allow initialization per feature type"""
@@ -204,9 +206,9 @@ class GML32Renderer(OutputRenderer):
         self, feature_type: FeatureType, instance: models.Model, extra_xmlns=""
     ) -> None:
         """Write the full <wfs:member> block."""
-        self.output.write("<wfs:member>\n")
+        self._write("<wfs:member>\n")
         self.write_feature(feature_type, instance, extra_xmlns=extra_xmlns)
-        self.output.write("</wfs:member>\n")
+        self._write("</wfs:member>\n")
 
     def write_feature(
         self, feature_type: FeatureType, instance: models.Model, extra_xmlns=""
@@ -220,9 +222,7 @@ class GML32Renderer(OutputRenderer):
 
         # Write <app:FeatureTypeName> start node
         pk = _tag_escape(str(instance.pk))
-        self.output.write(
-            f'<{feature_type.xml_name} gml:id="{feature_type.name}.{pk}"{extra_xmlns}>\n'
-        )
+        self._write(f'<{feature_type.xml_name} gml:id="{feature_type.name}.{pk}"{extra_xmlns}>\n')
 
         # Add all base class members, in their correct ordering
         # By having these as XsdElement objects instead of hard-coded writes,
@@ -241,7 +241,7 @@ class GML32Renderer(OutputRenderer):
         for xsd_element in feature_type.xsd_type.elements:
             self.write_xml_field(feature_type, xsd_element, instance)
 
-        self.output.write(f"</{feature_type.xml_name}>\n")
+        self._write(f"</{feature_type.xml_name}>\n")
 
     def write_bounds(self, feature_type, instance) -> None:
         """Render the GML bounds for the complete instance"""
@@ -249,7 +249,7 @@ class GML32Renderer(OutputRenderer):
         if envelope is not None:
             lower = " ".join(map(str, envelope.lower_corner))
             upper = " ".join(map(str, envelope.upper_corner))
-            self.output.write(
+            self._write(
                 f"""<gml:boundedBy><gml:Envelope srsDimension="2" srsName="{self.xml_srs_name}">
                 <gml:lowerCorner>{lower}</gml:lowerCorner>
                 <gml:upperCorner>{upper}</gml:upperCorner>
@@ -267,7 +267,7 @@ class GML32Renderer(OutputRenderer):
                 # No tag for optional element (see PropertyIsNull), otherwise xsi:nil node.
                 if xsd_element.min_occurs:
                     # <app:field xsi:nil="true"/>
-                    self.output.write(f'<{xsd_element.xml_name} xsi:nil="true"/>\n')
+                    self._write(f'<{xsd_element.xml_name} xsi:nil="true"/>\n')
             else:
                 # Render the tag multiple times
                 if xsd_element.type.is_complex_type:
@@ -308,15 +308,15 @@ class GML32Renderer(OutputRenderer):
             else:
                 value = _tag_escape(str(value))
 
-            self.output.write(f"<{xml_name}{extra_xmlns}>{value}</{xml_name}>\n")
+            self._write(f"<{xml_name}{extra_xmlns}>{value}</{xml_name}>\n")
 
     def write_xml_complex_type(self, feature_type, xsd_element, value) -> None:
         """Write a single field, that consists of sub elements"""
         xsd_type = cast(XsdComplexType, xsd_element.type)
-        self.output.write(f"<{xsd_element.xml_name}>\n")
+        self._write(f"<{xsd_element.xml_name}>\n")
         for sub_element in xsd_type.elements:
             self.write_xml_field(feature_type, sub_element, instance=value)
-        self.output.write(f"</{xsd_element.xml_name}>\n")
+        self._write(f"</{xsd_element.xml_name}>\n")
 
     def write_gml_field(
         self,
@@ -330,7 +330,7 @@ class GML32Renderer(OutputRenderer):
         xml_name = xsd_element.xml_name
         if value is None:
             # Avoid incrementing gml_seq
-            self.output.write(f'<{xml_name} xsi:nil="true"/>\n')
+            self._write(f'<{xml_name} xsi:nil="true"/>\n')
             return
 
         self.output_crs.apply_to(value)
@@ -340,11 +340,11 @@ class GML32Renderer(OutputRenderer):
         # the following is somewhat faster, but will render GML 2, not GML 3.2:
         # gml = value.ogr.gml
         # pos = gml.find(">")  # Will inject the gml:id="..." tag.
-        # self.output.write("<{xml_name}{extra_xmlns}>{gml[:pos]} gml:id="{_attr_escape(gml_id)}"{gml[pos:]}</{xml_name}>\n")
+        # self._write("<{xml_name}{extra_xmlns}>{gml[:pos]} gml:id="{_attr_escape(gml_id)}"{gml[pos:]}</{xml_name}>\n")
 
         base_attrs = f' gml:id="{_attr_escape(gml_id)}" srsName="{self.xml_srs_name}"'
         gml = self._render_gml_type(value, base_attrs)
-        self.output.write(f"<{xml_name}{extra_xmlns}>{gml}</{xml_name}>\n")
+        self._write(f"<{xml_name}{extra_xmlns}>{gml}</{xml_name}>\n")
 
     def _render_gml_type(self, value: geos.GEOSGeometry, base_attrs=""):
         """Render an GML value (this is also called from MultiPolygon)."""
@@ -545,7 +545,7 @@ class DBGML32Renderer(GML32Renderer):
         xml_name = xsd_element.xml_name
         if value is None:
             # Avoid incrementing gml_seq
-            self.output.write(f'<{xsd_element.xml_name} xsi:nil="true"/>\n')
+            self._write(f'<{xsd_element.xml_name} xsi:nil="true"/>\n')
             return
 
         self.gml_seq += 1
@@ -560,15 +560,13 @@ class DBGML32Renderer(GML32Renderer):
         else:
             extra_attr = f' gml:id="{_attr_escape(gml_id)}"'
 
-        self.output.write(
-            f"<{xml_name}{extra_xmlns}>{gml_tag}{extra_attr}{value[pos:]}</{xml_name}>\n"
-        )
+        self._write(f"<{xml_name}{extra_xmlns}>{gml_tag}{extra_attr}{value[pos:]}</{xml_name}>\n")
 
     def write_bounds(self, feature_type, instance) -> None:
         """Generate the <gml:boundedBy> from DB prerendering."""
         gml = instance._as_envelope_gml
         if gml is not None:
-            self.output.write(f"<gml:boundedBy>{gml}</gml:boundedBy>\n")
+            self._write(f"<gml:boundedBy>{gml}</gml:boundedBy>\n")
 
 
 class GML32ValueRenderer(GML32Renderer):
@@ -608,13 +606,13 @@ class GML32ValueRenderer(GML32Renderer):
             # as plain-text (without spaces!) inside a <wfs:member> element.
             # The format_value() is needed for @gml:id
             body = self.xsd_node.format_value(instance["member"])
-            self.output.write(f"<wfs:member>{body}</wfs:member>\n")
+            self._write(f"<wfs:member>{body}</wfs:member>\n")
         else:
             # The call to GetPropertyValue selected an element.
             # Render this single element tag inside the <wfs:member> parent.
-            self.output.write("<wfs:member>\n")
+            self._write("<wfs:member>\n")
             self.write_feature(feature_type, instance)
-            self.output.write("</wfs:member>\n")
+            self._write("</wfs:member>\n")
 
     def write_feature(self, feature_type: FeatureType, instance: dict, extra_xmlns="") -> None:
         """Write the XML for a single object.
@@ -636,7 +634,7 @@ class GML32ValueRenderer(GML32Renderer):
             value = self.xsd_node.format_value(value)  # needed for @gml:id
             if self.xsd_node.is_attribute:
                 # For GetFeatureById, allow returning raw values
-                self.output.write(str(value))
+                self._write(str(value))
             else:
                 self._write_xml_field(
                     feature_type,
@@ -666,13 +664,13 @@ class DBGML32ValueRenderer(DBGML32Renderer, GML32ValueRenderer):
         """Write the XML for a single object."""
         if "gml_member" in instance:
             self.gml_seq = 0
-            self.output.write("<wfs:member>\n")
+            self._write("<wfs:member>\n")
             self.write_db_gml_field(
                 feature_type,
                 self.xsd_node,
                 instance["gml_member"],
                 object_id=instance["pk"],
             )
-            self.output.write("</wfs:member>\n")
+            self._write("</wfs:member>\n")
         else:
             super().write_wfs_member(feature_type, instance, extra_xmlns=extra_xmlns)
