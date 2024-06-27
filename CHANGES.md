@@ -1,6 +1,15 @@
+# 2024-07-01 (1.4.0)
+
+* Added `GISSERVER_COUNT_NUMBER_MATCHED` setting to allow disabling "numberReturned" counting.
+  This will avoid an expensive PostgreSQL COUNT query, speeding up returning large sets.
+* Added basic support for array fields in `GetPropertyValue`.
+* Optimized GML rendering performance (around 15-20% faster on large datasets).
+* Optimized overall rendering performance, which improved GeoJSON/CSV output too.
+* Developers: updated pre-commit hooks
+* Cleaned up leftover Python 3.7 compat code.
+
 # 2023-06-08 (1.3.0)
 
-## Updates
 * Django 5 support added.
 
 ## Contributors
