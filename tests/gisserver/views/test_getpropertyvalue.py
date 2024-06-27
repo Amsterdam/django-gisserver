@@ -120,6 +120,7 @@ class TestGetPropertyValue:
         assert xml_doc.attrib["numberReturned"] == "1"
         timestamp = xml_doc.attrib["timeStamp"]
 
+        # TODO: should this return an <wfs:member xsi:nil="true" /> instead?
         assert_xml_equal(
             content,
             f"""<wfs:ValueCollection
@@ -132,6 +133,37 @@ class TestGetPropertyValue:
           <wfs:member>
             <app:location xsi:nil="true"/>
           </wfs:member>
+        </wfs:ValueCollection>""",  # noqa: E501
+        )
+
+    def test_get_tags_array(self, client, restaurant):
+        """Prove that the rendering an array field produces some WFS-compatible response."""
+        response = client.get(
+            "/v1/wfs/?SERVICE=WFS&REQUEST=GetPropertyValue&VERSION=2.0.0&TYPENAMES=restaurant"
+            "&VALUEREFERENCE=tags"
+        )
+        content = read_response(response)
+        assert response["content-type"] == "text/xml; charset=utf-8", content
+        assert response.status_code == 200, content
+        assert "</wfs:ValueCollection>" in content
+
+        # Validate against the WFS 2.0 XSD
+        xml_doc = validate_xsd(content, WFS_20_XSD)
+        assert xml_doc.attrib["numberMatched"] == "1"
+        assert xml_doc.attrib["numberReturned"] == "1"
+        timestamp = xml_doc.attrib["timeStamp"]
+
+        assert_xml_equal(
+            content,
+            f"""<wfs:ValueCollection
+               xmlns:app="http://example.org/gisserver"
+               xmlns:gml="http://www.opengis.net/gml/3.2"
+               xmlns:wfs="http://www.opengis.net/wfs/2.0"
+               xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+               xsi:schemaLocation="http://example.org/gisserver http://testserver/v1/wfs/?SERVICE=WFS&amp;VERSION=2.0.0&amp;REQUEST=DescribeFeatureType&amp;TYPENAMES=restaurant http://www.opengis.net/wfs/2.0 http://schemas.opengis.net/wfs/2.0/wfs.xsd http://www.opengis.net/gml/3.2 http://schemas.opengis.net/gml/3.2.1/gml.xsd"
+               timeStamp="{timestamp}" numberMatched="1" numberReturned="1">
+          <wfs:member><app:tags>cafe</app:tags></wfs:member>
+          <wfs:member><app:tags>black</app:tags></wfs:member>
         </wfs:ValueCollection>""",  # noqa: E501
         )
 

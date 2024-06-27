@@ -410,12 +410,12 @@ class XsdNode:
                 return value
             else:
                 # the _valuegetter() supports value_from_object() on custom fields.
-                return self.format_value(self._valuegetter(instance))
+                return self._valuegetter(instance)
         except (AttributeError, ObjectDoesNotExist):
             # E.g. Django foreign keys that point to a non-existing member.
             return None
 
-    def format_value(self, value):
+    def format_raw_value(self, value):
         """Allow to apply some final transformations on a value.
         This is mainly used to support @gml:id which includes a prefix.
         """
@@ -592,7 +592,7 @@ class GmlIdAttribute(XsdAttribute):
         pk = super().get_value(instance)  # handle dotted-name notations
         return f"{self.type_name}.{pk}"
 
-    def format_value(self, value):
+    def format_raw_value(self, value):
         """Format the value as retrieved from the database."""
         return f"{self.type_name}.{value}"
 
@@ -722,6 +722,17 @@ class XsdComplexType(XsdAnyType):
     @property
     def is_complex_type(self):
         return True  # a property to avoid being used as field.
+
+    @cached_property
+    def all_elements(self) -> list[XsdElement]:
+        """All elements, including inherited elements."""
+        if self.base.is_complex_type:
+            # Add all base class members, in their correct ordering
+            # By having these as XsdElement objects instead of hard-coded writes,
+            # the query/filter logic also works for these elements.
+            return self.base.elements + self.elements
+        else:
+            return self.elements
 
     @cached_property
     def geometry_elements(self) -> list[XsdElement]:
