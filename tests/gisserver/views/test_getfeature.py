@@ -5,6 +5,7 @@ import django
 import orjson
 import pytest
 
+from gisserver import conf
 from gisserver.geometries import WGS84
 from tests.constants import NAMESPACES
 from tests.gisserver.views.input import (
@@ -559,8 +560,10 @@ class TestGetFeature:
         message = exception.find("ows:ExceptionText", NAMESPACES).text
         assert message == "No access to this feature."
 
-    def test_get_hits(self, client, restaurant):
+    @pytest.mark.parametrize("use_count", [1, 0])
+    def test_get_hits(self, client, restaurant, use_count, monkeypatch):
         """Prove that that parsing RESULTTYPE=hits works"""
+        monkeypatch.setattr(conf, "GISSERVER_COUNT_NUMBER_MATCHED", use_count)
         response = client.get(
             "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
             "&RESULTTYPE=hits"
@@ -589,23 +592,38 @@ class TestGetFeature:
 </wfs:FeatureCollection>""",  # noqa: E501
         )
 
-    def test_pagination(self, client, restaurant, bad_restaurant):
-        """Prove that that pagination works"""
+    @pytest.mark.parametrize("use_count", [1, 0])
+    def test_pagination(
+        self,
+        client,
+        restaurant,
+        bad_restaurant,
+        use_count,
+        monkeypatch,
+        django_assert_max_num_queries,
+    ):
+        """Prove that that pagination works.
+
+        Two variations are tested; when normal COUNT happens,
+        or a sentinel object is used to detect there are more results.
+        """
+        monkeypatch.setattr(conf, "GISSERVER_COUNT_NUMBER_MATCHED", use_count)
         names = []
         url = (
             "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
             "&SORTBY=name&vendor-arg=foobar"
         )
         for _ in range(4):  # test whether last page stops
-            response = client.get(f"{url}&COUNT=1")
-            content = read_response(response)
+            with django_assert_max_num_queries(1 + use_count):
+                response = client.get(f"{url}&COUNT=1")
+                content = read_response(response)
             assert response["content-type"] == "text/xml; charset=utf-8", content
             assert response.status_code == 200, content
             assert "</wfs:FeatureCollection>" in content
 
             # Validate against the WFS 2.0 XSD
             xml_doc = validate_xsd(content, WFS_20_XSD)
-            assert xml_doc.attrib["numberMatched"] == "2"
+            assert xml_doc.attrib["numberMatched"] == ("2" if use_count else "unknown")
             assert xml_doc.attrib["numberReturned"] == "1"
 
             # Collect the names
@@ -769,18 +787,30 @@ class TestGetFeature:
             ],
         }
 
-    def test_get_geojson_pagination(self, client):
-        """Prove that the geojson export handles pagination."""
+    @pytest.mark.parametrize("use_count", [1, 0])
+    def test_get_geojson_pagination(
+        self, client, use_count, monkeypatch, django_assert_max_num_queries
+    ):
+        """Prove that the geojson export handles pagination.
+
+        Two variations are tested; when normal COUNT happens,
+        or a sentinel object is used to detect there are more results.
+        """
+        monkeypatch.setattr(conf, "GISSERVER_COUNT_NUMBER_MATCHED", use_count)
+
         # Create a large set so the buffer needs to flush.
         for i in range(1500):
             Restaurant.objects.create(name=f"obj#{i}")
 
-        response = client.get(
-            "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
-            "&vendor-arg=foobar&outputformat=geojson&COUNT=1000"
-        )
-        assert response["content-type"] == "application/geo+json; charset=utf-8"
-        content = read_response(response)
+        with django_assert_max_num_queries(1 + use_count):
+            response = client.get(
+                "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
+                "&vendor-arg=foobar&outputformat=geojson&COUNT=1000"
+            )
+            assert (
+                response["content-type"] == "application/geo+json; charset=utf-8"
+            )  # before stream starts
+            content = read_response(response)
 
         # If the response is invalid json, there was likely
         # some exception that aborted further writing.
@@ -788,7 +818,7 @@ class TestGetFeature:
 
         assert len(data["features"]) == 1000
         assert data["numberReturned"] == 1000
-        assert data["numberMatched"] == 1500
+        assert data["numberMatched"] == (1500 if use_count else None)
 
         # Check that the generates links are as expected, and don't mangle casing
         # as some project/vendor specific parameters might be case sensitive.

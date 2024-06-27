@@ -16,10 +16,12 @@ DEFAULT_SQL_CHUNK_SIZE = 2000  # allow unit tests to alter this.
 class CountingIterator(Iterable[M]):
     """A simple iterator that counts how many results are given."""
 
-    def __init__(self, iterator: Iterable[M]):
+    def __init__(self, iterator: Iterable[M], max_results=0):
         self._iterator = iterator
         self._number_returned = 0
         self._in_iterator = False
+        self._max_results = max_results
+        self._has_more = None
 
     def __iter__(self):
         # Count the number of returned items while reading them.
@@ -28,9 +30,14 @@ class CountingIterator(Iterable[M]):
         try:
             self._number_returned = 0
             for instance in self._iterator:
+                if self._max_results and self._number_returned == self._max_results:
+                    self._has_more = True
+                    break
                 self._number_returned += 1
                 yield instance
         finally:
+            if self._max_results and self._has_more is None:
+                self._has_more = False  # ignored the sentinel item
             self._in_iterator = False
 
     @property
@@ -39,6 +46,10 @@ class CountingIterator(Iterable[M]):
         if self._in_iterator:
             raise RuntimeError("Can't read number of returned results during iteration")
         return self._number_returned
+
+    @property
+    def has_more(self) -> bool | None:
+        return self._has_more
 
 
 class ChunkedQuerySetIterator(Iterable[M]):

@@ -352,7 +352,7 @@ class BaseWFSGetDataMethod(WFSTypeNamesMethod):
                     STARTINDEX=max(0, start - page_size),
                     COUNT=page_size,
                 )
-            if stop < collection.number_matched:
+            if collection.has_next:
                 # TODO: fix this when returning multiple typeNames:
                 collection.next = self._replace_url_params(
                     STARTINDEX=start + page_size,

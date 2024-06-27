@@ -23,6 +23,11 @@ GISSERVER_DB_PRECISION = getattr(settings, "GISSERVER_DB_PRECISION", 15)
 # Otherwise, all database-supported SRID's are allowed.
 GISSERVER_SUPPORTED_CRS_ONLY = getattr(settings, "GISSERVER_SUPPORTED_CRS_ONLY", True)
 
+# Whether the total results need to be counted.
+# By disabling this, clients just need to fetch more pages
+# 0 = No counting, 1 = all pages, 2 = only for the first page.
+GISSERVER_COUNT_NUMBER_MATCHED = getattr(settings, "GISSERVER_COUNT_NUMBER_MATCHED", 1)
+
 # -- max page size
 
 # Allow tuning the page size without having to override code.
