@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from functools import reduce
+from functools import lru_cache, reduce
 from typing import cast
 
 from django.contrib.gis.db.models import GeometryField, functions
@@ -115,6 +115,7 @@ def get_db_annotation(instance: models.Model, name: str, name_template: str):
         ) from e
 
 
+@lru_cache
 def escape_xml_name(name: str, template="{name}") -> str:
     """Escape an XML name to be used as annotation name."""
     return template.format(name=name.replace(".", "_"))
