@@ -334,6 +334,7 @@ class TestGetFeature:
         <app:name>Café Noir</app:name>
         <app:city-id>{restaurant.city_id}</app:city-id>
         <app:city-name>CloudCity</app:city-name>
+        <app:city-region>OurRegion</app:city-region>
         <app:location>
           <gml:Point gml:id="restaurant.{restaurant.id}.1" srsName="urn:ogc:def:crs:EPSG::4326">
             <gml:pos srsDimension="2">{coordinates.point1_xml_wgs84}</gml:pos>
@@ -360,6 +361,7 @@ class TestGetFeature:
         <app:name>Foo Bar</app:name>
         <app:city-id xsi:nil="true" />
         <app:city-name xsi:nil="true" />
+        <app:city-region xsi:nil="true" />
         <app:location>
           <gml:Point gml:id="restaurant.{bad_restaurant.id}.1" srsName="urn:ogc:def:crs:EPSG::4326">
             <gml:pos srsDimension="2">{coordinates.point2_xml_wgs84}</gml:pos>
@@ -977,6 +979,7 @@ class TestGetFeature:
                         # City is flattened, following the type definition
                         "city-id": restaurant.city_id,
                         "city-name": "CloudCity",
+                        "city-region": "OurRegion",
                         "rating": 5.0,
                         "is_open": True,
                         "created": "2020-04-05T12:11:10+00:00",
@@ -996,6 +999,7 @@ class TestGetFeature:
                         "name": "Foo Bar",
                         "city-id": None,
                         "city-name": None,
+                        "city-region": None,
                         "rating": 1.0,
                         "is_open": False,
                         "created": "2020-04-05T20:11:10+00:00",
@@ -1079,9 +1083,9 @@ class TestGetFeature:
             assert response.status_code == 200, content
 
         expect = f"""
-"id","name","city-id","city-name","location","rating","is_open","created"
-"{restaurant.id}","Café Noir","{restaurant.city_id}","CloudCity","{coordinates.point1_ewkt}","5.0","True","2020-04-05 12:11:10+00:00"
-"{bad_restaurant.id}","Foo Bar","","","{coordinates.point2_ewkt}","1.0","False","2020-04-05 20:11:10+00:00"
+"id","name","city-id","city-name","city-region","location","rating","is_open","created"
+"{restaurant.id}","Café Noir","{restaurant.city_id}","CloudCity","OurRegion","{coordinates.point1_ewkt}","5.0","True","2020-04-05 12:11:10+00:00"
+"{bad_restaurant.id}","Foo Bar","","","","{coordinates.point2_ewkt}","1.0","False","2020-04-05 20:11:10+00:00"
 """.lstrip()  # noqa: E501
         assert content == expect
         assert "SRID=4326;" in content

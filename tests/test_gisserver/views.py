@@ -77,6 +77,7 @@ class FlattenedWFSView(PlacesWFSView):
                 "name",
                 field("city-id", model_attribute="city_id"),
                 field("city-name", model_attribute="city.name"),
+                field("city-region", model_attribute="city.region"),
                 "location",
                 "rating",
                 "is_open",
