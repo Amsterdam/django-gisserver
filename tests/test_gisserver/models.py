@@ -1,11 +1,10 @@
 import calendar
-from datetime import datetime, time
+from datetime import datetime, time, timezone
 
 from django.contrib.gis.db.models import PointField
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
 
-from datetime import timezone
 
 def current_datetime():
     return datetime(2020, 4, 5, 12, 11, 10, 0, tzinfo=timezone.utc)
@@ -13,6 +12,7 @@ def current_datetime():
 
 class City(models.Model):
     name = models.CharField(max_length=200)
+    region = models.CharField(max_length=200)
 
     def __str__(self):
         return self.name

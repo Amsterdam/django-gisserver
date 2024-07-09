@@ -188,6 +188,7 @@ class TestDescribeFeatureType:
           <element name="name" type="string" minOccurs="0" />
           <element name="city-id" type="integer" minOccurs="0" nillable="true" />
           <element name="city-name" type="string" minOccurs="0" nillable="true" />
+          <element name="city-region" type="string" minOccurs="0" nillable="true" />
           <element name="location" type="gml:PointPropertyType" minOccurs="0" maxOccurs="1" nillable="true" />
           <element name="rating" type="double" minOccurs="0" />
           <element name="is_open" type="boolean" minOccurs="0" />
@@ -205,7 +206,8 @@ class TestDescribeFeatureType:
         """Test workaround for FME's outputformat."""
         gml32 = urllib.parse.quote("application/gml+xml; version=3.2")
         response = client.get(
-            f"/v1/wfs/?SERVICE=WFS&REQUEST=DescribeFeatureType&VERSION=2.0.0&TYPENAMES=restaurant&outputformat={gml32}"
+            f"/v1/wfs/?SERVICE=WFS&REQUEST=DescribeFeatureType&"
+            f"VERSION=2.0.0&TYPENAMES=restaurant&outputformat={gml32}"
         )
         content = response.content.decode()
         assert response.status_code == 200, content

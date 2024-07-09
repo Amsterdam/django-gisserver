@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import calendar
-import ctypes
 from dataclasses import dataclass
 from datetime import time, timedelta
 from decimal import Decimal
@@ -12,7 +11,7 @@ from xml.etree import ElementTree
 import django
 import orjson
 import pytest
-from django.contrib.gis.gdal import gdal_full_version, gdal_version
+from django.contrib.gis.gdal import gdal_full_version
 from django.contrib.gis.geos import Point, geos_version
 from django.contrib.gis.geos.geometry import GEOSGeometry
 from django.db import connection
@@ -164,7 +163,7 @@ def python_coordinates(db_coordinates):
 
 @pytest.fixture()
 def city() -> City:
-    return City.objects.create(name="CloudCity")
+    return City.objects.create(name="CloudCity", region="OurRegion")
 
 
 @pytest.fixture()

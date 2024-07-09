@@ -18,7 +18,8 @@ class TestGetCapabilities:
         """Prove that the happy flow works"""
         gml32 = quote_plus("application/gml+xml; version=3.2")
         response = client.get(
-            "/v1/wfs/?SERVICE=WFS&REQUEST=GetCapabilities&ACCEPTVERSIONS=2.0.0&OUTPUTFORMAT={gml32}"
+            f"/v1/wfs/?SERVICE=WFS&REQUEST=GetCapabilities"
+            f"&ACCEPTVERSIONS=2.0.0&OUTPUTFORMAT={gml32}"
         )
         content = response.content.decode()
         assert response["content-type"] == "text/xml; charset=utf-8", content
@@ -164,3 +165,15 @@ class TestGetCapabilities:
         xml_doc = validate_xsd(response.content, WFS_20_XSD)
         exception = xml_doc.find("ows:Exception", NAMESPACES)
         assert exception.attrib["exceptionCode"] == "VersionNegotiationFailed"
+
+    def test_get_flattened(self, client, restaurant, coordinates):
+        gml32 = quote_plus("application/gml+xml; version=3.2")
+        response = client.get(
+            f"/v1/wfs-flattened/?SERVICE=WFS&REQUEST=GetCapabilities&"
+            f"ACCEPTVERSIONS=2.0.0&OUTPUTFORMAT={gml32}"
+        )
+        content = response.content.decode()
+        assert response["content-type"] == "text/xml; charset=utf-8", content
+        assert response.status_code == 200, content
+        assert "<ows:OperationsMetadata>" in content
+        assert '<ows:WGS84BoundingBox dimensions="2">' in content
