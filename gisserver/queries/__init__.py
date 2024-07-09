@@ -10,6 +10,7 @@ The objects in this module closely follow the WFS spec.
 By using the same type definitions, a lot of code logic follows naturally.
 The "GetFeatureById" is a mandatory built-in stored query.
 """
+
 from .adhoc import AdhocQuery
 from .base import QueryExpression
 from .stored import (

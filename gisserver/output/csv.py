@@ -1,8 +1,10 @@
 """Output rendering logic for GeoJSON."""
+
 from __future__ import annotations
 
 import csv
 from datetime import datetime, timezone
+from io import StringIO
 
 from django.conf import settings
 from django.db import models
@@ -19,7 +21,6 @@ from gisserver.geometries import CRS
 from gisserver.types import XsdComplexType, XsdElement
 
 from .base import OutputRenderer
-from .buffer import StringBuffer
 
 
 class CSVRenderer(OutputRenderer):
@@ -31,6 +32,7 @@ class CSVRenderer(OutputRenderer):
     content_type = "text/csv; charset=utf-8"
     content_disposition = 'attachment; filename="{typenames} {page} {date}.csv"'
     max_page_size = conf.GISSERVER_CSV_MAX_PAGE_SIZE
+    chunk_size = 40_000
 
     #: The outputted CSV dialect. This can be a csv.Dialect subclass
     #: or one of the registered names like: "unix", "excel", "excel-tab"
@@ -66,7 +68,7 @@ class CSVRenderer(OutputRenderer):
         return queryset
 
     def render_stream(self):
-        output = StringBuffer()
+        output = StringIO()
         writer = csv.writer(output, dialect=self.dialect)
 
         is_first_collection = True
@@ -78,11 +80,7 @@ class CSVRenderer(OutputRenderer):
                 output.write("\n\n")
 
             # Write the header
-            fields = [
-                f
-                for f in sub_collection.feature_type.xsd_type.elements
-                if not f.is_many
-            ]
+            fields = [f for f in sub_collection.feature_type.xsd_type.elements if not f.is_many]
             writer.writerow(self.get_header(fields))
 
             # By using .iterator(), the results are streamed with as little memory as
@@ -93,10 +91,13 @@ class CSVRenderer(OutputRenderer):
 
                 # Only perform a 'yield' every once in a while,
                 # as it goes back-and-forth for writing it to the client.
-                if output.is_full():
-                    yield output.flush()
+                if output.tell() > self.chunk_size:
+                    csv_chunk = output.getvalue()
+                    output.seek(0)
+                    output.truncate(0)
+                    yield csv_chunk
 
-        yield output.flush()
+        yield output.getvalue()
 
     def render_exception(self, exception: Exception):
         """Render the exception in a format that fits with the output."""
@@ -159,15 +160,11 @@ class DBCSVRenderer(CSVRenderer):
         output_crs: CRS,
         **params,
     ) -> models.QuerySet:
-        queryset = super().decorate_queryset(
-            feature_type, queryset, output_crs, **params
-        )
+        queryset = super().decorate_queryset(feature_type, queryset, output_crs, **params)
 
         # Instead of reading the binary geometry data,
         # ask the database to generate EWKT data directly.
-        geo_selects = get_db_geometry_selects(
-            feature_type.xsd_type.geometry_elements, output_crs
-        )
+        geo_selects = get_db_geometry_selects(feature_type.xsd_type.geometry_elements, output_crs)
         if geo_selects:
             queryset = queryset.defer(*geo_selects.keys()).annotate(
                 **build_db_annotations(geo_selects, "_as_ewkt_{name}", AsEWKT)

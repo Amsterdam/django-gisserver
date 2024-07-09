@@ -13,14 +13,15 @@ The feature type classes (and field types) offer a flexible translation
 from attribute listings into a schema definition.
 For example, model relationships can be modelled to a different XML layout.
 """
+
 from __future__ import annotations
 
 import html
 import operator
 from collections import defaultdict
 from dataclasses import dataclass
-from functools import lru_cache, reduce
-from typing import List, Union
+from functools import cached_property, lru_cache, reduce
+from typing import Union
 
 from django.conf import settings
 from django.contrib.gis.db import models as gis_models
@@ -28,7 +29,6 @@ from django.contrib.gis.db.models import Extent, GeometryField
 from django.core.exceptions import FieldDoesNotExist, ImproperlyConfigured
 from django.db import models
 from django.db.models.fields.related import ForeignObjectRel  # Django 2.2 import
-from django.utils.functional import cached_property  # py3.8: functools
 
 from gisserver.db import conditional_transform
 from gisserver.exceptions import ExternalValueError
@@ -138,9 +138,7 @@ def _get_model_fields(model, fields, parent=None):
                 parent=parent,
             )
             for f in model._meta.get_fields()
-            if not f.is_relation
-            or f.many_to_one  # ForeignKey
-            or f.one_to_one  # OneToOneField
+            if not f.is_relation or f.many_to_one or f.one_to_one  # ForeignKey  # OneToOneField
         ]
     else:
         # Only defined fields
@@ -292,7 +290,7 @@ class FeatureField:
 
 
 _FieldDefinition = Union[str, FeatureField]
-_FieldDefinitions = Union[_all_, List[_FieldDefinition]]
+_FieldDefinitions = Union[_all_, list[_FieldDefinition]]
 
 
 class ComplexFeatureField(FeatureField):
@@ -456,15 +454,15 @@ class FeatureType:
         queryset: models.QuerySet,
         *,
         fields: _FieldDefinitions | None = None,
-        display_field_name: str = None,
-        geometry_field_name: str = None,
-        name: str = None,
+        display_field_name: str | None = None,
+        geometry_field_name: str | None = None,
+        name: str | None = None,
         # WFS Metadata:
-        title: str = None,
-        abstract: str = None,
-        keywords: list[str] = None,
-        crs: CRS = None,
-        other_crs: list[CRS] = None,
+        title: str | None = None,
+        abstract: str | None = None,
+        keywords: list[str] | None = None,
+        crs: CRS | None = None,
+        other_crs: list[CRS] | None = None,
         metadata_url: str | None = None,
         # Settings
         show_name_field: bool = True,
@@ -522,7 +520,6 @@ class FeatureType:
         """Hook that allows subclasses to reject access for datasets.
         It may raise a Django PermissionDenied error.
         """
-        pass
 
     @cached_property
     def xml_name(self):
@@ -552,7 +549,7 @@ class FeatureType:
         This gives an object layout based on the XSD elements,
         that can be used for prefetching data.
         """
-        models = dict()
+        models = {}
         fields = defaultdict(set)
         elements = defaultdict(list)
 
@@ -678,9 +675,7 @@ class FeatureType:
         # That that without .only(), use at least `self.queryset.all()` so a clone is returned.
         return self.queryset.only(*self._local_model_field_names)
 
-    def get_related_queryset(
-        self, feature_relation: FeatureRelation
-    ) -> models.QuerySet:
+    def get_related_queryset(self, feature_relation: FeatureRelation) -> models.QuerySet:
         """Return the queryset that is used for prefetching related data."""
         if feature_relation.related_model is None:
             raise RuntimeError(
@@ -689,9 +684,7 @@ class FeatureType:
             )
         # Return a queryset that only retrieves the fields that are displayed.
         return self.filter_related_queryset(
-            feature_relation.related_model.objects.only(
-                *feature_relation._local_model_field_names
-            )
+            feature_relation.related_model.objects.only(*feature_relation._local_model_field_names)
         )
 
     def filter_related_queryset(self, queryset: models.QuerySet) -> models.QuerySet:
@@ -731,9 +724,7 @@ class FeatureType:
             return None
 
         # Perform the combining of geometries inside libgeos
-        geometry = (
-            geometries[0] if len(geometries) == 1 else reduce(operator.or_, geometries)
-        )
+        geometry = geometries[0] if len(geometries) == 1 else reduce(operator.or_, geometries)
         if crs is not None and geometry.srid != crs.srid:
             crs.apply_to(geometry)  # avoid clone
         return BoundingBox.from_geometry(geometry, crs=crs)
@@ -825,9 +816,7 @@ class FeatureType:
                 f"XPath selectors with expanded syntax are not supported: {xpath}"
             )
         elif "(" in xpath:
-            raise NotImplementedError(
-                f"XPath selectors with functions are not supported: {xpath}"
-            )
+            raise NotImplementedError(f"XPath selectors with functions are not supported: {xpath}")
 
         # Allow /app:ElementName/.. as "absolute" path.
         # Given our internal resolver logic, simple solution is to strip it.

@@ -43,9 +43,7 @@ class TestGetCapabilities:
         feature_type_list = xml_doc.find("wfs:FeatureTypeList", NAMESPACES)
 
         # The box should be within WGS84 limits, otherwise gis tools can't process the service.
-        wgs84_bbox = feature_type_list.find(
-            "wfs:FeatureType/ows:WGS84BoundingBox", NAMESPACES
-        )
+        wgs84_bbox = feature_type_list.find("wfs:FeatureType/ows:WGS84BoundingBox", NAMESPACES)
         lower = wgs84_bbox.find("ows:LowerCorner", NAMESPACES).text.split(" ")
         upper = wgs84_bbox.find("ows:UpperCorner", NAMESPACES).text.split(" ")
         coords = list(map(float, lower + upper))
@@ -155,9 +153,7 @@ class TestGetCapabilities:
 
     def test_get_invalid_version(self, client):
         """Prove that version negotiation works"""
-        response = client.get(
-            "/v1/wfs/?SERVICE=WFS&REQUEST=GetCapabilities&ACCEPTVERSIONS=1.5.0"
-        )
+        response = client.get("/v1/wfs/?SERVICE=WFS&REQUEST=GetCapabilities&ACCEPTVERSIONS=1.5.0")
         content = response.content.decode()
         assert response["content-type"] == "text/xml; charset=utf-8", content
         assert response.status_code == 400, content

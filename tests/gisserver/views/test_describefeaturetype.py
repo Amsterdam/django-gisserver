@@ -229,9 +229,7 @@ class TestDescribeFeatureType:
 
     def test_all_typenames(self, client):
         """Prove that the happy flow works"""
-        response = client.get(
-            "/v1/wfs/?SERVICE=WFS&REQUEST=DescribeFeatureType&VERSION=2.0.0"
-        )
+        response = client.get("/v1/wfs/?SERVICE=WFS&REQUEST=DescribeFeatureType&VERSION=2.0.0")
         content = response.content.decode()
         # assert response["content-type"] == "application/gml+xml; version=3.2", content
         assert response.status_code == 200, content

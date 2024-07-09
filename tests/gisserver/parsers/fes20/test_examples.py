@@ -8,6 +8,7 @@ HTML Version: https://docs.opengeospatial.org/is/09-026r2/09-026r2.html
 
 This test style is inspired by pyfes (which is also Apache licensed)
 """
+
 from datetime import datetime
 from decimal import Decimal as D
 
@@ -457,9 +458,9 @@ def test_fes20_c5_example7():
     # Test SQL generating
     # Testing against repr() because CombinedExpression / Value doesn't do __eq__ testing.
     query = result.compile_query()
-    assert repr(query) == repr(
-        CompiledQuery(lookups=[Q(PROPA__exact=F("PROPB") + 100)])
-    ), repr(query)
+    assert repr(query) == repr(CompiledQuery(lookups=[Q(PROPA__exact=F("PROPB") + 100)])), repr(
+        query
+    )
 
 
 def test_fes20_c5_example8():
@@ -534,8 +535,8 @@ def test_fes20_c5_example9():
         lookups=[
             Q(
                 SAMPLE_DATE__range=(
-                    datetime(2001, 1, 15, 20, 7, 48, 110000),
-                    datetime(2001, 3, 6, 12, 0),
+                    datetime(2001, 1, 15, 20, 7, 48, 110000),  # noqa: DTZ001
+                    datetime(2001, 3, 6, 12, 0),  # noqa: DTZ001
                 )
             )
         ]
@@ -609,9 +610,7 @@ def test_fes20_c5_example11():
             operand1=ValueReference(xpath="Geometry"),
             operand2=geometries.GEOSGMLGeometry(
                 srs=WGS84,
-                geos_data=GEOSGeometry(
-                    "POLYGON ((10 10, 20 20, 30 30, 40 40, 10 10))", srid=4326
-                ),
+                geos_data=GEOSGeometry("POLYGON ((10 10, 20 20, 30 30, 40 40, 10 10))", srid=4326),
             ),
         )
     )
@@ -665,9 +664,7 @@ def test_fes20_c5_example11_b():
             operand1=ValueReference(xpath="Geometry"),
             operand2=geometries.GEOSGMLGeometry(
                 srs=WGS84,
-                geos_data=GEOSGeometry(
-                    "POLYGON ((10 10, 20 20, 30 30, 40 40, 10 10))", srid=4326
-                ),
+                geos_data=GEOSGeometry("POLYGON ((10 10, 20 20, 30 30, 40 40, 10 10))", srid=4326),
             ),
         )
     )
@@ -902,10 +899,7 @@ def test_fes20_c5_example14():
     # Test SQL generating
     query = result.compile_query()
     assert query == CompiledQuery(
-        lookups=[
-            Q(Person__age__gt=50)
-            & Q(Person__mailAddress__Address__city__exact="Toronto")
-        ]
+        lookups=[Q(Person__age__gt=50) & Q(Person__mailAddress__Address__city__exact="Toronto")]
     ), repr(query)
 
 
@@ -936,9 +930,7 @@ def test_fes20_c5_example15():
             operatorType=DistanceOperatorName.DWithin,
             geometry=geometries.GEOSGMLGeometry(
                 srs=WGS84,
-                geos_data=GEOSGeometry(
-                    "POINT (43.716589 -79.34068600000001)", srid=4326
-                ),
+                geos_data=GEOSGeometry("POINT (43.716589 -79.34068600000001)", srid=4326),
             ),
             distance=Measure(value=D("10"), uom="m"),
         )
@@ -992,9 +984,7 @@ def test_fes20_c7_example1():
             operatorType=DistanceOperatorName.DWithin,
             geometry=geometries.GEOSGMLGeometry(
                 srs=WGS84,
-                geos_data=GEOSGeometry(
-                    "POINT (43.716589 -79.34068600000001)", srid=4326
-                ),
+                geos_data=GEOSGeometry("POINT (43.716589 -79.34068600000001)", srid=4326),
             ),
             distance=Measure(value=10, uom="m"),
         )

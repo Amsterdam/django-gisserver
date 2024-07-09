@@ -1,12 +1,14 @@
 """These classes map to the FES 2.0 specification for expressions.
 The class names are identical to those in the FES spec.
 """
+
 from __future__ import annotations
 
 import operator
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal as D
+from functools import cached_property
 from typing import Union
 from xml.etree.ElementTree import Element
 
@@ -14,7 +16,6 @@ from django.contrib.gis.geos import GEOSGeometry
 from django.db import models
 from django.db.models import Func, Q, Value
 from django.db.models.expressions import Combinable
-from django.utils.functional import cached_property
 
 from gisserver.exceptions import ExternalParsingError
 from gisserver.parsers.base import BaseNode, TagNameEnum, tag_registry
@@ -31,12 +32,8 @@ from gisserver.parsers.values import auto_cast
 from gisserver.types import FES20, ORMPath, XsdTypes, split_xml_name
 
 NoneType = type(None)
-RhsTypes = Union[
-    Combinable, Func, Q, GEOSGeometry, bool, int, str, date, datetime, tuple
-]
-ParsedValue = Union[
-    int, str, date, D, datetime, GM_Object, GM_Envelope, TM_Object, NoneType
-]
+RhsTypes = Union[Combinable, Func, Q, GEOSGeometry, bool, int, str, date, datetime, tuple]
+ParsedValue = Union[int, str, date, D, datetime, GM_Object, GM_Envelope, TM_Object, NoneType]
 
 OUTPUT_FIELDS = {
     bool: models.BooleanField(),
@@ -148,9 +145,7 @@ class Literal(Expression):
         By aliasing the value using an annotation,
         it can be queried like a regular field name.
         """
-        return compiler.add_annotation(
-            Value(self.value, output_field=self.get_output_field())
-        )
+        return compiler.add_annotation(Value(self.value, output_field=self.get_output_field()))
 
     def get_output_field(self):
         # When the value is used a left-hand-side, Django needs to know the output type.
@@ -169,9 +164,7 @@ class Literal(Expression):
 
 @dataclass(repr=False)
 @tag_registry.register("ValueReference")
-@tag_registry.register(
-    "PropertyName", hidden=True
-)  # FES 1.0 name that old clients still use.
+@tag_registry.register("PropertyName", hidden=True)  # FES 1.0 name that old clients still use.
 class ValueReference(Expression):
     """The <fes:ValueReference> element that holds an XPath string.
     In the fes XSD, this is declared as a subclass of xsd:string.

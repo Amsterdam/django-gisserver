@@ -1,6 +1,7 @@
 """These classes map to the FES 2.0 specification for identifiers.
 The class names are identical to those in the FES spec.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass

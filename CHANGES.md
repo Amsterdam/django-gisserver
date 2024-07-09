@@ -1,6 +1,15 @@
+# 2024-07-01 (1.4.0)
+
+* Added `GISSERVER_COUNT_NUMBER_MATCHED` setting to allow disabling "numberReturned" counting.
+  This will avoid an expensive PostgreSQL COUNT query, speeding up returning large sets.
+* Added basic support for array fields in `GetPropertyValue`.
+* Optimized GML rendering performance (around 15-20% faster on large datasets).
+* Optimized overall rendering performance, which improved GeoJSON/CSV output too.
+* Developers: updated pre-commit hooks
+* Cleaned up leftover Python 3.7 compat code.
+
 # 2023-06-08 (1.3.0)
 
-## Updates
 * Django 5 support added.
 
 ## Contributors
@@ -8,7 +17,7 @@ We would like to thank the following contributors
 for their work on this release.
 
    - [tomdtp](https://github.com/tomdtp)
-  
+
 # 2023-06-08 (1.2.7)
 
 * WFS endpoints now accept a GML version number in their OUTPUTFORMAT.
@@ -42,7 +51,7 @@ for their work on this release.
 # 2022-04-13 (1.2.1)
 
 * Fixed regression for auto-correcting xmlns for `<Filter>` tags that have leading whitespace.
-* Fixed weird crashes when geometry field is not provided. 
+* Fixed weird crashes when geometry field is not provided.
 * Simplify `FeatureType.geometry_field` logic.
 
 

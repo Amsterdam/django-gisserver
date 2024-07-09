@@ -16,10 +16,7 @@ class TestCRS:
 
     def test_crs_empty_version(self):
         """Prove that empty versions are properly re-encoded as empty string"""
-        assert (
-            CRS.from_string("urn:ogc:def:crs:EPSG::28992").urn
-            == "urn:ogc:def:crs:EPSG::28992"
-        )
+        assert CRS.from_string("urn:ogc:def:crs:EPSG::28992").urn == "urn:ogc:def:crs:EPSG::28992"
 
     def test_crs_url(self):
         assert (

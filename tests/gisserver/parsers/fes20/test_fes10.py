@@ -1,4 +1,5 @@
 """Additional tests for FES 1.0 Arithmetic operators."""
+
 import pytest
 from django.db import models
 from django.db.models import Q, Value

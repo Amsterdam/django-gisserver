@@ -5,6 +5,7 @@ such as the "FILTER", "BBOX" and "RESOURCEID" parameters.
 
 These definitions follow the WFS spec.
 """
+
 from __future__ import annotations
 
 import logging
@@ -95,9 +96,7 @@ class AdhocQuery(QueryExpression):
                 if id_type_names:
                     # Only test when the RESOURCEID has a typename.id format
                     # Otherwise, this breaks the CITE RESOURCEID=test-UUID parameter.
-                    kvp_type_names = {
-                        feature_type.name for feature_type in params["typeNames"]
-                    }
+                    kvp_type_names = {feature_type.name for feature_type in params["typeNames"]}
                     if not kvp_type_names.issuperset(id_type_names):
                         raise InvalidParameterValue(
                             "resourceID",
@@ -133,9 +132,7 @@ class AdhocQuery(QueryExpression):
     def get_type_names(self):
         return self.typeNames
 
-    def compile_query(
-        self, feature_type: FeatureType, using=None
-    ) -> fes20.CompiledQuery:
+    def compile_query(self, feature_type: FeatureType, using=None) -> fes20.CompiledQuery:
         """Return our internal CompiledQuery object that can be applied to the queryset."""
         if self.filter:
             # Generate the internal query object from the <fes:Filter>

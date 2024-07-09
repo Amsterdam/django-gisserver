@@ -1,14 +1,15 @@
 from __future__ import annotations
 
 from collections import deque
-from typing import Iterable, cast
+from collections.abc import Iterable
+from io import StringIO
+from typing import cast
 
 from gisserver.features import FeatureType
 from gisserver.operations.base import WFSMethod
 from gisserver.types import XsdComplexType
 
 from .base import OutputRenderer
-from .buffer import StringBuffer
 
 
 class XMLSchemaRenderer(OutputRenderer):
@@ -30,12 +31,10 @@ class XMLSchemaRenderer(OutputRenderer):
         # the prefixes to be different.
         xmlns_features = "\n   ".join(
             f'xmlns:{p}="{self.app_xml_namespace}"'
-            for p in sorted(
-                {feature_type.xml_prefix for feature_type in self.feature_types}
-            )
+            for p in sorted({feature_type.xml_prefix for feature_type in self.feature_types})
         )
 
-        output = StringBuffer()
+        output = StringIO()
         output.write(
             f"""<?xml version='1.0' encoding="UTF-8" ?>
 <schema
@@ -63,7 +62,7 @@ class XMLSchemaRenderer(OutputRenderer):
         )
 
     def render_feature_type(self, feature_type: FeatureType):
-        output = StringBuffer()
+        output = StringIO()
         xsd_type: XsdComplexType = feature_type.xsd_type
 
         # This declares the that a top-level <app:featureName> is a class of a type.
@@ -83,7 +82,7 @@ class XMLSchemaRenderer(OutputRenderer):
 
     def render_complex_type(self, complex_type: XsdComplexType):
         """Write the definition of a single class."""
-        output = StringBuffer()
+        output = StringIO()
         output.write(
             f'  <complexType name="{complex_type.name}">\n'
             "    <complexContent>\n"

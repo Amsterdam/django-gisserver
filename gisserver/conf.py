@@ -23,31 +23,28 @@ GISSERVER_DB_PRECISION = getattr(settings, "GISSERVER_DB_PRECISION", 15)
 # Otherwise, all database-supported SRID's are allowed.
 GISSERVER_SUPPORTED_CRS_ONLY = getattr(settings, "GISSERVER_SUPPORTED_CRS_ONLY", True)
 
+# Whether the total results need to be counted.
+# By disabling this, clients just need to fetch more pages
+# 0 = No counting, 1 = all pages, 2 = only for the first page.
+GISSERVER_COUNT_NUMBER_MATCHED = getattr(settings, "GISSERVER_COUNT_NUMBER_MATCHED", 1)
+
 # -- max page size
 
 # Allow tuning the page size without having to override code.
 # This corresponds with the "DefaultMaxFeatures" setting.
-GISSERVER_DEFAULT_MAX_PAGE_SIZE = getattr(
-    settings, "GISSERVER_DEFAULT_MAX_PAGE_SIZE", 5000
-)
+GISSERVER_DEFAULT_MAX_PAGE_SIZE = getattr(settings, "GISSERVER_DEFAULT_MAX_PAGE_SIZE", 5000)
 
 # CSV exports have a higher default page size, as these results can be streamed.
-GISSERVER_GEOJSON_MAX_PAGE_SIZE = getattr(
-    settings, "GISSERVER_GEOJSON_MAX_PAGE_SIZE", math.inf
-)
+GISSERVER_GEOJSON_MAX_PAGE_SIZE = getattr(settings, "GISSERVER_GEOJSON_MAX_PAGE_SIZE", math.inf)
 GISSERVER_CSV_MAX_PAGE_SIZE = getattr(settings, "GISSERVER_CSV_MAX_PAGE_SIZE", math.inf)
 
 # -- debugging
 
 # Whether to follow the WFS standards strictly (breaks CITE conformance testing)
-GISSERVER_WFS_STRICT_STANDARD = getattr(
-    settings, "GISSERVER_WFS_STRICT_STANDARD", False
-)
+GISSERVER_WFS_STRICT_STANDARD = getattr(settings, "GISSERVER_WFS_STRICT_STANDARD", False)
 
 # Whether to wrap filter errors in a nice response, or raise an exception
-GISSERVER_WRAP_FILTER_DB_ERRORS = getattr(
-    settings, "GISSERVER_WRAP_FILTER_DB_ERRORS", True
-)
+GISSERVER_WRAP_FILTER_DB_ERRORS = getattr(settings, "GISSERVER_WRAP_FILTER_DB_ERRORS", True)
 
 
 @receiver(setting_changed)

@@ -1,4 +1,5 @@
 """Taken from https://github.com/n-a-t-e/xsd_download"""
+
 import os
 import re
 import urllib.request
@@ -14,9 +15,7 @@ def url_to_path(url: str) -> str:
     eg "http://www.example.come/a/b/c.xsd" -> "./www.example.come/a/b/c.xsd"
     """
     parsed = urlparse(url)
-
-    path = parsed.netloc + parsed.path
-    return path
+    return parsed.netloc + parsed.path
 
 
 def localize_links(text: str, filename_complete: str) -> str:
@@ -29,9 +28,7 @@ def localize_links(text: str, filename_complete: str) -> str:
 
     for schema_location in schema_locations:
         path_url = url_to_path(schema_location)
-        rel_path = os.path.relpath(
-            os.path.dirname(path_url), os.path.dirname(filename_complete)
-        )
+        rel_path = os.path.relpath(os.path.dirname(path_url), os.path.dirname(filename_complete))
         base_name = os.path.basename(path_url)
         text = text.replace(schema_location, rel_path + "/" + base_name)
     return text
@@ -56,10 +53,11 @@ def save_file(url: str, text: str) -> None:
 
 def download_xml_url(url: str) -> str:
     "Fetches URL, returns text of the document"
-    response = urllib.request.urlopen(url).read()
+    if not url.startswith("http"):
+        raise RuntimeError()
+    response = urllib.request.urlopen(url).read()  # noqa: S310
     tree = etree.fromstring(response, parser=etree.XMLParser(remove_comments=True))
-    xml = etree.tostring(tree).decode("utf-8")
-    return xml
+    return etree.tostring(tree).decode("utf-8")
 
 
 def download_schema(url):
@@ -80,11 +78,7 @@ def download_schema(url):
                 xsd_data = download_xml_url(url)
 
             except urllib.error.URLError as e:
-                print(
-                    "ERROR loading {}, referenced in {} REASON: {} ".format(
-                        url, referring_url, e.reason
-                    )
-                )
+                print(f"ERROR loading {url}, referenced in {referring_url} REASON: {e.reason} ")
                 return
 
             # all the XSDs linked from this file via schemaLocation

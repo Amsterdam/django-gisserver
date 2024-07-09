@@ -24,6 +24,9 @@ class OpeningHour(models.Model):
     start_time = models.TimeField(default=time(16, 0))
     end_time = models.TimeField(default=time(23, 30))
 
+    def __str__(self):
+        return f"{self.get_weekday_display()}: {self.start_time} - {self.end_time}"
+
 
 class Restaurant(models.Model):
     name = models.CharField(max_length=200)

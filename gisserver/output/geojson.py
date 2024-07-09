@@ -1,6 +1,8 @@
 """Output rendering logic for GeoJSON."""
+
 from datetime import datetime, timezone
 from decimal import Decimal
+from io import BytesIO
 from typing import cast
 
 import orjson
@@ -16,7 +18,6 @@ from gisserver.geometries import CRS
 from gisserver.types import XsdComplexType
 
 from .base import OutputRenderer
-from .buffer import BytesBuffer
 
 
 def _json_default(obj):
@@ -40,6 +41,7 @@ class GeoJsonRenderer(OutputRenderer):
     content_type = "application/geo+json; charset=utf-8"
     content_disposition = 'inline; filename="{typenames} {page} {date}.geojson"'
     max_page_size = conf.GISSERVER_GEOJSON_MAX_PAGE_SIZE
+    chunk_size = 40_000
 
     @classmethod
     def decorate_queryset(
@@ -49,9 +51,7 @@ class GeoJsonRenderer(OutputRenderer):
         output_crs: CRS,
         **params,
     ):
-        queryset = super().decorate_queryset(
-            feature_type, queryset, output_crs, **params
-        )
+        queryset = super().decorate_queryset(feature_type, queryset, output_crs, **params)
 
         # Other geometries can be excluded as these are not rendered by 'properties'
         other_geometries = [
@@ -65,7 +65,7 @@ class GeoJsonRenderer(OutputRenderer):
         return queryset
 
     def render_stream(self):
-        output = BytesBuffer()
+        output = BytesIO()
 
         # Generate the header from a Python dict,
         # but replace the last "}" into a comma, to allow writing more
@@ -96,8 +96,11 @@ class GeoJsonRenderer(OutputRenderer):
 
                 # Only perform a 'yield' every once in a while,
                 # as it goes back-and-forth for writing it to the client.
-                if output.is_full():
-                    yield output.flush()
+                if output.tell() > self.chunk_size:
+                    json_chunk = output.getvalue()
+                    output.seek(0)
+                    output.truncate(0)
+                    yield json_chunk
 
         # Instead of performing an expensive .count() on the start of the page,
         # write this as a last field at the end of the response.
@@ -106,7 +109,7 @@ class GeoJsonRenderer(OutputRenderer):
         footer = self.get_footer()
         output.write(orjson.dumps(footer)[1:])
         output.write(b"\n")
-        yield output.flush()
+        yield output.getvalue()
 
     def render_exception(self, exception: Exception):
         """Render the exception in a format that fits with the output."""
@@ -115,9 +118,7 @@ class GeoJsonRenderer(OutputRenderer):
         else:
             return f"/* {exception.__class__.__name__} during rendering! */\n"
 
-    def render_feature(
-        self, feature_type: FeatureType, instance: models.Model
-    ) -> bytes:
+    def render_feature(self, feature_type: FeatureType, instance: models.Model) -> bytes:
         """Render the output of a single feature"""
 
         # Get all instance attributes:
@@ -266,16 +267,12 @@ class DBGeoJsonRenderer(GeoJsonRenderer):
     """
 
     @classmethod
-    def decorate_queryset(
-        self, feature_type: FeatureType, queryset, output_crs, **params
-    ):
+    def decorate_queryset(self, feature_type: FeatureType, queryset, output_crs, **params):
         """Update the queryset to let the database render the GML output.
         This is far more efficient then GeoDjango's logic, which performs a
         C-API call for every single coordinate of a geometry.
         """
-        queryset = super().decorate_queryset(
-            feature_type, queryset, output_crs, **params
-        )
+        queryset = super().decorate_queryset(feature_type, queryset, output_crs, **params)
         # If desired, the entire FeatureCollection could be rendered
         # in PostgreSQL as well: https://postgis.net/docs/ST_AsGeoJSON.html
         if feature_type.geometry_fields:

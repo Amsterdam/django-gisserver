@@ -23,9 +23,7 @@ class TagNameEnum(Enum):
 
     @classmethod
     def _missing_(cls, value):
-        raise NotImplementedError(
-            f"<{value}> is not registered as valid {cls.__name__}"
-        )
+        raise NotImplementedError(f"<{value}> is not registered as valid {cls.__name__}")
 
     def __repr__(self):
         # Make repr(filter) easier to copy-paste
@@ -108,7 +106,7 @@ class TagRegistry:
 
         def _dec(sub_class: type[BaseNode]):
             # Looping over _member_names_ will skip aliased items (like BBOX/Within)
-            for member_name in names.__members__.keys():
+            for member_name in names.__members__:
                 self.register(name=member_name, namespace=namespace)(sub_class)
             return sub_class
 

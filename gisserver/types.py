@@ -1,6 +1,6 @@
 """Internal XSD type definitions.
 
-These types are the internal schema definition on which all output is generated.
+These types are the internal schema definition, and the foundation for all output generation.
 
 The end-users of this library typically create a WFS feature type definition by using
 the :class:~gisserver.features.FeatureType` / :class:`~gisserver.features.FeatureField` classes.
@@ -23,6 +23,7 @@ Each XMLSchema node defines it's "data type" as either:
 
 Custom field types could also generate these field types.
 """
+
 from __future__ import annotations
 
 import operator
@@ -30,6 +31,7 @@ import re
 from dataclasses import dataclass, field
 from decimal import Decimal as D
 from enum import Enum
+from functools import cached_property
 from typing import TYPE_CHECKING
 
 from django.conf import settings
@@ -42,7 +44,6 @@ from django.db.models.fields.related import (  # Django 2 imports
     RelatedField,
 )
 from django.utils import dateparse
-from django.utils.functional import cached_property
 
 from gisserver.exceptions import ExternalParsingError, OperationProcessingFailed
 from gisserver.geometries import CRS, WGS84  # noqa: F401 / for backwards compatibility
@@ -146,7 +147,7 @@ class XsdTypes(XsdAnyType, Enum):
     gYear = "gYear"
     hexBinary = "hexBinary"
     base64Binary = "base64Binary"
-    token = "token"
+    token = "token"  # noqa: S105
     language = "language"
 
     # Types that contain a GML value as member:
@@ -193,9 +194,7 @@ class XsdTypes(XsdAnyType, Enum):
         try:
             return TYPES_TO_PYTHON[self]
         except KeyError:
-            raise NotImplementedError(
-                f'Casting to "{self}" is not implemented.'
-            ) from None
+            raise NotImplementedError(f'Casting to "{self}" is not implemented.') from None
 
     def to_python(self, raw_value):
         """Convert a raw string value to this type representation"""
@@ -219,7 +218,9 @@ def _init_types_to_python():
     global TYPES_TO_PYTHON
     from gisserver.parsers import values  # avoid cyclic import
 
-    as_is = lambda v: v
+    def as_is(v):
+        return v
+
     TYPES_TO_PYTHON = {
         XsdTypes.date: dateparse.parse_date,
         XsdTypes.dateTime: values.parse_iso_datetime,
@@ -300,29 +301,40 @@ class XsdNode:
         model_attribute: str,
         field: models.Field | ForeignObjectRel | None,
     ):
-        """Select the most efficient read function to retrieves the value."""
-        if field is None:
-            # No model field, can only use getattr(). The attrgetter function has
-            # built-in support for traversing model attributes with dots.
+        """Select the most efficient read function to retrieves the value.
+
+        Since reading a value can be called like 150000+ times, this is heavily optimized.
+
+        This attempts to use ``operator.attrgetter()`` whenever possible,
+        since this will be much faster than using ``getattr()``.
+        The custom ``value_from_object()`` is fully supported too.
+        """
+        if field is None or isinstance(field, ForeignObjectRel):
+            # No model field, can only use getattr(). The attrgetter() function is both faster,
+            # and has built-in support for traversing model attributes with dots.
             return operator.attrgetter(model_attribute)
-        elif isinstance(field, ForeignObjectRel):
-            # Special handling, has no value_from_object()
-            return operator.attrgetter(model_attribute)
-        elif "." not in model_attribute:
-            # Shortcut, can just use Django's value_from_object.
-            # This allows Django fields to override the object retrieval.
-            # Not using value_to_string() as different output formats may serialize differently.
-            return field.value_from_object
-        else:
-            # Need to traverse foreign key relations before using value_from_objec().
+
+        if field.value_from_object.__func__ is models.Field.value_from_object:
+            # No custom value_from_object(), this can be fully emulated with attrgetter() too.
+            # Still allow the final node to have a custom attname,
+            # # which is what Field.value_from_object() does.
             names = model_attribute.split(".")
+            names[-1] = field.attname
+            return operator.attrgetter(".".join(names))
 
-            def _related_get_value_from_object(instance):
-                for name in names[:-1]:
-                    instance = getattr(instance, name)
-                return field.value_from_object(instance)
+        if "." not in model_attribute:
+            # Single level, use the custom value_from_object() directly.
+            return field.value_from_object
 
-            return _related_get_value_from_object
+        # Need to traverse the related field path, and use value_from_object() on the final object.
+        names = model_attribute.split(".")
+        get_related_instance = operator.attrgetter(".".join(names[:-1]))
+
+        def _related_get_value_from_object(instance):
+            related_instance = get_related_instance(instance)
+            return field.value_from_object(related_instance)
+
+        return _related_get_value_from_object
 
     @cached_property
     def is_geometry(self) -> bool:
@@ -397,13 +409,13 @@ class XsdNode:
                     value = value.all()
                 return value
             else:
-                # Support value_from_object() on custom fields.
-                return self.format_value(self._valuegetter(instance))
+                # the _valuegetter() supports value_from_object() on custom fields.
+                return self._valuegetter(instance)
         except (AttributeError, ObjectDoesNotExist):
             # E.g. Django foreign keys that point to a non-existing member.
             return None
 
-    def format_value(self, value):
+    def format_raw_value(self, value):
         """Allow to apply some final transformations on a value.
         This is mainly used to support @gml:id which includes a prefix.
         """
@@ -426,9 +438,7 @@ class XsdNode:
                 code=e.code,
             ) from e
         except (ValueError, TypeError) as e:
-            raise ValidationError(
-                f"Invalid data for the '{self.name}' property: {e}"
-            ) from e
+            raise ValidationError(f"Invalid data for the '{self.name}' property: {e}") from e
 
         return raw_value
 
@@ -493,9 +503,7 @@ class XsdElement(XsdNode):
         source: models.Field | ForeignObjectRel | None = None,
         model_attribute: str | None = None,
     ):
-        super().__init__(
-            name, type, prefix=prefix, source=source, model_attribute=model_attribute
-        )
+        super().__init__(name, type, prefix=prefix, source=source, model_attribute=model_attribute)
         self.nillable = nillable
         self.min_occurs = min_occurs
         self.max_occurs = max_occurs
@@ -560,9 +568,7 @@ class XsdAttribute(XsdNode):
         source: models.Field | ForeignObjectRel | None = None,
         model_attribute: str | None = None,
     ):
-        super().__init__(
-            name, type, prefix=prefix, source=source, model_attribute=model_attribute
-        )
+        super().__init__(name, type, prefix=prefix, source=source, model_attribute=model_attribute)
         self.use = use
 
 
@@ -579,16 +585,14 @@ class GmlIdAttribute(XsdAttribute):
         source: models.Field | ForeignObjectRel | None = None,
         model_attribute="pk",
     ):
-        super().__init__(
-            prefix="gml", name="id", source=source, model_attribute=model_attribute
-        )
+        super().__init__(prefix="gml", name="id", source=source, model_attribute=model_attribute)
         object.__setattr__(self, "type_name", type_name)
 
     def get_value(self, instance: models.Model):
         pk = super().get_value(instance)  # handle dotted-name notations
         return f"{self.type_name}.{pk}"
 
-    def format_value(self, value):
+    def format_raw_value(self, value):
         """Format the value as retrieved from the database."""
         return f"{self.type_name}.{value}"
 
@@ -671,7 +675,7 @@ class XsdComplexType(XsdAnyType):
 
     Typically, this maps into a Django model, with each element pointing to a model field.
 
-    The complex can hold multiple :class:`XsdElement` and :class:`XsdAttribute`
+    A complex type can hold multiple :class:`XsdElement` and :class:`XsdAttribute`
     nodes as children, composing an object. The elements themselves can point
     to a complex type themselves, to create a nested class structure.
     That also allows embedding models with their relations into a single response.
@@ -718,6 +722,17 @@ class XsdComplexType(XsdAnyType):
     @property
     def is_complex_type(self):
         return True  # a property to avoid being used as field.
+
+    @cached_property
+    def all_elements(self) -> list[XsdElement]:
+        """All elements, including inherited elements."""
+        if self.base.is_complex_type:
+            # Add all base class members, in their correct ordering
+            # By having these as XsdElement objects instead of hard-coded writes,
+            # the query/filter logic also works for these elements.
+            return self.base.elements + self.elements
+        else:
+            return self.elements
 
     @cached_property
     def geometry_elements(self) -> list[XsdElement]:
@@ -890,9 +905,7 @@ class XPathMatch(ORMPath):
         if "[" in self.query:
             # If there is an element[@attr=...]/field tag,
             # the build_...() logic should return a Q() object.
-            raise NotImplementedError(
-                f"Complex XPath queries are not supported yet: {self.query}"
-            )
+            raise NotImplementedError(f"Complex XPath queries are not supported yet: {self.query}")
 
     @cached_property
     def orm_path(self) -> str:

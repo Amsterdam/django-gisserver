@@ -5,6 +5,7 @@ import django
 import orjson
 import pytest
 
+from gisserver import conf
 from gisserver.geometries import WGS84
 from tests.constants import NAMESPACES
 from tests.gisserver.views.input import (
@@ -113,7 +114,9 @@ class TestGetFeature:
         # Validate against the WFS 2.0 XSD
         xml_doc = validate_xsd(content, WFS_20_XSD)
         feature = xml_doc.find("wfs:member/app:restaurant", namespaces=NAMESPACES)
-        assert feature.find("app:location", namespaces=NAMESPACES).text is None
+        location = feature.find("app:location", namespaces=NAMESPACES)
+        assert location is not None, content
+        assert location.text is None
         timestamp = xml_doc.attrib["timeStamp"]
 
         assert_xml_equal(
@@ -496,9 +499,7 @@ class TestGetFeature:
         assert name == expect_name
 
     @pytest.mark.parametrize("filter_name", list(COMPLEX_FILTERS.keys()))
-    def test_get_filter_complex(
-        self, client, restaurant_m2m, bad_restaurant, filter_name
-    ):
+    def test_get_filter_complex(self, client, restaurant_m2m, bad_restaurant, filter_name):
         """Prove that that parsing FILTER=<fes:Filter>... works"""
         filter = COMPLEX_FILTERS[filter_name].strip()
         response = client.get(
@@ -508,9 +509,7 @@ class TestGetFeature:
         self._assert_filter(response, expect_name="Café Noir")
 
     @pytest.mark.parametrize("filter_name", list(FLATTENED_FILTERS.keys()))
-    def test_get_filter_flattened(
-        self, client, restaurant, bad_restaurant, filter_name
-    ):
+    def test_get_filter_flattened(self, client, restaurant, bad_restaurant, filter_name):
         """Prove that that parsing FILTER=<fes:Filter>... also works
         when the fields are flattened (model_attribute dot-notation).
         """
@@ -563,8 +562,10 @@ class TestGetFeature:
         message = exception.find("ows:ExceptionText", NAMESPACES).text
         assert message == "No access to this feature."
 
-    def test_get_hits(self, client, restaurant):
+    @pytest.mark.parametrize("use_count", [1, 0])
+    def test_get_hits(self, client, restaurant, use_count, monkeypatch):
         """Prove that that parsing RESULTTYPE=hits works"""
+        monkeypatch.setattr(conf, "GISSERVER_COUNT_NUMBER_MATCHED", use_count)
         response = client.get(
             "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
             "&RESULTTYPE=hits"
@@ -593,32 +594,43 @@ class TestGetFeature:
 </wfs:FeatureCollection>""",  # noqa: E501
         )
 
-    def test_pagination(self, client, restaurant, bad_restaurant):
-        """Prove that that pagination works"""
+    @pytest.mark.parametrize("use_count", [1, 0])
+    def test_pagination(
+        self,
+        client,
+        restaurant,
+        bad_restaurant,
+        use_count,
+        monkeypatch,
+        django_assert_max_num_queries,
+    ):
+        """Prove that that pagination works.
+
+        Two variations are tested; when normal COUNT happens,
+        or a sentinel object is used to detect there are more results.
+        """
+        monkeypatch.setattr(conf, "GISSERVER_COUNT_NUMBER_MATCHED", use_count)
         names = []
         url = (
             "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
             "&SORTBY=name&vendor-arg=foobar"
         )
         for _ in range(4):  # test whether last page stops
-            response = client.get(f"{url}&COUNT=1")
-            content = read_response(response)
+            with django_assert_max_num_queries(1 + use_count):
+                response = client.get(f"{url}&COUNT=1")
+                content = read_response(response)
             assert response["content-type"] == "text/xml; charset=utf-8", content
             assert response.status_code == 200, content
             assert "</wfs:FeatureCollection>" in content
 
             # Validate against the WFS 2.0 XSD
             xml_doc = validate_xsd(content, WFS_20_XSD)
-            assert xml_doc.attrib["numberMatched"] == "2"
+            assert xml_doc.attrib["numberMatched"] == ("2" if use_count else "unknown")
             assert xml_doc.attrib["numberReturned"] == "1"
 
             # Collect the names
-            restaurants = xml_doc.findall(
-                "wfs:member/app:restaurant", namespaces=NAMESPACES
-            )
-            names.extend(
-                res.find("app:name", namespaces=NAMESPACES).text for res in restaurants
-            )
+            restaurants = xml_doc.findall("wfs:member/app:restaurant", namespaces=NAMESPACES)
+            names.extend(res.find("app:name", namespaces=NAMESPACES).text for res in restaurants)
 
             # Test pagination links
             next_url = xml_doc.attrib.get("next")
@@ -668,12 +680,8 @@ class TestGetFeature:
         assert xml_doc.attrib["numberReturned"] == "2"
 
         # Test sort ordering.
-        restaurants = xml_doc.findall(
-            "wfs:member/app:restaurant", namespaces=NAMESPACES
-        )
-        names = [
-            res.find("app:name", namespaces=NAMESPACES).text for res in restaurants
-        ]
+        restaurants = xml_doc.findall("wfs:member/app:restaurant", namespaces=NAMESPACES)
+        names = [res.find("app:name", namespaces=NAMESPACES).text for res in restaurants]
         assert names == expect
 
     SORT_BY_COMPLEX = {
@@ -730,9 +738,7 @@ class TestGetFeature:
 
         data = self.read_json(content)
 
-        assert (
-            data["features"][0]["geometry"]["coordinates"] == coordinates.point1_geojson
-        )
+        assert data["features"][0]["geometry"]["coordinates"] == coordinates.point1_geojson
         assert data == {
             "type": "FeatureCollection",
             "links": [],
@@ -783,18 +789,30 @@ class TestGetFeature:
             ],
         }
 
-    def test_get_geojson_pagination(self, client):
-        """Prove that the geojson export handles pagination."""
+    @pytest.mark.parametrize("use_count", [1, 0])
+    def test_get_geojson_pagination(
+        self, client, use_count, monkeypatch, django_assert_max_num_queries
+    ):
+        """Prove that the geojson export handles pagination.
+
+        Two variations are tested; when normal COUNT happens,
+        or a sentinel object is used to detect there are more results.
+        """
+        monkeypatch.setattr(conf, "GISSERVER_COUNT_NUMBER_MATCHED", use_count)
+
         # Create a large set so the buffer needs to flush.
         for i in range(1500):
             Restaurant.objects.create(name=f"obj#{i}")
 
-        response = client.get(
-            "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
-            "&vendor-arg=foobar&outputformat=geojson&COUNT=1000"
-        )
-        assert response["content-type"] == "application/geo+json; charset=utf-8"
-        content = read_response(response)
+        with django_assert_max_num_queries(1 + use_count):
+            response = client.get(
+                "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
+                "&vendor-arg=foobar&outputformat=geojson&COUNT=1000"
+            )
+            assert (
+                response["content-type"] == "application/geo+json; charset=utf-8"
+            )  # before stream starts
+            content = read_response(response)
 
         # If the response is invalid json, there was likely
         # some exception that aborted further writing.
@@ -802,7 +820,7 @@ class TestGetFeature:
 
         assert len(data["features"]) == 1000
         assert data["numberReturned"] == 1000
-        assert data["numberMatched"] == 1500
+        assert data["numberMatched"] == (1500 if use_count else None)
 
         # Check that the generates links are as expected, and don't mangle casing
         # as some project/vendor specific parameters might be case sensitive.
@@ -1089,12 +1107,8 @@ class TestGetFeature:
         assert xml_doc.attrib["numberReturned"] == "1"
 
         # Test sort ordering.
-        restaurants = xml_doc.findall(
-            "wfs:member/app:restaurant", namespaces=NAMESPACES
-        )
-        names = [
-            res.find("app:name", namespaces=NAMESPACES).text for res in restaurants
-        ]
+        restaurants = xml_doc.findall("wfs:member/app:restaurant", namespaces=NAMESPACES)
+        names = [res.find("app:name", namespaces=NAMESPACES).text for res in restaurants]
         assert names == ["Café Noir"]
 
     def test_resource_id_unknown_id(self, client, restaurant, bad_restaurant):
@@ -1143,8 +1157,7 @@ class TestGetFeature:
     def test_resource_id_invalid(self, client, restaurant, bad_restaurant):
         """Prove that TYPENAMES should be omitted, or match the RESOURCEID."""
         response = client.get(
-            "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
-            "&RESOURCEID=restaurant.ABC"
+            "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&RESOURCEID=restaurant.ABC"
         )
         content = read_response(response)
         assert response["content-type"] == "text/xml; charset=utf-8", content
@@ -1176,17 +1189,11 @@ class TestGetFeature:
         assert xml_doc.attrib["numberReturned"] == "2"
 
         # Test sort ordering.
-        restaurants = xml_doc.findall(
-            "wfs:member/app:restaurant", namespaces=NAMESPACES
-        )
-        names = [
-            res.find("app:name", namespaces=NAMESPACES).text for res in restaurants
-        ]
+        restaurants = xml_doc.findall("wfs:member/app:restaurant", namespaces=NAMESPACES)
+        names = [res.find("app:name", namespaces=NAMESPACES).text for res in restaurants]
         assert names == ["Café Noir", "Foo Bar"]
 
-    def test_get_feature_by_id_stored_query(
-        self, client, restaurant, bad_restaurant, coordinates
-    ):
+    def test_get_feature_by_id_stored_query(self, client, restaurant, bad_restaurant, coordinates):
         """Prove that fetching objects by ID works."""
         response = client.get(
             "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"

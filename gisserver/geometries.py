@@ -3,6 +3,7 @@
 This includes the CRS parsing, coordinate transforms and bounding box object.
 The bounding box can be calculated within Python, or read from a database result.
 """
+
 from __future__ import annotations
 
 import re
@@ -10,7 +11,7 @@ from dataclasses import dataclass, field
 from decimal import Decimal
 from functools import lru_cache
 
-from django.contrib.gis.gdal import AxisOrder, CoordTransform, SpatialReference
+from django.contrib.gis.gdal import CoordTransform, SpatialReference
 from django.contrib.gis.geos import GEOSGeometry, Polygon
 
 from gisserver.exceptions import ExternalParsingError, ExternalValueError
@@ -101,9 +102,7 @@ class CRS:
         self.__dict__["has_custom_backend"] = self.backend is not None
 
     @classmethod
-    def from_string(
-        cls, uri: str | int, backend: SpatialReference | None = None
-    ) -> CRS:
+    def from_string(cls, uri: str | int, backend: SpatialReference | None = None) -> CRS:
         """
         Parse an CRS (Coordinate Reference System) URI, which preferably follows the URN format
         as specified by `the OGC consortium <http://www.opengeospatial.org/ogcUrnPolicy>`_
@@ -146,17 +145,13 @@ class CRS:
         """Instantiate this class using an URN format."""
         urn_match = CRS_URN_REGEX.match(urn)
         if not urn_match:
-            raise ExternalValueError(
-                f"Unknown CRS URN [{urn}] specified: {CRS_URN_REGEX.pattern}"
-            )
+            raise ExternalValueError(f"Unknown CRS URN [{urn}] specified: {CRS_URN_REGEX.pattern}")
 
         domain = urn_match.group("domain")
         authority = urn_match.group("authority").upper()
 
         if domain not in ("ogc", "opengis"):
-            raise ExternalValueError(
-                f"CRS URI [{urn}] contains unknown domain [{domain}]"
-            )
+            raise ExternalValueError(f"CRS URI [{urn}] contains unknown domain [{domain}]")
 
         if authority == "EPSG":
             crsid = urn_match.group("id")
@@ -169,14 +164,10 @@ class CRS:
         elif authority == "OGC":
             crsid = urn_match.group("id").upper()
             if crsid != "CRS84":
-                raise ExternalValueError(
-                    f"OGC CRS URI from [{urn}] contains unknown id [{id}]"
-                )
+                raise ExternalValueError(f"OGC CRS URI from [{urn}] contains unknown id [{id}]")
             srid = 4326
         else:
-            raise ExternalValueError(
-                f"CRS URI [{urn}] contains unknown authority [{authority}]"
-            )
+            raise ExternalValueError(f"CRS URI [{urn}] contains unknown authority [{authority}]")
 
         crs = cls(
             domain=domain,
@@ -253,9 +244,7 @@ class CRS:
             if self.origin:
                 self.__dict__["backend"] = _get_spatial_reference(self.origin)
             else:
-                self.__dict__["backend"] = _get_spatial_reference(
-                    self.srid, srs_type="epsg"
-                )
+                self.__dict__["backend"] = _get_spatial_reference(self.srid, srs_type="epsg")
         return self.backend
 
     def apply_to(self, geometry: GEOSGeometry, clone=False) -> GEOSGeometry | None:
@@ -271,7 +260,7 @@ class CRS:
             if clone:
                 return geometry.clone()
             else:
-                return
+                return None
         else:
             # Convert using GDAL / proj
             transform = _get_coord_transform(geometry.srid, self._as_gdal())
@@ -300,8 +289,7 @@ class BoundingBox:
         bbox = bbox.split(",")
         if not (4 <= len(bbox) <= 5):
             raise ExternalParsingError(
-                f"Input does not contain bounding box, "
-                f"expected 4 or 5 values, not {bbox}."
+                f"Input does not contain bounding box, expected 4 or 5 values, not {bbox}."
             )
         return cls(
             Decimal(bbox[0]),
@@ -332,9 +320,7 @@ class BoundingBox:
     def __repr__(self):
         return f"BoundingBox({self.south}, {self.west}, {self.north}, {self.east})"
 
-    def extend_to(
-        self, lower_lon: float, lower_lat: float, upper_lon: float, upper_lat: float
-    ):
+    def extend_to(self, lower_lon: float, lower_lat: float, upper_lon: float, upper_lat: float):
         """Expand the bounding box in-place"""
         self.south = min(self.south, lower_lon)
         self.west = min(self.west, lower_lat)
