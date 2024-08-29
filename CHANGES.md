@@ -1,3 +1,9 @@
+# 2024-08-29 (1.4.1)
+
+* Fix 500 error when `model_attribute` points to a dotted-path.
+  PR thanks to [sposs](https://github.com/sposs).
+* Updated pre-commit configuration and test matrix.
+
 # 2024-07-01 (1.4.0)
 
 * Added `GISSERVER_COUNT_NUMBER_MATCHED` setting to allow disabling "numberReturned" counting.
