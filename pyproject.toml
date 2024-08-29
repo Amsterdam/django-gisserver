@@ -22,12 +22,12 @@ plugins = ["django_coverage_plugin"]
 # ==== black ====
 [tool.black]
 line-length = 99
-target-version = ['py38']
+target-version = ['py39']
 
 # ==== ruff ====
 [tool.ruff]
 line-length = 99
-target-version = "py38"
+target-version = "py39"
 
 [tool.ruff.lint]
 select = [
