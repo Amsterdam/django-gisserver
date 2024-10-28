@@ -197,7 +197,7 @@ for their work on this release.
 # 2020-06-29 (0.8.1)
 
 * Added unpaginated GeoJSON support (performance is good enough).
-* Added basic support for non-namespaced `FILTER` queries, and `PropertyName` tags (though being WFS2 attributes, clients still use them).
+* Added basic support for non-namespaced `FILTER` queries, and `PropertyName` tags (though being WFS1 attributes, clients still use them).
 * Added extra strict check that `ValueReference`/`Literal`/`ResourceId` nodes don't have child nodes.
 * Fixed allowing filtering on unknown or undefined fields (XPaths are now resolved to known elements).
 * Optimized results streaming by automatically using a queryset-iterator if possible.
