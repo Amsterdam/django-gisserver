@@ -54,9 +54,9 @@ class ST_Union(functions.Union):
     arity = None
 
     def as_postgresql(self, compiler, connection, **extra_context):
-        # PostgreSQL can handle ST_Union(ARRAY(field names)), other databases don't.
+        # PostgreSQL can handle ST_Union(ARRAY[field names]), other databases don't.
         if len(self.source_expressions) > 2:
-            extra_context["template"] = "%(function)s(ARRAY(%(expressions)s))"
+            extra_context["template"] = "%(function)s(ARRAY[%(expressions)s])"
         return self.as_sql(compiler, connection, **extra_context)
 
 
@@ -73,7 +73,7 @@ def get_geometries_union(
         return functions.Union(*expressions)
     elif connections[using].vendor == "postgresql":
         # postgres can handle multiple field names
-        return ST_Union(expressions)
+        return ST_Union(*expressions)
     else:
         # other databases do Union(Union(1, 2), 3)
         return reduce(functions.Union, expressions)
