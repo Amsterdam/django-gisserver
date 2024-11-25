@@ -234,15 +234,16 @@ class GML32Renderer(OutputRenderer):
         This output is typically wrapped in <wfs:member> tags
         unless it's used for a GetPropertyById response.
         """
+
         # Write <app:FeatureTypeName> start node
         pk = _tag_escape(str(instance.pk))
         self._write(f'<{feature_type.xml_name} gml:id="{feature_type.name}.{pk}"{extra_xmlns}>\n')
-
         # Write all fields, both base class and local elements.
-        for xsd_element in feature_type.xsd_type.all_elements:
+        for xsd_element in feature_type.xsd_type.all_elements(self.source_query.property_name):
             # Note that writing 5000 features with 30 tags means this code make 150.000 method calls.
             # Hence, branching to different rendering styles is branched here instead of making such
             # call into a generic "write_field()" function and stepping out from there.
+
             if xsd_element.is_geometry:
                 if xsd_element.xml_name == "gml:boundedBy":
                     # Special case for <gml:boundedBy>, so it will render with

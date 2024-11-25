@@ -723,16 +723,14 @@ class XsdComplexType(XsdAnyType):
     def is_complex_type(self):
         return True  # a property to avoid being used as field.
 
-    @cached_property
-    def all_elements(self) -> list[XsdElement]:
+    def all_elements(self, property_name=None) -> list[XsdElement]:
         """All elements, including inherited elements."""
-        if self.base.is_complex_type:
-            # Add all base class members, in their correct ordering
-            # By having these as XsdElement objects instead of hard-coded writes,
-            # the query/filter logic also works for these elements.
-            return self.base.elements + self.elements
-        else:
-            return self.elements
+        elements = (
+            self.base.elements + self.elements if self.base.is_complex_type else self.elements
+        )
+        return (
+            elements if property_name is None else [e for e in elements if e.name in property_name]
+        )
 
     @cached_property
     def geometry_elements(self) -> list[XsdElement]:

@@ -173,6 +173,7 @@ class GetFeatureById(StoredQuery):
 
         self.type_name = type_name
         self.id = id
+        self.property_name = None  # Initialize property_name to None by default
 
     def get_type_names(self) -> list[FeatureType]:
         """Tell which type names this query applies to."""

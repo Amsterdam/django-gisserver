@@ -218,7 +218,9 @@ class BaseWFSGetDataMethod(WFSTypeNamesMethod):
         # StandardInputParameters
         Parameter("srsName", parser=CRS.from_string),
         # Projection clause parameters
-        UnsupportedParameter("propertyName"),  # which fields to return
+        Parameter(
+            "propertyName", parser=lambda x: x.split(",") if x else None, in_capabilities=True
+        ),
         # AdHoc Query parameters
         Parameter("bbox", parser=BoundingBox.from_string),
         Parameter(

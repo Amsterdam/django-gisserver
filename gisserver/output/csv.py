@@ -111,6 +111,12 @@ class CSVRenderer(OutputRenderer):
         names = []
         append = names.append
         for field in fields:
+            if (
+                self.source_query.property_name is not None
+                and field.name not in self.source_query.property_name
+            ):
+                continue
+
             if field.type.is_complex_type:
                 # Expand complex types
                 for sub_field in field.type.elements:
@@ -125,6 +131,13 @@ class CSVRenderer(OutputRenderer):
         values = []
         append = values.append
         for field in fields:
+
+            if (
+                self.source_query.property_name is not None
+                and field.name not in self.source_query.property_name
+            ):
+                continue
+
             if field.is_geometry:
                 append(self.render_geometry(instance, field))
                 continue

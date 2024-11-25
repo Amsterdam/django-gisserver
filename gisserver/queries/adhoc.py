@@ -45,8 +45,7 @@ class AdhocQuery(QueryExpression):
     # aliases: Optional[List[str]] = None
     handle: str = ""  # only for XML POST requests
 
-    # Projection clause:
-    # propertyName
+    property_name: list[str] | None = None
 
     # Selection clause:
     # - for XML POST this is encoded in a <fes:Query>
@@ -112,6 +111,7 @@ class AdhocQuery(QueryExpression):
             sortBy=params["sortBy"],
             resourceId=params["resourceID"],
             value_reference=params.get("valueReference"),
+            property_name=params.get("propertyName"),
         )
 
     def bind(self, *args, **kwargs):

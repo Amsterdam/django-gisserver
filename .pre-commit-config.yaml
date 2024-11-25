@@ -2,7 +2,7 @@
 # Supported hooks: https://pre-commit.com/hooks.html
 # Running "make format" fixes most issues for you
 default_language_version:
-    python: python3.9
+    python: python3.10
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.6.0

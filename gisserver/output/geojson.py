@@ -122,8 +122,11 @@ class GeoJsonRenderer(OutputRenderer):
         """Render the output of a single feature"""
 
         # Get all instance attributes:
-        properties = self.get_properties(feature_type, feature_type.xsd_type, instance)
+        properties = self.get_properties(
+            feature_type, feature_type.xsd_type, instance, self.source_query.property_name
+        )
 
+        # Add the name field
         if feature_type.show_name_field:
             name = feature_type.get_display_value(instance)
             geometry_name = b'"geometry_name":%b,' % orjson.dumps(name)
@@ -222,6 +225,7 @@ class GeoJsonRenderer(OutputRenderer):
         feature_type: FeatureType,
         xsd_type: XsdComplexType,
         instance: models.Model,
+        property_name: list[str] | None = None,
     ) -> dict:
         """Collect the data for the 'properties' field.
 
@@ -231,6 +235,8 @@ class GeoJsonRenderer(OutputRenderer):
         props = {}
         for xsd_element in xsd_type.elements:
             if not xsd_element.is_geometry:
+                if property_name is not None and xsd_element.name not in property_name:
+                    continue
                 value = xsd_element.get_value(instance)
                 if xsd_element.type.is_complex_type:
                     # Nested object data
