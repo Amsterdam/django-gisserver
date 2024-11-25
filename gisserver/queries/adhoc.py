@@ -46,7 +46,7 @@ class AdhocQuery(QueryExpression):
     handle: str = ""  # only for XML POST requests
 
     # Projection clause:
-    # propertyName
+    propertyName: list[str] | None = None
 
     # Selection clause:
     # - for XML POST this is encoded in a <fes:Query>
@@ -112,6 +112,7 @@ class AdhocQuery(QueryExpression):
             sortBy=params["sortBy"],
             resourceId=params["resourceID"],
             value_reference=params.get("valueReference"),
+            propertyName=params.get("propertyName"),
         )
 
     def bind(self, *args, **kwargs):
@@ -134,12 +135,22 @@ class AdhocQuery(QueryExpression):
 
     def compile_query(self, feature_type: FeatureType, using=None) -> fes20.CompiledQuery:
         """Return our internal CompiledQuery object that can be applied to the queryset."""
+        compiler = None
+        
         if self.filter:
             # Generate the internal query object from the <fes:Filter>
-            return self.filter.compile_query(feature_type, using=using)
+            compiler = self.filter.compile_query(feature_type, using=using)
         else:
             # Generate the internal query object from the BBOX and sortBy args.
-            return self._compile_non_filter_query(feature_type, using=using)
+            compiler = self._compile_non_filter_query(feature_type, using=using)
+
+        # Add property name filtering if specified
+        if self.propertyName:
+            # Add each property as a value reference to select only those fields
+            for prop in self.propertyName:
+                compiler.add_value_reference(fes20.ValueReference(prop))
+
+        return compiler
 
     def _compile_non_filter_query(self, feature_type: FeatureType, using=None):
         """Generate the query based on the remaining parameters.
