@@ -45,7 +45,6 @@ class AdhocQuery(QueryExpression):
     # aliases: Optional[List[str]] = None
     handle: str = ""  # only for XML POST requests
 
-    # Projection clause:
     propertyName: list[str] | None = None
 
     # Selection clause:
@@ -136,7 +135,7 @@ class AdhocQuery(QueryExpression):
     def compile_query(self, feature_type: FeatureType, using=None) -> fes20.CompiledQuery:
         """Return our internal CompiledQuery object that can be applied to the queryset."""
         compiler = None
-        
+
         if self.filter:
             # Generate the internal query object from the <fes:Filter>
             compiler = self.filter.compile_query(feature_type, using=using)

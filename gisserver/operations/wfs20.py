@@ -219,9 +219,7 @@ class BaseWFSGetDataMethod(WFSTypeNamesMethod):
         Parameter("srsName", parser=CRS.from_string),
         # Projection clause parameters
         Parameter(
-            "propertyName",
-            parser=lambda x: x.split(",") if x else None,
-            in_capabilities=True
+            "propertyName", parser=lambda x: x.split(",") if x else None, in_capabilities=True
         ),
         # AdHoc Query parameters
         Parameter("bbox", parser=BoundingBox.from_string),
