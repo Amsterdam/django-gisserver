@@ -1,6 +1,6 @@
 # 2024-11-25 (1.5.0)
 
-* Added PRPOERTYNAME support 
+* Added PRPOERTYNAME support
 
 # 2024-08-29 (1.4.1)
 
