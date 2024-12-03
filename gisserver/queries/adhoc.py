@@ -30,7 +30,7 @@ class AdhocQuery(QueryExpression):
     """The Ad hoc query expression parameters.
 
     This represents all dynamic queries received as request (hence "adhoc"),
-    such as the "FILTER" and "BBOX" arguments from a HTTP GET.
+    such as the "FILTER" and "BBOX" arguments from an HTTP GET.
 
     The WFS Spec has 3 class levels for this:
     - AdhocQueryExpression (types, projection, selection, sorting)

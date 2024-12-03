@@ -11,7 +11,12 @@ from gisserver.types import split_xml_name
 
 class QueryExpression:
     """WFS base class for all queries.
-    This object type is defined in the WFS spec (as <fes:AbstractQueryExpression>).
+    This object type is defined in the WFS spec (as ``<fes:AbstractQueryExpression>``).
+
+    The WFS server can initiate queries in multiple ways.
+    This class provides the common interface for all these query types;
+    whether the request provided "ad-hoc" parameters or called a stored procedure.
+    Each query type has its own way of generating the actual database statement to perform.
 
     The subclasses can override the following logic:
 
@@ -21,8 +26,8 @@ class QueryExpression:
     For full control, these methods can also be overwritten instead:
 
     * :meth:`get_queryset` defines the full results.
-    * :meth:`get_hits` to return the collection for RESULTTYPE=hits.
-    * :meth:`get_results` to return the collection for RESULTTYPE=results
+    * :meth:`get_hits` to return the collection for ``RESULTTYPE=hits``.
+    * :meth:`get_results` to return the collection for ``RESULTTYPE=results``.
     """
 
     handle = ""

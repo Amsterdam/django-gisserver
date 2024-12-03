@@ -317,7 +317,7 @@ class XsdNode:
         if field.value_from_object.__func__ is models.Field.value_from_object:
             # No custom value_from_object(), this can be fully emulated with attrgetter() too.
             # Still allow the final node to have a custom attname,
-            # # which is what Field.value_from_object() does.
+            # which is what Field.value_from_object() does.
             names = model_attribute.split(".")
             names[-1] = field.attname
             return operator.attrgetter(".".join(names))
