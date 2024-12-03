@@ -125,7 +125,12 @@ def get_basic_field_type(
         return DEFAULT_XSD_TYPE
 
 
-def _get_model_fields(model, fields, parent=None):
+def _get_model_fields(
+    model: type[models.Model],
+    fields: _all_ | list[str],
+    parent: ComplexFeatureField | None = None,
+    feature_type: FeatureType | None = None,
+):
     if fields == "__all__":
         # All regular fields
         # Relationships will not be expanded since it can expose so many other fields.
@@ -136,6 +141,7 @@ def _get_model_fields(model, fields, parent=None):
                 # .bind() is called directly by providing these arguments via init:
                 model=model,
                 parent=parent,
+                feature_type=feature_type,
             )
             for f in model._meta.get_fields()
             if not f.is_relation or f.many_to_one or f.one_to_one  # ForeignKey  # OneToOneField
@@ -144,7 +150,7 @@ def _get_model_fields(model, fields, parent=None):
         # Only defined fields
         fields = [f if isinstance(f, FeatureField) else FeatureField(f) for f in fields]
         for field in fields:
-            field.bind(model, parent=parent)
+            field.bind(model, parent=parent, feature_type=feature_type)
         return fields
 
 
@@ -180,6 +186,7 @@ class FeatureField:
         model_attribute=None,
         model=None,
         parent: ComplexFeatureField | None = None,
+        feature_type: FeatureType | None = None,
         abstract=None,
         xsd_class: type[XsdElement] | None = None,
     ):
@@ -188,7 +195,9 @@ class FeatureField:
         self.model = None
         self.model_field = None
         self.parent = parent
+        self.feature_type = feature_type
         self.abstract = abstract
+
         # Allow to override the class attribute on 'self',
         # which avoids having to subclass this field class as well.
         if xsd_class is not None:
@@ -196,7 +205,7 @@ class FeatureField:
 
         self._nillable_relation = False
         if model is not None:
-            self.bind(model)
+            self.bind(model, parent=parent, feature_type=feature_type)
 
     def __repr__(self):
         return f"<{self.__class__.__name__}: {self.name}>"
@@ -208,6 +217,7 @@ class FeatureField:
         self,
         model: type[models.Model],
         parent: ComplexFeatureField | None = None,
+        feature_type: FeatureType | None = None,
     ):
         """Late-binding for the model.
 
@@ -220,11 +230,13 @@ class FeatureField:
         :param model: The model is field is linked to.
         :param parent: When this element is part of a complex feature,
                        this links to the parent field.
+        :param feature_type: The original feature type that his element was mentioned in.
         """
         if self.model is not None:
             raise RuntimeError(f"Feature field '{self.name}' cannot be reused")
         self.model = model
         self.parent = parent
+        self.feature_type = feature_type
 
         if self.model_attribute:
             # Support dot based field traversal.
@@ -284,6 +296,7 @@ class FeatureField:
             max_occurs=max_occurs,
             model_attribute=self.model_attribute,
             source=self.model_field,
+            feature_type=self.feature_type,
         )
 
 
@@ -343,6 +356,7 @@ class ComplexFeatureField(FeatureField):
                     type_name=self.name,
                     source=pk_field,
                     model_attribute=pk_field.name,
+                    feature_type=self.feature_type,
                 )
             ],
             base=self.xsd_base_type,
@@ -610,9 +624,9 @@ class FeatureType:
                     if isinstance(f, gis_models.GeometryField)
                 )
 
-            return [FeatureField(self._geometry_field_name, model=self.model)]
+            return [FeatureField(self._geometry_field_name, model=self.model, feature_type=self)]
         else:
-            return _get_model_fields(self.model, self._fields)
+            return _get_model_fields(self.model, self._fields, feature_type=self)
 
     @cached_property
     def display_field(self) -> models.Field | None:
@@ -772,6 +786,7 @@ class FeatureType:
                     type_name=self.name,
                     source=pk_field,
                     model_attribute=pk_field.name,
+                    feature_type=self,
                 )
             ],
             base=XsdTypes.gmlAbstractGMLType,

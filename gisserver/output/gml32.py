@@ -282,12 +282,6 @@ class GML32Renderer(OutputRenderer):
             if xsd_element.min_occurs:
                 self._write(f'<{xsd_element.xml_name} xsi:nil="true"/>\n')
         else:
-            # Render the tag multiple times
-            if xsd_element.type.is_complex_type:
-                # If the retrieved QuerySet was not filtered yet, do so now. This can't
-                # be done in get_value() because the FeatureType is not known there.
-                value = feature_type.filter_related_queryset(value)
-
             for item in value:
                 self.write_xml_field(feature_type, xsd_element, value=item)
 

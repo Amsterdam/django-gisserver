@@ -267,6 +267,10 @@ class XsdNode:
     #: This supports dot notation to access related attributes.
     model_attribute: str | None
 
+    #: A link back to the parent that described the featuyre this node is a part of.
+    #: This helps to perform additional filtering in side meth:get_value: based on user policies.
+    feature_type: FeatureType | None
+
     def __init__(
         self,
         name: str,
@@ -275,6 +279,7 @@ class XsdNode:
         prefix: str | None = "app",
         source: models.Field | ForeignObjectRel | None = None,
         model_attribute: str | None = None,
+        feature_type: FeatureType | None = None,
     ):
         # Using plain assignment instead of dataclass turns out to be needed
         # for flexibility and easier subclassing.
@@ -283,6 +288,8 @@ class XsdNode:
         self.prefix = prefix
         self.source = source
         self.model_attribute = model_attribute or self.name
+        # link back to parent, some get_value() functions need it.
+        self.feature_type = feature_type
 
         if ":" in self.name:
             raise ValueError("Use 'prefix' argument for namespaces")
@@ -407,6 +414,8 @@ class XsdNode:
                 if self.is_many and isinstance(value, models.Manager):
                     # Make sure callers can read the individual items by iterating over the value.
                     value = value.all()
+                    if self.feature_type is not None:
+                        return self.feature_type.filter_related_queryset(value)
                 return value
             else:
                 # the _valuegetter() supports value_from_object() on custom fields.
@@ -502,8 +511,16 @@ class XsdElement(XsdNode):
         max_occurs: int | _unbounded | None = None,
         source: models.Field | ForeignObjectRel | None = None,
         model_attribute: str | None = None,
+        feature_type: FeatureType | None = None,
     ):
-        super().__init__(name, type, prefix=prefix, source=source, model_attribute=model_attribute)
+        super().__init__(
+            name,
+            type,
+            prefix=prefix,
+            source=source,
+            model_attribute=model_attribute,
+            feature_type=feature_type,
+        )
         self.nillable = nillable
         self.min_occurs = min_occurs
         self.max_occurs = max_occurs
@@ -567,8 +584,16 @@ class XsdAttribute(XsdNode):
         use: str = "optional",
         source: models.Field | ForeignObjectRel | None = None,
         model_attribute: str | None = None,
+        feature_type: FeatureType | None = None,
     ):
-        super().__init__(name, type, prefix=prefix, source=source, model_attribute=model_attribute)
+        super().__init__(
+            name,
+            type,
+            prefix=prefix,
+            source=source,
+            model_attribute=model_attribute,
+            feature_type=feature_type,
+        )
         self.use = use
 
 
@@ -584,8 +609,15 @@ class GmlIdAttribute(XsdAttribute):
         type_name: str,
         source: models.Field | ForeignObjectRel | None = None,
         model_attribute="pk",
+        feature_type: FeatureType | None = None,
     ):
-        super().__init__(prefix="gml", name="id", source=source, model_attribute=model_attribute)
+        super().__init__(
+            prefix="gml",
+            name="id",
+            source=source,
+            model_attribute=model_attribute,
+            feature_type=feature_type,
+        )
         object.__setattr__(self, "type_name", type_name)
 
     def get_value(self, instance: models.Model):
@@ -620,8 +652,8 @@ class GmlNameElement(XsdElement):
             min_occurs=0,
             source=source,
             model_attribute=model_attribute,
+            feature_type=feature_type,
         )
-        self.feature_type = feature_type
 
     def get_value(self, instance: models.Model):
         """Override value retrieval to retrieve the value from the feature type."""
@@ -650,8 +682,8 @@ class GmlBoundedByElement(XsdElement):
             name="boundedBy",
             type=XsdTypes.gmlBoundingShapeType,
             min_occurs=0,
+            feature_type=feature_type,
         )
-        self.feature_type = feature_type
         self.model_attribute = None
 
     def build_lhs_part(self, compiler: CompiledQuery, match: ORMPath):

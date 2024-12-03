@@ -239,11 +239,6 @@ class GeoJsonRenderer(OutputRenderer):
                     else:
                         value_xsd_type = cast(XsdComplexType, xsd_element.type)
                         if xsd_element.is_many:
-                            # If the retrieved QuerySet was not filtered yet, do so now.
-                            # This can't be done in get_value() because the FeatureType
-                            # is not known there.
-                            value = feature_type.filter_related_queryset(value)
-
                             # "..._to_many relation; reverse FK, M2M or array field.
                             props[xsd_element.name] = [
                                 self.get_properties(feature_type, value_xsd_type, item)
