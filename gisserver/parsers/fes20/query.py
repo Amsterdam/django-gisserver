@@ -84,7 +84,9 @@ class CompiledQuery:
         """Read the desired result ordering from a ``<fes:SortBy>`` element."""
         self.ordering += sort_by.build_ordering(self.feature_type)
 
-    def add_value_reference(self, value_reference: expressions.ValueReference) -> str:
+    def add_value_reference(
+        self, value_reference: expressions.ValueReference
+    ) -> expressions.RhsTypes:
         """Add a reference that should be returned by the query.
 
         This includes the XPath expression to the query, in case that adds
