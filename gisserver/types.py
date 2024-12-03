@@ -489,7 +489,7 @@ class XsdElement(XsdNode):
 
     nillable: bool | None
     min_occurs: int | None
-    max_occurs: int | None
+    max_occurs: int | _unbounded | None
 
     def __init__(
         self,
