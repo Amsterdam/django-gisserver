@@ -65,7 +65,7 @@ class TagRegistry:
         self.parsers = {}
 
     def register(self, name=None, namespace=None, hidden=False):
-        """Decorator to register an class as XML node parser.
+        """Decorator to register a class as XML node parser.
 
         This registers the decorated class as the designated parser
         for a specific XML tag.
@@ -116,7 +116,7 @@ class TagRegistry:
         """Convert the element into a Python class.
 
         This locates the parser from the registered tag.
-        It's assumed that the tag has an "from_xml()" method too.
+        It's assumed that the tag has a "from_xml()" method too.
         """
         try:
             real_cls = self.resolve_class(element.tag)

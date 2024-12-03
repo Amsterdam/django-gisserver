@@ -190,6 +190,18 @@ class FeatureField:
         abstract=None,
         xsd_class: type[XsdElement] | None = None,
     ):
+        """
+        Initialize a single field of the feature.
+
+        :param name: Name of the model field.
+        :param model_attribute: Which model attribute to access. This can be a dotted field path.
+        :param model: Which model is accessed. Usually this is passed via :meth:`bind`.
+        :param parent: The parent field of this element. Usually this is passed via :meth:`bind`.
+        :param feature_type: The feature this field is a part of. Usually this is passed via :meth:`bind`.
+        :param abstract: The "help text" or short abstract/description for this field.
+        :param xsd_class: Override which class is used to construct the internal XsdElement.
+                          This controls the schema rendering, value retrieval and rendering of the element.
+        """
         self.name = name
         self.model_attribute = model_attribute
         self.model = None
@@ -324,9 +336,14 @@ class ComplexFeatureField(FeatureField):
     ):
         """
         :param name: Name of the model field.
-        :param fields: List of fields to expose for the target model. This can
-            be a list of :class:`FeatureField` objects, or plain field names.
+        :param fields: If the field exposes a foreign key, provide its child element names.
+            This can be a list of :func:`field` elements, or plain field names.
             Using ``__all__`` also works but is not recommended outside testing.
+        :param model_attribute: Which model attribute to access. This can be a dotted field path.
+        :param abstract: The "help text" or short abstract/description for this field.
+        :param xsd_class: Override which class is used to construct the internal XsdElement.
+                          This controls the schema rendering, value retrieval and rendering of the element.
+        :param xsd_base_type: Override which class is the base class for the element.
         """
         super().__init__(
             name,
@@ -391,9 +408,13 @@ def field(
     so little knowledge is needed about the internal working.
 
     :param name: Name of the model field.
-    :param fields: If the field exposes a foreign key, provide it's child element names.
+    :param model_attribute: Which model attribute to access. This can be a dotted field path.
+    :param abstract: The "help text" or short abstract/description for this field.
+    :param fields: If the field exposes a foreign key, provide its child element names.
         This can be a list of :func:`field` elements, or plain field names.
         Using ``__all__`` also works but is not recommended outside testing.
+    :param xsd_class: Override which class is used to construct the internal XsdElement.
+                      This controls the schema rendering, value retrieval and rendering of the element.
     """
     if fields is not None:
         return ComplexFeatureField(
@@ -485,7 +506,7 @@ class FeatureType:
         :param fields: Define which fields to show in the WFS data.
             This can be a list of field names, or :class:`FeatureField` objects.
         :param display_field_name: Name of the field that's used as general string representation.
-        :param geometry_field: Name of the geometry field to expose (default = auto detect).
+        :param geometry_field_name: Name of the geometry field to expose (default = auto-detect).
         :param name: Name, also used as XML tag name.
         :param title: Used in WFS metadata.
         :param abstract: Used in WFS metadata.

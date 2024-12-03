@@ -44,7 +44,7 @@ RE_SAFE_FILENAME = re.compile(r"\A[A-Za-z0-9]+[A-Za-z0-9.]*")  # no dot at the s
 
 
 class GetCapabilities(WFSMethod):
-    """ "This operation returns map features, and available operations this WFS server supports."""
+    """This operation returns map features, and available operations this WFS server supports."""
 
     output_formats = [
         OutputFormat("application/gml+xml", version="3.2", title="GML"),  # for FME
@@ -115,7 +115,7 @@ class GetCapabilities(WFSMethod):
     def get_context_data(self, **params):
         view = self.view
 
-        # The 'service' is not reaad from 'params' to avoid dependency on get_parameters()
+        # The 'service' is not read from 'params' to avoid dependency on get_parameters()
         service = view.KVP["SERVICE"]  # is WFS
         service_operations = view.accept_operations[service]
         feature_output_formats = service_operations["GetFeature"].output_formats
@@ -138,7 +138,7 @@ class GetCapabilities(WFSMethod):
 
 class DescribeFeatureType(WFSTypeNamesMethod):
     """This returns an XML Schema for the provided objects.
-    Each feature is exposed as an XSD definition with it's fields.
+    Each feature is exposed as an XSD definition with its fields.
     """
 
     output_formats = [
@@ -289,15 +289,19 @@ class BaseWFSGetDataMethod(WFSTypeNamesMethod):
         if not output_crs and collection.results:
             output_crs = collection.results[0].feature_type.crs
 
-        # These become init kwargs for the selected OutputRenderer class:
         return {
+            # These become init kwargs for the selected OutputRenderer class:
             "source_query": query,
             "collection": collection,
             "output_crs": output_crs,
         }
 
     def get_query(self, **params) -> queries.QueryExpression:
-        """Create the query object that will process this request"""
+        """Create or retrieve the query object that will process this request.
+
+        This can either retrieve the stored procedure (e.g. from a database),
+        or construct an ad-hoc query from request parameters.
+        """
         if params["STOREDQUERY_ID"]:
             # The 'StoredQueryParameter' already parses the input into a complete object.
             # When it's not provided, the regular Adhoc-query will be created from the KVP request.

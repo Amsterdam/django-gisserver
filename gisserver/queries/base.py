@@ -38,7 +38,11 @@ class QueryExpression:
         all_feature_types: dict[str, FeatureType],
         value_reference: fes20.ValueReference | None,
     ):
-        """Bind the query to presentation-layer logic"""
+        """Bind the query to presentation-layer logic (e.g. request parameters).
+
+        :param all_feature_types: Which features are queried.
+        :param value_reference: Which field is returned (by ``GetPropertyValue``)
+        """
         self.all_feature_types = all_feature_types
         self.value_reference = value_reference
 
@@ -49,7 +53,7 @@ class QueryExpression:
 
     def resolve_type_name(self, type_name, locator="typename") -> FeatureType:
         """Find the feature type for a given name.
-        This is an utility that cusstom subclasses can use.
+        This is a utility that custom subclasses can use.
         """
         # Strip the namespace prefix. The Python ElementTree parser does
         # not expose the used namespace prefixes, so text-values can't be

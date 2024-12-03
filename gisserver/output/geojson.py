@@ -258,13 +258,13 @@ class GeoJsonRenderer(OutputRenderer):
 class DBGeoJsonRenderer(GeoJsonRenderer):
     """GeoJSON renderer that relays the geometry rendering to the database.
 
-    This is even more efficient then calling the C-API for each feature.
+    This is even more efficient than calling the C-API for each feature.
     """
 
     @classmethod
     def decorate_queryset(self, feature_type: FeatureType, queryset, output_crs, **params):
         """Update the queryset to let the database render the GML output.
-        This is far more efficient then GeoDjango's logic, which performs a
+        This is far more efficient than GeoDjango's logic, which performs a
         C-API call for every single coordinate of a geometry.
         """
         queryset = super().decorate_queryset(feature_type, queryset, output_crs, **params)

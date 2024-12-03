@@ -482,7 +482,7 @@ class DBGML32Renderer(DBGMLRenderingMixin, GML32Renderer):
         **params,
     ):
         """Update the queryset to let the database render the GML output.
-        This is far more efficient then GeoDjango's logic, which performs a
+        This is far more efficient than GeoDjango's logic, which performs a
         C-API call for every single coordinate of a geometry.
         """
         queryset = super().decorate_queryset(feature_type, queryset, output_crs, **params)
@@ -574,7 +574,7 @@ class DBGML32Renderer(DBGMLRenderingMixin, GML32Renderer):
         self._write(f"<{xml_name}{extra_xmlns}>{gml}</{xml_name}>\n")
 
     def write_bounds(self, feature_type, instance) -> None:
-        """Generate the <gml:boundedBy> from DB prerendering."""
+        """Generate the <gml:boundedBy> from DB pre-rendering."""
         gml = instance._as_envelope_gml
         if gml is not None:
             self._write(f"<gml:boundedBy>{gml}</gml:boundedBy>\n")

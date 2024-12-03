@@ -123,7 +123,7 @@ class CRS:
 
     @classmethod
     def from_srid(cls, srid: int, backend=None):
-        """Instantiate this class using an numeric spatial reference ID
+        """Instantiate this class using a numeric spatial reference ID
 
         This is logically identical to calling::
 
@@ -142,7 +142,7 @@ class CRS:
 
     @classmethod
     def _from_urn(cls, urn, backend=None):  # noqa: C901
-        """Instantiate this class using an URN format."""
+        """Instantiate this class using a URN format."""
         urn_match = CRS_URN_REGEX.match(urn)
         if not urn_match:
             raise ExternalValueError(f"Unknown CRS URN [{urn}] specified: {CRS_URN_REGEX.pattern}")

@@ -97,7 +97,7 @@ class FesFunctionRegistry:
             return _wrapper
 
     def resolve_function(self, function_name) -> FesFunction:
-        """Resole the function using it's name."""
+        """Resole the function using its name."""
         try:
             return self.functions[function_name]
         except KeyError:

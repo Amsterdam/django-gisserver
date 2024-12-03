@@ -15,7 +15,7 @@ from django.utils.html import format_html
 class ExternalValueError(ValueError):
     """Raise a ValueError for external input.
     This helps to distinguish between internal bugs
-    (e.g. unpacking values) and misformed external input.
+    (e.g. unpacking values) and malformed external input.
     """
 
 

@@ -39,23 +39,26 @@ class AdhocQuery(QueryExpression):
     For KVP requests, this dataclass is almost identical to **params.
     However, it allows combining the filter parameters. These become
     one single XML request for HTTP POST requests later.
+
+    .. seealso::
+        https://www.mediamaps.ch/ogc/schemas-xsdoc/sld/1.2/query_xsd.html#AbstractAdhocQueryExpressionType
     """
 
     typeNames: list[FeatureType]  # typeNames in WFS/FES spec
     # aliases: Optional[List[str]] = None
     handle: str = ""  # only for XML POST requests
 
-    # Projection clause:
+    # Projection clause (fes:AbstractProjectionClause)
     # propertyName
 
-    # Selection clause:
+    # Selection clause (fes:AbstractSelectionClause):
     # - for XML POST this is encoded in a <fes:Query>
     # - for HTTP GET, this is encoded as FILTER, FILTER_LANGUAGE, RESOURCEID, BBOX.
     filter: fes20.Filter | None = None
     filter_language: str = fes20.Filter.query_language
     bbox: BoundingBox | None = None
 
-    # Sorting Clause
+    # Sorting Clause (fes:AbstractSortingClause)
     sortBy: fes20.SortBy | None = None
 
     # Officially part of the GetFeature/GetPropertyValue request object,
@@ -69,7 +72,7 @@ class AdhocQuery(QueryExpression):
 
     @classmethod
     def from_kvp_request(cls, **params):
-        """Build this object from a HTTP GET (key-value-pair) request."""
+        """Build this object from an HTTP GET (key-value-pair) request."""
         # Validate optionally required parameters
         if not params["typeNames"] and not params["resourceID"]:
             raise MissingParameterValue("typeNames", "Empty TYPENAMES parameter")
@@ -115,7 +118,7 @@ class AdhocQuery(QueryExpression):
         )
 
     def bind(self, *args, **kwargs):
-        """Inform this quey object of the available feature types"""
+        """Inform this query object of the available feature types"""
         super().bind(*args, **kwargs)
 
         if self.resourceId:
@@ -144,7 +147,7 @@ class AdhocQuery(QueryExpression):
     def _compile_non_filter_query(self, feature_type: FeatureType, using=None):
         """Generate the query based on the remaining parameters.
 
-        This is slightly more efficient then generating the fes Filter object
+        This is slightly more efficient than generating the fes Filter object
         from these KVP parameters (which could also be done within the request method).
         """
         compiler = fes20.CompiledQuery(feature_type=feature_type, using=using)

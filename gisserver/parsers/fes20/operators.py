@@ -616,7 +616,7 @@ class LogicalOperator(NonIdOperator):
 @tag_registry.register("And")
 @tag_registry.register("Or")
 class BinaryLogicOperator(LogicalOperator):
-    """Apply an AND or OR operator"""
+    """Apply an 'AND' or 'OR' operator"""
 
     operands: list[NonIdOperator]
     operatorType: BinaryLogicType

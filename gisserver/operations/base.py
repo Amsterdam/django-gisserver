@@ -32,12 +32,12 @@ RE_SAFE_FILENAME = re.compile(r"\A[A-Za-z0-9]+[A-Za-z0-9.]*")  # no dot at the s
 
 @dataclass(frozen=True)
 class Parameter:
-    """The definition of an parameter for an WFS method.
+    """The definition of a parameter for an WFS method.
 
     These parameters should be defined in the
     WFSMethod parameters attribute / get_parameters().
 
-    These fields is used to parse the incoming request.
+    These fields are used to parse the incoming request.
     The GetCapabilities method also reads the metadata of this value.
     """
 
@@ -141,7 +141,7 @@ class OutputFormat:
         :param renderer_class: The class that performs the output rendering.
             If it's not given, the operation renders it's output using an XML template.
         :param max_page_size: Used to override the ``max_page_size`` of the renderer_class.
-        :param title: A human-friendly name for a HTML overview page.
+        :param title: A human-friendly name for an HTML overview page.
         :param extra: Any additional key-value pairs for the definition.
             Could include ``subtype`` as a shorter alias for the MIME-type.
         """
@@ -197,7 +197,7 @@ class WFSMethod:
 
     do_not_call_in_templates = True  # avoid __call__ execution in Django templates
 
-    #: List the suported parameters for this method, extended by get_parameters()
+    #: List the supported parameters for this method, extended by get_parameters()
     parameters: list[Parameter] = []
 
     #: List the supported output formats for this method.
@@ -258,9 +258,9 @@ class WFSMethod:
 
     def _parse_output_format(self, value) -> OutputFormat:
         """Select the proper OutputFormat object based on the input value"""
-        # When using ?OUTPUTFORMAT=application/gml+xml", it is actually an URL-encoded space
-        # character. Hence spaces are replaced back to a '+' character to allow such notation
-        # instead of forcing it to to be ?OUTPUTFORMAT=application/gml%2bxml".
+        # When using ?OUTPUTFORMAT=application/gml+xml", it is actually a URL-encoded space
+        # character. Hence, spaces are replaced back to a '+' character to allow such notation
+        # instead of forcing it to be ?OUTPUTFORMAT=application/gml%2bxml".
         for v in {value, value.replace(" ", "+")}:
             for o in self.output_formats:
                 if o.matches(v):
@@ -271,7 +271,7 @@ class WFSMethod:
         ) from None
 
     def _parse_namespaces(self, value) -> dict[str, str]:
-        """Parse the namespaces definition.
+        """Parse the 'namespaces' definition.
 
         The NAMESPACES parameter defines which namespaces are used in the KVP request.
         When this parameter is not given, the default namespaces are assumed.
@@ -361,12 +361,12 @@ class WFSMethod:
         )
 
     def _get_xml_template_name(self):
-        """Generate the XML template name for this operation, and check it's file pattern"""
+        """Generate the XML template name for this operation, and check its file pattern"""
         service = self.view.KVP["SERVICE"].lower()
         template_name = f"gisserver/{service}/{self.view.version}/{self.xml_template_name}"
 
         # Since 'service' and 'version' are based on external input,
-        # these values are double checked again to avoid remove file inclusion.
+        # these values are double-checked again to avoid remove file inclusion.
         if not RE_SAFE_FILENAME.match(service) or not RE_SAFE_FILENAME.match(self.view.version):
             raise SuspiciousOperation(f"Refusing to render template name {template_name}")
 

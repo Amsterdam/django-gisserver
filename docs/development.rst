@@ -237,6 +237,7 @@ Other links:
 
 * http://schemas.opengis.net/wfs/2.0/ (XSD and examples)
 * https://mapserver.org/development/rfc/ms-rfc-105.html (more examples)
+* https://www.mediamaps.ch/ogc/schemas-xsdoc/sld/1.2/ (browsable XSD)
 
 Coordinate systems, and axis orientation:
 

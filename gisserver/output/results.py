@@ -67,7 +67,7 @@ class SimpleFeatureCollection:
     def iterator(self):
         """Explicitly request the results to be streamed.
 
-        This can be used by output formats that stream may results, and don't
+        This can be used by output formats that stream results, and don't
         access `number_returned`. Note this is not compatible with prefetch_related().
         """
         if self._result_iterator is not None:
@@ -170,7 +170,7 @@ class SimpleFeatureCollection:
             # When requesting the data after the fact, results are counted.
             return self._result_iterator.number_returned
         else:
-            # Count by fetching all data. Otherwise the results are queried twice.
+            # Count by fetching all data. Otherwise, the results are queried twice.
             # For GML/XML, it's not possible the stream the queryset results
             # as the first tag needs to describe the number of results.
             self.fetch_results()
@@ -187,7 +187,7 @@ class SimpleFeatureCollection:
         qs = self.queryset
         clean_annotations = {
             # HACK: remove database optimizations from output renderer.
-            # Otherwise it becomes SELECT COUNT(*) FROM (SELECT AsGML(..), ...)
+            # Otherwise, it becomes SELECT COUNT(*) FROM (SELECT AsGML(..), ...)
             key: value
             for key, value in qs.query.annotations.items()
             if not key.startswith("_as_")
@@ -229,7 +229,7 @@ class SimpleFeatureCollection:
         elif self._has_more is not None:
             return self._has_more  # did page+1 record check, answer is known.
         elif self._is_surely_last_page:
-            return False  # Less results then expected, answer is known.
+            return False  # Fewer results than expected, answer is known.
 
         # This will perform an slow COUNT() query...
         return self.stop < self.number_matched
@@ -245,11 +245,11 @@ class SimpleFeatureCollection:
             self.feature_type.geometry_field.name
         ).child
         for instance in self:
-            geomery_value = geometry_field.get_value(instance)
-            if geomery_value is None:
+            geometry_value = geometry_field.get_value(instance)
+            if geometry_value is None:
                 continue
 
-            bbox.extend_to_geometry(geomery_value)
+            bbox.extend_to_geometry(geometry_value)
 
         return bbox
 
@@ -305,7 +305,7 @@ class FeatureCollection:
                 conf.GISSERVER_COUNT_NUMBER_MATCHED == 2 and self.results[0].start > 0
             ):
                 # Report "unknown" for either all pages, or the second page.
-                # Most clients don't need this metadata and thus we avoid a COUNT query.
+                # Most clients don't need this metadata, and thus we avoid a COUNT query.
                 return None
 
             return sum(c.number_matched for c in self.results)

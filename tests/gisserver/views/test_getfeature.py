@@ -823,7 +823,7 @@ class TestGetFeature:
         assert data["numberMatched"] == (1500 if use_count else None)
 
         # Check that the generates links are as expected, and don't mangle casing
-        # as some project/vendor specific parameters might be case sensitive.
+        # as some project/vendor specific parameters might be case-sensitive.
         assert data["links"] == [
             {
                 "href": (

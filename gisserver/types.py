@@ -167,7 +167,7 @@ class XsdTypes(XsdAnyType, Enum):
     #: A direct geometry value (used as function argument type)
     gmlAbstractGeometryType = "gml:AbstractGeometryType"
 
-    #: A feature that has an gml:name and gml:boundedBy as possible child element.
+    #: A feature that has a gml:name and gml:boundedBy as possible child element.
     gmlAbstractFeatureType = "gml:AbstractFeatureType"
     gmlAbstractGMLType = "gml:AbstractGMLType"  # base class of gml:AbstractFeatureType
 
@@ -183,7 +183,7 @@ class XsdTypes(XsdAnyType, Enum):
 
     @cached_property
     def is_geometry(self):
-        """Whether the value represents a element which contains a GML element."""
+        """Whether the value represents an element which contains a GML element."""
         return self.prefix == "gml" and self.value.endswith("PropertyType")
 
     @cached_property
@@ -916,7 +916,7 @@ class ORMPath:
 class XPathMatch(ORMPath):
     """The ORM path result from am XPath query.
 
-    This result object defines how to resolve an XPath to a ORM object.
+    This result object defines how to resolve an XPath to an ORM object.
     """
 
     #: The matched element, with all it's parents.

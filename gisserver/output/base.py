@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import typing
 
 from django.conf import settings
 from django.db import models
@@ -14,6 +15,9 @@ from gisserver.geometries import CRS
 from gisserver.operations.base import WFSMethod
 
 from .results import FeatureCollection
+
+if typing.TYPE_CHECKING:
+    from gisserver.queries import QueryExpression
 
 
 class OutputRenderer:
@@ -35,17 +39,17 @@ class OutputRenderer:
     def __init__(
         self,
         method: WFSMethod,
-        source_query,
+        source_query: QueryExpression,
         collection: FeatureCollection,
         output_crs: CRS,
     ):
         """
         Receive the collected data to render.
+        These parameters are received from the ``get_context_data()`` method of the view.
 
         :param method: The calling WFS Method (e.g. GetFeature class)
         :param source_query: The query that generated this output.
-        :type source_query: gisserver.queries.QueryExpression
-        :param collection: The collected data for rendering
+        :param collection: The collected data for rendering.
         :param output_crs: The requested output projection.
         """
         self.method = method
@@ -96,7 +100,15 @@ class OutputRenderer:
         output_crs: CRS,
         **params,
     ) -> models.QuerySet:
-        """Apply presentation layer logic to the queryset."""
+        """Apply presentation layer logic to the queryset.
+
+        This allows fine-tuning the queryset for any special needs of the output rendering type.
+
+        :param feature_type: The feature that is being queried.
+        :param queryset: The constructed queryset so far.
+        :param output_crs: The projected output
+        :param params: All remaining request parameters (e.g. KVP parameters).
+        """
         # Avoid fetching relations, fetch these within the same query,
         related = cls._get_prefetch_related(feature_type, output_crs)
         if related:

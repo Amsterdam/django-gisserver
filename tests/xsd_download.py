@@ -20,7 +20,7 @@ def url_to_path(url: str) -> str:
 
 def localize_links(text: str, filename_complete: str) -> str:
     """Similar to wget's --convert-links, this converts the schemaLocation
-    links to be useable on local filesystem
+    links to be usable on local filesystem
     """
     # only converting the url-based schemaLocations here
     # eg, some will schemaLocation="../abc.xsd"
@@ -52,7 +52,7 @@ def save_file(url: str, text: str) -> None:
 
 
 def download_xml_url(url: str) -> str:
-    "Fetches URL, returns text of the document"
+    """Fetches URL, returns text of the document"""
     if not url.startswith("http"):
         raise RuntimeError()
     response = urllib.request.urlopen(url).read()  # noqa: S310

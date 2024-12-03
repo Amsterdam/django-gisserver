@@ -65,7 +65,7 @@ def get_geometries_union(
 ) -> str | functions.Union:
     """Generate a union of multiple geometry fields."""
     if not expressions:
-        raise ValueError("Missing geometery fields for get_geometries_union()")
+        raise ValueError("Missing geometry fields for get_geometries_union()")
 
     if len(expressions) == 1:
         return next(iter(expressions))  # fastest in set data type

@@ -49,7 +49,7 @@ class GISView(View):
     #: Metadata of the service:
     service_description: ServiceDescription | None = None
 
-    #: Template to render a HTML welcome page for non-OGC requests.
+    #: Template to render an HTML welcome page for non-OGC requests.
     index_template_name = None
 
     #: Whether to render GET HTML pages
@@ -106,7 +106,7 @@ class GISView(View):
         if version and version in self.accept_versions:
             self.set_version(version)
 
-        # Allow for an user-friendly opening page (hence the version check above)
+        # Allow for a user-friendly opening page (hence the version check above)
         if self.use_html_templates and self.is_index_request():
             return self.render_index()
 
@@ -197,7 +197,7 @@ class GISView(View):
             ) from None
 
         # Resolve the operation
-        # In mapserver, the operation name is case insensitive.
+        # In mapserver, the operation name is case-insensitive.
         operation = self._get_required_arg("REQUEST").upper()
         uc_methods = {name.upper(): method for name, method in operations.items()}
 

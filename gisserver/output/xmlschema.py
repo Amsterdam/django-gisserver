@@ -73,7 +73,7 @@ class XMLSchemaRenderer(OutputRenderer):
 
         # Next, the complexType is rendered that defines the element contents.
         # Next, the complexType(s) are rendered that defines the element contents.
-        # In case any fields are expanded (hence become sub-types), these are also included.
+        # In case any fields are expanded (hence become subtypes), these are also included.
         output.write(self.render_complex_type(xsd_type))
         for complex_type in self._get_complex_types(xsd_type):
             output.write(self.render_complex_type(complex_type))

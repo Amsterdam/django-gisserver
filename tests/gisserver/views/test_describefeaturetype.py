@@ -24,7 +24,7 @@ class TestDescribeFeatureType:
         assert "PropertyType" in content  # for element holding a GML field
 
         # The response is an XSD itself.
-        # Only validate it's XML structure
+        # Only validate its XML structure
         xml_doc: etree._Element = etree.fromstring(response.content)
         assert xml_doc.tag == "{http://www.w3.org/2001/XMLSchema}schema"
         elements = xml_doc.findall(
@@ -89,7 +89,7 @@ class TestDescribeFeatureType:
         assert "PropertyType" in content  # for element holding a GML field
 
         # The response is an XSD itself.
-        # Only validate it's XML structure
+        # Only validate its XML structure
         xml_doc: etree._Element = etree.fromstring(response.content)
         assert xml_doc.tag == "{http://www.w3.org/2001/XMLSchema}schema"
 
@@ -163,7 +163,7 @@ class TestDescribeFeatureType:
         assert "PropertyType" in content  # for element holding a GML field
 
         # The response is an XSD itself.
-        # Only validate it's XML structure
+        # Only validate its XML structure
         xml_doc: etree._Element = etree.fromstring(response.content)
         assert xml_doc.tag == "{http://www.w3.org/2001/XMLSchema}schema"
 
@@ -235,6 +235,6 @@ class TestDescribeFeatureType:
         assert "PropertyType" in content  # for element holding a GML field
 
         # The response is an XSD itself.
-        # Only validate it's XML structure
+        # Only validate its XML structure
         xml_doc: etree._Element = etree.fromstring(response.content)
         assert xml_doc.tag == "{http://www.w3.org/2001/XMLSchema}schema"

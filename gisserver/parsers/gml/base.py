@@ -14,7 +14,7 @@ class AbstractGeometry(BaseNode):
     """
 
     def build_rhs(self, compiler):
-        # Allow the value to be used in an binary operator
+        # Allow the value to be used in a binary operator
         raise NotImplementedError()
 
 

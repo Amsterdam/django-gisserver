@@ -49,8 +49,8 @@ OUTPUT_FIELDS = {
 class BinaryOperatorType(TagNameEnum):
     """FES 1.0 Arithmetic operators.
 
-    This are no longer part of the FES 2.0 spec, but clients (like QGis)
-    still assume the server supports these. Hence these need to be included.
+    These are no longer part of the FES 2.0 spec, but clients (like QGis)
+    still assume the server supports these. Hence, these need to be included.
     """
 
     Add = operator.add
@@ -100,7 +100,7 @@ class Literal(Expression):
 
     @cached_property
     def value(self) -> ParsedValue:  # officially <xsd:any>
-        """Access the value of the element, casted to the appropriate data type."""
+        """Access the value of the element, cast to the appropriate data type."""
         if not isinstance(self.raw_value, str):
             return self.raw_value  # GML element or None
         elif self.type:
@@ -197,7 +197,7 @@ class ValueReference(Expression):
         return match.build_rhs(compiler)
 
     def parse_xpath(self, feature_type=None) -> ORMPath:
-        """Convert the XPath into a the required ORM query elements."""
+        """Convert the XPath into the required ORM query elements."""
         if feature_type is not None:
             # Can resolve against XSD paths, find the correct DB field name
             return feature_type.resolve_element(self.xpath)
@@ -245,8 +245,8 @@ class Function(Expression):
 class BinaryOperator(Expression):
     """Support for FES 1.0 arithmetic operators.
 
-    This are no longer part of the FES 2.0 spec, but clients (like QGis)
-    still assume the server supports these. Hence these need to be included.
+    These are no longer part of the FES 2.0 spec, but clients (like QGis)
+    still assume the server supports these. Hence, these need to be included.
     """
 
     _operatorType: BinaryOperatorType

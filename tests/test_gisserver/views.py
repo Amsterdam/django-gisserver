@@ -12,7 +12,7 @@ class DeniedFeatureType(FeatureType):
 
 
 class PlacesWFSView(WFSView):
-    """An simple view that uses the WFSView against our test model."""
+    """A simple view that uses the WFSView against our test model."""
 
     xml_namespace = "http://example.org/gisserver"
     service_description = ServiceDescription(

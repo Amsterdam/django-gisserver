@@ -149,7 +149,7 @@ class CSVRenderer(OutputRenderer):
 
 class DBCSVRenderer(CSVRenderer):
     """Further optimized CSV renderer that uses the database to render EWKT.
-    This is about 40% faster then calling the GEOS C-API from python.
+    This is about 40% faster than calling the GEOS C-API from python.
     """
 
     @classmethod

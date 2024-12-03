@@ -29,7 +29,7 @@ class TestGetCapabilities:
         xml_doc = validate_xsd(response.content, WFS_20_XSD)
         assert xml_doc.attrib["version"] == "2.0.0"
 
-        # Check exposed allowed vesions
+        # Check exposed allowed versions
         allowed_values = xml_doc.xpath(
             "ows:OperationsMetadata/ows:Operation[@name='GetCapabilities']"
             "/ows:Parameter[@name='AcceptVersions']/ows:AllowedValues",

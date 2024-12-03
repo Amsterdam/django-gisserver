@@ -686,7 +686,7 @@ def test_fes20_c5_example11_b():
 
 def test_fes20_c5_example12():
     """In this example, a more complex scalar predicate is encoded using the
-    logical operators AND and OR. The example is equivalent to the expression:
+    logical operators 'AND' and 'OR'. The example is equivalent to the expression:
 
     ((FIELD1=10 OR FIELD1=20) AND (STATUS="VALID"))
     """
