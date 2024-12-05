@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from typing import Optional
 
 from django.db.models import Q
 
@@ -45,7 +46,7 @@ class AdhocQuery(QueryExpression):
     # aliases: Optional[List[str]] = None
     handle: str = ""  # only for XML POST requests
 
-    property_name: list[str] | None = None
+    property_name: Optional[list[str]] = None  # noqa: UP007
 
     # Selection clause:
     # - for XML POST this is encoded in a <fes:Query>

@@ -3,7 +3,7 @@
 from datetime import datetime, timezone
 from decimal import Decimal
 from io import BytesIO
-from typing import cast
+from typing import Optional, cast
 
 import orjson
 from django.conf import settings
@@ -225,7 +225,7 @@ class GeoJsonRenderer(OutputRenderer):
         feature_type: FeatureType,
         xsd_type: XsdComplexType,
         instance: models.Model,
-        property_name: list[str] | None = None,
+        property_name: Optional[list[str]] = None,
     ) -> dict:
         """Collect the data for the 'properties' field.
 

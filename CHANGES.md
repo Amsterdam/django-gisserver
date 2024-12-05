@@ -1,7 +1,6 @@
 # 2024-11-25 (1.5.0)
 
 * Added PROPERTYNAME support
-* Dropped support for Python 3.9 and Django 3.2
 
 # 2024-08-29 (1.4.1)
 
