@@ -9,6 +9,7 @@ https://docs.opengeospatial.org/is/09-025r2/09-025r2.html#411
 """
 
 from django.conf import settings
+from django.http import HttpResponse
 from django.utils.html import format_html
 
 
@@ -32,18 +33,29 @@ class OWSException(Exception):
     version = "2.0.0"
     code = None
     text_template = None
+    debug_hint = True
 
-    def __init__(self, locator, text=None, code=None, status_code=None):
+    def __init__(self, text=None, code=None, locator=None, status_code=None):
         text = text or self.text_template.format(code=self.code, locator=locator)
+        if (code and len(text) < len(code)) or (locator and len(text) < len(locator)):
+            raise ValueError("text/locator arguments are switched")
+
         super().__init__(text)
         self.locator = locator
         self.text = text
-        self.code = code or self.code
+        self.code = code or self.code or self.__class__.__name__
         self.status_code = status_code or self.status_code
+
+    def as_response(self):
+        return HttpResponse(
+            b'<?xml version="1.0" encoding="UTF-8"?>\n%b' % self.as_xml().encode("utf-8"),
+            content_type="text/xml; charset=utf-8",
+            status=self.status_code,
+            reason=self.reason,
+        )
 
     def as_xml(self):
         return format_html(
-            '<?xml version="1.0" encoding="UTF-8"?>\n'
             "<ows:ExceptionReport"
             ' xmlns:ows="http://www.opengis.net/ows/1.1"'
             ' xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"'
@@ -51,16 +63,18 @@ class OWSException(Exception):
             ' http://schemas.opengis.net/ows/1.1.0/owsExceptionReport.xsd"'
             ' xml:lang="en-US"'
             ' version="2.0.0">\n'
-            '  <ows:Exception exceptionCode="{code}" locator="{locator}">\n'
-            "    <ows:ExceptionText>{text}{debug}</ows:ExceptionText>\n"
+            '  <ows:Exception exceptionCode="{code}"{locator_attr}>\n\n'
+            "    <ows:ExceptionText>{text}{debug}</ows:ExceptionText>\n\n"
             "  </ows:Exception>\n"
-            "</ows:ExceptionReport>",
+            "</ows:ExceptionReport>\n",
             code=self.code,
-            locator=self.locator,
+            locator_attr=(
+                format_html(' locator="{locator}"', locator=self.locator) if self.locator else ""
+            ),
             text=self.text,
             debug=(
                 ".\n\n(set GISSERVER_WRAP_FILTER_DB_ERRORS=False to see the Django error page)"
-                if settings.DEBUG and self.status_code >= 500
+                if settings.DEBUG and self.status_code >= 500 and self.debug_hint
                 else ""
             ),
         )

@@ -80,14 +80,14 @@ class StoredQuery(QueryExpression):
                 args[name] = KVP[name]
             except KeyError:
                 raise MissingParameterValue(
-                    name, f"Stored query {cls.meta.id} requires an '{name}' parameter"
+                    f"Stored query {cls.meta.id} requires an '{name}' parameter", locator=name
                 ) from None
 
         # Avoid unexpected behavior, check whether the client also sends adhoc query parameters
         for name in ("filter", "bbox", "resourceID"):
             if name not in args and KVP.get(name.upper()):
                 raise InvalidParameterValue(
-                    name, "Stored query can't be combined with adhoc-query parameters"
+                    "Stored query can't be combined with adhoc-query parameters", locator=name
                 )
 
         return args
@@ -121,7 +121,8 @@ class StoredQueryRegistry:
             return self.stored_queries[query_id]
         except KeyError:
             raise InvalidParameterValue(
-                "STOREDQUERY_ID", f"Stored query does not exist: {query_id}"
+                f"Stored query does not exist: {query_id}",
+                locator="STOREDQUERY_ID",
             ) from None
 
 
@@ -169,7 +170,7 @@ class GetFeatureById(StoredQuery):
             type_name, id = ID.rsplit(".", 1)
         except ValueError:
             # Always report this as 404
-            raise NotFound("ID", "Expected typeName.id for ID parameter") from None
+            raise NotFound("Expected typeName.id for ID parameter", locator="ID") from None
 
         self.type_name = type_name
         self.id = id
@@ -184,7 +185,7 @@ class GetFeatureById(StoredQuery):
         try:
             return super().get_queryset(feature_type)
         except (ValueError, TypeError) as e:
-            raise InvalidParameterValue("ID", f"Invalid ID value: {e}") from e
+            raise InvalidParameterValue(f"Invalid ID value: {e}", locator="ID") from e
 
     def get_results(self, *args, **kwargs) -> FeatureCollection:
         """Override to implement 404 checking."""
@@ -194,7 +195,7 @@ class GetFeatureById(StoredQuery):
         # Avoid having to do that in the output renderer.
         if collection.results[0].first() is None:
             # WFS 2.0.2: Return NotFound instead of InvalidParameterValue
-            raise NotFound("ID", f"Feature not found with ID {self.id}.")
+            raise NotFound(f"Feature not found with ID {self.id}.", locator="ID")
 
         return collection
 

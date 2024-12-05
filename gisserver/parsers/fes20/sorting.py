@@ -20,7 +20,9 @@ class SortOrder(Enum):
         try:
             return cls[direction]
         except KeyError:
-            raise InvalidParameterValue("sortby", "Expect ASC/DESC ordering direction") from None
+            raise InvalidParameterValue(
+                "Expect ASC/DESC ordering direction", locator="sortby"
+            ) from None
 
 
 @dataclass

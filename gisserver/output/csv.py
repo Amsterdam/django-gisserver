@@ -6,7 +6,6 @@ import csv
 from datetime import datetime, timezone
 from io import StringIO
 
-from django.conf import settings
 from django.db import models
 
 from gisserver import conf
@@ -68,7 +67,7 @@ class CSVRenderer(OutputRenderer):
         return queryset
 
     def render_stream(self):
-        output = StringIO()
+        self.output = output = StringIO()
         writer = csv.writer(output, dialect=self.dialect)
 
         is_first_collection = True
@@ -101,10 +100,9 @@ class CSVRenderer(OutputRenderer):
 
     def render_exception(self, exception: Exception):
         """Render the exception in a format that fits with the output."""
-        if settings.DEBUG:
-            return f"\n\n{exception.__class__.__name__}: {exception}\n"
-        else:
-            return f"\n\n{exception.__class__.__name__} during rendering!\n"
+        message = super().render_exception(exception)
+        buffer = self.output.getvalue()
+        return f"{buffer}\n\n{message}\n"
 
     def get_header(self, fields: list[XsdElement]) -> list[str]:
         """Return all field names."""

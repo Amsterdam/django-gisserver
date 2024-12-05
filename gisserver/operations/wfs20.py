@@ -93,16 +93,17 @@ class GetCapabilities(WFSMethod):
         if "VERSION" in self.view.KVP:
             # Even GetCapabilities can still receive a VERSION argument to fixate it.
             raise InvalidParameterValue(
-                "AcceptVersions", "Can't provide both ACCEPTVERSIONS and VERSION"
+                "Can't provide both ACCEPTVERSIONS and VERSION",
+                locator="AcceptVersions",
             )
 
         matched_versions = set(accept_versions.split(",")).intersection(self.view.accept_versions)
         if not matched_versions:
             allowed = ", ".join(self.view.accept_versions)
             raise VersionNegotiationFailed(
-                "acceptversions",
                 f"'{accept_versions}' does not contain supported versions, "
                 f"supported are: {allowed}.",
+                locator="acceptversions",
             )
 
         # Take the highest version (mapserver returns first matching)
@@ -164,7 +165,7 @@ class DescribeFeatureType(WFSTypeNamesMethod):
     def get_context_data(self, typeNames, **params):
         if self.view.KVP.get("TYPENAMES") == "" or self.view.KVP.get("TYPENAME") == "":
             # Using TYPENAMES= does result in an error.
-            raise MissingParameterValue("typeNames", "Empty TYPENAMES parameter")
+            raise MissingParameterValue("Empty TYPENAMES parameter", locator="typeNames")
         elif typeNames is None:
             # Not given, all types are returned
             typeNames = self.all_feature_types
@@ -255,16 +256,17 @@ class BaseWFSGetDataMethod(WFSTypeNamesMethod):
         except ExternalParsingError as e:
             # Bad input data
             self._log_filter_error(query, logging.ERROR, e)
-            raise OperationParsingFailed(self._get_locator(**params), str(e)) from e
+            raise OperationParsingFailed(str(e), locator=self._get_locator(**params)) from e
         except ExternalValueError as e:
             # Bad input data
             self._log_filter_error(query, logging.ERROR, e)
-            raise InvalidParameterValue(self._get_locator(**params), str(e)) from e
+            raise InvalidParameterValue(str(e), locator=self._get_locator(**params)) from e
         except ValidationError as e:
             # Bad input data
             self._log_filter_error(query, logging.ERROR, e)
             raise OperationParsingFailed(
-                self._get_locator(**params), "\n".join(map(str, e.messages))
+                "\n".join(map(str, e.messages)),
+                locator=self._get_locator(**params),
             ) from e
         except FieldError as e:
             # e.g. doing a LIKE on a foreign key, or requesting an unknown field.
@@ -272,7 +274,8 @@ class BaseWFSGetDataMethod(WFSTypeNamesMethod):
                 raise
             self._log_filter_error(query, logging.ERROR, e)
             raise InvalidParameterValue(
-                self._get_locator(**params), "Internal error when processing filter"
+                "Internal error when processing filter",
+                locator=self._get_locator(**params),
             ) from e
         except (InternalError, ProgrammingError) as e:
             # e.g. comparing datetime against integer
@@ -281,14 +284,15 @@ class BaseWFSGetDataMethod(WFSTypeNamesMethod):
             logger.exception("WFS request failed: %s\nParams: %r", str(e), params)
             msg = str(e)
             locator = "srsName" if "Cannot find SRID" in msg else self._get_locator(**params)
-            raise InvalidParameterValue(locator, f"Invalid request: {msg}") from e
+            raise InvalidParameterValue(f"Invalid request: {msg}", locator=locator) from e
         except (TypeError, ValueError) as e:
             # TypeError/ValueError could reference a datatype mismatch in an
             # ORM query, but it could also be an internal bug. In most cases,
             # this is already caught by XsdElement.validate_comparison().
             if self._is_orm_error(e):
                 raise InvalidParameterValue(
-                    self._get_locator(**params), f"Invalid filter query: {e}"
+                    f"Invalid filter query: {e}",
+                    locator=self._get_locator(**params),
                 ) from e
             raise
 

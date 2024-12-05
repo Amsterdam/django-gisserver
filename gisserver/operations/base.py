@@ -81,9 +81,9 @@ class Parameter:
             if not self.required:
                 return self.default
             elif value is None:
-                raise MissingParameterValue(self.name, f"Missing {kvp_name} parameter")
+                raise MissingParameterValue(f"Missing {kvp_name} parameter", locator=self.name)
             else:
-                raise InvalidParameterValue(self.name, f"Empty {kvp_name} parameter")
+                raise InvalidParameterValue(f"Empty {kvp_name} parameter", locator=self.name)
 
         # Allow conversion into a python object
         if self.parser is not None:
@@ -91,13 +91,15 @@ class Parameter:
                 value = self.parser(value)
             except ExternalParsingError as e:
                 raise OperationParsingFailed(
-                    self.name, f"Unable to parse {kvp_name} argument: {e}"
+                    f"Unable to parse {kvp_name} argument: {e}",
+                    locator=self.name,
                 ) from None
             except (TypeError, ValueError, NotImplementedError) as e:
                 # TypeError/ValueError are raised by most handlers for unexpected data
                 # The NotImplementedError can be raised by fes parsing.
                 raise InvalidParameterValue(
-                    self.name, f"Invalid {kvp_name} argument: {e}"
+                    f"Invalid {kvp_name} argument: {e}",
+                    locator=self.name,
                 ) from None
 
         # Validate against value choices
@@ -111,14 +113,16 @@ class Parameter:
         """
         if self.allowed_values is not None and value not in self.allowed_values:
             msg = self.error_messages.get("invalid", "Invalid value for {name}: {value}")
-            raise InvalidParameterValue(self.name, msg.format(name=self.name, value=value))
+            raise InvalidParameterValue(msg.format(name=self.name, value=value), locator=self.name)
 
 
 class UnsupportedParameter(Parameter):
     def value_from_query(self, KVP: dict):
         kvp_name = self.name.upper()
         if kvp_name in KVP:
-            raise InvalidParameterValue(self.name, f"Support for {self.name} is not implemented!")
+            raise InvalidParameterValue(
+                f"Support for {self.name} is not implemented!", locator=self.name
+            )
         return None
 
 
@@ -269,8 +273,8 @@ class WFSMethod:
                 if o.matches(v):
                     return o
         raise InvalidParameterValue(
-            "outputformat",
             f"'{value}' is not a permitted output format for this operation.",
+            locator="outputformat",
         ) from None
 
     def _parse_namespaces(self, value) -> dict[str, str]:
@@ -290,7 +294,9 @@ class WFSMethod:
         tokens = iter(tokens)
         for prefix in tokens:
             if not prefix.startswith("xmlns("):
-                raise InvalidParameterValue("namespaces", f"Expected xmlns(...) format: {value}")
+                raise InvalidParameterValue(
+                    f"Expected xmlns(...) format: {value}", locator="namespaces"
+                )
             if prefix.endswith(")"):
                 # xmlns(http://...)
                 prefix = ""
@@ -299,7 +305,8 @@ class WFSMethod:
                 uri = next(tokens, "")
                 if not uri.endswith(")"):
                     raise InvalidParameterValue(
-                        "namespaces", f"Expected xmlns(prefix,uri) format: {value}"
+                        f"Expected xmlns(prefix,uri) format: {value}",
+                        locator="namespaces",
                     )
                 prefix = prefix[6:]
                 uri = uri[:-1]
@@ -406,8 +413,8 @@ class WFSTypeNamesMethod(WFSMethod):
             # This allows to perform multiple queries in a single request:
             # TYPENAMES=(A)(B)&FILTER=(filter for A)(filter for B)
             raise OperationParsingFailed(
-                "typenames",
                 "Parameter lists to perform multiple queries are not supported yet.",
+                locator="typenames",
             )
 
         return [self._parse_type_name(name, locator="typenames") for name in type_names.split(",")]
@@ -422,9 +429,9 @@ class WFSTypeNamesMethod(WFSMethod):
             return self.all_feature_types_by_name[local_name]
         except KeyError:
             raise InvalidParameterValue(
-                locator,
                 f"Typename '{name}' doesn't exist in this server. "
                 f"Please check the capabilities and reformulate your request.",
+                locator=locator,
             ) from None
 
 

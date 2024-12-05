@@ -3,8 +3,9 @@ from xml.etree.ElementTree import QName
 
 import django
 import pytest
+from django.db import OperationalError
 
-from gisserver import conf
+from gisserver import conf, output
 from gisserver.geometries import WGS84
 from tests.constants import NAMESPACES
 from tests.gisserver.views.input import (
@@ -1274,3 +1275,53 @@ class TestGetFeature:
 
         message = exception.find("ows:ExceptionText", NAMESPACES).text
         assert message == "Feature not found with ID 0."
+
+    def test_truncated_response(self, client, restaurant, monkeypatch):
+        """Prove that errors are properly handled during streaming."""
+
+        def _mock_error(*args, **kwargs):
+            raise OperationalError("Mocked Database Error")
+
+        monkeypatch.setattr(output.GML32Renderer, "start_collection", _mock_error)
+
+        response = client.get(
+            "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
+        )
+        content_parts = []
+        with pytest.raises(OperationalError):
+            for part in response:
+                content_parts.append(part)
+
+        content = b"".join(content_parts)
+        assert response["content-type"] == "text/xml; charset=utf-8", content
+        assert response.status_code == 200, content  # rendering started before errors
+
+        xml_doc = validate_xsd(content, WFS_20_XSD)
+        timestamp = xml_doc.attrib["timeStamp"]
+
+        print(content.decode("utf-8"))
+        assert_xml_equal(
+            content,
+            f"""<wfs:FeatureCollection
+             xmlns:app="http://example.org/gisserver"
+             xmlns:gml="http://www.opengis.net/gml/3.2"
+             xmlns:wfs="http://www.opengis.net/wfs/2.0"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xsi:schemaLocation="http://example.org/gisserver http://testserver/v1/wfs/?SERVICE=WFS&amp;VERSION=2.0.0&amp;REQUEST=DescribeFeatureType&amp;TYPENAMES=restaurant http://www.opengis.net/wfs/2.0 http://schemas.opengis.net/wfs/2.0/wfs.xsd http://www.opengis.net/gml/3.2 http://schemas.opengis.net/gml/3.2.1/gml.xsd"
+             timeStamp="{timestamp}" numberMatched="1" numberReturned="1">
+              <wfs:truncatedResponse>
+                <ows:ExceptionReport
+                    xmlns:ows="http://www.opengis.net/ows/1.1"
+                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                    xsi:schemaLocation="http://www.opengis.net/ows/1.1 http://schemas.opengis.net/ows/1.1.0/owsExceptionReport.xsd"
+                    xml:lang="en-US" version="2.0.0">
+                  <ows:Exception exceptionCode="OperationalError">
+
+                     <ows:ExceptionText>OperationalError during rendering!</ows:ExceptionText>
+
+                  </ows:Exception>
+                </ows:ExceptionReport>
+              </wfs:truncatedResponse>
+            </wfs:FeatureCollection>
+        """,
+        )

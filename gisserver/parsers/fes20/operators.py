@@ -263,9 +263,9 @@ class NonIdOperator(Operator):
             # e.g. deny <PropertyIsLessThanOrEqualTo> against <gml:boundedBy>
             if xsd_element.is_geometry and not self.allow_geometries:
                 raise OperationProcessingFailed(
-                    "filter",
                     f"Operator '{tag}' does not support comparing"
                     f" geometry properties: '{xsd_element.xml_name}'.",
+                    locator="filter",
                     status_code=400,  # not HTTP 500 here. Spec allows both.
                 )
 

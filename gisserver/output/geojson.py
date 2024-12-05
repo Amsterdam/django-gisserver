@@ -6,7 +6,6 @@ from io import BytesIO
 from typing import cast
 
 import orjson
-from django.conf import settings
 from django.contrib.gis.db.models.functions import AsGeoJSON
 from django.db import models
 from django.utils.functional import Promise
@@ -65,7 +64,7 @@ class GeoJsonRenderer(OutputRenderer):
         return queryset
 
     def render_stream(self):
-        output = BytesIO()
+        self.output = output = BytesIO()
 
         # Generate the header from a Python dict,
         # but replace the last "}" into a comma, to allow writing more
@@ -113,10 +112,9 @@ class GeoJsonRenderer(OutputRenderer):
 
     def render_exception(self, exception: Exception):
         """Render the exception in a format that fits with the output."""
-        if settings.DEBUG:
-            return f"/* {exception.__class__.__name__}: {exception} */\n"
-        else:
-            return f"/* {exception.__class__.__name__} during rendering! */\n"
+        message = super().render_exception(exception)
+        buffer = self.output.getvalue()
+        return f"{buffer}/* {message} */\n"
 
     def render_feature(self, feature_type: FeatureType, instance: models.Model) -> bytes:
         """Render the output of a single feature"""

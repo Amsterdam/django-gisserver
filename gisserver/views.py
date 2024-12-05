@@ -7,7 +7,6 @@ from urllib.parse import urlencode
 
 from django.core.exceptions import ImproperlyConfigured, SuspiciousOperation
 from django.core.exceptions import PermissionDenied as Django_PermissionDenied
-from django.http import HttpResponse
 from django.shortcuts import render
 from django.views import View
 
@@ -70,22 +69,12 @@ class GISView(View):
         When nothing is returned, the exception is raised instead.
         """
         if isinstance(exc, Django_PermissionDenied):
-            exc = PermissionDenied("typeNames", text=str(exc) or None)
-            return HttpResponse(
-                exc.as_xml().encode("utf-8"),
-                content_type="text/xml; charset=utf-8",
-                status=exc.status_code,
-                reason=exc.reason,
-            )
+            exc = PermissionDenied(str(exc) or None, locator="typeNames")
+            return exc.as_response()
         elif isinstance(exc, OWSException):
             # Wrap our XML-based exception into a response.
             exc.version = self.version  # Use negotiated version
-            return HttpResponse(
-                exc.as_xml().encode("utf-8"),
-                content_type="text/xml; charset=utf-8",
-                status=exc.status_code,
-                reason=exc.reason,
-            )
+            return exc.as_response()
         else:
             return None
 
@@ -192,8 +181,8 @@ class GISView(View):
         except KeyError:
             allowed = ", ".join(sorted(self.accept_operations.keys()))
             raise InvalidParameterValue(
-                "service",
                 f"'{service}' is an invalid service, supported are: {allowed}.",
+                locator="service",
             ) from None
 
         # Resolve the operation
@@ -206,8 +195,8 @@ class GISView(View):
         except KeyError:
             allowed = ", ".join(operations.keys())
             raise OperationNotSupported(
-                "request",
                 f"'{operation.lower()}' is not implemented, supported are: {allowed}.",
+                locator="request",
             ) from None
 
     def call_operation(self, wfs_method_cls: type[base.WFSMethod]):
@@ -222,7 +211,7 @@ class GISView(View):
         except KeyError:
             if default is not None:
                 return default
-            raise MissingParameterValue(argname.lower()) from None
+            raise MissingParameterValue(locator=argname.lower()) from None
 
     def get_service_description(self, service: str) -> ServiceDescription:
         """Provide the (dynamically generated) service description."""

@@ -468,8 +468,8 @@ class XsdNode:
                 and self.source.target_field.get_lookup(lookup) is None
             ):
                 raise OperationProcessingFailed(
-                    "filter",
                     f"Operator '{tag}' is not supported for the '{self.name}' property.",
+                    locator="filter",
                     status_code=400,  # not HTTP 500 here. Spec allows both.
                 )
 

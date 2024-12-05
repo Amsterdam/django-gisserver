@@ -75,21 +75,21 @@ class AdhocQuery(QueryExpression):
         """Build this object from an HTTP GET (key-value-pair) request."""
         # Validate optionally required parameters
         if not params["typeNames"] and not params["resourceID"]:
-            raise MissingParameterValue("typeNames", "Empty TYPENAMES parameter")
+            raise MissingParameterValue("Empty TYPENAMES parameter", locator="typeNames")
 
         # Validate mutually exclusive parameters
         if params["filter"] and (params["bbox"] or params["resourceID"]):
             raise InvalidParameterValue(
-                "filter",
                 "The FILTER parameter is mutually exclusive with BBOX and RESOURCEID",
+                locator="filter",
             )
 
         # Validate mutually exclusive parameters
         if params["resourceID"]:
             if params["bbox"] or params["filter"]:
                 raise InvalidParameterValue(
-                    "resourceID",
                     "The RESOURCEID parameter is mutually exclusive with BBOX and FILTER",
+                    locator="resourceID",
                 )
 
             # When ResourceId + typenames is defined, it should be a value from typenames
@@ -102,9 +102,9 @@ class AdhocQuery(QueryExpression):
                     kvp_type_names = {feature_type.name for feature_type in params["typeNames"]}
                     if not kvp_type_names.issuperset(id_type_names):
                         raise InvalidParameterValue(
-                            "resourceID",
                             "When TYPENAMES and RESOURCEID are combined, "
                             "the RESOURCEID type should be included in TYPENAMES.",
+                            locator="resourceID",
                         )
 
         return AdhocQuery(

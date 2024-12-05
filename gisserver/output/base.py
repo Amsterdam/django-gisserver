@@ -88,8 +88,8 @@ class OutputRenderer:
             and crs not in feature_type.supported_crs
         ):
             raise InvalidParameterValue(
-                "srsName",
                 f"Feature '{feature_type.name}' does not support SRID {crs.srid}.",
+                locator="srsName",
             )
 
     @classmethod
@@ -216,9 +216,9 @@ class OutputRenderer:
         The actual exception is still raised and logged server-side.
         """
         if settings.DEBUG:
-            return f"<!-- {exception.__class__.__name__}: {exception} -->\n"
+            return f"{exception.__class__.__name__}: {exception}"
         else:
-            return f"<!-- {exception.__class__.__name__} during rendering! -->\n"
+            return f"{exception.__class__.__name__} during rendering!"
 
     def render_stream(self):
         """Implement this in subclasses to implement a custom output format."""

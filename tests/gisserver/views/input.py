@@ -248,8 +248,8 @@ INVALID_FILTERS = {
     "syntax": (
         """<fes:Filter xmlns:fes="http://www.opengis.net/fes/2.0">FDFDS</fes:Filter""",
         OperationParsingFailed(
-            "filter",
             "Unable to parse FILTER argument: unclosed token: line 1, column 60",
+            locator="filter",
         ),
     ),
     "missing_xmlns": (
@@ -264,8 +264,8 @@ INVALID_FILTERS = {
             </fes:PropertyIsGreaterThanOrEqualTo>
         </fes:Filter>""",
         OperationParsingFailed(
-            "filter",
             "Unable to parse FILTER argument: unbound prefix: line 2, column 8",
+            locator="filter",
         ),
     ),
     "closing_tag": (
@@ -281,8 +281,8 @@ INVALID_FILTERS = {
         </fes:PropertyIsGreaterThanOrEqualTofoo>
     </fes:Filter>""",
         OperationParsingFailed(
-            "filter",
             "Unable to parse FILTER argument: mismatched tag: line 9, column 10",
+            locator="filter",
         ),
     ),
     "float_text": (
@@ -298,8 +298,8 @@ INVALID_FILTERS = {
         </fes:PropertyIsGreaterThanOrEqualTo>
     </fes:Filter>""",
         OperationParsingFailed(
-            "filter",
             "Invalid data for the 'rating' property: Can't cast 'TEXT' to double.",
+            locator="filter",
         ),
     ),
     "float_like": (
@@ -315,9 +315,9 @@ INVALID_FILTERS = {
         </fes:PropertyIsLike>
     </fes:Filter>""",
         OperationProcessingFailed(
-            "filter",
             "Operator '{http://www.opengis.net/fes/2.0}PropertyIsLike'"
             " is not supported for the 'rating' property.",
+            locator="filter",
         ),
     ),
     "date_number": (
@@ -335,9 +335,9 @@ INVALID_FILTERS = {
         </fes:PropertyIsEqualTo>
     </fes:Filter>""",
         OperationParsingFailed(
-            "filter",
             "Invalid data for the 'created' property:"
             " Date must be in YYYY-MM-DD HH:MM[:ss[.uuuuuu]][TZ] format.",
+            locator="filter",
         ),
     ),
     "date_text": (
@@ -353,9 +353,9 @@ INVALID_FILTERS = {
         </fes:PropertyIsGreaterThanOrEqualTo>
     </fes:Filter>""",
         OperationParsingFailed(
-            "filter",
             "Invalid data for the 'created' property:"
             " Date must be in YYYY-MM-DD HH:MM[:ss[.uuuuuu]][TZ] format.",
+            locator="filter",
         ),
     ),
     "geometry_lte": (
@@ -379,9 +379,9 @@ INVALID_FILTERS = {
         </PropertyIsLessThanOrEqualTo>
     </Filter>""",
         OperationProcessingFailed(
-            "filter",
             "Operator '{http://www.opengis.net/fes/2.0}PropertyIsLessThanOrEqualTo'"
             " does not support comparing geometry properties: 'gml:boundedBy'.",
+            locator="filter",
         ),
     ),
 }

@@ -30,7 +30,7 @@ from gisserver.db import (
     get_db_geometry_target,
     get_geometries_union,
 )
-from gisserver.exceptions import NotFound
+from gisserver.exceptions import NotFound, WFSException
 from gisserver.features import FeatureRelation, FeatureType
 from gisserver.geometries import CRS
 from gisserver.parsers.fes20 import ValueReference
@@ -92,6 +92,7 @@ class GML32Renderer(OutputRenderer):
 
     content_type = "text/xml; charset=utf-8"
     xml_collection_tag = "FeatureCollection"
+    xml_sub_collection_tag = "FeatureCollection"  # Mapserver does not use SimpleFeatureCollection
     chunk_size = 40_000
     gml_seq = 0
 
@@ -163,6 +164,36 @@ class GML32Renderer(OutputRenderer):
             ' xmlns:gml="http://www.opengis.net/gml/3.2"'
         )
 
+    def render_exception(self, exception: Exception):
+        """Render the exception in a format that fits with the output.
+
+        The WSF XSD spec has a hidden gem: an <wfs:truncatedResponse> element
+        can be rendered at the end of a feature collection
+        to inform the client an error happened during rendering.
+        """
+        message = super().render_exception(exception)
+        buffer = self.output.getvalue()
+
+        # Wrap into <ows:ExceptionReport> tag.
+        if not isinstance(exception, WFSException):
+            exception = WFSException(message, code=exception.__class__.__name__, status_code=500)
+        exception.debug_hint = False
+
+        # Only at the top-level, an exception report can be rendered
+        closing_child = (
+            f"</wfs:{self.xml_sub_collection_tag}></wfs:member>\n"
+            if len(self.collection.results) > 1
+            else ""
+        )
+        return (
+            f"{buffer}"
+            f"{closing_child}"
+            "  <wfs:truncatedResponse>"
+            f"{exception.as_xml()}"
+            "  </wfs:truncatedResponse>\n"
+            f"</wfs:{self.xml_collection_tag}>\n"
+        )
+
     def render_stream(self):
         """Render the XML as streaming content.
         This renders the standard <wfs:FeatureCollection> / <wfs:ValueCollection>
@@ -197,7 +228,7 @@ class GML32Renderer(OutputRenderer):
                 if has_multiple_collections:
                     self._write(
                         f"<wfs:member>\n"
-                        f"<wfs:{self.xml_collection_tag}"
+                        f"<wfs:{self.xml_sub_collection_tag}"
                         f' timeStamp="{collection.timestamp}"'
                         f' numberMatched="{int(sub_collection.number_matched)}"'
                         f' numberReturned="{int(sub_collection.number_returned)}">\n'
@@ -218,7 +249,7 @@ class GML32Renderer(OutputRenderer):
                         yield xml_chunk
 
                 if has_multiple_collections:
-                    self._write(f"</wfs:{self.xml_collection_tag}>\n</wfs:member>\n")
+                    self._write(f"</wfs:{self.xml_sub_collection_tag}>\n</wfs:member>\n")
 
         self._write(f"</wfs:{self.xml_collection_tag}>\n")
         yield output.getvalue()
@@ -591,6 +622,7 @@ class GML32ValueRenderer(GML32Renderer):
     content_type = "text/xml; charset=utf-8"
     content_type_plain = "text/plain; charset=utf-8"
     xml_collection_tag = "ValueCollection"
+    xml_sub_collection_tag = "ValueCollection"
     _escape_value = staticmethod(_value_to_xml_string)
     gml_value_getter = itemgetter("member")
 
