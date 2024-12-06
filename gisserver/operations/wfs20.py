@@ -239,7 +239,7 @@ class BaseWFSGetDataMethod(WFSTypeNamesMethod):
 
         try:
             if resultType == "HITS":
-                collection = self.get_hits(query)
+                collection = query.get_hits()
             elif resultType == "RESULTS":
                 # Validate StandardPresentationParameters
                 collection = self.get_paginated_results(query, **params)
@@ -317,16 +317,6 @@ class BaseWFSGetDataMethod(WFSTypeNamesMethod):
 
         return query
 
-    def get_hits(self, query: queries.QueryExpression) -> output.FeatureCollection:
-        """Return the number of hits"""
-        return query.get_hits()
-
-    def get_results(
-        self, query: queries.QueryExpression, start, count
-    ) -> output.FeatureCollection:
-        """Return the actual results"""
-        return query.get_results(start, count=count)
-
     def get_paginated_results(
         self, query: queries.QueryExpression, outputFormat, **params
     ) -> output.FeatureCollection:
@@ -340,7 +330,7 @@ class BaseWFSGetDataMethod(WFSTypeNamesMethod):
         stop = start + page_size
 
         # Perform query
-        collection = self.get_results(query, start=start, count=page_size)
+        collection = query.get_results(start, count=page_size)
 
         # Allow presentation-layer to add extra logic.
         if outputFormat.renderer_class is not None:
