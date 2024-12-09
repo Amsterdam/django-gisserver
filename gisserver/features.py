@@ -21,7 +21,7 @@ import operator
 from collections import defaultdict
 from dataclasses import dataclass
 from functools import cached_property, lru_cache, reduce
-from typing import Union
+from typing import Literal, Union
 
 from django.conf import settings
 from django.contrib.gis.db import models as gis_models
@@ -49,13 +49,7 @@ if "django.contrib.postgres" in settings.INSTALLED_APPS:
 else:
     ArrayField = None
 
-try:
-    from typing import Literal  # Python 3.8
-
-    _all_ = Literal["__all__"]
-except ImportError:
-    _all_ = str
-
+_all_ = Literal["__all__"]
 
 __all__ = [
     "FeatureType",

@@ -32,7 +32,7 @@ from dataclasses import dataclass, field
 from decimal import Decimal as D
 from enum import Enum
 from functools import cached_property
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Literal
 
 from django.conf import settings
 from django.contrib.gis.db.models import F, GeometryField
@@ -48,12 +48,7 @@ from django.utils import dateparse
 from gisserver.exceptions import ExternalParsingError, OperationProcessingFailed
 from gisserver.geometries import CRS, WGS84  # noqa: F401 / for backwards compatibility
 
-try:
-    from typing import Literal  # Python 3.8
-
-    _unbounded = Literal["unbounded"]
-except ImportError:
-    _unbounded = str
+_unbounded = Literal["unbounded"]
 
 if "django.contrib.postgres" in settings.INSTALLED_APPS:
     from django.contrib.postgres.fields import ArrayField
