@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from functools import lru_cache, reduce
 from typing import cast
 
@@ -57,23 +58,38 @@ class ST_Union(functions.Union):
         # PostgreSQL can handle ST_Union(ARRAY[field names]), other databases don't.
         if len(self.source_expressions) > 2:
             extra_context["template"] = "%(function)s(ARRAY[%(expressions)s])"
-        return self.as_sql(compiler, connection, **extra_context)
+
+        sql = self.as_sql(compiler, connection, **extra_context)
+        logging.warning("ST_Union SQL: %s", sql)
+        return sql
 
 
 def get_geometries_union(
     expressions: list[str | functions.GeoFunc], using="default"
 ) -> str | functions.Union:
     """Generate a union of multiple geometry fields."""
+    logging.warning("get_geometries_union() called with expressions: %s", expressions)
+    import web_pdb
+
+    web_pdb.set_trace()
     if not expressions:
         raise ValueError("Missing geometery fields for get_geometries_union()")
-
     if len(expressions) == 1:
         return next(iter(expressions))  # fastest in set data type
     elif len(expressions) == 2:
         return functions.Union(*expressions)
     elif connections[using].vendor == "postgresql":
-        # postgres can handle multiple field names
-        return ST_Union(*expressions)
+        # postgres can handle multiple field names, but needs COALESCE to handle NULLs
+        # wrap each expression in COALESCE to handle NULL values
+        wrapped_expressions = [
+            functions.Func(
+                expr,
+                function="COALESCE",
+                template="%(function)s(%(expressions)s, 'GEOMETRYCOLLECTION EMPTY'::geometry)",
+            )
+            for expr in expressions
+        ]
+        return ST_Union(*wrapped_expressions)
     else:
         # other databases do Union(Union(1, 2), 3)
         return reduce(functions.Union, expressions)
