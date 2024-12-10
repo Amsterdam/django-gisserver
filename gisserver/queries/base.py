@@ -73,16 +73,19 @@ class QueryExpression:
         Override this method in case you need full control over the response data.
         Otherwise, override :meth:`compile_query` or :meth:`get_queryset`.
         """
-        querysets = self.get_querysets()
-        return FeatureCollection(
-            results=[
-                # Include empty feature collections,
-                # so the selected feature types are still known.
-                SimpleFeatureCollection(feature_type=ft, queryset=qs.none(), start=0, stop=0)
-                for ft, qs in querysets
-            ],
-            number_matched=sum(qs.count() for ft, qs in querysets),
-        )
+        results = []
+        number_matched = 0
+        for feature_type in self.get_type_names():
+            queryset = self.get_queryset(feature_type)
+            number_matched += queryset.count()
+
+            # Include empty feature collections,
+            # so the selected feature types are still known.
+            results.append(
+                SimpleFeatureCollection(feature_type, queryset=queryset.none(), start=0, stop=0)
+            )
+
+        return FeatureCollection(results=results, number_matched=number_matched)
 
     def get_results(self, start_index=0, count=100) -> FeatureCollection:
         """Run the query, return the full paginated results.
@@ -91,24 +94,21 @@ class QueryExpression:
         Otherwise, override :meth:`compile_query` or :meth:`get_queryset`.
         """
         stop = start_index + count
+        results = [
+            # The querysets are not executed yet, until the output is reading them.
+            SimpleFeatureCollection(
+                feature_type,
+                queryset=self.get_queryset(feature_type),
+                start=start_index,
+                stop=stop,
+            )
+            for feature_type in self.get_type_names()
+        ]
 
-        # The querysets are not executed yet, until the output is reading them.
-        querysets = self.get_querysets()
-        return FeatureCollection(
-            results=[
-                SimpleFeatureCollection(feature_type, qs, start=start_index, stop=stop)
-                for feature_type, qs in querysets
-            ]
-        )
-
-    def get_querysets(self) -> list[tuple[FeatureType, QuerySet]]:
-        """Construct the querysets that return the database results."""
-        results = []
-        for feature_type in self.get_type_names():
-            queryset = self.get_queryset(feature_type)
-            results.append((feature_type, queryset))
-
-        return results
+        # number_matched is not given here, so some rendering formats can count it instead.
+        # For GML it need to be printed at the start, but for GeoJSON it can be rendered
+        # as the last bit of the response. That avoids performing an expensive COUNT query.
+        return FeatureCollection(results=results)
 
     def get_queryset(self, feature_type: FeatureType) -> QuerySet:
         """Generate the queryset for the specific feature type.
