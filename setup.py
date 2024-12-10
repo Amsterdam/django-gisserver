@@ -22,7 +22,7 @@ def find_version(*parts):
 tests_require = [
     "django-environ >= 0.4.5",
     "psycopg2-binary >= 2.8.4",
-    "lxml >= 4.5.0",
+    "lxml >= 4.9.1",
     "pytest >= 6.2.3",
     "pytest-django >= 4.1.0",
     "pytest-cov >= 2.11.1",
@@ -37,7 +37,7 @@ setup(
         "Django >= 3.2",
         "defusedxml >= 0.6.0",
         "lru_dict >= 1.1.7",
-        "orjson >= 2.4.0",
+        "orjson >= 3.9.15",
     ],
     tests_require=tests_require,
     extras_require={
