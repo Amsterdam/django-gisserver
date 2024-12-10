@@ -39,5 +39,8 @@ class Restaurant(models.Model):
     opening_hours = models.ManyToManyField(OpeningHour)
     tags = ArrayField(base_field=models.CharField(max_length=100), null=True)
 
+    class Meta:
+        ordering = ["id"]  # for test result consistency
+
     def __str__(self):
         return self.name

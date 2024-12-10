@@ -1032,7 +1032,7 @@ class TestGetFeature:
         django_assert_max_num_queries,
         coordinates,
     ):
-        """Prove that the geojson export works, for complex results."""
+        """Prove that the CSV export works, for complex results."""
         with django_assert_max_num_queries(1):
             response = client.get(
                 "/v1/wfs-complextypes/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"

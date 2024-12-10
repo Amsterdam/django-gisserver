@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import re
 from doctest import Example
 from functools import lru_cache
 from pathlib import Path
 
 import orjson
-from django.http import HttpResponseBase
+from django.http.response import HttpResponseBase
 from lxml import etree
 from lxml.doctestcompare import PARSE_XML, LXMLOutputChecker
 
@@ -29,6 +30,18 @@ def read_json(content) -> dict:
         snippet = content[e.pos - 300 : e.pos + 300]
         snippet = snippet[snippet.index("\n") :]  # from last newline
         raise AssertionError(f"Parsing JSON failed: {e}\nNear: {snippet}") from None
+
+
+def get_sql(captured_queries: list[dict]) -> list[str]:
+    """Extract the SQL statements made during execution."""
+    return [
+        re.sub(
+            r'^DECLARE "_django_curs_\d+_sync_\d+" NO SCROLL CURSOR WITHOUT HOLD FOR ',
+            "",
+            q["sql"],
+        )
+        for q in captured_queries
+    ]
 
 
 @lru_cache(maxsize=100)

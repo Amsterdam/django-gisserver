@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import math
 import operator
+import typing
 from collections.abc import Iterable
 from datetime import timezone
 from functools import cached_property, reduce
@@ -21,6 +22,9 @@ from gisserver.geometries import BoundingBox
 
 from .utils import ChunkedQuerySetIterator, CountingIterator
 
+if typing.TYPE_CHECKING:
+    from gisserver.queries import FeatureProjection, QueryExpression
+
 
 class SimpleFeatureCollection:
     """Wrapper to read a result set.
@@ -31,15 +35,18 @@ class SimpleFeatureCollection:
 
     def __init__(
         self,
+        source_query: QueryExpression,
         feature_type: FeatureType,
         queryset: models.QuerySet,
         start: int,
         stop: int,
     ):
+        self.source_query = source_query
         self.feature_type = feature_type
         self.queryset = queryset
         self.start = start
         self.stop = stop
+
         self._result_cache = None
         self._result_iterator = None
         self._has_more = None
@@ -234,6 +241,13 @@ class SimpleFeatureCollection:
         # This will perform an slow COUNT() query...
         return self.stop < self.number_matched
 
+    @cached_property
+    def projection(self) -> FeatureProjection:
+        """Provide the projection to render these results with."""
+        # Note this attribute would technically be part of the 'query' object,
+        # but since the projection needs to be mapped per feature type, it's stored here for convenience.
+        return self.source_query.get_projection(self.feature_type)
+
     def get_bounding_box(self) -> BoundingBox:
         """Determine bounding box of all items."""
         self.fetch_results()  # Avoid querying results twice
@@ -270,6 +284,7 @@ class FeatureCollection:
         previous: str | None = None,
     ):
         """
+        :param source_query: The query that generated this output.
         :param results: All retrieved feature collections (one per FeatureType)
         :param number_matched: Total number of features across all pages
         :param next: URL of the next page

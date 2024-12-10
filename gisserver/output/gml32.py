@@ -31,10 +31,11 @@ from gisserver.db import (
     get_geometries_union,
 )
 from gisserver.exceptions import NotFound, WFSException
-from gisserver.features import FeatureRelation, FeatureType
+from gisserver.features import FeatureType
 from gisserver.geometries import CRS
 from gisserver.parsers.fes20 import ValueReference
-from gisserver.types import XsdComplexType, XsdElement, XsdNode
+from gisserver.queries import FeatureProjection, FeatureRelation
+from gisserver.types import XsdElement, XsdNode
 
 from .base import OutputRenderer
 from .results import SimpleFeatureCollection
@@ -128,7 +129,7 @@ class GML32Renderer(OutputRenderer):
         """Default behavior for standalone response is writing a feature (can be changed by GetPropertyValue)"""
         self._write('<?xml version="1.0" encoding="UTF-8"?>\n')
         self.write_feature(
-            feature_type=sub_collection.feature_type,
+            projection=sub_collection.projection,
             instance=instance,
             extra_xmlns=extra_xmlns,
         )
@@ -224,6 +225,7 @@ class GML32Renderer(OutputRenderer):
             has_multiple_collections = len(collection.results) > 1
 
             for sub_collection in collection.results:
+                projection = sub_collection.projection
                 self.start_collection(sub_collection)
                 if has_multiple_collections:
                     self._write(
@@ -237,7 +239,7 @@ class GML32Renderer(OutputRenderer):
                 for instance in sub_collection:
                     self.gml_seq = 0  # need to increment this between write_xml_field calls
                     self._write("<wfs:member>\n")
-                    self.write_feature(sub_collection.feature_type, instance)
+                    self.write_feature(projection, instance)
                     self._write("</wfs:member>\n")
 
                     # Only perform a 'yield' every once in a while,
@@ -258,43 +260,45 @@ class GML32Renderer(OutputRenderer):
         """Hook to allow initialization per feature type"""
 
     def write_feature(
-        self, feature_type: FeatureType, instance: models.Model, extra_xmlns=""
+        self, projection: FeatureProjection, instance: models.Model, extra_xmlns=""
     ) -> None:
         """Write the contents of the object value.
 
         This output is typically wrapped in <wfs:member> tags
         unless it's used for a GetPropertyById response.
         """
+        feature_type = projection.feature_type
+
         # Write <app:FeatureTypeName> start node
         pk = _tag_escape(str(instance.pk))
         self._write(f'<{feature_type.xml_name} gml:id="{feature_type.name}.{pk}"{extra_xmlns}>\n')
-
         # Write all fields, both base class and local elements.
-        for xsd_element in feature_type.xsd_type.all_elements:
+        for xsd_element in projection.xsd_root_elements:
             # Note that writing 5000 features with 30 tags means this code make 150.000 method calls.
             # Hence, branching to different rendering styles is branched here instead of making such
             # call into a generic "write_field()" function and stepping out from there.
+
             if xsd_element.is_geometry:
                 if xsd_element.xml_name == "gml:boundedBy":
                     # Special case for <gml:boundedBy>, so it will render with
                     # the output CRS and can be overwritten with DB-rendered GML.
-                    self.write_bounds(feature_type, instance)
+                    self.write_bounds(projection, instance)
                 else:
                     # Separate call which can be optimized (no need to overload write_xml_field() for all calls).
                     self.write_gml_field(feature_type, xsd_element, instance)
             else:
                 value = xsd_element.get_value(instance)
                 if xsd_element.is_many:
-                    self.write_many(feature_type, xsd_element, value)
+                    self.write_many(projection, xsd_element, value)
                 else:
                     # e.g. <gml:name>, or all other <app:...> nodes.
-                    self.write_xml_field(feature_type, xsd_element, value)
+                    self.write_xml_field(projection, xsd_element, value)
 
         self._write(f"</{feature_type.xml_name}>\n")
 
-    def write_bounds(self, feature_type, instance) -> None:
+    def write_bounds(self, projection, instance) -> None:
         """Render the GML bounds for the complete instance"""
-        envelope = feature_type.get_envelope(instance, self.output_crs)
+        envelope = projection.feature_type.get_envelope(instance, self.output_crs)
         if envelope is not None:
             lower = " ".join(map(str, envelope.lower_corner))
             upper = " ".join(map(str, envelope.upper_corner))
@@ -305,7 +309,7 @@ class GML32Renderer(OutputRenderer):
               </gml:Envelope></gml:boundedBy>\n"""
             )
 
-    def write_many(self, feature_type: FeatureType, xsd_element: XsdElement, value) -> None:
+    def write_many(self, projection: FeatureProjection, xsd_element: XsdElement, value) -> None:
         """Write a node that has multiple values (e.g. array or queryset)."""
         # some <app:...> node that has multiple values
         if value is None:
@@ -314,10 +318,10 @@ class GML32Renderer(OutputRenderer):
                 self._write(f'<{xsd_element.xml_name} xsi:nil="true"/>\n')
         else:
             for item in value:
-                self.write_xml_field(feature_type, xsd_element, value=item)
+                self.write_xml_field(projection, xsd_element, value=item)
 
     def write_xml_field(
-        self, feature_type: FeatureType, xsd_element: XsdElement, value, extra_xmlns=""
+        self, projection: FeatureProjection, xsd_element: XsdElement, value, extra_xmlns=""
     ):
         """Write the value of a single field."""
         xml_name = xsd_element.xml_name
@@ -325,7 +329,7 @@ class GML32Renderer(OutputRenderer):
             self._write(f'<{xml_name} xsi:nil="true"{extra_xmlns}/>\n')
         elif xsd_element.type.is_complex_type:
             # Expanded foreign relation / dictionary
-            self.write_xml_complex_type(feature_type, xsd_element, value, extra_xmlns=extra_xmlns)
+            self.write_xml_complex_type(projection, xsd_element, value, extra_xmlns=extra_xmlns)
         else:
             # As this is likely called 150.000 times during a request, this is optimized.
             # Avoided a separate call to _value_to_xml_string() and avoided isinstance() here.
@@ -349,16 +353,17 @@ class GML32Renderer(OutputRenderer):
 
             self._write(f"<{xml_name}{extra_xmlns}>{value}</{xml_name}>\n")
 
-    def write_xml_complex_type(self, feature_type, xsd_element, value, extra_xmlns="") -> None:
+    def write_xml_complex_type(
+        self, projection: FeatureProjection, xsd_element: XsdElement, value, extra_xmlns=""
+    ) -> None:
         """Write a single field, that consists of sub elements"""
-        xsd_type = cast(XsdComplexType, xsd_element.type)
         self._write(f"<{xsd_element.xml_name}{extra_xmlns}>\n")
-        for sub_element in xsd_type.elements:
+        for sub_element in projection.xsd_child_nodes[xsd_element]:
             sub_value = sub_element.get_value(value)
             if sub_element.is_many:
-                self.write_many(feature_type, sub_element, sub_value)
+                self.write_many(projection, sub_element, sub_value)
             else:
-                self.write_xml_field(feature_type, sub_element, sub_value)
+                self.write_xml_field(projection, sub_element, sub_value)
         self._write(f"</{xsd_element.xml_name}>\n")
 
     def write_gml_field(
@@ -507,7 +512,7 @@ class DBGML32Renderer(DBGMLRenderingMixin, GML32Renderer):
     @classmethod
     def decorate_queryset(
         cls,
-        feature_type: FeatureType,
+        projection: FeatureProjection,
         queryset: models.QuerySet,
         output_crs: CRS,
         **params,
@@ -516,14 +521,13 @@ class DBGML32Renderer(DBGMLRenderingMixin, GML32Renderer):
         This is far more efficient than GeoDjango's logic, which performs a
         C-API call for every single coordinate of a geometry.
         """
-        queryset = super().decorate_queryset(feature_type, queryset, output_crs, **params)
+        queryset = super().decorate_queryset(projection, queryset, output_crs, **params)
 
         # Retrieve geometries as pre-rendered instead.
-        gml_elements = feature_type.xsd_type.geometry_elements
-        geo_selects = get_db_geometry_selects(gml_elements, output_crs)
+        geo_selects = get_db_geometry_selects(projection.geometry_elements, output_crs)
         if geo_selects:
             queryset = queryset.defer(*geo_selects.keys()).annotate(
-                _as_envelope_gml=cls.get_db_envelope_as_gml(feature_type, queryset, output_crs),
+                _as_envelope_gml=cls.get_db_envelope_as_gml(projection, queryset, output_crs),
                 **build_db_annotations(geo_selects, "_as_gml_{name}", AsGML),
             )
 
@@ -532,56 +536,46 @@ class DBGML32Renderer(DBGMLRenderingMixin, GML32Renderer):
     @classmethod
     def get_prefetch_queryset(
         cls,
-        feature_type: FeatureType,
+        projection: FeatureProjection,
         feature_relation: FeatureRelation,
         output_crs: CRS,
     ) -> models.QuerySet | None:
         """Perform DB annotations for prefetched relations too."""
-        base = super().get_prefetch_queryset(feature_type, feature_relation, output_crs)
+        base = super().get_prefetch_queryset(projection, feature_relation, output_crs)
         if base is None:
             return None
 
         # Find which fields are GML elements
-        gml_elements = []
-        for e in feature_relation.xsd_elements:
-            if e.is_geometry:
-                # Prefetching a flattened relation
-                gml_elements.append(e)
-            elif e.type.is_complex_type:
-                # Prefetching a complex type
-                xsd_type: XsdComplexType = cast(XsdComplexType, e.type)
-                gml_elements.extend(xsd_type.geometry_elements)
-
-        geometries = get_db_geometry_selects(gml_elements, output_crs)
+        geometries = get_db_geometry_selects(feature_relation.geometry_elements, output_crs)
         if geometries:
             # Exclude geometries from the fields, fetch them as pre-rendered annotations instead.
-            return base.defer(geometries.keys()).annotate(
+            return base.defer(*geometries.keys()).annotate(
                 **build_db_annotations(geometries, "_as_gml_{name}", AsGML),
             )
         else:
             return base
 
     @classmethod
-    def get_db_envelope_as_gml(cls, feature_type, queryset, output_crs) -> AsGML:
+    def get_db_envelope_as_gml(cls, projection: FeatureProjection, queryset, output_crs) -> AsGML:
         """Offload the GML rendering of the envelope to the database.
 
         This also avoids offloads the geometry union calculation to the DB.
         """
-        geo_fields_union = cls._get_geometries_union(feature_type, queryset, output_crs)
+        geo_fields_union = cls._get_geometries_union(projection, queryset, output_crs)
         return AsGML(geo_fields_union, envelope=True)
 
     @classmethod
-    def _get_geometries_union(cls, feature_type: FeatureType, queryset, output_crs):
+    def _get_geometries_union(cls, projection: FeatureProjection, queryset, output_crs):
         """Combine all geometries of the model in a single SQL function."""
         # Apply transforms where needed, in case some geometries use a different SRID.
         return get_geometries_union(
             [
                 conditional_transform(
-                    model_field.name,
-                    model_field.srid,
+                    gml_element.orm_path,
+                    gml_element.source.srid,
                     output_srid=output_crs.srid,
                 )
-                for model_field in feature_type.geometry_fields
+                for gml_element in projection.geometry_elements
             ],
             using=queryset.db,
         )
@@ -604,7 +598,7 @@ class DBGML32Renderer(DBGMLRenderingMixin, GML32Renderer):
         gml = self.render_gml_value(gml_id, value, extra_xmlns=extra_xmlns)
         self._write(f"<{xml_name}{extra_xmlns}>{gml}</{xml_name}>\n")
 
-    def write_bounds(self, feature_type, instance) -> None:
+    def write_bounds(self, projection, instance) -> None:
         """Generate the <gml:boundedBy> from DB pre-rendering."""
         gml = instance._as_envelope_gml
         if gml is not None:
@@ -634,7 +628,7 @@ class GML32ValueRenderer(GML32Renderer):
     @classmethod
     def decorate_queryset(
         cls,
-        feature_type: FeatureType,
+        projection: FeatureProjection,
         queryset: models.QuerySet,
         output_crs: CRS,
         **params,
@@ -660,15 +654,15 @@ class GML32ValueRenderer(GML32Renderer):
             self._write('<?xml version="1.0" encoding="UTF-8"?>\n')
 
         # Write the single tag, no <wfs:member> around it.
-        self.write_feature(sub_collection.feature_type, instance, extra_xmlns=extra_xmlns)
+        self.write_feature(sub_collection.projection, instance, extra_xmlns=extra_xmlns)
 
-    def write_feature(self, feature_type: FeatureType, instance: dict, extra_xmlns="") -> None:
+    def write_feature(self, projection: FeatureProjection, instance: dict, extra_xmlns="") -> None:
         """Write the XML for a single object.
         In this case, it's only a single XML tag.
         """
         if self.xsd_node.is_geometry:
             self.write_gml_field(
-                feature_type,
+                projection.feature_type,
                 cast(XsdElement, self.xsd_node),
                 instance,
                 extra_xmlns=extra_xmlns,
@@ -694,10 +688,10 @@ class GML32ValueRenderer(GML32Renderer):
                         first = False
         elif self.xsd_node.type.is_complex_type:
             raise NotImplementedError("GetPropertyValue with complex types is not implemented")
-            # self.write_xml_complex_type(feature_type, self.xsd_node, instance['member'])
+            # self.write_xml_complex_type(projection, self.xsd_node, instance['member'])
         else:
             self.write_xml_field(
-                feature_type,
+                projection,
                 cast(XsdElement, self.xsd_node),
                 value=instance["member"],
                 extra_xmlns=extra_xmlns,
@@ -725,14 +719,15 @@ class DBGML32ValueRenderer(DBGMLRenderingMixin, GML32ValueRenderer):
     gml_value_getter = itemgetter("gml_member")
 
     @classmethod
-    def decorate_queryset(cls, feature_type: FeatureType, queryset, output_crs, **params):
+    def decorate_queryset(cls, projection: FeatureProjection, queryset, output_crs, **params):
         """Update the queryset to let the database render the GML output."""
         value_reference = params["valueReference"]
-        match = feature_type.resolve_element(value_reference.xpath)
+        match = projection.feature_type.resolve_element(value_reference.xpath)
         if match.child.is_geometry:
             # Add 'gml_member' to point to the pre-rendered GML version.
+            gml_element = cast(XsdElement, match.child)
             return queryset.values(
-                "pk", gml_member=AsGML(get_db_geometry_target(match, output_crs))
+                "pk", gml_member=AsGML(get_db_geometry_target(gml_element, output_crs))
             )
         else:
             return queryset

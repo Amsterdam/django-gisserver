@@ -10,14 +10,14 @@ from django.utils.html import escape
 
 from gisserver import conf
 from gisserver.exceptions import InvalidParameterValue
-from gisserver.features import FeatureRelation, FeatureType
-from gisserver.geometries import CRS
-from gisserver.operations.base import WFSMethod
-
-from .results import FeatureCollection
 
 if typing.TYPE_CHECKING:
-    from gisserver.queries import QueryExpression
+    from gisserver.features import FeatureType
+    from gisserver.geometries import CRS
+    from gisserver.operations.base import WFSMethod
+    from gisserver.queries import FeatureProjection, FeatureRelation, QueryExpression
+
+    from .results import FeatureCollection, SimpleFeatureCollection
 
 
 class OutputRenderer:
@@ -50,6 +50,7 @@ class OutputRenderer:
         :param method: The calling WFS Method (e.g. GetFeature class)
         :param source_query: The query that generated this output.
         :param collection: The collected data for rendering.
+        :param projection: Which fields to render.
         :param output_crs: The requested output projection.
         """
         self.method = method
@@ -70,7 +71,7 @@ class OutputRenderer:
             cls.validate(sub_collection.feature_type, **params)
 
             queryset = cls.decorate_queryset(
-                sub_collection.feature_type,
+                sub_collection.projection,
                 sub_collection.queryset,
                 output_crs,
                 **params,
@@ -95,7 +96,7 @@ class OutputRenderer:
     @classmethod
     def decorate_queryset(
         cls,
-        feature_type: FeatureType,
+        projection: FeatureProjection,
         queryset: models.QuerySet,
         output_crs: CRS,
         **params,
@@ -110,40 +111,38 @@ class OutputRenderer:
         :param params: All remaining request parameters (e.g. KVP parameters).
         """
         # Avoid fetching relations, fetch these within the same query,
-        related = cls._get_prefetch_related(feature_type, output_crs)
+        related = cls._get_prefetch_related(projection, output_crs)
         if related:
             queryset = queryset.prefetch_related(*related)
 
-        # Also limit the queryset to the actual fields that are shown.
-        # No need to request more data
-        fields = [
-            f.orm_field
-            for f in feature_type.xsd_type.elements
-            if not f.is_many or f.is_array  # exclude M2M, but include ArrayField
-        ]
-        return queryset.only("pk", *fields)
+        return queryset.only("pk", *projection.only_fields)
 
     @classmethod
     def _get_prefetch_related(
-        cls, feature_type: FeatureType, output_crs: CRS
+        cls,
+        projection: FeatureProjection,
+        output_crs: CRS,
     ) -> list[models.Prefetch]:
         """Summarize which fields read data from relations.
 
         This combines the input from flattened and complex fields,
         in the unlikely case both variations are used in the same feature.
         """
+        # When PROPERTYNAME is used, determine all ORM paths (and levels) that this query will touch.
+        # The prefetch will only be applied when its field coincide with this list.
+
         return [
             models.Prefetch(
                 orm_relation.orm_path,
-                queryset=cls.get_prefetch_queryset(feature_type, orm_relation, output_crs),
+                queryset=cls.get_prefetch_queryset(projection, orm_relation, output_crs),
             )
-            for orm_relation in feature_type.orm_relations
+            for orm_relation in projection.orm_relations
         ]
 
     @classmethod
     def get_prefetch_queryset(
         cls,
-        feature_type: FeatureType,
+        projection: FeatureProjection,
         feature_relation: FeatureRelation,
         output_crs: CRS,
     ) -> models.QuerySet | None:
@@ -152,7 +151,8 @@ class OutputRenderer:
         if feature_relation.related_model is None:
             return None
 
-        return feature_type.get_related_queryset(feature_relation)
+        # This will also apply .only() based on the projection's feature_relation
+        return projection.feature_type.get_related_queryset(feature_relation)
 
     def get_response(self):
         """Render the output as streaming response."""
@@ -223,3 +223,7 @@ class OutputRenderer:
     def render_stream(self):
         """Implement this in subclasses to implement a custom output format."""
         raise NotImplementedError()
+
+    def get_projection(self, sub_collection: SimpleFeatureCollection) -> FeatureProjection:
+        """Provide the projection clause for the given sub-collection."""
+        return self.source_query.get_projection(sub_collection.feature_type)

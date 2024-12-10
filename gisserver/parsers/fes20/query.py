@@ -94,7 +94,15 @@ class CompiledQuery:
          ``queryset.values()`` result. This is needed to support cases like
         these in the future: ``addresses/Address[street="Oxfordstrasse"]/number``
         """
+        # The actual limiting of fields happens inside the decorate_queryset() of the renderer.
         return value_reference.build_rhs(self)
+
+    def add_property_name(self, property_name: expressions.ValueReference) -> expressions.RhsTypes:
+        """Define which field should be returned by the query."""
+        # Make sure any xpath [attr=value] lookups work.
+        # This will also validate the name because it resolves the ORM path.
+        # The actual limiting of fields happens inside the decorate_queryset() of the renderer.
+        return property_name.build_rhs(self)
 
     def apply_extra_lookups(self, comparison: Q) -> Q:
         """Combine stashed lookups with the provided Q object.

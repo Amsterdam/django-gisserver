@@ -49,7 +49,7 @@ class AdhocQuery(QueryExpression):
     handle: str = ""  # only for XML POST requests
 
     # Projection clause (fes:AbstractProjectionClause)
-    # propertyName
+    property_names: list[fes20.ValueReference] | None = None
 
     # Selection clause (fes:AbstractSelectionClause):
     # - for XML POST this is encoded in a <fes:Query>
@@ -109,6 +109,7 @@ class AdhocQuery(QueryExpression):
 
         return AdhocQuery(
             typeNames=params["typeNames"],
+            property_names=params["propertyName"],
             filter=params["filter"],
             filter_language=params["filter_language"],
             bbox=params["bbox"],

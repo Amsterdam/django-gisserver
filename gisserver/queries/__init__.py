@@ -13,6 +13,7 @@ The "GetFeatureById" is a mandatory built-in stored query.
 
 from .adhoc import AdhocQuery
 from .base import QueryExpression
+from .projection import FeatureProjection, FeatureRelation
 from .stored import (
     GetFeatureById,
     QueryExpressionText,
@@ -31,4 +32,6 @@ __all__ = (
     "stored_query_registry",
     "StoredQueryParameter",
     "GetFeatureById",
+    "FeatureProjection",
+    "FeatureRelation",
 )

@@ -92,7 +92,11 @@ class DistanceOperatorName(TagNameEnum):
 
 
 class SpatialOperatorName(TagNameEnum):
-    """XML tag names for geometry operators"""
+    """XML tag names for geometry operators.
+
+    The values correspond with GeoDjango operators. So a ``BBOX`` query
+    will translate into ``geometry__intersects=Polygon(...)``.
+    """
 
     # (A Within B) implies that (B Contains A)
 

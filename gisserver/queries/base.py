@@ -8,6 +8,8 @@ from gisserver.output import FeatureCollection, SimpleFeatureCollection
 from gisserver.parsers import fes20
 from gisserver.types import split_xml_name
 
+from .projection import FeatureProjection
+
 
 class QueryExpression:
     """WFS base class for all queries.
@@ -31,20 +33,28 @@ class QueryExpression:
     """
 
     handle = ""
-    value_reference = None
+    value_reference: fes20.ValueReference | None = None
+    property_names: list[fes20.ValueReference] | None = None
+    projections: dict[FeatureType, FeatureProjection] | None = None
 
     def bind(
         self,
         all_feature_types: dict[str, FeatureType],
-        value_reference: fes20.ValueReference | None,
+        value_reference: fes20.ValueReference | None = None,
+        property_names: list[fes20.ValueReference] | None = None,
     ):
         """Bind the query to presentation-layer logic (e.g. request parameters).
 
         :param all_feature_types: Which features are queried.
         :param value_reference: Which field is returned (by ``GetPropertyValue``)
+        :param property_name: Which field is returned (by ``GetFeature`` + propertyName parameter)
         """
+        self.projections = {}
         self.all_feature_types = all_feature_types
-        self.value_reference = value_reference
+        if value_reference is not None:
+            self.value_reference = value_reference
+        if property_names is not None:
+            self.property_names = property_names
 
     def check_permissions(self, request):
         """Verify whether the user has access to view these data sources"""
@@ -82,7 +92,9 @@ class QueryExpression:
             # Include empty feature collections,
             # so the selected feature types are still known.
             results.append(
-                SimpleFeatureCollection(feature_type, queryset=queryset.none(), start=0, stop=0)
+                SimpleFeatureCollection(
+                    self, feature_type, queryset=queryset.none(), start=0, stop=0
+                )
             )
 
         return FeatureCollection(results=results, number_matched=number_matched)
@@ -97,6 +109,7 @@ class QueryExpression:
         results = [
             # The querysets are not executed yet, until the output is reading them.
             SimpleFeatureCollection(
+                self,
                 feature_type,
                 queryset=self.get_queryset(feature_type),
                 start=start_index,
@@ -120,6 +133,11 @@ class QueryExpression:
 
         # Apply filters
         compiler = self.compile_query(feature_type, using=queryset.db)
+
+        # If defined, limit which fields will be queried.
+        if self.property_names:
+            for property_name in self.property_names:
+                compiler.add_property_name(property_name)
 
         if self.value_reference is not None:
             if feature_type.resolve_element(self.value_reference.xpath) is None:
@@ -145,6 +163,19 @@ class QueryExpression:
         raise NotImplementedError(
             f"{self.__class__.__name__}.get_type_names() should be implemented."
         )
+
+    def get_projection(self, feature_type: FeatureType) -> FeatureProjection:
+        """Provide the projection of this query for a given feature.
+
+        NOTE: as the AdhocQuery has a typeNames (plural!) argument,
+        this class still needs to check per feature type which fields to apply to.
+        """
+        try:
+            return self.projections[feature_type]
+        except KeyError:
+            projection = FeatureProjection(feature_type, self.property_names)
+            self.projections[feature_type] = projection
+            return projection
 
     def compile_query(self, feature_type: FeatureType, using=None) -> fes20.CompiledQuery:
         """Define the compiled query that filters the queryset.

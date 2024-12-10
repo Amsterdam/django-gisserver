@@ -32,7 +32,7 @@ from dataclasses import dataclass, field
 from decimal import Decimal as D
 from enum import Enum
 from functools import cached_property
-from typing import TYPE_CHECKING, Literal
+from typing import TYPE_CHECKING, Literal, cast
 
 from django.conf import settings
 from django.contrib.gis.db.models import F, GeometryField
@@ -788,6 +788,20 @@ class XsdComplexType(XsdAnyType):
     def flattened_elements(self) -> list[XsdElement]:
         """Shortcut to get all elements with a flattened model attribite"""
         return [e for e in self.elements if e.is_flattened]
+
+    @cached_property
+    def elements_with_children(self) -> dict[_XsdElement_WithComplexType, list[XsdElement]]:
+        """Shortcut to get all elements with children.
+        This mainly exists to provide a structure to mimic what's used
+        when PROPERTYNAME is part of the request.
+        """
+        child_nodes = {}
+        for xsd_element in self.elements:
+            if xsd_element.type.is_complex_type:
+                sub_type = cast(XsdComplexType, xsd_element.type)
+                child_nodes[xsd_element] = sub_type.elements
+                child_nodes.update(sub_type.elements_with_children)
+        return child_nodes
 
     def resolve_element_path(self, xpath: str) -> list[XsdNode] | None:
         """Resolve a xpath reference to the actual node.

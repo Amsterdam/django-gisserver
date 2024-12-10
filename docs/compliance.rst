@@ -13,7 +13,7 @@ Unimplemented Bits
 
 Some remaining parts for the "WFS simple" conformance level are not implemented yet:
 
-* KVP filters: ``propertyName``, ``aliases``.
+* KVP filters: ``aliases``.
 * Remote resolving: ``resolveDepth``, ``resolveTimeout``.
 * Multiple queries in a single GET call.
 * Some ``GetCapabilities`` features: ``acceptFormats`` and ``sections``.

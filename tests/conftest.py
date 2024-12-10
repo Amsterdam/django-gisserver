@@ -206,3 +206,6 @@ def django_db_setup(django_db_setup, django_db_blocker):
         c.callproc("postgis_full_version")  # SELECT postgis_full_version()
         result = c.fetchone()[0]
         print(f"Postgresql setup: {result}")
+
+        # By fetching this first, it won't pollute django_assert_max_num_queries()
+        _ = connection.ops.spatial_version

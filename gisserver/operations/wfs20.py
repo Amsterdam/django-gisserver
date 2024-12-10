@@ -226,7 +226,7 @@ class BaseWFSGetDataMethod(WFSTypeNamesMethod):
         # StandardInputParameters
         Parameter("srsName", parser=CRS.from_string),
         # Projection clause parameters
-        UnsupportedParameter("propertyName"),  # which fields to return
+        Parameter("propertyName", parser=fes20.parse_property_name),
         # AdHoc Query parameters
         Parameter("bbox", parser=BoundingBox.from_string),
         Parameter(
@@ -317,14 +317,15 @@ class BaseWFSGetDataMethod(WFSTypeNamesMethod):
             # The 'StoredQueryParameter' already parses the input into a complete object.
             # When it's not provided, the regular Adhoc-query will be created from the KVP request.
             query = params["STOREDQUERY_ID"]
+            query.bind(
+                # TODO: pass this in a cleaner way?
+                all_feature_types=self.all_feature_types_by_name,  # for GetFeatureById
+                value_reference=params.get("valueReference"),  # for GetPropertyValue
+                property_names=params.get("propertyName"),  # for GetFeature with PropertyName
+            )
         else:
-            query = queries.AdhocQuery.from_kvp_request(**params)
-
-        # TODO: pass this in a cleaner way?
-        query.bind(
-            all_feature_types=self.all_feature_types_by_name,  # for GetFeatureById
-            value_reference=params.get("valueReference"),  # for GetPropertyValue
-        )
+            query = queries.AdhocQuery.from_kvp_request(index=0, **params)
+            query.bind(all_feature_types=self.all_feature_types_by_name)
 
         return query
 

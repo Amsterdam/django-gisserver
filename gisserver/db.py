@@ -3,14 +3,13 @@
 from __future__ import annotations
 
 from functools import lru_cache, reduce
-from typing import cast
 
-from django.contrib.gis.db.models import GeometryField, functions
+from django.contrib.gis.db.models import functions
 from django.db import connection, connections, models
 
 from gisserver import conf
 from gisserver.geometries import CRS
-from gisserver.types import GmlElement, XPathMatch
+from gisserver.types import GmlElement
 
 
 class AsEWKT(functions.GeoFunc):
@@ -128,20 +127,14 @@ def get_db_geometry_selects(
     Key is the xsd element name, value is the database select expression.
     """
     return {
-        gml_element.name: _get_db_geometry_target(gml_element, output_crs)
+        gml_element.name: get_db_geometry_target(gml_element, output_crs)
         for gml_element in gml_elements
         if gml_element.source is not None
     }
 
 
-def _get_db_geometry_target(gml_element: GmlElement, output_crs: CRS) -> str | functions.Transform:
+def get_db_geometry_target(gml_element: GmlElement, output_crs: CRS) -> str | functions.Transform:
     """Wrap the selection of a geometry field in a CRS Transform if needed."""
     return conditional_transform(
         gml_element.orm_path, gml_element.source.srid, output_srid=output_crs.srid
     )
-
-
-def get_db_geometry_target(xpath_match: XPathMatch, output_crs: CRS):
-    """Based on a resolved element, build the proper geometry field select clause."""
-    field = cast(GeometryField, xpath_match.child.source)
-    return conditional_transform(xpath_match.orm_path, field.srid, output_srid=output_crs.srid)

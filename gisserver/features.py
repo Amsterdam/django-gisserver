@@ -18,10 +18,9 @@ from __future__ import annotations
 
 import html
 import operator
-from collections import defaultdict
 from dataclasses import dataclass
 from functools import cached_property, lru_cache, reduce
-from typing import Literal, Union
+from typing import TYPE_CHECKING, Literal, Union
 
 from django.conf import settings
 from django.contrib.gis.db import models as gis_models
@@ -35,6 +34,7 @@ from gisserver.exceptions import ExternalValueError
 from gisserver.geometries import CRS, WGS84, BoundingBox
 from gisserver.types import (
     GmlBoundedByElement,
+    GmlElement,
     GmlIdAttribute,
     GmlNameElement,
     XPathMatch,
@@ -48,6 +48,9 @@ if "django.contrib.postgres" in settings.INSTALLED_APPS:
     from django.contrib.postgres.fields import ArrayField
 else:
     ArrayField = None
+
+if TYPE_CHECKING:
+    from gisserver.queries import FeatureRelation
 
 _all_ = Literal["__all__"]
 
@@ -427,42 +430,6 @@ def field(
         )
 
 
-@dataclass
-class FeatureRelation:
-    """Tell which related fields are queried by the feature.
-    Each dict holds an ORM-path, with the relevant sub-elements.
-    """
-
-    #: The ORM path that is queried for this particular relation
-    orm_path: str
-    #: The fields that will be retrieved for that path
-    orm_fields: set[str]
-    #: The model that is accessed for this relation (if set)
-    related_model: type[models.Model] | None
-    #: The source elements that access this relation.
-    xsd_elements: list[XsdElement]
-
-    @cached_property
-    def _local_model_field_names(self) -> list[str]:
-        """Tell which local fields of the model will be accessed by this feature."""
-
-        meta = self.related_model._meta
-        result = []
-        for name in self.orm_fields:
-            model_field = meta.get_field(name)
-            if not model_field.many_to_many and not model_field.one_to_many:
-                result.append(name)
-
-        # When this relation is retrieved through a ManyToOneRel (reverse FK),
-        # the prefetch_related() also needs to have the original foreign key
-        # in order to link all prefetches to the proper parent instance.
-        for xsd_element in self.xsd_elements:
-            if xsd_element.source is not None and xsd_element.source.one_to_many:
-                result.append(xsd_element.source.field.name)
-
-        return result
-
-
 class FeatureType:
     """Declare a feature that is exposed on the map.
 
@@ -559,6 +526,11 @@ class FeatureType:
         return [self.crs] + self.other_crs
 
     @cached_property
+    def geometry_elements(self) -> list[GmlElement]:
+        """Tell which fields of the XSD have a geometry field."""
+        return [ff.xsd_element for ff in self.fields if ff.xsd_element.is_geometry]
+
+    @cached_property
     def geometry_fields(self) -> list[GeometryField]:
         """Tell which fields of the model have a geometry field.
         This only compares against fields that are mentioned in this feature type.
@@ -567,52 +539,6 @@ class FeatureType:
             ff.model_field or getattr(self.model, ff.model_attribute)
             for ff in self.fields
             if ff.xsd_element.is_geometry
-        ]
-
-    @cached_property
-    def orm_relations(self) -> list[FeatureRelation]:
-        """Tell which fields will be retrieved from related fields.
-
-        This gives an object layout based on the XSD elements,
-        that can be used for prefetching data.
-        """
-        models = {}
-        fields = defaultdict(set)
-        elements = defaultdict(list)
-
-        # Check all elements that render as "dotted" flattened relation
-        for xsd_element in self.xsd_type.flattened_elements:
-            if xsd_element.source is not None:
-                # Split "relation.field" notation into path, and take the field as child attribute.
-                obj_path, field = xsd_element.orm_relation
-                elements[obj_path].append(xsd_element)
-                fields[obj_path].add(field)
-                # field is already on relation:
-                models[obj_path] = xsd_element.source.model
-
-        # Check all elements that render as "nested" complex type:
-        for xsd_element in self.xsd_type.complex_elements:
-            # The complex element itself points to the root of the path,
-            # all sub elements become the child attributes.
-            obj_path = xsd_element.orm_path
-            elements[obj_path].append(xsd_element)
-            fields[obj_path] = {
-                f.orm_path
-                for f in xsd_element.type.elements
-                if not f.is_many or f.is_array  # exclude M2M, but include ArrayField
-            }
-            if xsd_element.source:
-                # field references a related object:
-                models[obj_path] = xsd_element.source.related_model
-
-        return [
-            FeatureRelation(
-                orm_path=obj_path,
-                orm_fields=sub_fields,
-                related_model=models.get(obj_path),
-                xsd_elements=elements[obj_path],
-            )
-            for obj_path, sub_fields in fields.items()
         ]
 
     @cached_property
@@ -681,6 +607,13 @@ class FeatureType:
         else:
             # Default: take the first geometry
             return self.geometry_fields[0]
+
+    @cached_property
+    def main_geometry_element(self) -> GmlElement:
+        """Give access to the main geometry element."""
+        # NOTE: this property should make it easier to move away from having a main geometry field
+        # at the model level, and allow a geometry field in any depth of the data model.
+        return next((e for e in self.geometry_elements if e.source is self.geometry_field), None)
 
     @cached_property
     def geometry_field_name(self) -> str:

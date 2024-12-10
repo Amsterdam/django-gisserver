@@ -15,9 +15,9 @@ from gisserver.db import (
     get_db_annotation,
     get_db_geometry_selects,
 )
-from gisserver.features import FeatureType
 from gisserver.geometries import CRS
-from gisserver.types import XsdComplexType, XsdElement
+from gisserver.queries import FeatureProjection
+from gisserver.types import XsdElement
 
 from .base import OutputRenderer
 
@@ -40,7 +40,7 @@ class CSVRenderer(OutputRenderer):
     @classmethod
     def decorate_queryset(
         cls,
-        feature_type: FeatureType,
+        projection: FeatureProjection,
         queryset: models.QuerySet,
         output_crs: CRS,
         **params,
@@ -48,17 +48,15 @@ class CSVRenderer(OutputRenderer):
         """Make sure relations are included with select-related to avoid N-queries.
         Using prefetch_related() isn't possible with .iterator().
         """
-        xsd_type: XsdComplexType = feature_type.xsd_type
-
         # Take all relations that are expanded to complex elements,
         # and all relations that are fetched for flattened elements.
         related = {
             xsd_element.orm_path
-            for xsd_element in xsd_type.complex_elements
+            for xsd_element in projection.complex_elements
             if not xsd_element.is_many
         } | {
             xsd_element.orm_relation[0]
-            for xsd_element in xsd_type.flattened_elements
+            for xsd_element in projection.flattened_elements
             if not xsd_element.is_many
         }
         if related:
@@ -72,6 +70,7 @@ class CSVRenderer(OutputRenderer):
 
         is_first_collection = True
         for sub_collection in self.collection.results:
+            projection = sub_collection.projection
             if is_first_collection:
                 is_first_collection = False
             else:
@@ -79,14 +78,18 @@ class CSVRenderer(OutputRenderer):
                 output.write("\n\n")
 
             # Write the header
-            fields = [f for f in sub_collection.feature_type.xsd_type.elements if not f.is_many]
-            writer.writerow(self.get_header(fields))
+            fields = [
+                f
+                for f in projection.xsd_root_elements
+                if not f.is_many and f.xml_name not in ("gml:name", "gml:boundedBy")
+            ]
+            writer.writerow(self.get_header(projection, fields))
 
             # By using .iterator(), the results are streamed with as little memory as
             # possible. Doing prefetch_related() is not possible now. That could only
             # be implemented with cursor pagination for large sets for 1000+ results.
             for instance in sub_collection.iterator():
-                writer.writerow(self.get_row(instance, fields))
+                writer.writerow(self.get_row(instance, projection, fields))
 
                 # Only perform a 'yield' every once in a while,
                 # as it goes back-and-forth for writing it to the client.
@@ -104,32 +107,36 @@ class CSVRenderer(OutputRenderer):
         buffer = self.output.getvalue()
         return f"{buffer}\n\n{message}\n"
 
-    def get_header(self, fields: list[XsdElement]) -> list[str]:
+    def get_header(
+        self, projection: FeatureProjection, xsd_elements: list[XsdElement]
+    ) -> list[str]:
         """Return all field names."""
         names = []
         append = names.append
-        for field in fields:
-            if field.type.is_complex_type:
+        for xsd_element in xsd_elements:
+            if xsd_element.type.is_complex_type:
                 # Expand complex types
-                for sub_field in field.type.elements:
-                    append(f"{field.name}.{sub_field.name}")
+                for sub_field in projection.xsd_child_nodes[xsd_element]:
+                    append(f"{xsd_element.name}.{sub_field.name}")
             else:
-                append(field.name)
+                append(xsd_element.name)
 
         return names
 
-    def get_row(self, instance: models.Model, fields: list[XsdElement]):
+    def get_row(
+        self, instance: models.Model, projection: FeatureProjection, xsd_elements: list[XsdElement]
+    ):
         """Return all field values for a single row."""
         values = []
         append = values.append
-        for field in fields:
-            if field.is_geometry:
-                append(self.render_geometry(instance, field))
+        for xsd_element in xsd_elements:
+            if xsd_element.is_geometry:
+                append(self.render_geometry(instance, xsd_element))
                 continue
 
-            value = field.get_value(instance)
-            if field.type.is_complex_type:
-                for sub_field in field.type.elements:
+            value = xsd_element.get_value(instance)
+            if xsd_element.type.is_complex_type:
+                for sub_field in projection.xsd_child_nodes[xsd_element]:
                     append(sub_field.get_value(value))
             elif isinstance(value, list):
                 # Array field
@@ -153,16 +160,16 @@ class DBCSVRenderer(CSVRenderer):
     @classmethod
     def decorate_queryset(
         cls,
-        feature_type: FeatureType,
+        projection: FeatureProjection,
         queryset: models.QuerySet,
         output_crs: CRS,
         **params,
     ) -> models.QuerySet:
-        queryset = super().decorate_queryset(feature_type, queryset, output_crs, **params)
+        queryset = super().decorate_queryset(projection, queryset, output_crs, **params)
 
         # Instead of reading the binary geometry data,
         # ask the database to generate EWKT data directly.
-        geo_selects = get_db_geometry_selects(feature_type.xsd_type.geometry_elements, output_crs)
+        geo_selects = get_db_geometry_selects(projection.geometry_elements, output_crs)
         if geo_selects:
             queryset = queryset.defer(*geo_selects.keys()).annotate(
                 **build_db_annotations(geo_selects, "_as_ewkt_{name}", AsEWKT)
