@@ -13,6 +13,7 @@ DATABASES = {
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 GISSERVER_USE_DB_RENDERING = env.bool("GISSERVER_USE_DB_RENDERING", default=True)
+GISSERVER_WRAP_FILTER_DB_ERRORS = False  # Raise errors to see what's happening.
 
 INSTALLED_APPS = [
     "gisserver",
