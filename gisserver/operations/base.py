@@ -134,6 +134,7 @@ class OutputFormat:
         renderer_class=None,
         max_page_size=None,
         title=None,
+        in_capabilities=True,
         **extra,
     ):
         """
@@ -142,6 +143,7 @@ class OutputFormat:
             If it's not given, the operation renders it's output using an XML template.
         :param max_page_size: Used to override the ``max_page_size`` of the renderer_class.
         :param title: A human-friendly name for an HTML overview page.
+        :param in_capabilities: Whether this format needs to be advertised in GetCapabilities.
         :param extra: Any additional key-value pairs for the definition.
             Could include ``subtype`` as a shorter alias for the MIME-type.
         """
@@ -150,6 +152,7 @@ class OutputFormat:
         self.subtype = self.extra.get("subtype")
         self.renderer_class = renderer_class
         self.title = title
+        self.in_capabilities = in_capabilities
         self._max_page_size = max_page_size
 
     def matches(self, value):

@@ -47,8 +47,14 @@ class GetCapabilities(WFSMethod):
     """This operation returns map features, and available operations this WFS server supports."""
 
     output_formats = [
-        OutputFormat("application/gml+xml", version="3.2", title="GML"),  # for FME
         OutputFormat("text/xml"),
+        OutputFormat(
+            # for FME (Feature Manipulation Engine)
+            "application/gml+xml",
+            version="3.2",
+            title="GML",
+            in_capabilities=False,
+        ),
     ]
     xml_template_name = "get_capabilities.xml"
 
@@ -143,13 +149,14 @@ class DescribeFeatureType(WFSTypeNamesMethod):
 
     output_formats = [
         OutputFormat("XMLSCHEMA", renderer_class=output.XMLSchemaRenderer),
-        # At least one version of FME seems to sends a DescribeFeatureType
-        # request with this output format. Do what mapserver does and just
-        # send it XML Schema.
+        # At least one version of FME (Feature Manipulation Engine) seems to
+        # send a DescribeFeatureType request with this GML as output format.
+        # Do what mapserver does and just send it XML Schema.
         OutputFormat(
             "application/gml+xml",
             version="3.2",
             renderer_class=output.XMLSchemaRenderer,
+            in_capabilities=False,
         ),
         # OutputFormat("text/xml", subtype="gml/3.1.1"),
     ]
