@@ -5,7 +5,7 @@ from collections.abc import Iterable
 from itertools import islice
 from typing import TypeVar
 
-from django.db import models
+from django.db import connections, models
 from lru import LRU
 
 M = TypeVar("M", bound=models.Model)
@@ -89,7 +89,7 @@ class ChunkedQuerySetIterator(Iterable[M]):
         self._number_returned = 0
         self._in_iterator = True
         try:
-            qs_iter = iter(self.queryset.iterator(chunk_size=self.sql_chunk_size))
+            qs_iter = iter(self._get_queryset_iterator())
 
             # Keep fetching chunks
             while True:
@@ -106,6 +106,22 @@ class ChunkedQuerySetIterator(Iterable[M]):
                 self._number_returned += len(instances)
         finally:
             self._in_iterator = False
+
+    def _get_queryset_iterator(self) -> Iterable:
+        """The body of queryset.iterator(), while circumventing prefetching."""
+        # The old code did return `self.queryset.iterator(chunk_size=self.sql_chunk_size)`
+        # However, Django 4 supports using prefetch_related() with iterator() in that scenario.
+        #
+        # This code is the core of Django's QuerySet.iterator() that only produces the
+        # old-style iteration, without any prefetches. Those are added by this class instead.
+        use_chunked_fetch = not connections[self.queryset.db].settings_dict.get(
+            "DISABLE_SERVER_SIDE_CURSORS"
+        )
+        iterable = self.queryset._iterable_class(
+            self.queryset, chunked_fetch=use_chunked_fetch, chunk_size=self.sql_chunk_size
+        )
+
+        yield from iterable
 
     @property
     def number_returned(self) -> int:
