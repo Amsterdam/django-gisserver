@@ -56,6 +56,9 @@ else:
     ArrayField = None
 
 __all__ = [
+    "GmlElement",
+    "GmlIdAttribute",
+    "GmlNameElement",
     "ORMPath",
     "XPathMatch",
     "XsdAnyType",
@@ -591,6 +594,15 @@ class XsdAttribute(XsdNode):
         self.use = use
 
 
+class GmlElement(XsdElement):
+    """Essentially the same as an XsdElement, but guarantee it returns a GeoDjango model field.
+
+    This only exists as "protocol" for the type annotations.
+    """
+
+    source: GeometryField
+
+
 class GmlIdAttribute(XsdAttribute):
     """A virtual 'gml:id' attribute that can be queried.
     This subclass has overwritten get_value() logic to format the value.
@@ -631,6 +643,8 @@ class GmlNameElement(XsdElement):
     but it can be extended to support formatted names
     (although that would make comparisons on ``element@gml:name`` more complex).
     """
+
+    is_geometry = False  # Override type
 
     def __init__(
         self,
@@ -761,7 +775,7 @@ class XsdComplexType(XsdAnyType):
             return self.elements
 
     @cached_property
-    def geometry_elements(self) -> list[XsdElement]:
+    def geometry_elements(self) -> list[GmlElement]:
         """Shortcut to get all geometry elements"""
         return [e for e in self.elements if e.is_geometry]
 
