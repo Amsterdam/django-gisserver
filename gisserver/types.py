@@ -370,7 +370,7 @@ class XsdNode:
         """The direct ORM field that provides this property."""
         if self.model_attribute is None:
             raise ValueError(f"Node {self.xml_name} has no 'model_attribute' set.")
-        return self.model_attribute.split(".", 1)[0]
+        return self.model_attribute.partition(".")[0]
 
     @cached_property
     def orm_relation(self) -> tuple[str | None, str]:
@@ -378,10 +378,9 @@ class XsdNode:
         if self.model_attribute is None:
             raise ValueError(f"Node {self.xml_name} has no 'model_attribute' set.")
 
-        try:
-            path, field = self.model_attribute.rsplit(".", 1)
-        except ValueError:
-            return None, self.model_attribute
+        path, _, field = self.model_attribute.rpartition(".")
+        if not path:
+            return None, field
         else:
             return path.replace(".", "__"), field
 
