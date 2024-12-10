@@ -1,5 +1,7 @@
 """All supported output formats"""
 
+from .results import FeatureCollection, SimpleFeatureCollection  # isort: skip (fixes import loops)
+
 from django.utils.functional import classproperty
 
 from gisserver import conf
@@ -13,7 +15,6 @@ from .gml32 import (
     GML32Renderer,
     GML32ValueRenderer,
 )
-from .results import FeatureCollection, SimpleFeatureCollection
 from .xmlschema import XMLSchemaRenderer
 
 __all__ = [
