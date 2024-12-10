@@ -4,6 +4,8 @@ from doctest import Example
 from functools import lru_cache
 from pathlib import Path
 
+import orjson
+from django.http import HttpResponseBase
 from lxml import etree
 from lxml.doctestcompare import PARSE_XML, LXMLOutputChecker
 
@@ -13,6 +15,20 @@ from lxml.doctestcompare import PARSE_XML, LXMLOutputChecker
 XSD_ROOT = Path(__file__).parent.joinpath("files/xsd")
 GML321_XSD = str(XSD_ROOT.joinpath("schemas.opengis.net/gml/3.2.1/gml.xsd"))
 WFS_20_XSD = str(XSD_ROOT.joinpath("schemas.opengis.net/wfs/2.0/wfs.xsd"))
+
+
+def read_response(response: HttpResponseBase) -> str:
+    # works for all HttpResponse subclasses.
+    return b"".join(response).decode()
+
+
+def read_json(content) -> dict:
+    try:
+        return orjson.loads(content)
+    except orjson.JSONDecodeError as e:
+        snippet = content[e.pos - 300 : e.pos + 300]
+        snippet = snippet[snippet.index("\n") :]  # from last newline
+        raise AssertionError(f"Parsing JSON failed: {e}\nNear: {snippet}") from None
 
 
 @lru_cache(maxsize=100)

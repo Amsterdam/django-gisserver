@@ -12,15 +12,10 @@ from tests.gisserver.views.input import (
     SORT_BY,
 )
 from tests.test_gisserver.models import Restaurant
-from tests.utils import WFS_20_XSD, assert_xml_equal, validate_xsd
+from tests.utils import WFS_20_XSD, assert_xml_equal, read_response, validate_xsd
 
 # enable for all tests in this file
 pytestmark = [pytest.mark.urls("tests.test_gisserver.urls")]
-
-
-def read_response(response) -> str:
-    # works for all HttpResponse subclasses.
-    return b"".join(response).decode()
 
 
 @pytest.mark.django_db

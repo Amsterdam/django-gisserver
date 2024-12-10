@@ -2,7 +2,6 @@ from urllib.parse import quote_plus
 from xml.etree.ElementTree import QName
 
 import django
-import orjson
 import pytest
 
 from gisserver import conf
@@ -16,15 +15,10 @@ from tests.gisserver.views.input import (
     SORT_BY,
 )
 from tests.test_gisserver.models import Restaurant
-from tests.utils import WFS_20_XSD, assert_xml_equal, validate_xsd
+from tests.utils import WFS_20_XSD, assert_xml_equal, read_json, read_response, validate_xsd
 
 # enable for all tests in this file
 pytestmark = [pytest.mark.urls("tests.test_gisserver.urls")]
-
-
-def read_response(response) -> str:
-    # works for all HttpResponse subclasses.
-    return b"".join(response).decode()
 
 
 @pytest.mark.django_db
@@ -32,15 +26,6 @@ class TestGetFeature:
     """All tests for the GetFeature method.
     The methods need to have at least one datatype, otherwise not all content is rendered.
     """
-
-    @staticmethod
-    def read_json(content) -> dict:
-        try:
-            return orjson.loads(content)
-        except orjson.JSONDecodeError as e:
-            snippet = content[e.pos - 300 : e.pos + 300]
-            snippet = snippet[snippet.index("\n") :]  # from last newline
-            raise AssertionError(f"Parsing JSON failed: {e}\nNear: {snippet}") from None
 
     def test_get(self, client, restaurant, coordinates):
         """Prove that the happy flow works"""
@@ -736,7 +721,7 @@ class TestGetFeature:
             content = read_response(response)
             assert response.status_code == 200, content
 
-        data = self.read_json(content)
+        data = read_json(content)
 
         assert data["features"][0]["geometry"]["coordinates"] == coordinates.point1_geojson
         assert data == {
@@ -816,7 +801,7 @@ class TestGetFeature:
 
         # If the response is invalid json, there was likely
         # some exception that aborted further writing.
-        data = self.read_json(content)
+        data = read_json(content)
 
         assert len(data["features"]) == 1000
         assert data["numberReturned"] == 1000
@@ -860,7 +845,7 @@ class TestGetFeature:
             content = read_response(response)
             assert response.status_code == 200, content
 
-        data = self.read_json(content)
+        data = read_json(content)
 
         assert data == {
             "type": "FeatureCollection",
@@ -952,7 +937,7 @@ class TestGetFeature:
             content = read_response(response)
             assert response.status_code == 200, content
 
-        data = self.read_json(content)
+        data = read_json(content)
 
         assert data == {
             "type": "FeatureCollection",

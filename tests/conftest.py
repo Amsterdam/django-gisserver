@@ -9,7 +9,6 @@ from typing import cast
 from xml.etree import ElementTree
 
 import django
-import orjson
 import pytest
 from django.contrib.gis.gdal import gdal_full_version
 from django.contrib.gis.geos import Point, geos_version
@@ -21,6 +20,7 @@ from gisserver import conf
 from gisserver.types import GML32
 from tests.constants import RD_NEW, RD_NEW_SRID
 from tests.test_gisserver.models import City, OpeningHour, Restaurant, current_datetime
+from tests.utils import read_json
 from tests.xsd_download import download_schema
 
 HERE = Path(__file__).parent
@@ -66,7 +66,7 @@ def _get_point(hex_ewkb: str) -> Point:
 
 def _get_geojson(value: str) -> list[Decimal]:
     """Extract the coordinates from a GeoJSON point"""
-    return orjson.loads(value)["coordinates"]
+    return read_json(value)["coordinates"]
 
 
 def _get_gml(xml: str) -> str:
