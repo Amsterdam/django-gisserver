@@ -2,9 +2,11 @@
 
 * Added `PROPERTYNAME` support
 * Added rendering of `<wfs:truncatedResponse>` when errors happen during output streaming.
+* Fixed accessing a feature with 3 geometry fields (fixed our PostgreSQL `ST_Union` syntax).
 * Make sure Django 4.1+ won't do double prefetches on relations that we prefetch.
 * Hide the erroneous output formats in `GetCapabilities` that are supported for FME.
 * Bump requirements to non-vulnerable versions (of lxml and orjson).
+* Improved documentation.
 * Cleaned up code, removing some internal methods.
 * Cleaned up leftover Python 3.7 compat code.
 
