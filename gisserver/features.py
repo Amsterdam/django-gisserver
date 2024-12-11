@@ -609,7 +609,7 @@ class FeatureType:
             return self.geometry_fields[0]
 
     @cached_property
-    def main_geometry_element(self) -> GmlElement:
+    def main_geometry_element(self) -> GmlElement | None:
         """Give access to the main geometry element."""
         # NOTE: this property should make it easier to move away from having a main geometry field
         # at the model level, and allow a geometry field in any depth of the data model.

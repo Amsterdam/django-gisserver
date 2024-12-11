@@ -100,7 +100,7 @@ class FeatureProjection:
 
     @cached_property
     def complex_elements(self) -> list[_XsdElement_WithComplexType]:
-        """Shortcut to get all elements with a complex type"""
+        """Shortcut to get the top-level elements with a complex type"""
         if not self.property_names:
             return self.feature_type.xsd_type.complex_elements
         else:
@@ -108,7 +108,7 @@ class FeatureProjection:
 
     @cached_property
     def flattened_elements(self) -> list[XsdElement]:
-        """Shortcut to get all elements with a flattened model attribute"""
+        """Shortcut to get the top-level elements with a flattened model attribute"""
         if not self.property_names:
             return self.feature_type.xsd_type.flattened_elements
         else:
@@ -214,14 +214,11 @@ class FeatureRelation:
     @cached_property
     def _local_model_field_names(self) -> list[str]:
         """Tell which local fields of the model will be accessed by this feature."""
-        result = []
-        for field in self.sub_fields:
-            model_field = field.source
-            if not model_field.many_to_many and not model_field.one_to_many:
-                result.append(model_field.name)
-
-        result.extend(self._local_backlink_field_names)
-        return result
+        return [
+            model_field.name
+            for field in self.sub_fields
+            if not (model_field := field.source).many_to_many and not model_field.one_to_many
+        ] + self._local_backlink_field_names
 
     @property
     def _local_backlink_field_names(self) -> list[str]:

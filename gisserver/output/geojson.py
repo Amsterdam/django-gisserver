@@ -267,11 +267,11 @@ class DBGeoJsonRenderer(GeoJsonRenderer):
         queryset = super().decorate_queryset(projection, queryset, output_crs, **params)
         # If desired, the entire FeatureCollection could be rendered
         # in PostgreSQL as well: https://postgis.net/docs/ST_AsGeoJSON.html
-        main_geometry_field = projection.feature_type.main_geometry_element
-        if main_geometry_field is not None:
-            queryset = queryset.defer(main_geometry_field.orm_path).annotate(
+        main_geo_element = projection.feature_type.main_geometry_element
+        if main_geo_element is not None:
+            queryset = queryset.defer(main_geo_element.orm_path).annotate(
                 _as_db_geojson=AsGeoJSON(
-                    get_db_geometry_target(main_geometry_field, output_crs),
+                    get_db_geometry_target(main_geo_element, output_crs),
                     precision=conf.GISSERVER_DB_PRECISION,
                 )
             )
