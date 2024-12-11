@@ -1,3 +1,13 @@
+# 2024-11-25 (1.5.0)
+
+* Added `PROPERTYNAME` support
+* Added rendering of `<wfs:truncatedResponse>` when errors happen during output streaming.
+* Make sure Django 4.1+ won't do double prefetches on relations that we prefetch.
+* Hide the erroneous output formats in `GetCapabilities` that are supported for FME.
+* Bump requirements to non-vulnerable versions (of lxml and orjson).
+* Cleaned up code, removing some internal methods.
+* Cleaned up leftover Python 3.7 compat code.
+
 # 2024-08-29 (1.4.1)
 
 * Fix 500 error when `model_attribute` points to a dotted-path.
