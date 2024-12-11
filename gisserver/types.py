@@ -32,7 +32,7 @@ from dataclasses import dataclass, field
 from decimal import Decimal as D
 from enum import Enum
 from functools import cached_property
-from typing import TYPE_CHECKING, Literal, cast
+from typing import TYPE_CHECKING, Literal
 
 from django.conf import settings
 from django.contrib.gis.db.models import F, GeometryField
@@ -796,11 +796,9 @@ class XsdComplexType(XsdAnyType):
         when PROPERTYNAME is part of the request.
         """
         child_nodes = {}
-        for xsd_element in self.elements:
-            if xsd_element.type.is_complex_type:
-                sub_type = cast(XsdComplexType, xsd_element.type)
-                child_nodes[xsd_element] = sub_type.elements
-                child_nodes.update(sub_type.elements_with_children)
+        for xsd_element in self.complex_elements:
+            child_nodes[xsd_element] = xsd_element.type.elements
+            child_nodes.update(xsd_element.type.elements_with_children)
         return child_nodes
 
     def resolve_element_path(self, xpath: str) -> list[XsdNode] | None:
