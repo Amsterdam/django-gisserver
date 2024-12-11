@@ -3,7 +3,6 @@ from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass
 from functools import cached_property
-from typing import cast
 
 from django.db import models
 
@@ -119,12 +118,11 @@ class FeatureProjection:
         """Return the field used to describe the geometry of the feature.
         When the projection excludes the geometry, ``None`` is returned.
         """
-        main_field = self.feature_type.geometry_field
-        if self.property_names and main_field not in self.xsd_root_elements:
+        gml_element = self.feature_type.main_geometry_element
+        if self.property_names and gml_element not in self.xsd_root_elements:
             return None
 
-        xpath_match = self.feature_type.resolve_element(main_field)
-        return cast(GmlElement, xpath_match.child)
+        return gml_element
 
     @cached_property
     def orm_relations(self) -> list[FeatureRelation]:
