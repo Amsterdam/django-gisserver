@@ -1,14 +1,22 @@
 from __future__ import annotations
 
+import itertools
+import operator
 from collections import defaultdict
 from dataclasses import dataclass
 from functools import cached_property
 
+from django.contrib.gis.geos import GEOSGeometry
 from django.db import models
 
 from gisserver.features import FeatureType
 from gisserver.parsers import fes20
-from gisserver.types import GmlElement, XPathMatch, XsdElement, _XsdElement_WithComplexType
+from gisserver.types import (
+    GmlElement,
+    XPathMatch,
+    XsdElement,
+    _XsdElement_WithComplexType,
+)
 
 
 class FeatureProjection:
@@ -22,6 +30,8 @@ class FeatureProjection:
     """
 
     feature_type: FeatureType
+    xsd_root_elements: list[XsdElement]
+    xsd_child_nodes: dict[XsdElement | None, list[XsdElement]]
 
     def __init__(self, feature_type: FeatureType, property_names: list[fes20.ValueReference]):
         self.feature_type = feature_type
@@ -61,14 +71,25 @@ class FeatureProjection:
         # For now, add to all cached properties:
         # TODO: have a better approach?
         self.xsd_root_elements.append(xsd_element)
-        if xsd_element.is_geometry:
-            self.geometry_elements.append(xsd_element)
+        if xsd_element.type.is_geometry:
+            self.nested_geometry_elements.append(xsd_element)
 
         if xsd_element.orm_path not in self.only_fields:
             self.only_fields.append(xsd_element.orm_path)
 
         if xsd_element.is_flattened:
             self.flattened_elements.append(xsd_element)
+
+    @cached_property
+    def _geometry_getter(self):
+        return operator.attrgetter(self.main_geometry_element.orm_path)
+
+    def get_main_geometry_value(self, instance: models.Model) -> GEOSGeometry | None:
+        """Efficiently retrieve the value for the main geometry element."""
+        if self.main_geometry_element is None:
+            return None
+        else:
+            return self._geometry_getter(instance)
 
     @cached_property
     def xpath_matches(self) -> list[XPathMatch]:
@@ -82,17 +103,24 @@ class FeatureProjection:
         ]
 
     @cached_property
-    def geometry_elements(self) -> list[GmlElement]:
+    def nested_elements(self) -> list[XsdElement]:
+        """Return ALL elements of all levels to render."""
+        return self.xsd_root_elements + list(
+            itertools.chain.from_iterable(self.xsd_child_nodes.values())
+        )
+
+    @cached_property
+    def nested_geometry_elements(self) -> list[GmlElement]:
         """Tell which GML elements will be hit."""
         gml_elements = []
         for e in self.xsd_root_elements:
-            if e.is_geometry and e.xml_name != "gml:boundedBy":
+            if e.type.is_geometry and e.xml_name != "gml:boundedBy":
                 # Prefetching a flattened relation
                 gml_elements.append(e)
 
         for xsd_children in self.xsd_child_nodes.values():
             for e in xsd_children:
-                if e.is_geometry and e.xml_name != "gml:boundedBy":
+                if e.type.is_geometry and e.xml_name != "gml:boundedBy":
                     gml_elements.append(e)
 
         return gml_elements
@@ -119,7 +147,7 @@ class FeatureProjection:
         When the projection excludes the geometry, ``None`` is returned.
         """
         gml_element = self.feature_type.main_geometry_element
-        if self.property_names and gml_element not in self.xsd_root_elements:
+        if self.property_names and gml_element not in self.nested_elements:
             return None
 
         return gml_element
@@ -232,4 +260,4 @@ class FeatureRelation:
     @property
     def geometry_elements(self) -> list[GmlElement]:
         """Tell which geometry elements this relation will access."""
-        return [f for f in self.sub_fields if f.is_geometry and f.name != "gml:boundedBy"]
+        return [f for f in self.sub_fields if f.type.is_geometry and f.name != "gml:boundedBy"]

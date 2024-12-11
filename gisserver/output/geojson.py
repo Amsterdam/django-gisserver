@@ -57,7 +57,7 @@ class GeoJsonRenderer(OutputRenderer):
         # Other geometries can be excluded as these are not rendered by 'properties'
         other_geometries = [
             gml_element.orm_path
-            for gml_element in projection.geometry_elements
+            for gml_element in projection.nested_geometry_elements
             if gml_element is not main_geo_element
         ]
         if other_geometries:
@@ -137,7 +137,7 @@ class GeoJsonRenderer(OutputRenderer):
         return b'    {"type":"Feature","id":%b,%b"geometry":%b,"properties":%b}' % (
             orjson.dumps(f"{feature_type.name}.{instance.pk}"),
             json_geometry_name,
-            self.render_geometry(feature_type, instance),
+            self.render_geometry(projection, instance),
             orjson.dumps(properties, default=_json_default),
         )
 
@@ -150,11 +150,11 @@ class GeoJsonRenderer(OutputRenderer):
         else:
             return value
 
-    def render_geometry(self, feature_type, instance: models.Model) -> bytes:
+    def render_geometry(self, projection: FeatureProjection, instance: models.Model) -> bytes:
         """Generate the proper GeoJSON notation for a geometry.
         This calls the GDAL C-API rendering found in 'GEOSGeometry.json'
         """
-        geometry = getattr(instance, feature_type.geometry_field.name)
+        geometry = projection.get_main_geometry_value(instance)
         if geometry is None:
             return b"null"
 
@@ -227,7 +227,7 @@ class GeoJsonRenderer(OutputRenderer):
         """
         props = {}
         for xsd_element in xsd_elements:
-            if not xsd_element.is_geometry:
+            if not xsd_element.type.is_geometry:
                 value = xsd_element.get_value(instance)
                 if xsd_element.type.is_complex_type:
                     # Nested object data
@@ -278,10 +278,10 @@ class DBGeoJsonRenderer(GeoJsonRenderer):
 
         return queryset
 
-    def render_geometry(self, feature_type, instance: models.Model) -> bytes:
+    def render_geometry(self, projection: FeatureProjection, instance: models.Model) -> bytes:
         """Generate the proper GeoJSON notation for a geometry"""
         # Database server rendering
-        if not feature_type.geometry_fields:
+        if projection.main_geometry_element is None:
             return b"null"
 
         geojson = instance._as_db_geojson

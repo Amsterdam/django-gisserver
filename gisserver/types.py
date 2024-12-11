@@ -34,6 +34,7 @@ from enum import Enum
 from functools import cached_property
 from typing import TYPE_CHECKING, Literal
 
+import django
 from django.conf import settings
 from django.contrib.gis.db.models import F, GeometryField
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
@@ -54,6 +55,9 @@ if "django.contrib.postgres" in settings.INSTALLED_APPS:
     from django.contrib.postgres.fields import ArrayField
 else:
     ArrayField = None
+
+GeneratedField = models.GeneratedField if django.VERSION >= (5, 0) else type(None)
+
 
 __all__ = [
     "GmlElement",
@@ -89,7 +93,7 @@ class XsdAnyType:
     name: str
     prefix = None
     is_complex_type = False
-    is_geometry = False
+    is_geometry = False  # Overwritten for some gml types.
 
     def __str__(self):
         """Return the type name"""
@@ -149,6 +153,7 @@ class XsdTypes(XsdAnyType, Enum):
     language = "language"
 
     # Types that contain a GML value as member:
+    # Note these receive the "is_geometry = True" value below.
     gmlGeometryPropertyType = "gml:GeometryPropertyType"
     gmlPointPropertyType = "gml:PointPropertyType"
     gmlCurvePropertyType = "gml:CurvePropertyType"  # curve is base for LineString
@@ -180,11 +185,6 @@ class XsdTypes(XsdAnyType, Enum):
         return xml_name[:colon] if colon else None
 
     @cached_property
-    def is_geometry(self):
-        """Whether the value represents an element which contains a GML element."""
-        return self.prefix == "gml" and self.value.endswith("PropertyType")
-
-    @cached_property
     def _to_python_func(self):
         if not TYPES_TO_PYTHON:
             _init_types_to_python()
@@ -207,6 +207,21 @@ class XsdTypes(XsdAnyType, Enum):
         except (TypeError, ValueError, ArithmeticError) as e:
             # ArithmeticError is base of DecimalException
             raise ExternalParsingError(f"Can't cast '{raw_value}' to {self}.") from e
+
+
+for _type in (
+    XsdTypes.gmlGeometryPropertyType,
+    XsdTypes.gmlPointPropertyType,
+    XsdTypes.gmlCurvePropertyType,
+    XsdTypes.gmlSurfacePropertyType,
+    XsdTypes.gmlMultiSurfacePropertyType,
+    XsdTypes.gmlMultiPointPropertyType,
+    XsdTypes.gmlMultiCurvePropertyType,
+    XsdTypes.gmlMultiGeometryPropertyType,
+    # gml:boundedBy is technically a geometry, which we don't support in queries currently.
+    XsdTypes.gmlBoundingShapeType,
+):
+    _type.is_geometry = True
 
 
 def _init_types_to_python():
@@ -340,11 +355,6 @@ class XsdNode:
             return field.value_from_object(related_instance)
 
         return _related_get_value_from_object
-
-    @cached_property
-    def is_geometry(self) -> bool:
-        """Tell whether the XML node/element should be handed as GML geometry."""
-        return self.type.is_geometry or isinstance(self.source, GeometryField)
 
     @cached_property
     def is_array(self) -> bool:
@@ -595,12 +605,27 @@ class XsdAttribute(XsdNode):
 
 
 class GmlElement(XsdElement):
-    """Essentially the same as an XsdElement, but guarantee it returns a GeoDjango model field.
+    """A subtype for the :class:`XsdElement` that provides access to geometry data.
 
-    This only exists as "protocol" for the type annotations.
+    The :attr:`source` is guaranteed to point to a :class:`~django.contrib.gis.models.GeometryField`,
+    and can be a :class:`~django.db.models.GeneratedField` in Django 5
+    as long as its ``output_field`` points to a :class:`~django.contrib.gis.models.GeometryField`.
     """
 
-    source: GeometryField
+    if django.VERSION >= (5, 0):
+        source: GeometryField | models.GeneratedField
+    else:
+        source: GeometryField
+
+    @cached_property
+    def source_srid(self) -> int:
+        """Tell which Spatial Reference Identifier the source information is stored under."""
+        if isinstance(self.source, GeneratedField):
+            # Allow GeometryField to be wrapped as:
+            # models.GeneratedField(SomeFunction("geofield"), output_field=models.GeometryField())
+            return self.source.output_field.srid
+        else:
+            return self.source.srid
 
 
 class GmlIdAttribute(XsdAttribute):
@@ -644,8 +669,6 @@ class GmlNameElement(XsdElement):
     (although that would make comparisons on ``element@gml:name`` more complex).
     """
 
-    is_geometry = False  # Override type
-
     def __init__(
         self,
         model_attribute: str,
@@ -680,8 +703,6 @@ class GmlBoundedByElement(XsdElement):
     can be included in the XML tree like every other element.
     Its value is the complete bounding box of the feature type data.
     """
-
-    is_geometry = True  # Override type
 
     def __init__(self, feature_type):
         # Prefill most known fields
@@ -787,7 +808,7 @@ class XsdComplexType(XsdAnyType):
     @cached_property
     def geometry_elements(self) -> list[GmlElement]:
         """Shortcut to get all geometry elements"""
-        return [e for e in self.elements if e.is_geometry]
+        return [e for e in self.elements if e.type.is_geometry]
 
     @cached_property
     def complex_elements(self) -> list[_XsdElement_WithComplexType]:

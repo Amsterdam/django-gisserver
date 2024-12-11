@@ -17,7 +17,7 @@ from gisserver.db import (
 )
 from gisserver.geometries import CRS
 from gisserver.queries import FeatureProjection
-from gisserver.types import XsdElement
+from gisserver.types import XsdElement, XsdTypes
 
 from .base import OutputRenderer
 
@@ -78,18 +78,20 @@ class CSVRenderer(OutputRenderer):
                 output.write("\n\n")
 
             # Write the header
-            fields = [
-                f
-                for f in projection.xsd_root_elements
-                if not f.is_many and f.xml_name not in ("gml:name", "gml:boundedBy")
+            xsd_elements = [
+                e
+                for e in projection.xsd_root_elements
+                if not e.is_many
+                and e.xml_name != "gml:name"
+                and e.type != XsdTypes.gmlBoundingShapeType
             ]
-            writer.writerow(self.get_header(projection, fields))
+            writer.writerow(self.get_header(projection, xsd_elements))
 
             # By using .iterator(), the results are streamed with as little memory as
             # possible. Doing prefetch_related() is not possible now. That could only
             # be implemented with cursor pagination for large sets for 1000+ results.
             for instance in sub_collection.iterator():
-                writer.writerow(self.get_row(instance, projection, fields))
+                writer.writerow(self.get_row(instance, projection, xsd_elements))
 
                 # Only perform a 'yield' every once in a while,
                 # as it goes back-and-forth for writing it to the client.
@@ -130,7 +132,7 @@ class CSVRenderer(OutputRenderer):
         values = []
         append = values.append
         for xsd_element in xsd_elements:
-            if xsd_element.is_geometry:
+            if xsd_element.type.is_geometry:
                 append(self.render_geometry(instance, xsd_element))
                 continue
 
@@ -169,7 +171,7 @@ class DBCSVRenderer(CSVRenderer):
 
         # Instead of reading the binary geometry data,
         # ask the database to generate EWKT data directly.
-        geo_selects = get_db_geometry_selects(projection.geometry_elements, output_crs)
+        geo_selects = get_db_geometry_selects(projection.nested_geometry_elements, output_crs)
         if geo_selects:
             queryset = queryset.defer(*geo_selects.keys()).annotate(
                 **build_db_annotations(geo_selects, "_as_ewkt_{name}", AsEWKT)

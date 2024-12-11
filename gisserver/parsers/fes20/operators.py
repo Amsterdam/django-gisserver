@@ -265,7 +265,7 @@ class NonIdOperator(Operator):
             tag = self._source if self._source is not None else None
 
             # e.g. deny <PropertyIsLessThanOrEqualTo> against <gml:boundedBy>
-            if xsd_element.is_geometry and not self.allow_geometries:
+            if xsd_element.type.is_geometry and not self.allow_geometries:
                 raise OperationProcessingFailed(
                     f"Operator '{tag}' does not support comparing"
                     f" geometry properties: '{xsd_element.xml_name}'.",
@@ -401,7 +401,7 @@ class BinarySpatialOperator(SpatialOperator):
     def build_query(self, compiler: CompiledQuery) -> Q:
         operant1 = self.operand1
         if operant1 is None:
-            operant1 = ValueReference(xpath=compiler.feature_type.geometry_field.name)
+            operant1 = ValueReference(xpath=compiler.feature_type.main_geometry_element.orm_path)
 
         return self.build_compare(
             compiler,

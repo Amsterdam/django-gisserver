@@ -24,7 +24,6 @@ from django.http import HttpResponse
 from gisserver.db import (
     AsGML,
     build_db_annotations,
-    conditional_transform,
     get_db_annotation,
     get_db_geometry_selects,
     get_db_geometry_target,
@@ -35,7 +34,7 @@ from gisserver.features import FeatureType
 from gisserver.geometries import CRS
 from gisserver.parsers.fes20 import ValueReference
 from gisserver.queries import FeatureProjection, FeatureRelation
-from gisserver.types import XsdElement, XsdNode
+from gisserver.types import GmlElement, XsdElement, XsdNode, XsdTypes
 
 from .base import OutputRenderer
 from .results import SimpleFeatureCollection
@@ -278,8 +277,8 @@ class GML32Renderer(OutputRenderer):
             # Hence, branching to different rendering styles is branched here instead of making such
             # call into a generic "write_field()" function and stepping out from there.
 
-            if xsd_element.is_geometry:
-                if xsd_element.xml_name == "gml:boundedBy":
+            if xsd_element.type.is_geometry:
+                if xsd_element.type is XsdTypes.gmlBoundingShapeType:
                     # Special case for <gml:boundedBy>, so it will render with
                     # the output CRS and can be overwritten with DB-rendered GML.
                     self.write_bounds(projection, instance)
@@ -524,7 +523,7 @@ class DBGML32Renderer(DBGMLRenderingMixin, GML32Renderer):
         queryset = super().decorate_queryset(projection, queryset, output_crs, **params)
 
         # Retrieve geometries as pre-rendered instead.
-        geo_selects = get_db_geometry_selects(projection.geometry_elements, output_crs)
+        geo_selects = get_db_geometry_selects(projection.nested_geometry_elements, output_crs)
         if geo_selects:
             queryset = queryset.defer(*geo_selects.keys()).annotate(
                 _as_envelope_gml=cls.get_db_envelope_as_gml(projection, queryset, output_crs),
@@ -570,12 +569,8 @@ class DBGML32Renderer(DBGMLRenderingMixin, GML32Renderer):
         # Apply transforms where needed, in case some geometries use a different SRID.
         return get_geometries_union(
             [
-                conditional_transform(
-                    gml_element.orm_path,
-                    gml_element.source.srid,
-                    output_srid=output_crs.srid,
-                )
-                for gml_element in projection.geometry_elements
+                get_db_geometry_target(gml_element, output_crs=output_crs)
+                for gml_element in projection.nested_geometry_elements
             ],
             using=queryset.db,
         )
@@ -660,7 +655,7 @@ class GML32ValueRenderer(GML32Renderer):
         """Write the XML for a single object.
         In this case, it's only a single XML tag.
         """
-        if self.xsd_node.is_geometry:
+        if self.xsd_node.type.is_geometry:
             self.write_gml_field(
                 projection.feature_type,
                 cast(XsdElement, self.xsd_node),
@@ -723,9 +718,9 @@ class DBGML32ValueRenderer(DBGMLRenderingMixin, GML32ValueRenderer):
         """Update the queryset to let the database render the GML output."""
         value_reference = params["valueReference"]
         match = projection.feature_type.resolve_element(value_reference.xpath)
-        if match.child.is_geometry:
+        if match.child.type.is_geometry:
             # Add 'gml_member' to point to the pre-rendered GML version.
-            gml_element = cast(XsdElement, match.child)
+            gml_element = cast(GmlElement, match.child)
             return queryset.values(
                 "pk", gml_member=AsGML(get_db_geometry_target(gml_element, output_crs))
             )

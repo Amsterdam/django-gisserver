@@ -78,15 +78,6 @@ def get_geometries_union(
         return reduce(functions.Union, expressions)
 
 
-def conditional_transform(
-    expression: str | functions.GeoFunc, expression_srid: int, output_srid: int
-) -> str | functions.Transform:
-    """Apply a CRS Transform to the queried field if that is needed."""
-    if expression_srid != output_srid:
-        expression = functions.Transform(expression, srid=output_srid)
-    return expression
-
-
 def build_db_annotations(
     selects: dict[str, str | functions.Func],
     name_template: str,
@@ -134,7 +125,10 @@ def get_db_geometry_selects(
 
 
 def get_db_geometry_target(gml_element: GmlElement, output_crs: CRS) -> str | functions.Transform:
-    """Wrap the selection of a geometry field in a CRS Transform if needed."""
-    return conditional_transform(
-        gml_element.orm_path, gml_element.source.srid, output_srid=output_crs.srid
-    )
+    """Translate a GML geometry field into the proper expression for retrieving it from the database.
+    The path will be wrapped into a CRS Transform function if needed.
+    """
+    if gml_element.source_srid != output_crs.srid:
+        return functions.Transform(gml_element.orm_path, srid=output_crs.srid)
+    else:
+        return gml_element.orm_path
