@@ -19,11 +19,12 @@ RUN apt-get update \
 # python3-dev is needed for lru_dict
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
-       python3 \
+       libpq-dev \
+       python3.9 \
        python3-pip \
        python3-setuptools \
        python3-wheel \
-       python3-dev gcc \
+       python3.9-dev gcc \
        make \
        postgresql-${POSTGRES_VERSION}-postgis-${POSTGIS_VERSION} \
        postgresql-${POSTGRES_VERSION}-postgis-${POSTGIS_VERSION}-scripts \
@@ -33,18 +34,18 @@ RUN apt-get update \
 # Install dependencies first (so layer is cached for fast rebuilds)
 # Need to create some stubs for setup.py to run.
 WORKDIR /host/
-COPY setup.py setup.cfg ./
+COPY setup.py ./
 RUN mkdir gisserver \
  && touch README.md \
  && echo '__version__ = "0.1.dev0"' > gisserver/__init__.py \
  && sed -i -e 's/ >= / == /' ./setup.py \
- && pip3 wheel --no-cache-dir --wheel-dir=/wheelhouse/ .[tests] \
+ && python3.9 -m pip wheel --no-cache-dir --wheel-dir=/wheelhouse/ .[tests] \
  && rm -vf /wheelhouse/django_gisserver* \
- && pip3 install --no-cache-dir /wheelhouse/*
+ && python3.9 -m pip install --no-cache-dir /wheelhouse/*
 
 # Install app
 COPY . /host/
-RUN pip3 install --find-links=/wheelhouse/ -e .[tests]
+RUN python3.9 -m pip install --find-links=/wheelhouse/ -e .[tests]
 ENV LANG=C.UTF-8 DATABASE_URL=postgresql://postgres@localhost/django-gisserver
 
 # Make sure Postgres starts on startup

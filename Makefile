@@ -16,8 +16,8 @@ test:          ## Run the tests
 
 docker-test:   ## Run the tests against Linux GIS library versions
 	docker build . -t django-gisserver
-	docker run -v $(ROOT_DIT):/host/ -e GISSERVER_USE_DB_RENDERING=1 --rm -it django-gisserver pytest -vvs
-	docker run -v $(ROOT_DIT):/host/ -e GISSERVER_USE_DB_RENDERING=0 --rm -it django-gisserver pytest -vvs
+	docker run -v $(ROOT_DIR):/host/ -e PYTHONPATH=. -e GISSERVER_USE_DB_RENDERING=1 --rm -it django-gisserver pytest -vvs
+	docker run -v $(ROOT_DIR):/host/ -e PYTHONPATH=. -e GISSERVER_USE_DB_RENDERING=0 --rm -it django-gisserver pytest -vvs
 
 retest:        ## Rerun the last failed tests.
 	PYTHONPATH=. pytest -vs --lf
