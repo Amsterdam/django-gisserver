@@ -52,7 +52,7 @@ if hasattr(models, "GeneratedField"):
 
     class ModelWithGeneratedFields(models.Model):
         name = models.CharField(max_length=20)
-        reversed_name = models.GeneratedField(
+        name_reversed = models.GeneratedField(
             expression=models.functions.Reverse("name"),
             output_field=models.CharField(max_length=20),
             db_persist=True,
