@@ -395,3 +395,34 @@ SORT_BY = {
     "rating-desc": ("rating DESC", ["Café Noir", "Foo Bar"]),
     "rating,name-asc": ("rating,name ASC", ["Foo Bar", "Café Noir"]),
 }
+
+GENERATED_FIELD_FILTER = {
+    "name_reversed": (
+        """
+        <fes:Filter xmlns:fes="http://www.opengis.net/fes/2.0"
+                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                xsi:schemaLocation="http://www.opengis.net/fes/2.0
+                http://schemas.opengis.net/filter/2.0/filterAll.xsd">
+            <fes:PropertyIsEqualTo>
+                <fes:ValueReference>name_reversed</fes:ValueReference>
+                <fes:Literal>emordnilaP</fes:Literal>
+            </fes:PropertyIsEqualTo>
+        </fes:Filter>
+        """
+    ),
+    "geometry_translated": (
+        # geometry_translated =~ 5.90876 53.36317
+        """
+        <fes:Filter xmlns:fes="http://www.opengis.net/fes/2.0">
+            <fes:BBOX>
+                <fes:ValueReference>geometry_translated</fes:ValueReference>
+                <gml:Envelope xmlns:gml="http://www.opengis.net/gml/3.2"
+                              srsName="urn:ogc:def:crs:EPSG::4326">
+                    <gml:lowerCorner>5.7 53.1</gml:lowerCorner>
+                    <gml:upperCorner>6.1 53.5</gml:upperCorner>
+                </gml:Envelope>
+            </fes:BBOX>
+        </fes:Filter>
+        """
+    ),
+}

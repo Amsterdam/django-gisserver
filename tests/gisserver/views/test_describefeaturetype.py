@@ -1,5 +1,6 @@
 import urllib.parse
 
+import django
 import pytest
 from lxml import etree
 
@@ -69,6 +70,67 @@ class TestDescribeFeatureType:
           <element name="is_open" type="boolean" minOccurs="0" />
           <element name="created" type="dateTime" minOccurs="0" />
           <element name="tags" type="string" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+        </sequence>
+      </extension>
+    </complexContent>
+  </complexType>
+
+</schema>""",  # noqa: E501
+        )
+
+    @pytest.mark.skipif(
+        django.VERSION < (5, 0), reason="GeneratedField is only available in Django >= 5"
+    )
+    def test_describe_generated_field(self, client):
+        """Prove that the happy flow works"""
+        response = client.get(
+            "/v1/wfs-gen-field/?SERVICE=WFS&REQUEST=DescribeFeatureType&VERSION=2.0.0&TYPENAMES=modelwithgeneratedfields"
+        )
+        content = response.content.decode()
+        assert response["content-type"] == "application/gml+xml; version=3.2", content
+        assert response.status_code == 200, content
+        assert "PropertyType" in content  # for element holding a GML field
+
+        # The response is an XSD itself.
+        # Only validate its XML structure
+        xml_doc: etree._Element = etree.fromstring(response.content)
+        assert xml_doc.tag == "{http://www.w3.org/2001/XMLSchema}schema"
+        elements = xml_doc.findall(
+            "xsd:complexType/xsd:complexContent/xsd:extension/xsd:sequence/xsd:element",
+            namespaces=NAMESPACES,
+        )
+        field_names = [el.attrib["name"] for el in elements]
+        assert field_names == [
+            "id",
+            "name",
+            "name_reversed",
+            "geometry",
+            "geometry_translated",
+        ]
+
+        assert_xml_equal(
+            response.content,
+            """<schema
+   targetNamespace="http://example.org/gisserver"
+   xmlns:app="http://example.org/gisserver"
+   xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+   xmlns="http://www.w3.org/2001/XMLSchema"
+   xmlns:gml="http://www.opengis.net/gml/3.2"
+   elementFormDefault="qualified" version="0.1">
+
+  <import namespace="http://www.opengis.net/gml/3.2" schemaLocation="http://schemas.opengis.net/gml/3.2.1/gml.xsd" />
+
+  <element name="modelwithgeneratedfields" type="app:ModelwithgeneratedfieldsType" substitutionGroup="gml:AbstractFeature" />
+
+  <complexType name="ModelwithgeneratedfieldsType">
+    <complexContent>
+      <extension base="gml:AbstractFeatureType">
+        <sequence>
+          <element name="id" type="integer" minOccurs="0" />
+          <element name="name" type="string" minOccurs="0" />
+          <element name="name_reversed" type="string" minOccurs="0" />
+          <element name="geometry" type="gml:PointPropertyType" nillable="true" minOccurs="0" maxOccurs="1"/>
+          <element name="geometry_translated" type="gml:PointPropertyType" nillable="true" minOccurs="0" maxOccurs="1"/>
         </sequence>
       </extension>
     </complexContent>

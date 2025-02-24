@@ -1,9 +1,10 @@
+import django
 from django.core.exceptions import PermissionDenied
 
 from gisserver.features import FeatureType, ServiceDescription, field
 from gisserver.views import WFSView
 from tests.constants import RD_NEW
-from tests.test_gisserver.models import Restaurant, RestaurantReview
+from tests.test_gisserver import models
 
 
 class DeniedFeatureType(FeatureType):
@@ -26,21 +27,21 @@ class PlacesWFSView(WFSView):
     )
     feature_types = [
         FeatureType(
-            Restaurant.objects.all(),
+            models.Restaurant.objects.all(),
             fields="__all__",  # includes 'tags' as array field, but no relations.
             keywords=["unittest"],
             other_crs=[RD_NEW],
             metadata_url="/feature/restaurants/",
         ),
         FeatureType(
-            Restaurant.objects.all(),
+            models.Restaurant.objects.all(),
             # note: no fields defined.
             name="mini-restaurant",
             keywords=["unittest", "limited-fields"],
             other_crs=[RD_NEW],
             metadata_url="/feature/restaurants-limit/",
         ),
-        DeniedFeatureType(Restaurant.objects.none(), name="denied-feature"),
+        DeniedFeatureType(models.Restaurant.objects.none(), name="denied-feature"),
     ]
 
 
@@ -49,7 +50,7 @@ class ComplexTypesWFSView(PlacesWFSView):
 
     feature_types = [
         FeatureType(
-            Restaurant.objects.all(),
+            models.Restaurant.objects.all(),
             fields=[
                 "id",
                 "name",
@@ -71,7 +72,7 @@ class FlattenedWFSView(PlacesWFSView):
 
     feature_types = [
         FeatureType(
-            Restaurant.objects.all(),
+            models.Restaurant.objects.all(),
             fields=[
                 "id",
                 "name",
@@ -93,7 +94,7 @@ class RelatedGeometryWFSView(PlacesWFSView):
 
     feature_types = [
         FeatureType(
-            RestaurantReview.objects.all(),
+            models.RestaurantReview.objects.all(),
             name="restaurantReview",
             fields=[
                 "id",
@@ -117,7 +118,7 @@ class RelatedGeometryWFSView(PlacesWFSView):
             geometry_field_name="restaurant.location",
         ),
         FeatureType(
-            RestaurantReview.objects.all(),
+            models.RestaurantReview.objects.all(),
             name="restaurantReview-auto",
             fields=[
                 field(
@@ -133,3 +134,24 @@ class RelatedGeometryWFSView(PlacesWFSView):
             # No geometry_field_name, auto-detect first geometry field.
         ),
     ]
+
+
+if django.VERSION >= (5, 0):
+
+    class GeneratedFieldWFSView(PlacesWFSView):
+        """A view that has a type with GeneratedFields"""
+
+        feature_types = [
+            FeatureType(
+                models.ModelWithGeneratedFields.objects.all(),
+                fields=[
+                    "id",
+                    "name",
+                    "name_reversed",  # GeneratedField(output_field=CharField)
+                    "geometry",
+                    "geometry_translated",  # GeneratedField(output_field=PointField)
+                ],
+                other_crs=[RD_NEW],
+                geometry_field_name="geometry_translated",
+            ),
+        ]

@@ -19,13 +19,7 @@ from psycopg2 import Binary
 from gisserver import conf
 from gisserver.types import GML32
 from tests.constants import RD_NEW, RD_NEW_SRID
-from tests.test_gisserver.models import (
-    City,
-    OpeningHour,
-    Restaurant,
-    RestaurantReview,
-    current_datetime,
-)
+from tests.test_gisserver import models
 from tests.utils import read_json
 from tests.xsd_download import download_schema
 
@@ -59,6 +53,12 @@ class CoordinateInputs:
     point1_xml_wgs84: str
     point1_xml_rd: str
 
+    translated_wgs84: Point  # How GeoDjango retrieved the object from the database
+    translated_ewkt: str
+    translated_geojson: list[Decimal]
+    translated_xml_wgs84: str
+    translated_xml_envelope: tuple[str, str]
+
     point2_wgs84: Point  # Retrieved from db.
     point2_ewkt: str
     point2_geojson: list[Decimal]
@@ -75,17 +75,36 @@ def _get_point(hex_ewkb: str) -> Point:
     return cast(Point, GEOSGeometry(hex_ewkb))
 
 
-def _get_geojson(value: str) -> list[Decimal]:
+def _get_coordinates_text(point: Point) -> str:
+    """Extract the coordinates from a GEOS Point"""
+    return " ".join(map(str, point.coords))
+
+
+def _get_geojson_coordinates(value: str) -> list[Decimal]:
     """Extract the coordinates from a GeoJSON point"""
     return read_json(value)["coordinates"]
 
 
-def _get_gml(xml: str) -> str:
-    """Extract the coordinates from a GML Point"""
+def _parse_gml(xml: str) -> ElementTree.Element:
+    """Feed a GML fragment without any namespacing to the parser."""
     end_first = xml.index(">")
     xml = f'{xml[:end_first]} xmlns:gml="{GML32}"{xml[end_first:]}'
-    tree = ElementTree.fromstring(xml)
-    return tree.findtext("gml:pos", namespaces={"gml": GML32}).replace(",", " ")
+    return ElementTree.fromstring(xml)
+
+
+def _get_gml_coordinates(xml: str) -> str:
+    """Extract the coordinates from a GML Point"""
+    tree = _parse_gml(xml)
+    coordinates = tree.findtext("gml:pos", namespaces={"gml": GML32})
+    return coordinates.replace(",", " ")
+
+
+def _get_gml_envelope(xml: str) -> tuple[str, str]:
+    tree = _parse_gml(xml)
+    return [
+        tree.findtext("gml:lowerCorner", namespaces={"gml": GML32}),
+        tree.findtext("gml:upperCorner", namespaces={"gml": GML32}),
+    ]
 
 
 @pytest.fixture(scope="session")
@@ -110,19 +129,29 @@ def db_coordinates(django_db_setup, django_db_blocker):
     with django_db_blocker.unblock(), connection.cursor() as cursor:
         point1 = "ST_GeomFromEWKB(%(point1)s)"
         point2 = "ST_GeomFromEWKB(%(point2)s)"
+        point1_wgs84 = f"ST_Transform({point1}, 4326)"
+        point2_wgs84 = f"ST_Transform({point2}, 4326)"
+        point1_rd = f"ST_Transform({point1_wgs84}, 28992)"  # back and forth conversion in DB
+        point1_translated = f"ST_Translate({point1_wgs84}, 1, 1)"
         pr = conf.GISSERVER_DB_PRECISION
 
         cursor.execute(
             "SELECT"
-            f" ST_Transform({point1}, 4326) as point1_wgs84,"
-            f" ST_AsEWKT(ST_Transform({point1}, 4326), {pr}) as point1_ewkt,"
-            f" ST_AsGeoJson(ST_Transform({point1}, 4326), {pr}) as point1_geojson,"
-            f" ST_AsGML(3, ST_Transform({point1}, 4326), {pr}, 1) as point1_xml_wgs84,"
-            f" ST_AsGML(3, ST_Transform(ST_Transform({point1}, 4326), 28992), {pr}, 1) as point1_xml_rd,"  # noqa: E501
-            f" ST_Transform({point2}, 4326) as point2_wgs84,"
-            f" ST_AsEWKT(ST_Transform({point2}, 4326), {pr}) as point2_ewkt,"
-            f" ST_AsGeoJson(ST_Transform({point2}, 4326), {pr}) as point2_geojson,"
-            f" ST_AsGML(3, ST_Transform({point2}, 4326), {pr}, 1) as point2_xml_wgs84",
+            f" {point1_wgs84} as point1_wgs84,"
+            f" {point1_translated} as translated_wgs84,"
+            f" ST_AsEWKT({point1_wgs84}, {pr}) as point1_ewkt,"
+            f" ST_AsEWKT({point1_translated}, {pr}) as translated_ewkt,"
+            f" ST_AsGeoJson({point1_wgs84}, {pr}) as point1_geojson,"
+            f" ST_AsGeoJson({point1_translated}, {pr}) as translated_geojson,"
+            f" ST_AsGML(3, {point1_wgs84}, {pr}, 1) as point1_xml_wgs84,"
+            f" ST_AsGML(3, {point1_translated}, {pr}, 1) as translated_xml_wgs84,"
+            f" ST_AsGML(3, ST_Union({point1_wgs84}, {point1_translated}), {pr}, 33) as translated_xml_envelope,"
+            f" ST_AsGML(3, {point1_rd}, {pr}, 1) as point1_xml_rd,"
+            # Point 2
+            f" {point2_wgs84} as point2_wgs84,"
+            f" ST_AsEWKT({point2_wgs84}, {pr}) as point2_ewkt,"
+            f" ST_AsGeoJson({point2_wgs84}, {pr}) as point2_geojson,"
+            f" ST_AsGML(3, {point2_wgs84}, {pr}, 1) as point2_xml_wgs84",
             {
                 "point1": Binary(CoordinateInputs.point1_rd.ewkb),
                 "point2": Binary(CoordinateInputs.point2_rd.ewkb),
@@ -136,13 +165,19 @@ def db_coordinates(django_db_setup, django_db_blocker):
         return CoordinateInputs(
             point1_wgs84=_get_point(result["point1_wgs84"]),
             point1_ewkt=result["point1_ewkt"],
-            point1_geojson=_get_geojson(result["point1_geojson"]),
-            point1_xml_wgs84=_get_gml(result["point1_xml_wgs84"]),
-            point1_xml_rd=_get_gml(result["point1_xml_rd"]),
+            point1_geojson=_get_geojson_coordinates(result["point1_geojson"]),
+            point1_xml_wgs84=_get_gml_coordinates(result["point1_xml_wgs84"]),
+            point1_xml_rd=_get_gml_coordinates(result["point1_xml_rd"]),
+            translated_wgs84=_get_point(result["translated_wgs84"]),
+            translated_ewkt=result["translated_ewkt"],
+            translated_geojson=_get_geojson_coordinates(result["translated_geojson"]),
+            translated_xml_wgs84=_get_gml_coordinates(result["translated_xml_wgs84"]),
+            # Strangely, the DB rendering will have a different envelope, not literally both points.
+            translated_xml_envelope=_get_gml_envelope(result["translated_xml_envelope"]),
             point2_wgs84=_get_point(result["point2_wgs84"]),
             point2_ewkt=result["point2_ewkt"],
-            point2_geojson=_get_geojson(result["point2_geojson"]),
-            point2_xml_wgs84=_get_gml(result["point2_xml_wgs84"]),
+            point2_geojson=_get_geojson_coordinates(result["point2_geojson"]),
+            point2_xml_wgs84=_get_gml_coordinates(result["point2_xml_wgs84"]),
         )
 
 
@@ -153,30 +188,40 @@ def python_coordinates(db_coordinates):
     # Saving a RD-NEW coordinate in the database will transform the data to WGS84 on saving,
     # but this happens inside the database itself as the SRID of the field differs from the input.
     point1_wgs84 = db_coordinates.point1_wgs84
+    translated_wgs84 = db_coordinates.translated_wgs84
     point2_wgs84 = db_coordinates.point2_wgs84
 
     point1_rd_back = RD_NEW.apply_to(point1_wgs84, clone=True)
     return CoordinateInputs(
         point1_wgs84=point1_wgs84,  # How data from PointField is returned
         point1_ewkt=point1_wgs84.ewkt,
-        point1_geojson=_get_geojson(point1_wgs84.json),
-        point1_xml_wgs84=" ".join(map(str, point1_wgs84.coords)),
-        point1_xml_rd=" ".join(map(str, point1_rd_back.coords)),
+        point1_geojson=_get_geojson_coordinates(point1_wgs84.json),
+        point1_xml_wgs84=_get_coordinates_text(point1_wgs84),
+        point1_xml_rd=_get_coordinates_text(point1_rd_back),
+        translated_wgs84=translated_wgs84,  # How data from PointField is returned
+        translated_ewkt=translated_wgs84.ewkt,
+        translated_geojson=_get_geojson_coordinates(translated_wgs84.json),
+        translated_xml_wgs84=_get_coordinates_text(translated_wgs84),
+        translated_xml_envelope=[
+            # Literally calculated as the box of both points
+            _get_coordinates_text(point1_wgs84),
+            _get_coordinates_text(translated_wgs84),
+        ],
         point2_wgs84=point2_wgs84,  # How data from PointField is returned
         point2_ewkt=point2_wgs84.ewkt,
-        point2_geojson=_get_geojson(point2_wgs84.json),
-        point2_xml_wgs84=" ".join(map(str, point2_wgs84.coords)),
+        point2_geojson=_get_geojson_coordinates(point2_wgs84.json),
+        point2_xml_wgs84=_get_coordinates_text(point2_wgs84),
     )
 
 
 @pytest.fixture()
-def city() -> City:
-    return City.objects.create(name="CloudCity", region="OurRegion")
+def city() -> models.City:
+    return models.City.objects.create(name="CloudCity", region="OurRegion")
 
 
 @pytest.fixture()
-def restaurant(city) -> Restaurant:
-    return Restaurant.objects.create(
+def restaurant(city) -> models.Restaurant:
+    return models.Restaurant.objects.create(
         name="Café Noir",
         city=city,
         location=CoordinateInputs.point1_rd,
@@ -187,34 +232,43 @@ def restaurant(city) -> Restaurant:
 
 
 @pytest.fixture()
-def restaurant_m2m(restaurant) -> Restaurant:
+def restaurant_m2m(restaurant) -> models.Restaurant:
     restaurant.opening_hours.add(
-        OpeningHour.objects.create(weekday=calendar.FRIDAY),
-        OpeningHour.objects.create(weekday=calendar.SATURDAY),
-        OpeningHour.objects.create(weekday=calendar.SUNDAY, start_time=time(20, 0)),
+        models.OpeningHour.objects.create(weekday=calendar.FRIDAY),
+        models.OpeningHour.objects.create(weekday=calendar.SATURDAY),
+        models.OpeningHour.objects.create(weekday=calendar.SUNDAY, start_time=time(20, 0)),
     )
     return restaurant
 
 
 @pytest.fixture()
-def bad_restaurant() -> Restaurant:
-    return Restaurant.objects.create(
+def bad_restaurant() -> models.Restaurant:
+    return models.Restaurant.objects.create(
         name="Foo Bar",
         location=CoordinateInputs.point2_rd,
         rating=1.0,
         is_open=False,
-        created=current_datetime() + timedelta(hours=8),
+        created=models.current_datetime() + timedelta(hours=8),
     )
 
 
 @pytest.fixture()
-def restaurant_review(restaurant) -> RestaurantReview:
-    return RestaurantReview.objects.create(restaurant=restaurant, review="Pretty good!")
+def restaurant_review(restaurant) -> models.RestaurantReview:
+    return models.RestaurantReview.objects.create(restaurant=restaurant, review="Pretty good!")
 
 
 @pytest.fixture()
-def bad_restaurant_review(bad_restaurant) -> RestaurantReview:
-    return RestaurantReview.objects.create(restaurant=bad_restaurant, review="Stay away!")
+def bad_restaurant_review(bad_restaurant) -> models.RestaurantReview:
+    return models.RestaurantReview.objects.create(restaurant=bad_restaurant, review="Stay away!")
+
+
+if django.VERSION >= (5, 0):
+
+    @pytest.fixture()
+    def generated_field() -> models.ModelWithGeneratedFields:
+        return models.ModelWithGeneratedFields.objects.create(
+            name="Palindrome", geometry=CoordinateInputs.point1_rd
+        )
 
 
 @pytest.fixture(scope="session")
