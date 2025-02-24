@@ -2,6 +2,7 @@ import calendar
 from datetime import datetime, time, timezone
 
 from django.contrib.gis.db.models import PointField
+from django.contrib.gis.db.models.functions import Translate
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
 
@@ -44,3 +45,34 @@ class Restaurant(models.Model):
 
     def __str__(self):
         return self.name
+
+
+if hasattr(models, "GeneratedField"):
+    """Only available in Django 5 and later."""
+
+    class ModelWithGeneratedFields(models.Model):
+        name = models.CharField(max_length=20)
+        reversed_name = models.GeneratedField(
+            expression=models.functions.Reverse("name"),
+            output_field=models.CharField(max_length=20),
+            db_persist=True,
+        )
+
+        geometry = PointField(null=True)
+
+        geometry_translated = models.GeneratedField(
+            expression=Translate("geometry", x=1, y=2),
+            output_field=PointField(),
+            db_persist=True,
+        )
+
+        class Meta:
+            ordering = ["id"]  # for test result consistency
+
+        def __str__(self):
+            return self.name
+
+else:
+
+    class ModelWithGeneratedFields:
+        pass
