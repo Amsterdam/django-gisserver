@@ -1,3 +1,4 @@
+import django
 import pytest
 
 from gisserver import conf
@@ -84,6 +85,60 @@ class TestGetFeature:
                         "is_open": False,
                         "created": "2020-04-05T20:11:10+00:00",
                         "tags": None,
+                    },
+                },
+            ],
+        }
+
+    @pytest.mark.skipif(
+        django.VERSION < (5, 0), reason="GeneratedField is only available in Django >= 5"
+    )
+    def test_get_geojson_generated_field(
+        self,
+        client,
+        generated_field,
+        django_assert_max_num_queries,
+        coordinates,
+    ):
+        """Prove that the geojson export works.
+
+        Including 2 objects to prove that the list rendering
+        also includes comma's properly.
+        """
+        with django_assert_max_num_queries(2):
+            response = client.get(
+                "/v1/wfs-gen-field/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=modelwithgeneratedfields"
+                "&outputformat=geojson"
+            )
+            assert response["content-type"] == "application/geo+json; charset=utf-8"
+            content = read_response(response)
+            assert response.status_code == 200, content
+
+        data = read_json(content)
+
+        assert data == {
+            "type": "FeatureCollection",
+            "links": [],
+            "timeStamp": data["timeStamp"],
+            "numberMatched": 1,
+            "numberReturned": 1,
+            "crs": {
+                "type": "name",
+                "properties": {"name": "urn:ogc:def:crs:EPSG::4326"},
+            },
+            "features": [
+                {
+                    "type": "Feature",
+                    "id": f"modelwithgeneratedfields.{generated_field.id}",
+                    "geometry_name": "Palindrome",
+                    "geometry": {
+                        "type": "Point",
+                        "coordinates": coordinates.translated_geojson,
+                    },
+                    "properties": {
+                        "id": generated_field.id,
+                        "name": "Palindrome",
+                        "name_reversed": "emordnilaP",
                     },
                 },
             ],

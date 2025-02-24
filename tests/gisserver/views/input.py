@@ -395,3 +395,19 @@ SORT_BY = {
     "rating-desc": ("rating DESC", ["Café Noir", "Foo Bar"]),
     "rating,name-asc": ("rating,name ASC", ["Foo Bar", "Café Noir"]),
 }
+
+GENERATED_FIELD_FILTER = {
+    "name_reversed": (
+        """
+        <fes:Filter xmlns:fes="http://www.opengis.net/fes/2.0"
+                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                xsi:schemaLocation="http://www.opengis.net/fes/2.0
+                http://schemas.opengis.net/filter/2.0/filterAll.xsd">
+            <fes:PropertyIsEqualTo>
+                <fes:ValueReference>name_reversed</fes:ValueReference>
+                <fes:Literal>emordnilaP</fes:Literal>
+            </fes:PropertyIsEqualTo>
+        </fes:Filter>
+        """
+    )
+}
