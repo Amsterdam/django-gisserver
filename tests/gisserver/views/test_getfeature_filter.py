@@ -1,5 +1,6 @@
 from urllib.parse import quote_plus
 
+import django
 import pytest
 
 from gisserver.geometries import WGS84
@@ -8,6 +9,7 @@ from tests.gisserver.views.input import (
     COMPLEX_FILTERS,
     FILTERS,
     FLATTENED_FILTERS,
+    GENERATED_FIELD_FILTER,
     INVALID_FILTERS,
 )
 from tests.utils import WFS_20_XSD, read_response, validate_xsd
@@ -52,6 +54,31 @@ class TestGetFeature:
         xml_doc = validate_xsd(content2, WFS_20_XSD)
         assert xml_doc.attrib["numberMatched"] == "0"
         assert xml_doc.attrib["numberReturned"] == "0"
+
+    @pytest.mark.skipif(
+        django.VERSION < (5, 0), reason="GeneratedField is only available in Django >= 5"
+    )
+    def test_get_bbox_generated_field(self, client, generated_field):
+        """Prove that that parsing BBOX=... works for GeneratedField"""
+        # The `geometry` field falls outside of this bbox, only the
+        # `geometry_translated` GeneratedField falls inside it.
+        response = client.get(
+            "/v1/wfs-gen-field/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=modelwithgeneratedfields"
+            "&BBOX=5,53,6,55,urn:ogc:def:crs:EPSG::4326"
+        )
+        content = read_response(response)
+        assert response["content-type"] == "text/xml; charset=utf-8", content
+        assert response.status_code == 200, content
+        assert "</wfs:FeatureCollection>" in content
+
+        # Validate against the WFS 2.0 XSD
+        xml_doc = validate_xsd(content, WFS_20_XSD)
+        assert xml_doc.attrib["numberMatched"] == "1"
+        assert xml_doc.attrib["numberReturned"] == "1"
+        # Prove that the output is still rendered in WGS84
+        feature = xml_doc.find("wfs:member/app:modelwithgeneratedfields", namespaces=NAMESPACES)
+        geometry = feature.find("app:geometry/gml:Point", namespaces=NAMESPACES)
+        assert geometry.attrib["srsName"] == WGS84.urn
 
     @pytest.mark.parametrize("filter_name", list(FILTERS.keys()))
     def test_get_filter(self, client, restaurant, bad_restaurant, filter_name):
@@ -127,3 +154,31 @@ class TestGetFeature:
 
         assert exception.attrib["exceptionCode"] == expect_exception.code, message
         assert message == expect_exception.text
+
+    @pytest.mark.skipif(
+        django.VERSION < (5, 0), reason="GeneratedField is only available in Django >= 5"
+    )
+    def test_get_filter_generated_field(self, client, generated_field):
+        """Filters on a GeneratedField value."""
+        response = client.get(
+            "/v1/wfs-gen-field/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=modelwithgeneratedfields"
+            "&FILTER=" + quote_plus(GENERATED_FIELD_FILTER["name_reversed"])
+        )
+        content = read_response(response)
+        assert response["content-type"] == "text/xml; charset=utf-8", content
+        assert response.status_code == 200, content
+        assert "</wfs:FeatureCollection>" in content
+
+        # Validate against the WFS 2.0 XSD
+        xml_doc = validate_xsd(content, WFS_20_XSD)
+        assert xml_doc.attrib["numberMatched"] == "1"
+        assert xml_doc.attrib["numberReturned"] == "1"
+
+        # Prove that the output is still rendered in WGS84
+        feature = xml_doc.find("wfs:member/app:modelwithgeneratedfields", namespaces=NAMESPACES)
+        geometry = feature.find("app:geometry/gml:Point", namespaces=NAMESPACES)
+        assert geometry.attrib["srsName"] == WGS84.urn
+
+        # Assert that the correct object was matched
+        name = feature.find("app:name", namespaces=NAMESPACES).text
+        assert name == generated_field.name

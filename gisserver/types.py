@@ -34,6 +34,7 @@ from enum import Enum
 from functools import cached_property, reduce
 from typing import TYPE_CHECKING, Literal
 
+import django
 from django.conf import settings
 from django.contrib.gis.db.models import F, GeometryField
 from django.contrib.gis.geos import GEOSGeometry
@@ -52,6 +53,8 @@ if "django.contrib.postgres" in settings.INSTALLED_APPS:
     from django.contrib.postgres.fields import ArrayField
 else:
     ArrayField = None
+
+GeneratedField = models.GeneratedField if django.VERSION >= (5, 0) else type(None)
 
 
 __all__ = [
@@ -631,11 +634,27 @@ class XsdAttribute(XsdNode):
 
 
 class GmlElement(XsdElement):
-    """Essentially the same as an XsdElement, but guarantee it returns a GeoDjango model field.
-    This only exists as "protocol" for the type annotations.
+    """A subtype for the :class:`XsdElement` that provides access to geometry data.
+
+    The :attr:`source` is guaranteed to point to a :class:`~django.contrib.gis.models.GeometryField`,
+    and can be a :class:`~django.db.models.GeneratedField` in Django 5
+    as long as its ``output_field`` points to a :class:`~django.contrib.gis.models.GeometryField`.
     """
 
-    source: GeometryField
+    if django.VERSION >= (5, 0):
+        source: GeometryField | models.GeneratedField
+    else:
+        source: GeometryField
+
+    @cached_property
+    def source_srid(self) -> int:
+        """Tell which Spatial Reference Identifier the source information is stored under."""
+        if isinstance(self.source, GeneratedField):
+            # Allow GeometryField to be wrapped as:
+            # models.GeneratedField(SomeFunction("geofield"), output_field=models.GeometryField())
+            return self.source.output_field.srid
+        else:
+            return self.source.srid
 
 
 class GmlIdAttribute(XsdAttribute):

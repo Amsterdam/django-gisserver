@@ -1,3 +1,4 @@
+import django
 from django.urls import path
 
 from . import views
@@ -20,3 +21,12 @@ urlpatterns = [
         name="wfs-view-relatedgeometry",
     ),
 ]
+
+if django.VERSION >= (5, 0):
+    urlpatterns += [
+        path(
+            "v1/wfs-gen-field/",
+            views.GeneratedFieldWFSView.as_view(),
+            name="wfs-generated-fields",
+        ),
+    ]

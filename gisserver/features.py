@@ -23,6 +23,7 @@ from dataclasses import dataclass
 from functools import cached_property, lru_cache
 from typing import TYPE_CHECKING, Literal, Union
 
+import django
 from django.conf import settings
 from django.contrib.gis.db import models as gis_models
 from django.contrib.gis.db.models import Extent, GeometryField
@@ -44,6 +45,8 @@ from gisserver.types import (
     XsdElement,
     XsdTypes,
 )
+
+GeneratedField = models.GeneratedField if django.VERSION >= (5, 0) else type(None)
 
 if "django.contrib.postgres" in settings.INSTALLED_APPS:
     from django.contrib.postgres.fields import ArrayField
@@ -98,6 +101,10 @@ def get_basic_field_type(
         # Determine the type based on the contents.
         # The array notation is written as "is_many"
         model_field = model_field.base_field
+
+    if isinstance(model_field, GeneratedField):
+        # Allow things like: models.GeneratedField(SomeFunction("geofield"), output_field=models.GeometryField())
+        model_field = model_field.output_field
 
     try:
         # Direct instance, quickly resolved!
@@ -175,7 +182,7 @@ class FeatureField:
     """
 
     #: Allow to override the XSD element type that this field will generate.
-    xsd_element_class: type[XsdElement] = XsdElement
+    xsd_element_class: type[XsdElement] = None
 
     model: type[models.Model] | None
     model_field: models.Field | ForeignObjectRel | None
@@ -216,6 +223,7 @@ class FeatureField:
             self.xsd_element_class = xsd_class
 
         self._nillable_relation = False
+        self._nillable_output_field = False
         if model is not None:
             self.bind(model, parent=parent, feature_type=feature_type)
 
@@ -284,6 +292,8 @@ class FeatureField:
         else:
             try:
                 self.model_field = self.model._meta.get_field(self.name)
+                if isinstance(self.model_field, GeneratedField):
+                    self._nillable_output_field = self.model_field.output_field.null
             except FieldDoesNotExist as e:
                 raise ImproperlyConfigured(
                     f"FeatureField '{self.name}' can't be resolved for model '{self.model.__name__}'."
@@ -312,8 +322,10 @@ class FeatureField:
         if self.model_field is None:
             raise RuntimeError(f"bind() was not called for {self!r}")
 
+        xsd_type = self._get_xsd_type()
+
         # Determine max number of occurrences.
-        if isinstance(self.model_field, GeometryField):
+        if xsd_type.is_geometry:
             max_occurs = 1  # be explicit here, like mapserver does.
         elif self.model_field.many_to_many or self.model_field.one_to_many:
             max_occurs = "unbounded"  # M2M or reverse FK field
@@ -322,10 +334,17 @@ class FeatureField:
         else:
             max_occurs = None  # default is 1, but attribute can be left out.
 
-        return self.xsd_element_class(
+        # Determine which subclass to use for the element.
+        xsd_element_class = self.xsd_element_class or (
+            GmlElement if xsd_type.is_geometry else XsdElement
+        )
+
+        return xsd_element_class(
             name=self.name,
-            type=self._get_xsd_type(),
-            nillable=self.model_field.null or self._nillable_relation,
+            type=xsd_type,
+            nillable=(
+                self.model_field.null or self._nillable_relation or self._nillable_output_field
+            ),
             min_occurs=0,
             max_occurs=max_occurs,
             model_attribute=self.model_attribute,
@@ -644,7 +663,7 @@ class FeatureType:
         """Tell which projection the data should be presented at."""
         if self._crs is None:
             # Default CRS
-            return CRS.from_srid(self.main_geometry_element.source.srid)  # checks lookup too
+            return CRS.from_srid(self.main_geometry_element.source_srid)  # checks lookup too
         else:
             return self._crs
 

@@ -143,7 +143,7 @@ def get_db_geometry_target(
     The path will be wrapped into a CRS Transform function if needed.
     """
     orm_path = gml_element.local_orm_path if use_relative_path else gml_element.orm_path
-    if gml_element.source.srid != output_crs.srid:
+    if gml_element.source_srid != output_crs.srid:
         return functions.Transform(orm_path, srid=output_crs.srid)
     else:
         return orm_path
