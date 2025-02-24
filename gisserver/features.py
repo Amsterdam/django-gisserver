@@ -50,7 +50,19 @@ else:
     ArrayField = None
 
 # GeneratedField is only available in Django 5 and later, fall back on Nonetype
-GeneratedField = getattr(models, "GeneratedField", type(None))
+if hasattr(models, "GeneratedField"):
+    GeneratedField = models.GeneratedField
+
+    def patch_getattr(self, name):
+        return getattr(self.output_field, name)
+
+    # Override so we can access attributes of the output_field, which are used in
+    # some places. Prevents having to do this separately for each attribute.
+    # `__getattr__` is called once `__getattribute__` raises an AttributeError.
+    # TODO: should we expose our patched version of GeneratedField so users can use it?
+    GeneratedField.__getattr__ = patch_getattr
+else:
+    GeneratedField = type(None)
 
 if TYPE_CHECKING:
     from gisserver.queries import FeatureRelation
