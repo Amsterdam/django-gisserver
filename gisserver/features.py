@@ -49,6 +49,9 @@ if "django.contrib.postgres" in settings.INSTALLED_APPS:
 else:
     ArrayField = None
 
+# GeneratedField is only available in Django 5 and later, fall back on Nonetype
+GeneratedField = getattr(models, "GeneratedField", type(None))
+
 if TYPE_CHECKING:
     from gisserver.queries import FeatureRelation
 
@@ -95,6 +98,9 @@ def get_basic_field_type(
         # Determine the type based on the contents.
         # The array notation is written as "is_many"
         model_field = model_field.base_field
+
+    if isinstance(model_field, GeneratedField):
+        model_field = model_field.output_field
 
     try:
         # Direct instance, quickly resolved!
@@ -290,6 +296,10 @@ class FeatureField:
         # Determine max number of occurrences.
         if isinstance(self.model_field, GeometryField):
             max_occurs = 1  # be explicit here, like mapserver does.
+        elif isinstance(self.model_field, GeneratedField) and isinstance(
+            self.model_field.output_field, GeometryField
+        ):
+            max_occurs = 1
         elif self.model_field.many_to_many or self.model_field.one_to_many:
             max_occurs = "unbounded"  # M2M or reverse FK field
         elif ArrayField is not None and isinstance(self.model_field, ArrayField):
@@ -433,7 +443,7 @@ def field(
 class FeatureType:
     """Declare a feature that is exposed on the map.
 
-    All WFS operations use this class to read the feature ype.
+    All WFS operations use this class to read the feature type.
     You may subclass this class to provide extensions,
     such as redefining :meth:`get_queryset`.
 
