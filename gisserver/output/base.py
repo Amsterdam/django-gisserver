@@ -50,7 +50,6 @@ class OutputRenderer:
         :param method: The calling WFS Method (e.g. GetFeature class)
         :param source_query: The query that generated this output.
         :param collection: The collected data for rendering.
-        :param projection: Which fields to render.
         :param output_crs: The requested output projection.
         """
         self.method = method

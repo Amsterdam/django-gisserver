@@ -141,7 +141,7 @@ def _get_model_fields(
                 feature_type=feature_type,
             )
             for f in model._meta.get_fields()
-            if not f.is_relation or f.many_to_one or f.one_to_one  # ForeignKey  # OneToOneField
+            if not f.is_relation or f.many_to_one or f.one_to_one  # ForeignKey, OneToOneField
         ]
     else:
         # Only defined fields
@@ -433,7 +433,7 @@ def field(
 class FeatureType:
     """Declare a feature that is exposed on the map.
 
-    All WFS operations use this class to read the feature ype.
+    All WFS operations use this class to read the feature type.
     You may subclass this class to provide extensions,
     such as redefining :meth:`get_queryset`.
 
