@@ -528,7 +528,6 @@ class TestGetFeature:
         xml_doc = validate_xsd(content, WFS_20_XSD)
         timestamp = xml_doc.attrib["timeStamp"]
 
-        print(content.decode("utf-8"))
         assert_xml_equal(
             content,
             f"""<wfs:FeatureCollection
