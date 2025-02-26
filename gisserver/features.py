@@ -252,29 +252,35 @@ class FeatureField:
             field_path = self.model_attribute.split(".")
             try:
                 field: models.Field = self.model._meta.get_field(field_path[0])
+
+                for name in field_path[1:]:
+                    if field.null:
+                        self._nillable_relation = True
+
+                    if not field.is_relation:
+                        # Note this tests the previous loop variable, so it checks whether the
+                        # field can be walked into in order to resolve the next dotted name below.
+                        raise ImproperlyConfigured(
+                            f"FeatureField '{self.name}' has an invalid model_attribute: "
+                            f"field '{name}' is a '{field.__class__.__name__}', not a relation."
+                        )
+
+                    field = field.related_model._meta.get_field(name)
+                self.model_field = field
             except FieldDoesNotExist as e:
                 raise ImproperlyConfigured(
                     f"FeatureField '{self.name}' has an invalid"
                     f" model_attribute: '{self.model_attribute}' can't be"
                     f" resolved for model '{self.model.__name__}'."
                 ) from e
-
-            for name in field_path[1:]:
-                if field.null:
-                    self._nillable_relation = True
-
-                if not field.is_relation:
-                    # Note this tests the previous loop variable, so it checks whether the
-                    # field can be walked into in order to resolve the next dotted name below.
-                    raise ImproperlyConfigured(
-                        f"FeatureField '{field.name}' has an invalid model_attribute: "
-                        f"field '{name}' is a '{field.__class__.__name__}', not a relation."
-                    )
-
-                field = field.related_model._meta.get_field(name)
-            self.model_field = field
         else:
-            self.model_field = self.model._meta.get_field(self.name)
+            try:
+                self.model_field = self.model._meta.get_field(self.name)
+            except FieldDoesNotExist as e:
+                raise ImproperlyConfigured(
+                    f"FeatureField '{self.name}' can't be resolved for model '{self.model.__name__}'."
+                    " Either set 'model_attribute' or change the name."
+                ) from e
 
     @cached_property
     def xsd_element(self) -> XsdElement:
