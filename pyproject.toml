@@ -1,6 +1,6 @@
 # ==== pytest ====
 [tool.pytest.ini_options]
-strict = true
+xfail_strict = true
 minversion = "6.0"
 django_find_project = false
 pythonpath = "."
@@ -8,7 +8,8 @@ testpaths = ["tests"]
 addopts = [
     "--nomigrations",
     "--reuse-db",
-    "--ds=tests.settings"
+    "--ds=tests.settings",
+    "--strict-markers"
 ]
 
 # ==== Coverage ====
