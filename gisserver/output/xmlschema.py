@@ -83,22 +83,19 @@ class XMLSchemaRenderer(OutputRenderer):
     def render_complex_type(self, complex_type: XsdComplexType):
         """Write the definition of a single class."""
         output = StringIO()
-        output.write(
-            f'  <complexType name="{complex_type.name}">\n'
-            "    <complexContent>\n"
-            f'      <extension base="{complex_type.base}">\n'
-            "        <sequence>\n"
-        )
+        output.write(f'  <complexType name="{complex_type.name}">\n    <complexContent>\n')
+        if complex_type.base is not None:
+            output.write(f'      <extension base="{complex_type.base}">\n')
+
+        output.write("        <sequence>\n")
 
         for xsd_element in complex_type.elements:
             output.write(f"          {xsd_element}\n")
 
-        output.write(
-            "        </sequence>\n"
-            "      </extension>\n"
-            "    </complexContent>\n"
-            "  </complexType>\n\n"
-        )
+        output.write("        </sequence>\n")
+        if complex_type.base is not None:
+            output.write("      </extension>\n")
+        output.write("    </complexContent>\n  </complexType>\n\n")
         return output.getvalue()
 
     def _get_complex_types(self, root: XsdComplexType) -> Iterable[XsdComplexType]:
