@@ -743,13 +743,23 @@ class XsdComplexType(XsdAnyType):
 
     #: The base class of this type. Typically gml:AbstractFeatureType,
     #: which provides the <gml:name> and <gml:boundedBy> elements.
-    base: XsdAnyType = XsdTypes.gmlAbstractFeatureType
+    base: XsdAnyType | None = None
 
     #: The prefix alias to use for the namespace.
     prefix: str = "app"
 
     #: The Django model class that this type was based on.
     source: type[models.Model] | None = None
+
+    def __post_init__(self):
+        # Autodetect (or autocorrect) to have the proper base class when gml elements are present.
+        if self.base is None:
+            if any(e.type.is_geometry for e in self.elements):
+                # for <gml:name> and <gml:boundedBy> elements.
+                self.__dict__["base"] = XsdTypes.gmlAbstractFeatureType
+            elif any(e.type is XsdTypes.gmlCodeType for e in self.elements):
+                # for <gml:name> only
+                self.__dict__["base"] = XsdTypes.gmlAbstractGMLType
 
     def __str__(self):
         return self.xml_name
@@ -766,7 +776,7 @@ class XsdComplexType(XsdAnyType):
     @cached_property
     def all_elements(self) -> list[XsdElement]:
         """All elements, including inherited elements."""
-        if self.base.is_complex_type:
+        if self.base is not None and self.base.is_complex_type:
             # Add all base class members, in their correct ordering
             # By having these as XsdElement objects instead of hard-coded writes,
             # the query/filter logic also works for these elements.
@@ -860,7 +870,7 @@ class XsdComplexType(XsdAnyType):
                     return element
 
         # When there is a base class, resolve elements there too.
-        if self.base.is_complex_type:
+        if self.base is not None and self.base.is_complex_type:
             return self.base._find_element(xml_name)
         return None
 
@@ -879,7 +889,7 @@ class XsdComplexType(XsdAnyType):
                     return attribute
 
         # When there is a base class, resolve attributes there too.
-        if self.base.is_complex_type:
+        if self.base is not None and self.base.is_complex_type:
             return self.base._find_attribute(xml_name)
         return None
 
