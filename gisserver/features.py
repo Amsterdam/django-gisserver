@@ -329,7 +329,7 @@ class ComplexFeatureField(FeatureField):
         model=None,
         abstract=None,
         xsd_class=None,
-        xsd_base_type=XsdTypes.gmlAbstractFeatureType,
+        xsd_base_type=None,
     ):
         """
         :param name: Name of the model field.

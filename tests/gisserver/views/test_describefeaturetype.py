@@ -126,24 +126,20 @@ class TestDescribeFeatureType:
 
   <complexType name="CityType">
     <complexContent>
-      <extension base="gml:AbstractFeatureType">
-        <sequence>
-          <element name="id" type="integer" minOccurs="0" />
-          <element name="name" type="string" minOccurs="0" />
-        </sequence>
-      </extension>
+      <sequence>
+        <element name="id" type="integer" minOccurs="0" />
+        <element name="name" type="string" minOccurs="0" />
+      </sequence>
     </complexContent>
   </complexType>
 
   <complexType name="OpeningHourType">
     <complexContent>
-      <extension base="gml:AbstractFeatureType">
-        <sequence>
-          <element name="weekday" type="integer" minOccurs="0" />
-          <element name="start_time" type="time" minOccurs="0" />
-          <element name="end_time" type="time" minOccurs="0" />
-        </sequence>
-      </extension>
+      <sequence>
+        <element name="weekday" type="integer" minOccurs="0" />
+        <element name="start_time" type="time" minOccurs="0" />
+        <element name="end_time" type="time" minOccurs="0" />
+      </sequence>
     </complexContent>
   </complexType>
 
