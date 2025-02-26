@@ -744,7 +744,7 @@ class FeatureType:
     def xsd_type(self) -> XsdComplexType:
         """Return the definition of this feature as an XSD Complex Type."""
         return self.xsd_type_class(
-            name=f"{self.name.title()}Type",
+            name=f"{self.name[0].upper()}{self.name[1:]}Type",
             elements=[field.xsd_element for field in self.fields],
             base=self.xsd_base_type,
             source=self.model,
