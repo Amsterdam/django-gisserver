@@ -59,6 +59,11 @@ class CoordinateInputs:
     point1_xml_wgs84: str
     point1_xml_rd: str
 
+    translated_wgs84: Point  # How GeoDjango retrieved the object from the database
+    translated_ewkt: str
+    translated_geojson: list[Decimal]
+    translated_xml_wgs84: str
+
     point2_wgs84: Point  # Retrieved from db.
     point2_ewkt: str
     point2_geojson: list[Decimal]
@@ -110,9 +115,13 @@ def db_coordinates(django_db_setup, django_db_blocker):
         cursor.execute(
             "SELECT"
             f" ST_Transform({point1}, 4326) as point1_wgs84,"
+            f" ST_Translate(ST_Transform({point1}, 4326), 1.0, 1.0) as translated_wgs84,"
             f" ST_AsEWKT(ST_Transform({point1}, 4326), {pr}) as point1_ewkt,"
+            f" ST_AsEWKT(ST_Translate(ST_Transform({point1}, 4326), 1.0, 1.0), {pr}) as translated_ewkt,"
             f" ST_AsGeoJson(ST_Transform({point1}, 4326), {pr}) as point1_geojson,"
+            f" ST_AsGeoJson(ST_Translate(ST_Transform({point1}, 4326), 1.0, 1.0), {pr}) as translated_geojson,"
             f" ST_AsGML(3, ST_Transform({point1}, 4326), {pr}, 1) as point1_xml_wgs84,"
+            f" ST_AsGML(3, ST_Translate(ST_Transform({point1}, 4326), 1.0, 1.0), {pr}, 1) as translated_xml_wgs84,"
             f" ST_AsGML(3, ST_Transform(ST_Transform({point1}, 4326), 28992), {pr}, 1) as point1_xml_rd,"  # noqa: E501
             f" ST_Transform({point2}, 4326) as point2_wgs84,"
             f" ST_AsEWKT(ST_Transform({point2}, 4326), {pr}) as point2_ewkt,"
@@ -134,6 +143,10 @@ def db_coordinates(django_db_setup, django_db_blocker):
             point1_geojson=_get_geojson(result["point1_geojson"]),
             point1_xml_wgs84=_get_gml(result["point1_xml_wgs84"]),
             point1_xml_rd=_get_gml(result["point1_xml_rd"]),
+            translated_wgs84=_get_point(result["translated_wgs84"]),
+            translated_ewkt=result["translated_ewkt"],
+            translated_geojson=_get_geojson(result["translated_geojson"]),
+            translated_xml_wgs84=_get_gml(result["translated_xml_wgs84"]),
             point2_wgs84=_get_point(result["point2_wgs84"]),
             point2_ewkt=result["point2_ewkt"],
             point2_geojson=_get_geojson(result["point2_geojson"]),
@@ -148,6 +161,7 @@ def python_coordinates(db_coordinates):
     # Saving a RD-NEW coordinate in the database will transform the data to WGS84 on saving,
     # but this happens inside the database itself as the SRID of the field differs from the input.
     point1_wgs84 = db_coordinates.point1_wgs84
+    translated_wgs84 = db_coordinates.translated_wgs84
     point2_wgs84 = db_coordinates.point2_wgs84
 
     point1_rd_back = RD_NEW.apply_to(point1_wgs84, clone=True)
@@ -157,6 +171,10 @@ def python_coordinates(db_coordinates):
         point1_geojson=_get_geojson(point1_wgs84.json),
         point1_xml_wgs84=" ".join(map(str, point1_wgs84.coords)),
         point1_xml_rd=" ".join(map(str, point1_rd_back.coords)),
+        translated_wgs84=translated_wgs84,  # How data from PointField is returned
+        translated_ewkt=translated_wgs84.ewkt,
+        translated_geojson=_get_geojson(translated_wgs84.json),
+        translated_xml_wgs84=" ".join(map(str, translated_wgs84.coords)),
         point2_wgs84=point2_wgs84,  # How data from PointField is returned
         point2_ewkt=point2_wgs84.ewkt,
         point2_geojson=_get_geojson(point2_wgs84.json),

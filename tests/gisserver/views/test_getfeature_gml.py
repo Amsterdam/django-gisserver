@@ -602,12 +602,12 @@ class TestGetFeature:
             <app:name_reversed>emordnilaP</app:name_reversed>
             <app:geometry>
                 <gml:Point srsName="urn:ogc:def:crs:EPSG::4326" gml:id="modelwithgeneratedfields.{generated_field.id}.1">
-                    <gml:pos srsDimension="2">4.908760945629642 52.3631712621518</gml:pos>
+                    <gml:pos srsDimension="2">{coordinates.point1_xml_wgs84}</gml:pos>
                 </gml:Point>
             </app:geometry>
             <app:geometry_translated>
                 <gml:Point srsName="urn:ogc:def:crs:EPSG::4326" gml:id="modelwithgeneratedfields.{generated_field.id}.2">
-                    <gml:pos srsDimension="2">5.908760945629642 53.3631712621518</gml:pos>
+                    <gml:pos srsDimension="2">{coordinates.translated_xml_wgs84}</gml:pos>
                 </gml:Point>
             </app:geometry_translated>
         </app:modelwithgeneratedfields>

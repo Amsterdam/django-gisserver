@@ -115,9 +115,7 @@ class TestGetFeature:
             assert response.status_code == 200, content
 
         data = read_json(content)
-        expected_coordinates = [x + 1.0 for x in coordinates.point1_geojson]
 
-        assert data["features"][0]["geometry"]["coordinates"] == expected_coordinates
         assert data == {
             "type": "FeatureCollection",
             "links": [],
@@ -135,7 +133,7 @@ class TestGetFeature:
                     "geometry_name": "Palindrome",
                     "geometry": {
                         "type": "Point",
-                        "coordinates": expected_coordinates,
+                        "coordinates": coordinates.translated_geojson,
                     },
                     "properties": {
                         "id": generated_field.id,
