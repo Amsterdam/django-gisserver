@@ -1,3 +1,4 @@
+import django
 import pytest
 from django.db import OperationalError
 
@@ -552,4 +553,64 @@ class TestGetFeature:
               </wfs:truncatedResponse>
             </wfs:FeatureCollection>
         """,
+        )
+
+    @pytest.mark.skipif(
+        django.VERSION < (5, 0), reason="GeneratedField is only available in Django >= 5"
+    )
+    def test_get_works_with_generated_field(self, client, generated_field, coordinates):
+        """Prove that we can fetch Generated Fields"""
+        response = client.get(
+            "/v1/wfs-gen-field/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=modelwithgeneratedfields"
+        )
+        content = read_response(response)
+        assert response["content-type"] == "text/xml; charset=utf-8", content
+        assert response.status_code == 200, content
+        assert "</wfs:FeatureCollection>" in content
+
+        # Validate against the WFS 2.0 XSD
+        xml_doc = validate_xsd(content, WFS_20_XSD)
+        assert xml_doc.attrib["numberMatched"] == "1"
+        assert xml_doc.attrib["numberReturned"] == "1"
+
+        # See whether our feature is rendered
+        feature = xml_doc.find("wfs:member/app:modelwithgeneratedfields", namespaces=NAMESPACES)
+        assert feature is not None
+        assert feature.find("app:name", namespaces=NAMESPACES).text == generated_field.name
+        assert (
+            feature.find("app:name_reversed", namespaces=NAMESPACES).text
+            == generated_field.name_reversed
+        )
+        timestamp = xml_doc.attrib["timeStamp"]
+        assert_xml_equal(
+            content,
+            f"""<wfs:FeatureCollection xmlns:wfs="http://www.opengis.net/wfs/2.0"
+    xmlns:gml="http://www.opengis.net/gml/3.2"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:app="http://example.org/gisserver" xsi:schemaLocation="http://example.org/gisserver http://testserver/v1/wfs-gen-field/?SERVICE=WFS&amp;VERSION=2.0.0&amp;REQUEST=DescribeFeatureType&amp;TYPENAMES=modelwithgeneratedfields http://www.opengis.net/wfs/2.0 http://schemas.opengis.net/wfs/2.0/wfs.xsd http://www.opengis.net/gml/3.2 http://schemas.opengis.net/gml/3.2.1/gml.xsd" timeStamp="{timestamp}" numberMatched="1" numberReturned="1">
+    <wfs:member>
+        <app:modelwithgeneratedfields gml:id="modelwithgeneratedfields.{generated_field.id}">
+            <gml:name>Palindrome</gml:name>
+            <gml:boundedBy>
+                <gml:Envelope srsName="urn:ogc:def:crs:EPSG::4326" srsDimension="2">
+                    <gml:lowerCorner>4.90876054763794 52.3631706237793</gml:lowerCorner>
+                    <gml:upperCorner>5.908761024475098 54.36317443847656</gml:upperCorner>
+                </gml:Envelope>
+            </gml:boundedBy>
+            <app:id>{generated_field.id}</app:id>
+            <app:name>Palindrome</app:name>
+            <app:name_reversed>emordnilaP</app:name_reversed>
+            <app:geometry>
+                <gml:Point srsName="urn:ogc:def:crs:EPSG::4326" gml:id="modelwithgeneratedfields.{generated_field.id}.1">
+                    <gml:pos srsDimension="2">4.908760945629642 52.3631712621518</gml:pos>
+                </gml:Point>
+            </app:geometry>
+            <app:geometry_translated>
+                <gml:Point srsName="urn:ogc:def:crs:EPSG::4326" gml:id="modelwithgeneratedfields.{generated_field.id}.2">
+                    <gml:pos srsDimension="2">5.908760945629642 54.3631712621518</gml:pos>
+                </gml:Point>
+            </app:geometry_translated>
+        </app:modelwithgeneratedfields>
+    </wfs:member>
+</wfs:FeatureCollection>""",  # noqa: E501
         )
