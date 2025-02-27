@@ -19,7 +19,13 @@ from psycopg2 import Binary
 from gisserver import conf
 from gisserver.types import GML32
 from tests.constants import RD_NEW, RD_NEW_SRID
-from tests.test_gisserver.models import City, OpeningHour, Restaurant, current_datetime
+from tests.test_gisserver.models import (
+    City,
+    ModelWithGeneratedFields,
+    OpeningHour,
+    Restaurant,
+    current_datetime,
+)
 from tests.utils import read_json
 from tests.xsd_download import download_schema
 
@@ -194,6 +200,16 @@ def bad_restaurant() -> Restaurant:
         is_open=False,
         created=current_datetime() + timedelta(hours=8),
     )
+
+
+@pytest.fixture()
+def generated_field() -> ModelWithGeneratedFields:
+    if django.VERSION >= (5, 0):
+        return ModelWithGeneratedFields.objects.create(
+            name="Palindrome", geometry=CoordinateInputs.point1_rd
+        )
+    else:
+        return None
 
 
 @pytest.fixture(scope="session")
