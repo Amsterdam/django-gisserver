@@ -3,7 +3,7 @@ from django.core.exceptions import PermissionDenied
 from gisserver.features import FeatureType, ServiceDescription, field
 from gisserver.views import WFSView
 from tests.constants import RD_NEW
-from tests.test_gisserver.models import Restaurant
+from tests.test_gisserver.models import ModelWithGeneratedFields, Restaurant
 
 
 class DeniedFeatureType(FeatureType):
@@ -83,6 +83,23 @@ class FlattenedWFSView(PlacesWFSView):
                 "is_open",
                 "created",
                 "tags",  # array field
+            ],
+        ),
+    ]
+
+
+class GeneratedFieldWFSView(PlacesWFSView):
+    """A view that has a type with GeneratedFields"""
+
+    feature_types = [
+        FeatureType(
+            ModelWithGeneratedFields.objects.all(),
+            fields=[
+                "id",
+                "name",
+                "name_reversed",  # GeneratedField(output_field=CharField)
+                "geometry",
+                "geometry_translated",  # GeneratedField(output_field=PointField)
             ],
         ),
     ]

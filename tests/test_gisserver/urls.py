@@ -14,4 +14,9 @@ urlpatterns = [
         views.FlattenedWFSView.as_view(),
         name="wfs-view-flattened",
     ),
+    path(
+        "v1/wfs-gen-field/",
+        views.GeneratedFieldWFSView.as_view(),
+        name="wfs-generated-fields",
+    ),
 ]
