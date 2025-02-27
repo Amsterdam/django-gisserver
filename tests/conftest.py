@@ -17,6 +17,7 @@ from django.db import connection
 from psycopg2 import Binary
 
 from gisserver import conf
+from gisserver.output.gml32 import DBGML32Renderer, GML32Renderer
 from gisserver.types import GML32
 from tests.constants import RD_NEW, RD_NEW_SRID
 from tests.test_gisserver.models import (
@@ -228,6 +229,15 @@ def generated_field() -> ModelWithGeneratedFields:
         )
     else:
         return None
+
+
+@pytest.fixture()
+def patch_write_bounds(monkeypatch, coordinates: CoordinateInputs):
+    def write_bounds(self, _projection, _instance):
+        self._write("""<gml:boundedBy></gml:boundedBy>\n""")
+
+    monkeypatch.setattr(DBGML32Renderer, "write_bounds", write_bounds)
+    monkeypatch.setattr(GML32Renderer, "write_bounds", write_bounds)
 
 
 @pytest.fixture(scope="session")

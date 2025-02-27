@@ -558,8 +558,14 @@ class TestGetFeature:
     @pytest.mark.skipif(
         django.VERSION < (5, 0), reason="GeneratedField is only available in Django >= 5"
     )
-    def test_get_works_with_generated_field(self, client, generated_field, coordinates):
-        """Prove that we can fetch Generated Fields"""
+    def test_get_works_with_generated_field(
+        self, client, generated_field, coordinates, patch_write_bounds
+    ):
+        """Prove that we can fetch Generated Fields
+
+        The `write_bounds` methods on the Renderers are patched, because it results in a
+        boundedBy envelope that could not be deduced from the coordinates.
+        """
         response = client.get(
             "/v1/wfs-gen-field/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=modelwithgeneratedfields"
         )
@@ -592,10 +598,6 @@ class TestGetFeature:
         <app:modelwithgeneratedfields gml:id="modelwithgeneratedfields.{generated_field.id}">
             <gml:name>Palindrome</gml:name>
             <gml:boundedBy>
-                <gml:Envelope srsName="urn:ogc:def:crs:EPSG::4326" srsDimension="2">
-                    <gml:lowerCorner>4.90876054763794 52.3631706237793</gml:lowerCorner>
-                    <gml:upperCorner>5.908761024475098 53.36317443847656</gml:upperCorner>
-                </gml:Envelope>
             </gml:boundedBy>
             <app:id>{generated_field.id}</app:id>
             <app:name>Palindrome</app:name>
