@@ -594,7 +594,7 @@ class TestGetFeature:
             <gml:boundedBy>
                 <gml:Envelope srsName="urn:ogc:def:crs:EPSG::4326" srsDimension="2">
                     <gml:lowerCorner>4.90876054763794 52.3631706237793</gml:lowerCorner>
-                    <gml:upperCorner>5.908761024475098 54.36317443847656</gml:upperCorner>
+                    <gml:upperCorner>5.908761024475098 53.36317443847656</gml:upperCorner>
                 </gml:Envelope>
             </gml:boundedBy>
             <app:id>{generated_field.id}</app:id>
@@ -607,7 +607,7 @@ class TestGetFeature:
             </app:geometry>
             <app:geometry_translated>
                 <gml:Point srsName="urn:ogc:def:crs:EPSG::4326" gml:id="modelwithgeneratedfields.{generated_field.id}.2">
-                    <gml:pos srsDimension="2">5.908760945629642 54.3631712621518</gml:pos>
+                    <gml:pos srsDimension="2">5.908760945629642 53.3631712621518</gml:pos>
                 </gml:Point>
             </app:geometry_translated>
         </app:modelwithgeneratedfields>
