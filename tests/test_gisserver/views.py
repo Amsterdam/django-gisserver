@@ -101,5 +101,7 @@ class GeneratedFieldWFSView(PlacesWFSView):
                 "geometry",
                 "geometry_translated",  # GeneratedField(output_field=PointField)
             ],
+            other_crs=[RD_NEW],
+            geometry_field_name="geometry_translated",
         ),
     ]
