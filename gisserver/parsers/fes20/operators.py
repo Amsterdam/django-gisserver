@@ -579,7 +579,7 @@ class NilOperator(ComparisonOperator):
     @expect_children(1, Expression)
     def from_xml(cls, element: Element):
         return cls(
-            expression=Expression.from_child_xml(element[0]) if element else None,
+            expression=Expression.from_child_xml(element[0]) if element is not None else None,
             nilReason=element.get("nilReason"),
             _source=element.tag,
         )

@@ -17,6 +17,7 @@
 *.db
 .venv/
 .tox/
+.envrc
 /docs/_build/
 /htmlcov/
 
