@@ -179,6 +179,7 @@ class TestPropertyName:
                 ' INNER JOIN "test_gisserver_restaurant_opening_hours"'
                 ' ON ("test_gisserver_openinghour"."id" = "test_gisserver_restaurant_opening_hours"."openinghour_id")'
                 f' WHERE "test_gisserver_restaurant_opening_hours"."restaurant_id" IN ({restaurant_m2m.id}, {bad_restaurant.id})'
+                ' ORDER BY "test_gisserver_openinghour"."weekday" ASC'
             ),
         ]
 
@@ -377,6 +378,7 @@ class TestPropertyName:
                 ' INNER JOIN "test_gisserver_restaurant_opening_hours"'
                 ' ON ("test_gisserver_openinghour"."id" = "test_gisserver_restaurant_opening_hours"."openinghour_id")'
                 f' WHERE "test_gisserver_restaurant_opening_hours"."restaurant_id" IN ({restaurant_m2m.id}, {bad_restaurant.id})'
+                ' ORDER BY "test_gisserver_openinghour"."weekday" ASC'
             ),
         ]
 
