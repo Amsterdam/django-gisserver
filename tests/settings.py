@@ -21,6 +21,24 @@ INSTALLED_APPS = [
     "django.contrib.postgres",
 ]
 
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": True,
+    "handlers": {
+        "console": {
+            "level": "DEBUG",
+            "class": "logging.StreamHandler",
+        },
+    },
+    "root": {
+        "level": "DEBUG",
+        "handlers": ["console"],
+    },
+    "loggers": {
+        "django": {"handlers": ["console"], "level": "INFO", "propagate": False},
+    },
+}
+
 # Test session requirements
 
 SECRET_KEY = "insecure-tests-only"
