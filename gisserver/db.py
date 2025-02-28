@@ -9,7 +9,7 @@ from django.db import connection, connections, models
 
 from gisserver import conf
 from gisserver.geometries import CRS
-from gisserver.types import GmlElement
+from gisserver.types import GmlElement, XsdElement
 
 
 class AsEWKT(functions.GeoFunc):
@@ -78,15 +78,6 @@ def get_geometries_union(
         return reduce(functions.Union, expressions)
 
 
-def conditional_transform(
-    expression: str | functions.GeoFunc, expression_srid: int, output_srid: int
-) -> str | functions.Transform:
-    """Apply a CRS Transform to the queried field if that is needed."""
-    if expression_srid != output_srid:
-        expression = functions.Transform(expression, srid=output_srid)
-    return expression
-
-
 def build_db_annotations(
     selects: dict[str, str | functions.Func],
     name_template: str,
@@ -96,45 +87,54 @@ def build_db_annotations(
     This is used by various DB-optimized rendering methods.
     """
     return {
-        escape_xml_name(name, name_template): wrapper_func(target)
+        _as_annotation_name(name, name_template): wrapper_func(target)
         for name, target in selects.items()
     }
 
 
-def get_db_annotation(instance: models.Model, name: str, name_template: str):
+def get_db_annotation(instance: models.Model, xsd_element: XsdElement, name_template: str):
     """Retrieve the value that an annotation has added to the model."""
     # The "name" allows any XML-tag elements, escape the most obvious
-    escaped_name = escape_xml_name(name, name_template)
+    annotation_name = _as_annotation_name(xsd_element.name, name_template)
     try:
-        return getattr(instance, escaped_name)
+        return getattr(instance, annotation_name)
     except AttributeError as e:
         raise AttributeError(
-            f" DB annotation {instance._meta.model_name}.{escaped_name}"
+            f" DB annotation {instance._meta.model_name}.{annotation_name}"
             f" not found (using {name_template})"
         ) from e
 
 
 @lru_cache
-def escape_xml_name(name: str, template="{name}") -> str:
+def _as_annotation_name(name: str, template="{name}") -> str:
     """Escape an XML name to be used as annotation name."""
     return template.format(name=name.replace(".", "_"))
 
 
 def get_db_geometry_selects(
-    gml_elements: list[GmlElement], output_crs: CRS
+    gml_elements: list[GmlElement], output_crs: CRS, relative_path: bool = False
 ) -> dict[str, str | functions.Transform]:
     """Utility to generate select clauses for the geometry fields of a type.
-    Key is the xsd element name, value is the database select expression.
+    Key is the xsd element path, value is the database select expression.
     """
     return {
-        gml_element.name: get_db_geometry_target(gml_element, output_crs)
+        # Always take ORM path here as alias, avoids conflicts when combining multiple tree levels.
+        (
+            gml_element.local_orm_path if relative_path else gml_element.orm_path
+        ): get_db_geometry_target(gml_element, output_crs, relative_path=relative_path)
         for gml_element in gml_elements
-        if gml_element.source is not None
+        if gml_element.source is not None  # excludes GmlBoundedByElement
     }
 
 
-def get_db_geometry_target(gml_element: GmlElement, output_crs: CRS) -> str | functions.Transform:
-    """Wrap the selection of a geometry field in a CRS Transform if needed."""
-    return conditional_transform(
-        gml_element.orm_path, gml_element.source.srid, output_srid=output_crs.srid
-    )
+def get_db_geometry_target(
+    gml_element: GmlElement, output_crs: CRS, relative_path: bool = False
+) -> str | functions.Transform:
+    """Translate a GML geometry field into the proper expression for retrieving it from the database.
+    The path will be wrapped into a CRS Transform function if needed.
+    """
+    orm_path = gml_element.local_orm_path if relative_path else gml_element.orm_path
+    if gml_element.source_srid != output_crs.srid:
+        return functions.Transform(orm_path, srid=output_crs.srid)
+    else:
+        return orm_path

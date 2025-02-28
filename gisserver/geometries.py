@@ -272,7 +272,7 @@ WGS84 = CRS.from_srid(4326)  # aka EPSG:4326
 
 @dataclass
 class BoundingBox:
-    """A bounding box that describes the extent of a map layer"""
+    """A bounding box (or "envelope") that describes the extent of a map layer"""
 
     south: Decimal  # longitude
     west: Decimal  # latitude

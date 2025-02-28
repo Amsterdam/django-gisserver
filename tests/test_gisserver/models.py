@@ -47,3 +47,15 @@ class Restaurant(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class RestaurantReview(models.Model):
+    """A model whose geometry exists in another model.
+    Can both be used to test reverse relations OR to test geometries on a related model.
+    """
+
+    restaurant = models.ForeignKey(Restaurant, on_delete=models.CASCADE, related_name="reviews")
+    review = models.TextField()
+
+    def __str__(self):
+        return f"{self.restaurant}: {self.review}"

@@ -58,7 +58,7 @@ class TestGetFeature:
     <app:name>Café Noir</app:name>
     <app:city_id>{restaurant.city_id}</app:city_id>
     <app:location>
-        <gml:Point gml:id="restaurant.{restaurant.id}.1" srsName="urn:ogc:def:crs:EPSG::4326">
+        <gml:Point gml:id="Restaurant.{restaurant.id}.1" srsName="urn:ogc:def:crs:EPSG::4326">
             <gml:pos srsDimension="2">{coordinates.point1_xml_wgs84}</gml:pos>
         </gml:Point>
     </app:location>

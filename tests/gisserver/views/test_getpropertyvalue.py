@@ -89,7 +89,7 @@ class TestGetPropertyValue:
        timeStamp="{timestamp}" numberMatched="1" numberReturned="1">
   <wfs:member>
     <app:location>
-      <gml:Point gml:id="restaurant.{restaurant.id}.1" srsName="urn:ogc:def:crs:EPSG::4326">
+      <gml:Point gml:id="Restaurant.{restaurant.id}.1" srsName="urn:ogc:def:crs:EPSG::4326">
         <gml:pos srsDimension="2">{coordinates.point1_xml_wgs84}</gml:pos>
       </gml:Point>
     </app:location>
