@@ -1,14 +1,24 @@
 from __future__ import annotations
 
+import itertools
+import operator
 from collections import defaultdict
+from collections.abc import Callable
 from dataclasses import dataclass
 from functools import cached_property
 
+from django.contrib.gis.geos import GEOSGeometry
 from django.db import models
 
 from gisserver.features import FeatureType
 from gisserver.parsers import fes20
-from gisserver.types import GmlElement, XPathMatch, XsdElement, _XsdElement_WithComplexType
+from gisserver.types import (
+    GmlElement,
+    XPathMatch,
+    XsdElement,
+    XsdTypes,
+    _XsdElement_WithComplexType,
+)
 
 
 class FeatureProjection:
@@ -22,19 +32,22 @@ class FeatureProjection:
     """
 
     feature_type: FeatureType
+    xsd_root_elements: list[XsdElement]
+    xsd_child_nodes: dict[XsdElement | None, list[XsdElement]]
 
     def __init__(self, feature_type: FeatureType, property_names: list[fes20.ValueReference]):
         self.feature_type = feature_type
         self.property_names = property_names
 
         if property_names:
+            # Only a selection of the tree will be rendered.
             # Discover which elements should be rendered.
             child_nodes = self._get_child_nodes_subset()
             self.xsd_root_elements = child_nodes.pop(None)  # Pop it to avoid recursion risks
             self.xsd_child_nodes = child_nodes
         else:
-            # Retrieve all elements.
-            self.xsd_root_elements = feature_type.xsd_type.all_elements
+            # All elements of the tree will be rendered, retrieve all elements.
+            self.xsd_root_elements = feature_type.xsd_type.elements_including_base
             self.xsd_child_nodes = feature_type.xsd_type.elements_with_children
 
     def _get_child_nodes_subset(self) -> dict[XsdElement | None, list[XsdElement]]:
@@ -61,14 +74,52 @@ class FeatureProjection:
         # For now, add to all cached properties:
         # TODO: have a better approach?
         self.xsd_root_elements.append(xsd_element)
-        if xsd_element.is_geometry:
+        if xsd_element.type.is_geometry:
             self.geometry_elements.append(xsd_element)
+            self.all_geometry_elements.append(xsd_element)
 
         if xsd_element.orm_path not in self.only_fields:
             self.only_fields.append(xsd_element.orm_path)
 
         if xsd_element.is_flattened:
-            self.flattened_elements.append(xsd_element)
+            self.all_flattened_elements.append(xsd_element)
+
+    def remove_fields(self, predicate: Callable[[XsdElement], bool]):
+        """Remove elements from the projection based on a given rule.
+        This helps to remove M2M and Array elements for CSV output for example.
+
+        Make sure this function is called as early as possible,
+        before other logic already read these attributes.
+        """
+        self.xsd_root_elements, removed_nodes = _partition(predicate, self.xsd_root_elements)
+        self.xsd_child_nodes = self.xsd_child_nodes.copy()  # avoid touching cached property
+
+        for xsd_child_root, xsd_child_elements in self.xsd_child_nodes.items():
+            if xsd_child_root.is_many:
+                removed_nodes.add(xsd_child_root)
+            else:
+                self.xsd_child_nodes[xsd_child_root], more_removed = _partition(
+                    predicate, xsd_child_elements
+                )
+                removed_nodes.update(more_removed)
+
+        # Remove complete trees if their parent was removed.
+        for xsd_child_root in list(self.xsd_child_nodes):
+            if xsd_child_root in removed_nodes:
+                self.xsd_child_nodes.pop(xsd_child_root, None)
+
+        _clear_cached_properties(self)
+
+    @cached_property
+    def _geometry_getter(self):
+        return operator.attrgetter(self.main_geometry_element.orm_path)
+
+    def get_main_geometry_value(self, instance: models.Model) -> GEOSGeometry | None:
+        """Efficiently retrieve the value for the main geometry element."""
+        if self.main_geometry_element is None:
+            return None
+        else:
+            return self._geometry_getter(instance)
 
     @cached_property
     def xpath_matches(self) -> list[XPathMatch]:
@@ -82,36 +133,34 @@ class FeatureProjection:
         ]
 
     @cached_property
-    def geometry_elements(self) -> list[GmlElement]:
+    def all_elements(self) -> list[XsdElement]:
+        """Return ALL elements of all levels to render."""
+        return self.xsd_root_elements + list(
+            itertools.chain.from_iterable(self.xsd_child_nodes.values())
+        )
+
+    @cached_property
+    def all_geometry_elements(self) -> list[GmlElement]:
         """Tell which GML elements will be hit."""
-        gml_elements = []
-        for e in self.xsd_root_elements:
-            if e.is_geometry and e.xml_name != "gml:boundedBy":
-                # Prefetching a flattened relation
-                gml_elements.append(e)
-
-        for xsd_children in self.xsd_child_nodes.values():
-            for e in xsd_children:
-                if e.is_geometry and e.xml_name != "gml:boundedBy":
-                    gml_elements.append(e)
-
-        return gml_elements
+        return [e for e in self.all_elements if e.type.is_geometry]
 
     @cached_property
-    def complex_elements(self) -> list[_XsdElement_WithComplexType]:
-        """Shortcut to get the top-level elements with a complex type"""
-        if not self.property_names:
-            return self.feature_type.xsd_type.complex_elements
-        else:
-            return [e for e in self.xsd_root_elements if e.type.is_complex_type]
+    def all_complex_elements(self) -> list[_XsdElement_WithComplexType]:
+        """Return ALL tree elements with a complex type, including child elements with a complex types."""
+        return list(self.xsd_child_nodes.keys())
 
     @cached_property
-    def flattened_elements(self) -> list[XsdElement]:
-        """Shortcut to get the top-level elements with a flattened model attribute"""
+    def all_flattened_elements(self) -> list[XsdElement]:
+        """Shortcut to get ALL tree elements with a flattened model attribute"""
         if not self.property_names:
             return self.feature_type.xsd_type.flattened_elements
         else:
-            return [e for e in self.xsd_root_elements if e.is_flattened]
+            return [e for e in self.all_elements if e.is_flattened]
+
+    @cached_property
+    def has_bounded_by(self) -> bool:
+        """Tell whether the <gml:boundedBy> element is included for rendering."""
+        return any(e.type is XsdTypes.gmlBoundingShapeType for e in self.xsd_root_elements)
 
     @cached_property
     def main_geometry_element(self) -> GmlElement | None:
@@ -119,10 +168,19 @@ class FeatureProjection:
         When the projection excludes the geometry, ``None`` is returned.
         """
         gml_element = self.feature_type.main_geometry_element
-        if self.property_names and gml_element not in self.xsd_root_elements:
+        if self.property_names and gml_element not in self.all_elements:
             return None
 
         return gml_element
+
+    @cached_property
+    def geometry_elements(self) -> list[GmlElement]:
+        """Tell which GML elements will be hit at the root-level."""
+        return [
+            e
+            for e in self.xsd_root_elements
+            if e.type.is_geometry and e.type is not XsdTypes.gmlBoundingShapeType
+        ]
 
     @cached_property
     def orm_relations(self) -> list[FeatureRelation]:
@@ -136,7 +194,7 @@ class FeatureProjection:
         elements = defaultdict(list)
 
         # Check all elements that render as "dotted" flattened relation
-        for xsd_element in self.flattened_elements:
+        for xsd_element in self.all_flattened_elements:
             if xsd_element.source is not None:
                 # Split "relation.field" notation into path, and take the field as child attribute.
                 obj_path, field = xsd_element.orm_relation
@@ -146,7 +204,7 @@ class FeatureProjection:
                 related_models[obj_path] = xsd_element.source.model
 
         # Check all elements that render as "nested" complex type:
-        for xsd_element in self.complex_elements:
+        for xsd_element in self.all_complex_elements:
             # The complex element itself points to the root of the path,
             # all sub elements become the child attributes.
             obj_path = xsd_element.orm_path
@@ -206,7 +264,7 @@ class FeatureRelation:
     sub_fields: set[XsdElement]
     #: The model that is accessed for this relation (if set)
     related_model: type[models.Model] | None
-    #: The source elements that access this relation.
+    #: The source elements that access this relation. Could be multiple for flattened relations.
     xsd_elements: list[XsdElement]
 
     @cached_property
@@ -232,4 +290,20 @@ class FeatureRelation:
     @property
     def geometry_elements(self) -> list[GmlElement]:
         """Tell which geometry elements this relation will access."""
-        return [f for f in self.sub_fields if f.is_geometry and f.name != "gml:boundedBy"]
+        return [f for f in self.sub_fields if f.type.is_geometry]
+
+
+def _partition(predicate, items: list) -> tuple[list, set]:
+    """Semi-efficient way to split a list into items that match/don't match the condition."""
+    # more_itertools.partition() is faster, but that can be neglected with a short list.
+    return list(itertools.filterfalse(predicate, items)), set(filter(predicate, items))
+
+
+def _clear_cached_properties(object):
+    """Remove the caches from the cached_property decorator on an object."""
+    cls = object.__class__
+    for property_name in list(object.__dict__):
+        if (prop := getattr(cls, property_name, None)) is not None and isinstance(
+            prop, cached_property
+        ):
+            del object.__dict__[property_name]

@@ -3,7 +3,7 @@ from django.core.exceptions import PermissionDenied
 from gisserver.features import FeatureType, ServiceDescription, field
 from gisserver.views import WFSView
 from tests.constants import RD_NEW
-from tests.test_gisserver.models import Restaurant
+from tests.test_gisserver.models import Restaurant, RestaurantReview
 
 
 class DeniedFeatureType(FeatureType):
@@ -53,12 +53,12 @@ class ComplexTypesWFSView(PlacesWFSView):
             fields=[
                 "id",
                 "name",
-                field("city", fields=["id", "name"]),
+                field("city", fields=["id", "name"]),  # fk relation
                 "location",
                 "rating",
                 "is_open",
                 "created",
-                field("opening_hours", fields=["weekday", "start_time", "end_time"]),
+                field("opening_hours", fields=["weekday", "start_time", "end_time"]),  # m2m
                 "tags",  # array field
             ],
             other_crs=[RD_NEW],
@@ -84,5 +84,52 @@ class FlattenedWFSView(PlacesWFSView):
                 "created",
                 "tags",  # array field
             ],
+        ),
+    ]
+
+
+class RelatedGeometryWFSView(PlacesWFSView):
+    """A view to experiment with a geometry field on a related object."""
+
+    feature_types = [
+        FeatureType(
+            RestaurantReview.objects.all(),
+            name="restaurantReview",
+            fields=[
+                "id",
+                field(
+                    "restaurant",
+                    fields=[
+                        "id",
+                        "name",
+                        field("city", fields=["id", "name"]),  # fk relation
+                        "location",  # geometry in nested structure
+                        "rating",
+                        "is_open",
+                        "created",
+                        # Also include FK and M2M relationships for testing
+                        field("opening_hours", fields=["weekday", "start_time", "end_time"]),
+                        "tags",  # array field
+                    ],
+                ),
+                "review",
+            ],
+            geometry_field_name="restaurant.location",
+        ),
+        FeatureType(
+            RestaurantReview.objects.all(),
+            name="restaurantReview-auto",
+            fields=[
+                field(
+                    "restaurant",
+                    fields=[
+                        "id",
+                        "name",
+                        "location",
+                    ],
+                ),
+                "review",
+            ],
+            # No geometry_field_name, auto-detect first geometry field.
         ),
     ]

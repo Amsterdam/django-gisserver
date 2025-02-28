@@ -23,19 +23,16 @@ from django.http import HttpResponse
 
 from gisserver.db import (
     AsGML,
-    build_db_annotations,
-    conditional_transform,
-    get_db_annotation,
-    get_db_geometry_selects,
     get_db_geometry_target,
+    get_db_rendered_geometry,
     get_geometries_union,
+    replace_queryset_geometries,
 )
 from gisserver.exceptions import NotFound, WFSException
-from gisserver.features import FeatureType
-from gisserver.geometries import CRS
+from gisserver.geometries import CRS, BoundingBox
 from gisserver.parsers.fes20 import ValueReference
 from gisserver.queries import FeatureProjection, FeatureRelation
-from gisserver.types import XsdElement, XsdNode
+from gisserver.types import GmlBoundedByElement, GmlElement, XsdElement, XsdNode, XsdTypes
 
 from .base import OutputRenderer
 from .results import SimpleFeatureCollection
@@ -278,14 +275,9 @@ class GML32Renderer(OutputRenderer):
             # Hence, branching to different rendering styles is branched here instead of making such
             # call into a generic "write_field()" function and stepping out from there.
 
-            if xsd_element.is_geometry:
-                if xsd_element.xml_name == "gml:boundedBy":
-                    # Special case for <gml:boundedBy>, so it will render with
-                    # the output CRS and can be overwritten with DB-rendered GML.
-                    self.write_bounds(projection, instance)
-                else:
-                    # Separate call which can be optimized (no need to overload write_xml_field() for all calls).
-                    self.write_gml_field(feature_type, xsd_element, instance)
+            if xsd_element.type.is_geometry:
+                # Separate call which can be optimized (no need to overload write_xml_field() for all calls).
+                self.write_gml_field(projection, xsd_element, instance)
             else:
                 value = xsd_element.get_value(instance)
                 if xsd_element.is_many:
@@ -295,19 +287,6 @@ class GML32Renderer(OutputRenderer):
                     self.write_xml_field(projection, xsd_element, value)
 
         self._write(f"</{feature_type.xml_name}>\n")
-
-    def write_bounds(self, projection, instance) -> None:
-        """Render the GML bounds for the complete instance"""
-        envelope = projection.feature_type.get_envelope(instance, self.output_crs)
-        if envelope is not None:
-            lower = " ".join(map(str, envelope.lower_corner))
-            upper = " ".join(map(str, envelope.upper_corner))
-            self._write(
-                f"""<gml:boundedBy><gml:Envelope srsDimension="2" srsName="{self.xml_srs_name}">
-                <gml:lowerCorner>{lower}</gml:lowerCorner>
-                <gml:upperCorner>{upper}</gml:upperCorner>
-              </gml:Envelope></gml:boundedBy>\n"""
-            )
 
     def write_many(self, projection: FeatureProjection, xsd_element: XsdElement, value) -> None:
         """Write a node that has multiple values (e.g. array or queryset)."""
@@ -359,34 +338,63 @@ class GML32Renderer(OutputRenderer):
         """Write a single field, that consists of sub elements"""
         self._write(f"<{xsd_element.xml_name}{extra_xmlns}>\n")
         for sub_element in projection.xsd_child_nodes[xsd_element]:
-            sub_value = sub_element.get_value(value)
-            if sub_element.is_many:
-                self.write_many(projection, sub_element, sub_value)
+            if sub_element.type.is_geometry:
+                # Separate call which can be optimized (no need to overload write_xml_field() for all calls).
+                self.write_gml_field(projection, sub_element, value)
             else:
-                self.write_xml_field(projection, sub_element, sub_value)
+                sub_value = sub_element.get_value(value)
+                if sub_element.is_many:
+                    self.write_many(projection, sub_element, sub_value)
+                else:
+                    self.write_xml_field(projection, sub_element, sub_value)
         self._write(f"</{xsd_element.xml_name}>\n")
 
     def write_gml_field(
-        self, feature_type, xsd_element: XsdElement, instance: models.Model, extra_xmlns=""
+        self,
+        projection: FeatureProjection,
+        gml_element: GmlElement,
+        instance: models.Model,
+        extra_xmlns="",
     ) -> None:
         """Separate method to allow overriding this for db-performance optimizations."""
-        # Need to have instance.pk data here (and instance['pk'] for value rendering)
-        value = xsd_element.get_value(instance)
-        xml_name = xsd_element.xml_name
-        if value is None:
-            # Avoid incrementing gml_seq
-            self._write(f'<{xml_name} xsi:nil="true"{extra_xmlns}/>\n')
-            return
+        if gml_element.type is XsdTypes.gmlBoundingShapeType:
+            # Special case for <gml:boundedBy>, which doesn't need xsd:nil values, nor a gml:id.
+            # The value is not a GEOSGeometry either, as that is not exposed by django.contrib.gis.
+            value = cast(GmlBoundedByElement, gml_element).get_value(instance, crs=self.output_crs)
+            if value is not None:
+                self._write(self.render_gml_bounds(value))
+        else:
+            # Regular geometry elements.
+            xml_name = gml_element.xml_name
+            value = gml_element.get_value(instance)
+            if value is None:
+                # Avoid incrementing gml_seq
+                self._write(f'<{xml_name} xsi:nil="true"{extra_xmlns}/>\n')
+            else:
+                gml_id = self.get_gml_id(instance._meta.object_name, instance.pk)
 
-        gml_id = self.get_gml_id(feature_type, instance.pk)
+                # the following is somewhat faster, but will render GML 2, not GML 3.2:
+                # gml = value.ogr.gml
+                # pos = gml.find(">")  # Will inject the gml:id="..." tag.
+                # gml = f"{gml[:pos]} gml:id="{_attr_escape(gml_id)}"{gml[pos:]}"
 
-        # the following is somewhat faster, but will render GML 2, not GML 3.2:
-        # gml = value.ogr.gml
-        # pos = gml.find(">")  # Will inject the gml:id="..." tag.
-        # gml = f"{gml[:pos]} gml:id="{_attr_escape(gml_id)}"{gml[pos:]}"
+                gml = self.render_gml_value(gml_id, value)
+                self._write(f"<{xml_name}{extra_xmlns}>{gml}</{xml_name}>\n")
 
-        gml = self.render_gml_value(gml_id, value)
-        self._write(f"<{xml_name}{extra_xmlns}>{gml}</{xml_name}>\n")
+    def get_gml_id(self, prefix: str, object_id) -> str:
+        """Generate the gml:id value, which is required for GML 3.2 objects."""
+        self.gml_seq += 1
+        return f"{prefix}.{object_id}.{self.gml_seq}"
+
+    def render_gml_bounds(self, envelope: BoundingBox) -> str:
+        """Render the gml:boundedBy element that contains an Envelope.
+        Note this uses an internal object type,
+        as :mod:`django.contrib.gis.geos` only provides a Point/Polygon or 4-tuple envelope.
+        """
+        return f"""<gml:boundedBy><gml:Envelope srsDimension="2" srsName="{self.xml_srs_name}">
+            <gml:lowerCorner>{envelope.south} {envelope.west}</gml:lowerCorner>
+            <gml:upperCorner>{envelope.north} {envelope.east}</gml:upperCorner>
+          </gml:Envelope></gml:boundedBy>\n"""
 
     def render_gml_value(self, gml_id, value: geos.GEOSGeometry | None, extra_xmlns="") -> str:
         """Normal case: 'value' is raw geometry data.."""
@@ -477,11 +485,6 @@ class GML32Renderer(OutputRenderer):
             "</gml:LineString>"
         )
 
-    def get_gml_id(self, feature_type: FeatureType, object_id) -> str:
-        """Generate the gml:id value, which is required for GML 3.2 objects."""
-        self.gml_seq += 1
-        return f"{feature_type.name}.{object_id}.{self.gml_seq}"
-
 
 class DBGMLRenderingMixin:
 
@@ -523,15 +526,18 @@ class DBGML32Renderer(DBGMLRenderingMixin, GML32Renderer):
         """
         queryset = super().decorate_queryset(projection, queryset, output_crs, **params)
 
-        # Retrieve geometries as pre-rendered instead.
-        geo_selects = get_db_geometry_selects(projection.geometry_elements, output_crs)
-        if geo_selects:
-            queryset = queryset.defer(*geo_selects.keys()).annotate(
+        # Retrieve gml:boundedBy in pre-rendered format.
+        if projection.has_bounded_by:
+            queryset = queryset.annotate(
                 _as_envelope_gml=cls.get_db_envelope_as_gml(projection, queryset, output_crs),
-                **build_db_annotations(geo_selects, "_as_gml_{name}", AsGML),
             )
 
-        return queryset
+        # Retrieve geometries as pre-rendered instead.
+        # Only take the geometries of the current level.
+        # The annotations for relations will be handled by prefetches and get_prefetch_queryset()
+        return replace_queryset_geometries(
+            queryset, projection.geometry_elements, output_crs, AsGML
+        )
 
     @classmethod
     def get_prefetch_queryset(
@@ -541,19 +547,14 @@ class DBGML32Renderer(DBGMLRenderingMixin, GML32Renderer):
         output_crs: CRS,
     ) -> models.QuerySet | None:
         """Perform DB annotations for prefetched relations too."""
-        base = super().get_prefetch_queryset(projection, feature_relation, output_crs)
-        if base is None:
+        queryset = super().get_prefetch_queryset(projection, feature_relation, output_crs)
+        if queryset is None:
             return None
 
         # Find which fields are GML elements
-        geometries = get_db_geometry_selects(feature_relation.geometry_elements, output_crs)
-        if geometries:
-            # Exclude geometries from the fields, fetch them as pre-rendered annotations instead.
-            return base.defer(*geometries.keys()).annotate(
-                **build_db_annotations(geometries, "_as_gml_{name}", AsGML),
-            )
-        else:
-            return base
+        return replace_queryset_geometries(
+            queryset, feature_relation.geometry_elements, output_crs, AsGML
+        )
 
     @classmethod
     def get_db_envelope_as_gml(cls, projection: FeatureProjection, queryset, output_crs) -> AsGML:
@@ -570,39 +571,41 @@ class DBGML32Renderer(DBGMLRenderingMixin, GML32Renderer):
         # Apply transforms where needed, in case some geometries use a different SRID.
         return get_geometries_union(
             [
-                conditional_transform(
-                    gml_element.orm_path,
-                    gml_element.source.srid,
-                    output_srid=output_crs.srid,
-                )
-                for gml_element in projection.geometry_elements
+                get_db_geometry_target(gml_element, output_crs=output_crs)
+                for gml_element in projection.all_geometry_elements
+                if gml_element.source is not None  # excludes GmlBoundedByElement
             ],
             using=queryset.db,
         )
 
     def write_gml_field(
-        self, feature_type, xsd_element: XsdElement, instance: models.Model, extra_xmlns=""
+        self,
+        projection: FeatureProjection,
+        gml_element: GmlElement,
+        instance: models.Model,
+        extra_xmlns="",
     ) -> None:
         """Write the value of an GML tag.
 
         This optimized version takes a pre-rendered XML from the database query.
         """
-        value = get_db_annotation(instance, xsd_element.name, "_as_gml_{name}")
-        xml_name = xsd_element.xml_name
-        if value is None:
-            # Avoid incrementing gml_seq
-            self._write(f'<{xml_name} xsi:nil="true"{extra_xmlns}/>\n')
-            return
+        xml_name = gml_element.xml_name
+        if gml_element.type is XsdTypes.gmlBoundingShapeType:
+            gml = instance._as_envelope_gml
+            if gml is None:
+                return
+        else:
+            value = get_db_rendered_geometry(instance, gml_element, AsGML)
+            if value is None:
+                # Avoid incrementing gml_seq, make nil tag.
+                self._write(f'<{xml_name} xsi:nil="true"{extra_xmlns}/>\n')
+                return
 
-        gml_id = self.get_gml_id(feature_type, instance.pk)
-        gml = self.render_gml_value(gml_id, value, extra_xmlns=extra_xmlns)
+            # Get gml tag to write as value.
+            gml_id = self.get_gml_id(instance._meta.object_name, instance.pk)
+            gml = self.render_gml_value(gml_id, value, extra_xmlns=extra_xmlns)
+
         self._write(f"<{xml_name}{extra_xmlns}>{gml}</{xml_name}>\n")
-
-    def write_bounds(self, projection, instance) -> None:
-        """Generate the <gml:boundedBy> from DB pre-rendering."""
-        gml = instance._as_envelope_gml
-        if gml is not None:
-            self._write(f"<gml:boundedBy>{gml}</gml:boundedBy>\n")
 
 
 class GML32ValueRenderer(GML32Renderer):
@@ -660,9 +663,9 @@ class GML32ValueRenderer(GML32Renderer):
         """Write the XML for a single object.
         In this case, it's only a single XML tag.
         """
-        if self.xsd_node.is_geometry:
+        if self.xsd_node.type.is_geometry:
             self.write_gml_field(
-                projection.feature_type,
+                projection,
                 cast(XsdElement, self.xsd_node),
                 instance,
                 extra_xmlns=extra_xmlns,
@@ -698,17 +701,26 @@ class GML32ValueRenderer(GML32Renderer):
             )
 
     def write_gml_field(
-        self, feature_type, xsd_element: XsdElement, instance: dict, extra_xmlns=""
+        self,
+        projection: FeatureProjection,
+        gml_element: GmlElement,
+        instance: dict,
+        extra_xmlns="",
     ) -> None:
         """Overwritten to allow dict access instead of model access."""
+        if gml_element.type is XsdTypes.gmlBoundingShapeType:
+            raise NotImplementedError(
+                "rendering <gml:boundedBy> in GetPropertyValue is not implemented."
+            )
+
         value = self.gml_value_getter(instance)  # "member" or "gml_member"
-        xml_name = xsd_element.xml_name
+        xml_name = gml_element.xml_name
         if value is None:
             # Avoid incrementing gml_seq
             self._write(f'<{xml_name} xsi:nil="true"{extra_xmlns}/>\n')
             return
 
-        gml_id = self.get_gml_id(feature_type, instance["pk"])
+        gml_id = self.get_gml_id(gml_element.source.model._meta.object_name, instance["pk"])
         gml = self.render_gml_value(gml_id, value, extra_xmlns=extra_xmlns)
         self._write(f"<{xml_name}{extra_xmlns}>{gml}</{xml_name}>\n")
 
@@ -723,9 +735,9 @@ class DBGML32ValueRenderer(DBGMLRenderingMixin, GML32ValueRenderer):
         """Update the queryset to let the database render the GML output."""
         value_reference = params["valueReference"]
         match = projection.feature_type.resolve_element(value_reference.xpath)
-        if match.child.is_geometry:
+        if match.child.type.is_geometry:
             # Add 'gml_member' to point to the pre-rendered GML version.
-            gml_element = cast(XsdElement, match.child)
+            gml_element = cast(GmlElement, match.child)
             return queryset.values(
                 "pk", gml_member=AsGML(get_db_geometry_target(gml_element, output_crs))
             )
