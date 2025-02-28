@@ -198,6 +198,86 @@ class TestDescribeFeatureType:
 </schema>""",  # noqa: E501
         )
 
+    def test_describe_related_geometry(self, client):
+        """Prove that complex types are properly rendered"""
+        response = client.get(
+            "/v1/wfs-related-geometry/?SERVICE=WFS&REQUEST=DescribeFeatureType&VERSION=2.0.0"
+            "&TYPENAMES=restaurantReview"
+        )
+        content = response.content.decode()
+        assert response["content-type"] == "application/gml+xml; version=3.2", content
+        assert response.status_code == 200, content
+        assert "PropertyType" in content  # for element holding a GML field
+
+        # The response is an XSD itself.
+        # Only validate its XML structure
+        xml_doc: etree._Element = etree.fromstring(response.content)
+        assert xml_doc.tag == "{http://www.w3.org/2001/XMLSchema}schema"
+        assert_xml_equal(
+            response.content,
+            """<schema
+   xmlns="http://www.w3.org/2001/XMLSchema"
+   xmlns:app="http://example.org/gisserver"
+   xmlns:gml="http://www.opengis.net/gml/3.2"
+   targetNamespace="http://example.org/gisserver"
+   elementFormDefault="qualified" version="0.1">
+
+  <import namespace="http://www.opengis.net/gml/3.2" schemaLocation="http://schemas.opengis.net/gml/3.2.1/gml.xsd" />
+
+  <element name="restaurantReview" type="app:RestaurantReviewType" substitutionGroup="gml:AbstractFeature" />
+
+  <complexType name="RestaurantReviewType">
+    <complexContent>
+      <extension base="gml:AbstractFeatureType">
+        <sequence>
+          <element name="id" type="integer" minOccurs="0" />
+          <element name="restaurant" type="app:RestaurantType" minOccurs="0" />
+          <element name="review" type="string" minOccurs="0" />
+        </sequence>
+      </extension>
+    </complexContent>
+  </complexType>
+
+  <complexType name="RestaurantType">
+    <complexContent>
+      <extension base="gml:AbstractFeatureType">
+        <sequence>
+          <element name="id" type="integer" minOccurs="0" />
+          <element name="name" type="string" minOccurs="0" />
+          <element name="city" type="app:CityType" minOccurs="0" nillable="true" />
+          <element name="location" type="gml:PointPropertyType" minOccurs="0" maxOccurs="1" nillable="true" />
+          <element name="rating" type="double" minOccurs="0" />
+          <element name="is_open" type="boolean" minOccurs="0" />
+          <element name="created" type="dateTime" minOccurs="0" />
+          <element name="opening_hours" type="app:OpeningHourType" minOccurs="0" maxOccurs="unbounded" />
+          <element name="tags" type="string" minOccurs="0" maxOccurs="unbounded" nillable="true" />
+        </sequence>
+      </extension>
+    </complexContent>
+  </complexType>
+
+  <complexType name="CityType">
+    <complexContent>
+      <sequence>
+        <element name="id" type="integer" minOccurs="0" />
+        <element name="name" type="string" minOccurs="0" />
+      </sequence>
+    </complexContent>
+  </complexType>
+
+  <complexType name="OpeningHourType">
+    <complexContent>
+      <sequence>
+        <element name="weekday" type="integer" minOccurs="0" />
+        <element name="start_time" type="time" minOccurs="0" />
+        <element name="end_time" type="time" minOccurs="0" />
+      </sequence>
+    </complexContent>
+  </complexType>
+
+</schema>""",  # noqa: E501
+        )
+
     def test_describe_outputformat(self, client):
         """Test workaround for FME's outputformat."""
         gml32 = urllib.parse.quote("application/gml+xml; version=3.2")

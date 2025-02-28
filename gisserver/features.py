@@ -17,10 +17,10 @@ For example, model relationships can be modelled to a different XML layout.
 from __future__ import annotations
 
 import html
+import itertools
 import logging
-import operator
 from dataclasses import dataclass
-from functools import cached_property, lru_cache, reduce
+from functools import cached_property, lru_cache
 from typing import TYPE_CHECKING, Literal, Union
 
 from django.conf import settings
@@ -30,7 +30,7 @@ from django.core.exceptions import FieldDoesNotExist, ImproperlyConfigured
 from django.db import models
 from django.db.models.fields.related import ForeignObjectRel  # Django 2.2 import
 
-from gisserver.db import conditional_transform
+from gisserver.db import get_db_geometry_target
 from gisserver.exceptions import ExternalValueError
 from gisserver.geometries import CRS, WGS84, BoundingBox
 from gisserver.types import (
@@ -149,7 +149,7 @@ def _get_model_fields(
     else:
         # Only defined fields
         fields = [f if isinstance(f, FeatureField) else FeatureField(f) for f in fields]
-        for field in fields:
+        for field in fields:  # type: FeatureField
             field.bind(model, parent=parent, feature_type=feature_type)
         return fields
 
@@ -220,7 +220,12 @@ class FeatureField:
             self.bind(model, parent=parent, feature_type=feature_type)
 
     def __repr__(self):
-        return f"<{self.__class__.__name__}: {self.name}>"
+        if self.model_field is None:
+            return f"<{self.__class__.__name__}: {self.name} (unbound)>"
+        else:
+            return (
+                f"<{self.__class__.__name__}: {self.name}, source={self.absolute_model_attribute}>"
+            )
 
     def _get_xsd_type(self):
         return get_basic_field_type(self.name, self.model_field)
@@ -286,6 +291,17 @@ class FeatureField:
                 ) from e
 
     @cached_property
+    def absolute_model_attribute(self) -> str:
+        """Determine the full attribute of the field."""
+        if self.model_field is None:
+            raise RuntimeError(f"bind() was not called for {self!r}")
+
+        if self.parent is not None:
+            return f"{self.parent.absolute_model_attribute}.{self.model_attribute or self.name}"
+        else:
+            return self.model_attribute or self.name
+
+    @cached_property
     def xsd_element(self) -> XsdElement:
         """Define the XMLSchema definition for a model field.
 
@@ -313,6 +329,7 @@ class FeatureField:
             min_occurs=0,
             max_occurs=max_occurs,
             model_attribute=self.model_attribute,
+            absolute_model_attribute=self.absolute_model_attribute,
             source=self.model_field,
             feature_type=self.feature_type,
         )
@@ -535,20 +552,19 @@ class FeatureType:
         return [self.crs] + self.other_crs
 
     @cached_property
-    def geometry_elements(self) -> list[GmlElement]:
-        """Tell which fields of the XSD have a geometry field."""
-        return [ff.xsd_element for ff in self.fields if ff.xsd_element.is_geometry]
-
-    @cached_property
-    def geometry_fields(self) -> list[GeometryField]:
-        """Tell which fields of the model have a geometry field.
-        This only compares against fields that are mentioned in this feature type.
-        """
-        return [
-            ff.model_field or getattr(self.model, ff.model_attribute)
-            for ff in self.fields
-            if ff.xsd_element.is_geometry
-        ]
+    def all_geometry_elements(self) -> list[GmlElement]:
+        """Provide access to all geometry elements from *all* nested levels."""
+        return self.xsd_type.geometry_elements + list(
+            itertools.chain.from_iterable(
+                # Take the geometry elements at each object level.
+                xsd_element.type.geometry_elements
+                for xsd_element in self.xsd_type.elements_with_children
+                # The 'None' level is the root node, which is already added before.
+                # For now, don't support geometry fields on an M2M relation.
+                # If that use-case is needed, it would require additional work to implement.
+                if xsd_element is not None and not xsd_element.is_many
+            )
+        )
 
     @cached_property
     def _local_model_field_names(self) -> list[str]:
@@ -564,6 +580,17 @@ class FeatureType:
     @cached_property
     def fields(self) -> list[FeatureField]:
         """Define which fields to render."""
+        if (
+            self._geometry_field_name
+            and "." in self._geometry_field_name
+            and (self._fields is None or self._fields == "__all__")
+        ):
+            # If you want to define more complex relationships, please be explicit in which fields you want.
+            # Allowing autoconfiguration of this is complex and likely not what you're looking for either.
+            raise ImproperlyConfigured(
+                "Using a geometry_field_name path requires defining 'fields' explicitly."
+            )
+
         # This lazy reading allows providing 'fields' as lazy value.
         if self._fields is None:
             # Autoconfig, no fields defined.
@@ -576,6 +603,7 @@ class FeatureType:
 
             return [FeatureField(self._geometry_field_name, model=self.model, feature_type=self)]
         else:
+            # Either __all__ or an explicit list.
             return _get_model_fields(self.model, self._fields, feature_type=self)
 
     @cached_property
@@ -587,56 +615,36 @@ class FeatureType:
             return self.model._meta.get_field(self.display_field_name)
 
     @cached_property
-    def geometry_field(self) -> gis_models.GeometryField:
-        """Give access to the Django field that holds the geometry."""
-        if not self.geometry_fields:
-            raise ImproperlyConfigured(
-                f"FeatureType '{self.name}' does not expose a geometry field."
-            ) from None
-
-        if self._geometry_field_name:
-            # Explicitly mentioned, use that field.
-            # Check whether the server is not accidentally exposing another field
-            # that is not part of the type definition.
-            field = next(
-                (
-                    field
-                    for field in self.geometry_fields
-                    if field.name == self._geometry_field_name
-                ),
-                None,
-            )
-            if field is None:
+    def main_geometry_element(self) -> GmlElement:
+        """Give access to the main geometry element."""
+        if not self._geometry_field_name:
+            try:
+                # Take the first element that has a geometry.
+                return self.all_geometry_elements[0]
+            except IndexError:
+                raise ImproperlyConfigured(
+                    f"FeatureType '{self.name}' does not expose any geometry field "
+                    f"as part of its definition."
+                ) from None
+        else:
+            try:
+                return next(
+                    e
+                    for e in self.all_geometry_elements
+                    if e.absolute_model_attribute == self._geometry_field_name
+                )
+            except StopIteration:
                 raise ImproperlyConfigured(
                     f"FeatureType '{self.name}' does not expose the geometry field "
                     f"'{self._geometry_field_name}' as part of its definition."
-                )
-
-            return field
-        else:
-            # Default: take the first geometry
-            return self.geometry_fields[0]
-
-    @cached_property
-    def main_geometry_element(self) -> GmlElement | None:
-        """Give access to the main geometry element."""
-        # NOTE: this property should make it easier to move away from having a main geometry field
-        # at the model level, and allow a geometry field in any depth of the data model.
-        return next((e for e in self.geometry_elements if e.source is self.geometry_field), None)
-
-    @cached_property
-    def geometry_field_name(self) -> str:
-        """Tell which field is the geometry field."""
-        # Due to internal reorganization this property is no longer needed,
-        # retained for backward compatibility and to reflect any used input parameters.
-        return self.geometry_field.name
+                ) from None
 
     @cached_property
     def crs(self) -> CRS:
         """Tell which projection the data should be presented at."""
         if self._crs is None:
             # Default CRS
-            return CRS.from_srid(self.geometry_field.srid)  # checks lookup too
+            return CRS.from_srid(self.main_geometry_element.source.srid)  # checks lookup too
         else:
             return self._crs
 
@@ -680,36 +688,12 @@ class FeatureType:
         when the database table is empty, or the custom queryset doesn't
         return any results.
         """
-        if not self.geometry_fields:
+        if not self.main_geometry_element:
             return None
 
-        geo_expression = conditional_transform(
-            self.geometry_field.name, self.geometry_field.srid, WGS84.srid
-        )
-
+        geo_expression = get_db_geometry_target(self.main_geometry_element, WGS84)
         bbox = self.get_queryset().aggregate(a=Extent(geo_expression))["a"]
         return BoundingBox(*bbox, crs=WGS84) if bbox else None
-
-    def get_envelope(self, instance, crs: CRS | None = None) -> BoundingBox | None:
-        """Get the bounding box for a single instance.
-
-        This is only used for native Python rendering. When the database
-        rendering is enabled (GISSERVER_USE_DB_RENDERING=True), the calculation
-        is entirely performed within the query.
-        """
-        geometries = [
-            geom
-            for geom in (getattr(instance, f.name) for f in self.geometry_fields)
-            if geom is not None
-        ]
-        if not geometries:
-            return None
-
-        # Perform the combining of geometries inside libgeos
-        geometry = geometries[0] if len(geometries) == 1 else reduce(operator.or_, geometries)
-        if crs is not None and geometry.srid != crs.srid:
-            crs.apply_to(geometry)  # avoid clone
-        return BoundingBox.from_geometry(geometry, crs=crs)
 
     def get_display_value(self, instance: models.Model) -> str:
         """Generate the display name value"""
@@ -729,12 +713,8 @@ class FeatureType:
         """
         pk_field = self.model._meta.pk
 
-        # Define <gml:boundedBy>, if the feature has a geometry
-        base_elements = []
-        if self.geometry_fields:
-            # Without a geometry, boundaries are not possible.
-            base_elements.append(GmlBoundedByElement(feature_type=self))
-
+        # Define <gml:boundedBy>
+        base_elements = [GmlBoundedByElement(feature_type=self)]
         if self.show_name_field:
             # Add <gml:name>
             gml_name = GmlNameElement(
@@ -744,12 +724,14 @@ class FeatureType:
             )
             base_elements.insert(0, gml_name)
 
+        # Write out the definition of XsdTypes.gmlAbstractFeatureType as actual class definition.
+        # By having these base elements, the XPath queries can also resolve these like any other feature field elements.
         return XsdComplexType(
             prefix="gml",
             name="AbstractFeatureType",
             elements=base_elements,
             attributes=[
-                # Add gml:id attribute definition so it can be resolved in xpath
+                # Add gml:id="..." attribute definition so it can be resolved in xpath
                 GmlIdAttribute(
                     type_name=self.name,
                     source=pk_field,

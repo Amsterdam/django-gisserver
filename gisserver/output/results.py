@@ -255,11 +255,10 @@ class SimpleFeatureCollection:
         # Start with an obviously invalid bbox,
         # which corrects at the first extend_to_geometry call.
         bbox = BoundingBox(math.inf, math.inf, -math.inf, -math.inf)
-        geometry_field = self.feature_type.resolve_element(
-            self.feature_type.geometry_field.name
-        ).child
+
+        # Allow the geometry to exist in a dotted relationship.
         for instance in self:
-            geometry_value = geometry_field.get_value(instance)
+            geometry_value = self.projection.get_main_geometry_value(instance)
             if geometry_value is None:
                 continue
 
