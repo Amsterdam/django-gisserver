@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import math
 import typing
 
@@ -10,6 +11,8 @@ from django.utils.html import escape
 
 from gisserver import conf
 from gisserver.exceptions import InvalidParameterValue
+
+logger = logging.getLogger(__name__)
 
 if typing.TYPE_CHECKING:
     from gisserver.features import FeatureType
@@ -112,8 +115,16 @@ class OutputRenderer:
         # Avoid fetching relations, fetch these within the same query,
         related = cls._get_prefetch_related(projection, output_crs)
         if related:
+            logging.debug(
+                "Set queryset to %s prefetches to %r", queryset.model._meta.model_name, related
+            )
             queryset = queryset.prefetch_related(*related)
 
+        logging.debug(
+            "Set queryset to %s to only retrieve %r",
+            queryset.model._meta.model_name,
+            projection.only_fields,
+        )
         return queryset.only("pk", *projection.only_fields)
 
     @classmethod
