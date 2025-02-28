@@ -17,6 +17,7 @@ For example, model relationships can be modelled to a different XML layout.
 from __future__ import annotations
 
 import html
+import logging
 import operator
 from dataclasses import dataclass
 from functools import cached_property, lru_cache, reduce
@@ -61,6 +62,8 @@ __all__ = [
     "ComplexFeatureField",
     "get_basic_field_type",
 ]
+
+logger = logging.getLogger(__name__)
 
 XSD_TYPES = {
     models.CharField: XsdTypes.string,
@@ -641,6 +644,11 @@ class FeatureType:
         """Return the queryset that is used as basis for this feature."""
         # Return a queryset that only retrieves the fields that are actually displayed.
         # That that without .only(), use at least `self.queryset.all()` so a clone is returned.
+        logger.debug(
+            "QuerySet for %s default only retrieves: %r",
+            self.queryset.model._meta.label,
+            self._local_model_field_names,
+        )
         return self.queryset.only(*self._local_model_field_names)
 
     def get_related_queryset(self, feature_relation: FeatureRelation) -> models.QuerySet:
@@ -651,9 +659,15 @@ class FeatureType:
                 f"source model is not defined for: {feature_relation.xsd_elements!r}"
             )
         # Return a queryset that only retrieves the fields that are displayed.
-        return self.filter_related_queryset(
-            feature_relation.related_model.objects.only(*feature_relation._local_model_field_names)
+        logger.debug(
+            "QuerySet for %s by default only retrieves: %r",
+            feature_relation.related_model._meta.label,
+            feature_relation._local_model_field_names,
         )
+        queryset = feature_relation.related_model.objects.only(
+            *feature_relation._local_model_field_names
+        )
+        return self.filter_related_queryset(queryset)  # Allow overriding by FeatureType subclasses
 
     def filter_related_queryset(self, queryset: models.QuerySet) -> models.QuerySet:
         """When a related object returns a queryset, this hook allows extra filtering."""
