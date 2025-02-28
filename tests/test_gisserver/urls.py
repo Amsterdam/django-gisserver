@@ -14,4 +14,9 @@ urlpatterns = [
         views.FlattenedWFSView.as_view(),
         name="wfs-view-flattened",
     ),
+    path(
+        "v1/wfs-related-geometry/",
+        views.RelatedGeometryWFSView.as_view(),
+        name="wfs-view-relatedgeometry",
+    ),
 ]

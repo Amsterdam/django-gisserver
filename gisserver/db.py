@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from functools import lru_cache, reduce
 
 from django.contrib.gis.db.models import functions
@@ -10,6 +11,8 @@ from django.db import connection, connections, models
 from gisserver import conf
 from gisserver.geometries import CRS
 from gisserver.types import GmlElement
+
+logger = logging.getLogger(__name__)
 
 
 class AsEWKT(functions.GeoFunc):
@@ -78,63 +81,69 @@ def get_geometries_union(
         return reduce(functions.Union, expressions)
 
 
-def conditional_transform(
-    expression: str | functions.GeoFunc, expression_srid: int, output_srid: int
-) -> str | functions.Transform:
-    """Apply a CRS Transform to the queried field if that is needed."""
-    if expression_srid != output_srid:
-        expression = functions.Transform(expression, srid=output_srid)
-    return expression
+def replace_queryset_geometries(
+    queryset: models.QuerySet,
+    gml_elements: list[GmlElement],
+    output_crs: CRS,
+    wrapper_func: type[functions.GeoFunc],
+) -> models.QuerySet:
+    """Replace the queryset geometry retrieval with a database-rendered version.
 
-
-def build_db_annotations(
-    selects: dict[str, str | functions.Func],
-    name_template: str,
-    wrapper_func: type[functions.Func],
-) -> dict:
-    """Utility to build annotations for all geometry fields for an XSD type.
-    This is used by various DB-optimized rendering methods.
+    This uses absolute paths in the queryset, but can use relative paths for related querysets.
     """
-    return {
-        escape_xml_name(name, name_template): wrapper_func(target)
-        for name, target in selects.items()
-    }
+    defer_names = []
+    as_geo_map = {}
+    for gml_element in gml_elements:
+        if gml_element.source is not None:  # excludes GmlBoundedByElement
+            defer_names.append(gml_element.local_orm_path)
+            annotation_name = _as_annotation_name(gml_element.local_orm_path, wrapper_func)
+            as_geo_map[annotation_name] = wrapper_func(
+                get_db_geometry_target(gml_element, output_crs, use_relative_path=True)
+            )
+
+    if not defer_names:
+        return queryset
+
+    logger.debug(
+        "DB rendering: QuerySet for %s replacing %r with %r",
+        queryset.model._meta.label,
+        defer_names,
+        list(as_geo_map.keys()),
+    )
+    return queryset.defer(*defer_names).annotate(**as_geo_map)
 
 
-def get_db_annotation(instance: models.Model, name: str, name_template: str):
-    """Retrieve the value that an annotation has added to the model."""
-    # The "name" allows any XML-tag elements, escape the most obvious
-    escaped_name = escape_xml_name(name, name_template)
+def get_db_rendered_geometry(
+    instance: models.Model, gml_element: GmlElement, replacement: type[functions.GeoFunc]
+) -> str:
+    """Retrieve the database-rendered geometry.
+    This includes formatted EWKT or GML output, rendered by the database.
+    """
+    annotation_name = _as_annotation_name(gml_element.local_orm_path, replacement)
     try:
-        return getattr(instance, escaped_name)
+        return getattr(instance, annotation_name)
     except AttributeError as e:
+        prefix = _as_annotation_name("", replacement)
+        available = ", ".join(key for key in instance.__dict__ if key.startswith(prefix)) or "none"
         raise AttributeError(
-            f" DB annotation {instance._meta.model_name}.{escaped_name}"
-            f" not found (using {name_template})"
+            f" DB annotation {instance._meta.label}.{annotation_name} not found. Found {available}."
         ) from e
 
 
 @lru_cache
-def escape_xml_name(name: str, template="{name}") -> str:
+def _as_annotation_name(name: str, func: type[functions.GeoFunc]) -> str:
     """Escape an XML name to be used as annotation name."""
-    return template.format(name=name.replace(".", "_"))
+    return f"_{func.__name__}_{name.replace('.', '_')}"
 
 
-def get_db_geometry_selects(
-    gml_elements: list[GmlElement], output_crs: CRS
-) -> dict[str, str | functions.Transform]:
-    """Utility to generate select clauses for the geometry fields of a type.
-    Key is the xsd element name, value is the database select expression.
+def get_db_geometry_target(
+    gml_element: GmlElement, output_crs: CRS, use_relative_path: bool = False
+) -> str | functions.Transform:
+    """Translate a GML geometry field into the proper expression for retrieving it from the database.
+    The path will be wrapped into a CRS Transform function if needed.
     """
-    return {
-        gml_element.name: get_db_geometry_target(gml_element, output_crs)
-        for gml_element in gml_elements
-        if gml_element.source is not None
-    }
-
-
-def get_db_geometry_target(gml_element: GmlElement, output_crs: CRS) -> str | functions.Transform:
-    """Wrap the selection of a geometry field in a CRS Transform if needed."""
-    return conditional_transform(
-        gml_element.orm_path, gml_element.source.srid, output_srid=output_crs.srid
-    )
+    orm_path = gml_element.local_orm_path if use_relative_path else gml_element.orm_path
+    if gml_element.source.srid != output_crs.srid:
+        return functions.Transform(orm_path, srid=output_crs.srid)
+    else:
+        return orm_path

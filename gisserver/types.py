@@ -31,22 +31,20 @@ import re
 from dataclasses import dataclass, field
 from decimal import Decimal as D
 from enum import Enum
-from functools import cached_property
+from functools import cached_property, reduce
 from typing import TYPE_CHECKING, Literal
 
 from django.conf import settings
 from django.contrib.gis.db.models import F, GeometryField
+from django.contrib.gis.geos import GEOSGeometry
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db import models
 from django.db.models import Q
-from django.db.models.fields.related import (  # Django 2 imports
-    ForeignObjectRel,
-    RelatedField,
-)
+from django.db.models.fields.related import ForeignObjectRel, RelatedField
 from django.utils import dateparse
 
 from gisserver.exceptions import ExternalParsingError, OperationProcessingFailed
-from gisserver.geometries import CRS, WGS84  # noqa: F401 / for backwards compatibility
+from gisserver.geometries import CRS, WGS84, BoundingBox  # noqa: F401 / backwards compatibility
 
 _unbounded = Literal["unbounded"]
 
@@ -54,6 +52,7 @@ if "django.contrib.postgres" in settings.INSTALLED_APPS:
     from django.contrib.postgres.fields import ArrayField
 else:
     ArrayField = None
+
 
 __all__ = [
     "GmlElement",
@@ -89,7 +88,7 @@ class XsdAnyType:
     name: str
     prefix = None
     is_complex_type = False
-    is_geometry = False
+    is_geometry = False  # Overwritten for some gml types.
 
     def __str__(self):
         """Return the type name"""
@@ -149,6 +148,7 @@ class XsdTypes(XsdAnyType, Enum):
     language = "language"
 
     # Types that contain a GML value as member:
+    # Note these receive the "is_geometry = True" value below.
     gmlGeometryPropertyType = "gml:GeometryPropertyType"
     gmlPointPropertyType = "gml:PointPropertyType"
     gmlCurvePropertyType = "gml:CurvePropertyType"  # curve is base for LineString
@@ -180,11 +180,6 @@ class XsdTypes(XsdAnyType, Enum):
         return xml_name[:colon] if colon else None
 
     @cached_property
-    def is_geometry(self):
-        """Whether the value represents an element which contains a GML element."""
-        return self.prefix == "gml" and self.value.endswith("PropertyType")
-
-    @cached_property
     def _to_python_func(self):
         if not TYPES_TO_PYTHON:
             _init_types_to_python()
@@ -207,6 +202,24 @@ class XsdTypes(XsdAnyType, Enum):
         except (TypeError, ValueError, ArithmeticError) as e:
             # ArithmeticError is base of DecimalException
             raise ExternalParsingError(f"Can't cast '{raw_value}' to {self}.") from e
+
+
+for _type in (
+    XsdTypes.gmlGeometryPropertyType,
+    XsdTypes.gmlPointPropertyType,
+    XsdTypes.gmlCurvePropertyType,
+    XsdTypes.gmlSurfacePropertyType,
+    XsdTypes.gmlMultiSurfacePropertyType,
+    XsdTypes.gmlMultiPointPropertyType,
+    XsdTypes.gmlMultiCurvePropertyType,
+    XsdTypes.gmlMultiGeometryPropertyType,
+    # gml:boundedBy is technically a geometry, which we don't support in queries currently.
+    XsdTypes.gmlBoundingShapeType,
+):
+    # One of the reasons the code checks for "xsd_element.type.is_geometry"
+    # is because profiling showed that isinstance(xsd_element, ...) is really slow.
+    # When rendering 5000 objects with 10+ elements, isinstance() started showing up as hotspot.
+    _type.is_geometry = True
 
 
 def _init_types_to_python():
@@ -277,6 +290,7 @@ class XsdNode:
         prefix: str | None = "app",
         source: models.Field | ForeignObjectRel | None = None,
         model_attribute: str | None = None,
+        absolute_model_attribute: str | None = None,
         feature_type: FeatureType | None = None,
     ):
         # Using plain assignment instead of dataclass turns out to be needed
@@ -286,11 +300,19 @@ class XsdNode:
         self.prefix = prefix
         self.source = source
         self.model_attribute = model_attribute or self.name
-        # link back to parent, some get_value() functions need it.
+        self.absolute_model_attribute = absolute_model_attribute or self.model_attribute
+        # link back to top-level parent, some get_value() functions need it.
         self.feature_type = feature_type
 
         if ":" in self.name:
             raise ValueError("Use 'prefix' argument for namespaces")
+
+        if (
+            self.model_attribute
+            and self.absolute_model_attribute
+            and not self.absolute_model_attribute.endswith(self.model_attribute)
+        ):
+            raise ValueError("Inconsistent 'absolute_model_attribute' and 'model_attribute' value")
 
         self._attrgetter = operator.attrgetter(self.model_attribute)
         self._valuegetter = self._build_valuegetter(self.model_attribute, self.source)
@@ -342,11 +364,6 @@ class XsdNode:
         return _related_get_value_from_object
 
     @cached_property
-    def is_geometry(self) -> bool:
-        """Tell whether the XML node/element should be handed as GML geometry."""
-        return self.type.is_geometry or isinstance(self.source, GeometryField)
-
-    @cached_property
     def is_array(self) -> bool:
         """Tell whether this node is backed by an PostgreSQL Array Field."""
         return ArrayField is not None and isinstance(self.source, ArrayField)
@@ -361,31 +378,46 @@ class XsdNode:
         """The XML element/attribute name."""
         return f"{self.prefix}:{self.name}" if self.prefix else self.name
 
+    def relative_orm_path(self, parent: XsdElement | None = None) -> str:
+        """The ORM field lookup to perform, relative to the parent element."""
+        if parent is None:
+            return self.orm_path
+
+        prefix = f"{parent.orm_path}__"
+        if not self.orm_path.startswith(prefix):
+            raise ValueError(f"Node '{self}' is not a child of '{parent}.")
+        else:
+            return self.orm_path[len(prefix) :]
+
     @cached_property
-    def orm_path(self) -> str:
+    def local_orm_path(self) -> str:
         """The ORM field lookup to perform."""
         if self.model_attribute is None:
             raise ValueError(f"Node {self.xml_name} has no 'model_attribute' set.")
         return self.model_attribute.replace(".", "__")
 
     @cached_property
+    def orm_path(self) -> str:
+        """The ORM field lookup to perform."""
+        if self.absolute_model_attribute is None:
+            raise ValueError(f"Node {self.xml_name} has no 'absolute_model_attribute' set.")
+        return self.absolute_model_attribute.replace(".", "__")
+
+    @cached_property
     def orm_field(self) -> str:
-        """The direct ORM field that provides this property."""
-        if self.model_attribute is None:
-            raise ValueError(f"Node {self.xml_name} has no 'model_attribute' set.")
-        return self.model_attribute.partition(".")[0]
+        """The direct ORM field that provides this property; the first relative level.
+        Typically, this is the same as the field name.
+        """
+        return self.orm_path.partition(".")[0]
 
     @cached_property
     def orm_relation(self) -> tuple[str | None, str]:
-        """The ORM field and parent relation"""
-        if self.model_attribute is None:
-            raise ValueError(f"Node {self.xml_name} has no 'model_attribute' set.")
-
-        path, _, field = self.model_attribute.rpartition(".")
-        if not path:
-            return None, field
-        else:
-            return path.replace(".", "__"), field
+        """The ORM field and parent relation.
+        Note this isn't something like "self.parent.orm_path",
+        as this mode may have a dotted-path to its source attribute.
+        """
+        path, _, field = self.orm_path.rpartition("__")
+        return path or None, field
 
     def build_lhs_part(self, compiler: CompiledQuery, match: ORMPath):
         """Give the ORM part when this element is used as left-hand-side of a comparison.
@@ -508,6 +540,7 @@ class XsdElement(XsdNode):
         max_occurs: int | _unbounded | None = None,
         source: models.Field | ForeignObjectRel | None = None,
         model_attribute: str | None = None,
+        absolute_model_attribute: str | None = None,
         feature_type: FeatureType | None = None,
     ):
         super().__init__(
@@ -516,6 +549,7 @@ class XsdElement(XsdNode):
             prefix=prefix,
             source=source,
             model_attribute=model_attribute,
+            absolute_model_attribute=absolute_model_attribute,
             feature_type=feature_type,
         )
         self.nillable = nillable
@@ -581,6 +615,7 @@ class XsdAttribute(XsdNode):
         use: str = "optional",
         source: models.Field | ForeignObjectRel | None = None,
         model_attribute: str | None = None,
+        absolute_model_attribute: str | None = None,
         feature_type: FeatureType | None = None,
     ):
         super().__init__(
@@ -589,6 +624,7 @@ class XsdAttribute(XsdNode):
             prefix=prefix,
             source=source,
             model_attribute=model_attribute,
+            absolute_model_attribute=absolute_model_attribute,
             feature_type=feature_type,
         )
         self.use = use
@@ -596,7 +632,6 @@ class XsdAttribute(XsdNode):
 
 class GmlElement(XsdElement):
     """Essentially the same as an XsdElement, but guarantee it returns a GeoDjango model field.
-
     This only exists as "protocol" for the type annotations.
     """
 
@@ -615,6 +650,7 @@ class GmlIdAttribute(XsdAttribute):
         type_name: str,
         source: models.Field | ForeignObjectRel | None = None,
         model_attribute="pk",
+        absolute_model_attribute=None,
         feature_type: FeatureType | None = None,
     ):
         super().__init__(
@@ -622,6 +658,7 @@ class GmlIdAttribute(XsdAttribute):
             name="id",
             source=source,
             model_attribute=model_attribute,
+            absolute_model_attribute=absolute_model_attribute,
             feature_type=feature_type,
         )
         object.__setattr__(self, "type_name", type_name)
@@ -643,8 +680,6 @@ class GmlNameElement(XsdElement):
     but it can be extended to support formatted names
     (although that would make comparisons on ``element@gml:name`` more complex).
     """
-
-    is_geometry = False  # Override type
 
     def __init__(
         self,
@@ -681,8 +716,6 @@ class GmlBoundedByElement(XsdElement):
     Its value is the complete bounding box of the feature type data.
     """
 
-    is_geometry = True  # Override type
-
     def __init__(self, feature_type):
         # Prefill most known fields
         super().__init__(
@@ -703,10 +736,37 @@ class GmlBoundedByElement(XsdElement):
         """Give the ORM part when this element would be used as right-hand-side"""
         raise NotImplementedError("queries against <gml:boundedBy> are not supported")
 
-    def get_value(self, instance: models.Model, crs: CRS | None = None):
-        """Provide the value of the <gml:boundedBy> field
-        (if this is not given by the database already)."""
-        return self.feature_type.get_envelope(instance, crs=crs)
+    def get_value(self, instance: models.Model, crs: CRS | None = None) -> BoundingBox | None:
+        """Provide the value of the <gml:boundedBy> field,
+        which is the bounding box for a single instance.
+
+        This is only used for native Python rendering. When the database
+        rendering is enabled (GISSERVER_USE_DB_RENDERING=True), the calculation
+        is entirely performed within the query.
+        """
+        geometries: list[GEOSGeometry] = list(
+            # remove 'None' values
+            filter(
+                None,
+                [
+                    # support dotted paths here for geometries in a foreign key relation.
+                    operator.attrgetter(gml_element.absolute_model_attribute)(instance)
+                    for gml_element in self.feature_type.all_geometry_elements
+                ],
+            )
+        )
+        if not geometries:
+            return None
+
+        # Perform the combining of geometries inside libgeos
+        if len(geometries) == 1:
+            geometry = geometries[0]
+        else:
+            geometry = reduce(operator.or_, geometries)
+            if crs is not None and geometry.srid != crs.srid:
+                crs.apply_to(geometry)  # avoid clone
+
+        return BoundingBox.from_geometry(geometry, crs=crs)
 
 
 @dataclass(frozen=True)
@@ -735,7 +795,7 @@ class XsdComplexType(XsdAnyType):
     #: Internal class name (without XML prefix)
     name: str
 
-    #: All elements in this class
+    #: All local elements in this class
     elements: list[XsdElement]
 
     #: All attributes in this class
@@ -774,8 +834,8 @@ class XsdComplexType(XsdAnyType):
         return True  # a property to avoid being used as field.
 
     @cached_property
-    def all_elements(self) -> list[XsdElement]:
-        """All elements, including inherited elements."""
+    def elements_including_base(self) -> list[XsdElement]:
+        """The local and inherited elements of this XSD type."""
         if self.base is not None and self.base.is_complex_type:
             # Add all base class members, in their correct ordering
             # By having these as XsdElement objects instead of hard-coded writes,
@@ -787,7 +847,7 @@ class XsdComplexType(XsdAnyType):
     @cached_property
     def geometry_elements(self) -> list[GmlElement]:
         """Shortcut to get all geometry elements"""
-        return [e for e in self.elements if e.is_geometry]
+        return [e for e in self.elements if e.type.is_geometry]
 
     @cached_property
     def complex_elements(self) -> list[_XsdElement_WithComplexType]:
@@ -972,7 +1032,7 @@ class XPathMatch(ORMPath):
     @cached_property
     def orm_path(self) -> str:
         """Give the Django ORM path (field__relation__relation2) to the result."""
-        return "__".join(xsd_node.orm_path for xsd_node in self.nodes)
+        return self.nodes[-1].orm_path
 
     def __iter__(self):
         return iter(self.nodes)

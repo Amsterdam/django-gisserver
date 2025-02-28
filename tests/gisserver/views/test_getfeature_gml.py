@@ -60,7 +60,7 @@ class TestGetFeature:
         <app:name>Café Noir</app:name>
         <app:city_id>{restaurant.city_id}</app:city_id>
         <app:location>
-          <gml:Point gml:id="restaurant.{restaurant.id}.1" srsName="urn:ogc:def:crs:EPSG::4326">
+          <gml:Point gml:id="Restaurant.{restaurant.id}.1" srsName="urn:ogc:def:crs:EPSG::4326">
             <gml:pos srsDimension="2">{coordinates.point1_xml_wgs84}</gml:pos>
           </gml:Point>
         </app:location>
@@ -159,7 +159,7 @@ class TestGetFeature:
           </gml:Envelope>
         </gml:boundedBy>
         <app:location>
-          <gml:Point gml:id="mini-restaurant.{restaurant.id}.1" srsName="urn:ogc:def:crs:EPSG::4326">
+          <gml:Point gml:id="Restaurant.{restaurant.id}.1" srsName="urn:ogc:def:crs:EPSG::4326">
             <gml:pos srsDimension="2">{coordinates.point1_xml_wgs84}</gml:pos>
           </gml:Point>
         </app:location>
@@ -213,7 +213,7 @@ class TestGetFeature:
           <app:name>CloudCity</app:name>
         </app:city>
         <app:location>
-          <gml:Point gml:id="restaurant.{restaurant_m2m.id}.1" srsName="urn:ogc:def:crs:EPSG::4326">
+          <gml:Point gml:id="Restaurant.{restaurant_m2m.id}.1" srsName="urn:ogc:def:crs:EPSG::4326">
             <gml:pos srsDimension="2">{coordinates.point1_xml_wgs84}</gml:pos>
           </gml:Point>
         </app:location>
@@ -253,7 +253,7 @@ class TestGetFeature:
         <app:name>Foo Bar</app:name>
         <app:city xsi:nil="true" />
         <app:location>
-          <gml:Point gml:id="restaurant.{bad_restaurant.id}.1" srsName="urn:ogc:def:crs:EPSG::4326">
+          <gml:Point gml:id="Restaurant.{bad_restaurant.id}.1" srsName="urn:ogc:def:crs:EPSG::4326">
             <gml:pos srsDimension="2">{coordinates.point2_xml_wgs84}</gml:pos>
           </gml:Point>
         </app:location>
@@ -310,7 +310,7 @@ class TestGetFeature:
         <app:city-name>CloudCity</app:city-name>
         <app:city-region>OurRegion</app:city-region>
         <app:location>
-          <gml:Point gml:id="restaurant.{restaurant.id}.1" srsName="urn:ogc:def:crs:EPSG::4326">
+          <gml:Point gml:id="Restaurant.{restaurant.id}.1" srsName="urn:ogc:def:crs:EPSG::4326">
             <gml:pos srsDimension="2">{coordinates.point1_xml_wgs84}</gml:pos>
           </gml:Point>
         </app:location>
@@ -337,7 +337,7 @@ class TestGetFeature:
         <app:city-name xsi:nil="true" />
         <app:city-region xsi:nil="true" />
         <app:location>
-          <gml:Point gml:id="restaurant.{bad_restaurant.id}.1" srsName="urn:ogc:def:crs:EPSG::4326">
+          <gml:Point gml:id="Restaurant.{bad_restaurant.id}.1" srsName="urn:ogc:def:crs:EPSG::4326">
             <gml:pos srsDimension="2">{coordinates.point2_xml_wgs84}</gml:pos>
           </gml:Point>
         </app:location>
@@ -349,6 +349,121 @@ class TestGetFeature:
 
 </wfs:FeatureCollection>
 """,  # noqa: E501
+        )
+
+    def test_get_related_geometry(
+        self,
+        client,
+        restaurant_review,
+        bad_restaurant_review,
+        restaurant_m2m,
+        bad_restaurant,
+        coordinates,
+    ):
+        """Prove that rendering complex types works."""
+
+        response = client.get(
+            "/v1/wfs-related-geometry/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
+            f"&BBOX{coordinates.bbox}&TYPENAMES=restaurantReview&SORTBY=restaurant/name"
+        )
+        content = read_response(response)
+        assert response["content-type"] == "text/xml; charset=utf-8", content
+        assert response.status_code == 200, content
+        assert "</wfs:FeatureCollection>" in content
+
+        # Validate against the WFS 2.0 XSD
+        xml_doc = validate_xsd(content, WFS_20_XSD)
+        assert xml_doc.attrib["numberMatched"] == "2"
+        assert xml_doc.attrib["numberReturned"] == "2"
+
+        # See whether our feature is rendered
+        timestamp = xml_doc.attrib["timeStamp"]
+
+        assert_xml_equal(
+            content,
+            f"""<wfs:FeatureCollection
+   xmlns:app="http://example.org/gisserver"
+   xmlns:gml="http://www.opengis.net/gml/3.2"
+   xmlns:wfs="http://www.opengis.net/wfs/2.0"
+   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+   xsi:schemaLocation="http://example.org/gisserver http://testserver/v1/wfs-related-geometry/?SERVICE=WFS&amp;VERSION=2.0.0&amp;REQUEST=DescribeFeatureType&amp;TYPENAMES=restaurantReview http://www.opengis.net/wfs/2.0 http://schemas.opengis.net/wfs/2.0/wfs.xsd http://www.opengis.net/gml/3.2 http://schemas.opengis.net/gml/3.2.1/gml.xsd"
+   timeStamp="{timestamp}" numberMatched="2" numberReturned="2">
+
+    <wfs:member>
+      <app:restaurantReview gml:id="restaurantReview.{restaurant_review.id}">
+        <gml:name>Café Noir: Pretty good!</gml:name>
+        <gml:boundedBy>
+          <gml:Envelope srsDimension="2" srsName="urn:ogc:def:crs:EPSG::4326">
+            <gml:lowerCorner>{coordinates.point1_xml_wgs84}</gml:lowerCorner>
+            <gml:upperCorner>{coordinates.point1_xml_wgs84}</gml:upperCorner>
+          </gml:Envelope>
+        </gml:boundedBy>
+        <app:id>{restaurant_review.id}</app:id>
+        <app:restaurant>
+          <app:id>{restaurant_m2m.id}</app:id>
+          <app:name>Café Noir</app:name>
+          <app:city>
+            <app:id>{restaurant_m2m.city_id}</app:id>
+            <app:name>CloudCity</app:name>
+          </app:city>
+          <app:location>
+            <gml:Point gml:id="Restaurant.{restaurant_m2m.id}.1" srsName="urn:ogc:def:crs:EPSG::4326">
+              <gml:pos srsDimension="2">{coordinates.point1_xml_wgs84}</gml:pos>
+            </gml:Point>
+          </app:location>
+          <app:rating>5.0</app:rating>
+          <app:is_open>true</app:is_open>
+          <app:created>2020-04-05T12:11:10+00:00</app:created>
+          <app:opening_hours>
+            <app:weekday>4</app:weekday>
+            <app:start_time>16:00:00</app:start_time>
+            <app:end_time>23:30:00</app:end_time>
+          </app:opening_hours>
+          <app:opening_hours>
+            <app:weekday>5</app:weekday>
+            <app:start_time>16:00:00</app:start_time>
+            <app:end_time>23:30:00</app:end_time>
+          </app:opening_hours>
+          <app:opening_hours>
+            <app:weekday>6</app:weekday>
+            <app:start_time>20:00:00</app:start_time>
+            <app:end_time>23:30:00</app:end_time>
+          </app:opening_hours>
+          <app:tags>cafe</app:tags>
+          <app:tags>black</app:tags>
+        </app:restaurant>
+        <app:review>Pretty good!</app:review>
+      </app:restaurantReview>
+    </wfs:member>
+
+    <wfs:member>
+      <app:restaurantReview gml:id="restaurantReview.{bad_restaurant_review.id}">
+        <gml:name>Foo Bar: Stay away!</gml:name>
+        <gml:boundedBy>
+          <gml:Envelope srsDimension="2" srsName="urn:ogc:def:crs:EPSG::4326">
+            <gml:lowerCorner>{coordinates.point2_xml_wgs84}</gml:lowerCorner>
+            <gml:upperCorner>{coordinates.point2_xml_wgs84}</gml:upperCorner>
+          </gml:Envelope>
+        </gml:boundedBy>
+        <app:id>{bad_restaurant_review.id}</app:id>
+        <app:restaurant>
+          <app:id>{bad_restaurant.id}</app:id>
+          <app:name>Foo Bar</app:name>
+          <app:city xsi:nil="true" />
+          <app:location>
+            <gml:Point gml:id="Restaurant.{bad_restaurant.id}.1" srsName="urn:ogc:def:crs:EPSG::4326">
+              <gml:pos srsDimension="2">{coordinates.point2_xml_wgs84}</gml:pos>
+            </gml:Point>
+          </app:location>
+          <app:rating>1.0</app:rating>
+          <app:is_open>false</app:is_open>
+          <app:created>2020-04-05T20:11:10+00:00</app:created>
+        </app:restaurant>
+        <app:review>Stay away!</app:review>
+      </app:restaurantReview>
+    </wfs:member>
+
+</wfs:FeatureCollection>""",  # noqa: E501
         )
 
     def test_get_srs_name(self, client, restaurant, coordinates):
@@ -396,7 +511,7 @@ class TestGetFeature:
             <app:name>Café Noir</app:name>
             <app:city_id>{restaurant.city_id}</app:city_id>
             <app:location>
-              <gml:Point gml:id="restaurant.{restaurant.id}.1" srsName="urn:ogc:def:crs:EPSG::28992">
+              <gml:Point gml:id="Restaurant.{restaurant.id}.1" srsName="urn:ogc:def:crs:EPSG::28992">
                 <gml:pos srsDimension="2">{coordinates.point1_xml_rd}</gml:pos>
               </gml:Point>
             </app:location>
