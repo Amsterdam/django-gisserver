@@ -6,6 +6,7 @@ from functools import reduce
 from django.conf import settings
 from django.contrib.gis.db.models.fields import BaseSpatialField
 from django.contrib.gis.db.models.lookups import DWithinLookup
+from django.core.exceptions import FieldError
 from django.db import models
 from django.db.models import Q, QuerySet, lookups
 from django.db.models.expressions import Combinable
@@ -150,7 +151,11 @@ class CompiledQuery:
             pass
 
         if lookups:
-            queryset = queryset.filter(*lookups)
+            try:
+                queryset = queryset.filter(*lookups)
+            except FieldError as e:
+                e.args = (f"{e.args[0]} Constructed query: {lookups!r}",) + e.args[1:]
+                raise
 
         if self.ordering:
             queryset = queryset.order_by(*self.ordering)

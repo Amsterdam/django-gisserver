@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from collections import defaultdict
 from collections.abc import Iterable
 from itertools import islice
@@ -11,6 +12,8 @@ from lru import LRU
 M = TypeVar("M", bound=models.Model)
 
 DEFAULT_SQL_CHUNK_SIZE = 2000  # allow unit tests to alter this.
+
+logger = logging.getLogger(__name__)
 
 
 class CountingIterator(Iterable[M]):
@@ -137,10 +140,12 @@ class ChunkedQuerySetIterator(Iterable[M]):
             # to fetch items again that infrequently changes.
             all_restored = self._restore_caches(instances)
             if all_restored:
+                logger.debug("Restore all prefetches from cache")
                 return
 
         # Reuse the Django machinery for retrieving missing sub objects.
         # and analyse the ForeignKey caches to allow faster prefetches next time
+        logger.debug("Perform additional prefetches for %d objects", len(instances))
         models.prefetch_related_objects(instances, *self.queryset._prefetch_related_lookups)
         self._persist_prefetch_cache(instances)
 
