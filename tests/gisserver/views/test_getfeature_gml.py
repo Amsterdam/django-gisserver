@@ -716,12 +716,12 @@ class TestGetFeature:
             <app:name>Palindrome</app:name>
             <app:name_reversed>emordnilaP</app:name_reversed>
             <app:geometry>
-                <gml:Point srsName="urn:ogc:def:crs:EPSG::4326" gml:id="modelwithgeneratedfields.{generated_field.id}.1">
+                <gml:Point srsName="urn:ogc:def:crs:EPSG::4326" gml:id="ModelWithGeneratedFields.{generated_field.id}.1">
                     <gml:pos srsDimension="2">{coordinates.point1_xml_wgs84}</gml:pos>
                 </gml:Point>
             </app:geometry>
             <app:geometry_translated>
-                <gml:Point srsName="urn:ogc:def:crs:EPSG::4326" gml:id="modelwithgeneratedfields.{generated_field.id}.2">
+                <gml:Point srsName="urn:ogc:def:crs:EPSG::4326" gml:id="ModelWithGeneratedFields.{generated_field.id}.2">
                     <gml:pos srsDimension="2">{coordinates.translated_xml_wgs84}</gml:pos>
                 </gml:Point>
             </app:geometry_translated>

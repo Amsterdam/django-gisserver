@@ -70,10 +70,10 @@ class TestGeneratedFields:
         )
 
         # The geometry_fields attribute should include both geo fields
-        geo_fields = [e.name for e in ft.nested_geometry_elements]
+        geo_fields = [e.name for e in ft.all_geometry_elements]
         assert geo_fields == ["geometry", "geometry_translated"]
 
-        model_fields = [e.source for e in ft.nested_geometry_elements]
+        model_fields = [e.source for e in ft.all_geometry_elements]
         assert model_fields == [
             models.ModelWithGeneratedFields.geometry.field,
             models.ModelWithGeneratedFields.geometry_translated.field,
