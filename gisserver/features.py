@@ -223,6 +223,7 @@ class FeatureField:
             self.xsd_element_class = xsd_class
 
         self._nillable_relation = False
+        self._nillable_output_field = False
         if model is not None:
             self.bind(model, parent=parent, feature_type=feature_type)
 
@@ -291,6 +292,8 @@ class FeatureField:
         else:
             try:
                 self.model_field = self.model._meta.get_field(self.name)
+                if isinstance(self.model_field, GeneratedField):
+                    self._nillable_output_field = self.model_field.output_field.null
             except FieldDoesNotExist as e:
                 raise ImproperlyConfigured(
                     f"FeatureField '{self.name}' can't be resolved for model '{self.model.__name__}'."
@@ -339,7 +342,9 @@ class FeatureField:
         return xsd_element_class(
             name=self.name,
             type=self._get_xsd_type(),
-            nillable=self.model_field.null or self._nillable_relation,
+            nillable=self.model_field.null
+            or self._nillable_relation
+            or self._nillable_output_field,
             min_occurs=0,
             max_occurs=max_occurs,
             model_attribute=self.model_attribute,

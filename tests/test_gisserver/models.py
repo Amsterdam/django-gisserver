@@ -77,7 +77,7 @@ if hasattr(models, "GeneratedField"):
 
         geometry_translated = models.GeneratedField(
             expression=Translate("geometry", x=1, y=1),
-            output_field=PointField(),
+            output_field=PointField(null=True),
             db_persist=True,
         )
 
