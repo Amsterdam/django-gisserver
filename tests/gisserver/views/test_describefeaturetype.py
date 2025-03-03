@@ -130,7 +130,7 @@ class TestDescribeFeatureType:
           <element name="name" type="string" minOccurs="0" />
           <element name="name_reversed" type="string" minOccurs="0" />
           <element name="geometry" type="gml:PointPropertyType" nillable="true" minOccurs="0" maxOccurs="1"/>
-          <element name="geometry_translated" type="gml:PointPropertyType" minOccurs="0" maxOccurs="1"/>
+          <element name="geometry_translated" type="gml:PointPropertyType" nillable="true" minOccurs="0" maxOccurs="1"/>
         </sequence>
       </extension>
     </complexContent>
