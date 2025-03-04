@@ -16,6 +16,66 @@ class TestGetFeature:
     The methods need to have at least one datatype, otherwise not all content is rendered.
     """
 
+    def test_post(self, client, restaurant, coordinates):
+        xml = """<GetFeature xmlns="http://www.opengis.net/wfs/2.0" xmlns:fes="http://www.opengis.net/fes/2.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" service="WFS" version="2.0.0" xsi:schemaLocation="http://www.opengis.net/wfs/2.0 http://schemas.opengis.net/wfs/2.0/wfs.xsd">
+              <Query typeNames="restaurant">
+              </Query>
+              </GetFeature>
+              """
+        response = client.post("/v1/wfs/", data=xml, content_type="application/xml")
+        content = read_response(response)
+        assert response["content-type"] == "text/xml; charset=utf-8", content
+        assert response.status_code == 200, content
+        assert "</wfs:FeatureCollection>" in content
+
+        # Validate against the WFS 2.0 XSD
+        xml_doc = validate_xsd(content, WFS_20_XSD)
+        assert xml_doc.attrib["numberMatched"] == "1"
+        assert xml_doc.attrib["numberReturned"] == "1"
+
+        # See whether our feature is rendered
+        feature = xml_doc.find("wfs:member/app:restaurant", namespaces=NAMESPACES)
+        assert feature is not None
+        assert feature.find("app:name", namespaces=NAMESPACES).text == restaurant.name
+        timestamp = xml_doc.attrib["timeStamp"]
+
+        assert_xml_equal(
+            content,
+            f"""<wfs:FeatureCollection
+   xmlns:app="http://example.org/gisserver"
+   xmlns:gml="http://www.opengis.net/gml/3.2"
+   xmlns:wfs="http://www.opengis.net/wfs/2.0"
+   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+   xsi:schemaLocation="http://example.org/gisserver http://testserver/v1/wfs/?SERVICE=WFS&amp;VERSION=2.0.0&amp;REQUEST=DescribeFeatureType&amp;TYPENAMES=restaurant http://www.opengis.net/wfs/2.0 http://schemas.opengis.net/wfs/2.0/wfs.xsd http://www.opengis.net/gml/3.2 http://schemas.opengis.net/gml/3.2.1/gml.xsd"
+   timeStamp="{timestamp}" numberMatched="1" numberReturned="1">
+
+    <wfs:member>
+      <app:restaurant gml:id="restaurant.{restaurant.id}">
+        <gml:name>Café Noir</gml:name>
+        <gml:boundedBy>
+          <gml:Envelope srsDimension="2" srsName="urn:ogc:def:crs:EPSG::4326">
+            <gml:lowerCorner>{coordinates.point1_xml_wgs84}</gml:lowerCorner>
+            <gml:upperCorner>{coordinates.point1_xml_wgs84}</gml:upperCorner>
+          </gml:Envelope>
+        </gml:boundedBy>
+        <app:id>{restaurant.id}</app:id>
+        <app:name>Café Noir</app:name>
+        <app:city_id>{restaurant.city_id}</app:city_id>
+        <app:location>
+          <gml:Point gml:id="restaurant.{restaurant.id}.1" srsName="urn:ogc:def:crs:EPSG::4326">
+            <gml:pos srsDimension="2">{coordinates.point1_xml_wgs84}</gml:pos>
+          </gml:Point>
+        </app:location>
+        <app:rating>5.0</app:rating>
+        <app:is_open>true</app:is_open>
+        <app:created>2020-04-05T12:11:10+00:00</app:created>
+        <app:tags>cafe</app:tags>
+        <app:tags>black</app:tags>
+      </app:restaurant>
+    </wfs:member>
+</wfs:FeatureCollection>""",  # noqa: E501
+        )
+
     def test_get(self, client, restaurant, coordinates):
         """Prove that the happy flow works"""
         response = client.get(
