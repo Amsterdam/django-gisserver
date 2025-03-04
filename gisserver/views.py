@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from urllib.parse import urlencode
 
+import defusedxml.ElementTree as ET
 from django.core.exceptions import ImproperlyConfigured, SuspiciousOperation
 from django.core.exceptions import PermissionDenied as Django_PermissionDenied
 from django.shortcuts import render
@@ -102,6 +103,53 @@ class GISView(View):
         # Normal WFS
         wfs_method_cls = self.get_operation_class()
         return self.call_operation(wfs_method_cls)
+
+    def post(self, request, *args, **kwargs):
+        """Entry point to handle HTTP POST requests.
+
+        This parses the XML to get the correct service and operation,
+        to call the proper WFSMethod.
+        """
+        # Convert XML to WFS key-value-pair format.
+        self.KVP = self.parse_xml_post(request.body)
+
+        # Perform early version parsing. The detailed validation happens by the operation
+        # Parameter objects, but by performing an early check, templates can use that version.
+        version = self.KVP.get("VERSION")
+        if version and version in self.accept_versions:
+            self.set_version(version)
+
+        # Allow for a user-friendly opening page (hence the version check above)
+        if self.use_html_templates and self.is_index_request():
+            return self.render_index()
+
+        # Normal WFS
+        wfs_method_cls = self.get_operation_class()
+        return self.call_operation(wfs_method_cls)
+
+    def parse_xml_post(self, data):
+        KVP = {}
+        # The Requested method is the tag of the root without the {namespace} before it
+        root = ET.fromstring(data)
+        KVP["REQUEST"] = root.tag.split("}")[-1]
+        # Other top level attributes that we need to insert.
+        for attribute, value in root.items():
+            if attribute in ["service", "version", "acceptversions"]:
+                KVP[attribute.upper()] = value
+
+        # Get the typenames from the Query tag.
+        query = root[0]
+        # Convert space- to comma-separated
+        KVP["TYPENAMES"] = ",".join(query.get("typeNames").split())
+        # Other constructs
+        for elem in query:
+            title = elem.tag.split("}")[-1]
+            # Get it from the request body because `fromstring` inserts the default namespace
+            # And we don't want filters to get that (i.e. <Filter> w/o namespace should resolve to fes).
+            pattern = re.compile(f"<{title}.*</{title}>")
+            reresult = re.search(pattern, str(data))
+            KVP[title.upper()] = reresult.group(0) if reresult else ET.tostring(elem)
+        return KVP
 
     def is_index_request(self):
         """Tell whether to index page should be shown."""
