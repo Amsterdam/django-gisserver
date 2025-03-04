@@ -1,3 +1,4 @@
+import re
 from urllib.parse import quote_plus
 
 import django
@@ -88,28 +89,7 @@ class TestGetFeature:
             "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
             "&FILTER=" + quote_plus(filter)
         )
-        self._assert_filter(response, expect_name="Café Noir")
-
-    def _assert_filter(self, response, expect_name):
-        """Common part of filter logic"""
-        content = read_response(response)
-        assert response["content-type"] == "text/xml; charset=utf-8", content
-        assert response.status_code == 200, content
-        assert "</wfs:FeatureCollection>" in content
-
-        # Validate against the WFS 2.0 XSD
-        xml_doc = validate_xsd(content, WFS_20_XSD)
-        assert xml_doc.attrib["numberMatched"] == "1"
-        assert xml_doc.attrib["numberReturned"] == "1"
-
-        # Prove that the output is still rendered in WGS84
-        feature = xml_doc.find("wfs:member/app:restaurant", namespaces=NAMESPACES)
-        geometry = feature.find("app:location/gml:Point", namespaces=NAMESPACES)
-        assert geometry.attrib["srsName"] == WGS84.urn
-
-        # Assert that the correct object was matched
-        name = feature.find("app:name", namespaces=NAMESPACES).text
-        assert name == expect_name
+        _assert_filter(response, expect_name="Café Noir")
 
     @pytest.mark.parametrize("filter_name", list(COMPLEX_FILTERS.keys()))
     def test_get_filter_complex(self, client, restaurant_m2m, bad_restaurant, filter_name):
@@ -119,19 +99,22 @@ class TestGetFeature:
             "/v1/wfs-complextypes/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
             "&TYPENAMES=restaurant&FILTER=" + quote_plus(filter)
         )
-        self._assert_filter(response, expect_name="Café Noir")
+        _assert_filter(response, expect_name="Café Noir")
 
     @pytest.mark.parametrize("filter_name", list(FLATTENED_FILTERS.keys()))
     def test_get_filter_flattened(self, client, restaurant, bad_restaurant, filter_name):
         """Prove that that parsing FILTER=<fes:Filter>... also works
         when the fields are flattened (model_attribute dot-notation).
         """
-        filter = FLATTENED_FILTERS[filter_name].strip()
-        response = client.get(
-            "/v1/wfs-flattened/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
-            "&TYPENAMES=restaurant&FILTER=" + quote_plus(filter)
-        )
-        self._assert_filter(response, expect_name="Café Noir")
+        filter = clean_filter_for_xml(FLATTENED_FILTERS[filter_name]).strip()
+        xml = f"""<GetFeature xmlns="http://www.opengis.net/wfs/2.0" xmlns:fes="http://www.opengis.net/fes/2.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" service="WFS" version="2.0.0" xsi:schemaLocation="http://www.opengis.net/wfs/2.0 http://schemas.opengis.net/wfs/2.0/wfs.xsd">
+            <Query typeNames="restaurant">
+            {filter}
+            </Query>
+            </GetFeature>
+            """
+        response = client.post("/v1/wfs-flattened/", data=xml, content_type="application/xml")
+        _assert_filter(response, expect_name="Café Noir")
 
     @pytest.mark.parametrize("filter_name", list(INVALID_FILTERS.keys()))
     def test_get_filter_invalid(self, client, restaurant, filter_name):
