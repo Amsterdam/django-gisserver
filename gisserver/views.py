@@ -134,21 +134,22 @@ class GISView(View):
         KVP["REQUEST"] = root.tag.split("}")[-1]
         # Other top level attributes that we need to insert.
         for attribute, value in root.items():
-            if attribute in ["service", "version", "acceptversions"]:
+            if attribute.lower() in ["service", "version", "acceptversions"]:
                 KVP[attribute.upper()] = value
 
-        # Get the typenames from the Query tag.
-        query = root[0]
-        # Convert space- to comma-separated
-        KVP["TYPENAMES"] = ",".join(query.get("typeNames").split())
-        # Other constructs
-        for elem in query:
-            title = elem.tag.split("}")[-1]
-            # Get it from the request body because `fromstring` inserts the default namespace
-            # And we don't want filters to get that (i.e. <Filter> w/o namespace should resolve to fes).
-            pattern = re.compile(f"<{title}.*</{title}>")
-            reresult = re.search(pattern, str(data))
-            KVP[title.upper()] = reresult.group(0) if reresult else ET.tostring(elem)
+        if len(root):
+            # Get the typenames from the Query tag.
+            query = root[0]
+            # Convert space- to comma-separated
+            KVP["TYPENAMES"] = ",".join(query.get("typeNames").split())
+            # Other constructs
+            for elem in query:
+                title = elem.tag.split("}")[-1]
+                # Get it from the request body because `fromstring` inserts the default namespace
+                # And we don't want filters to get that (i.e. <Filter> w/o namespace should resolve to fes).
+                pattern = re.compile(f"<{title}.*</{title}>")
+                reresult = re.search(pattern, str(data))
+                KVP[title.upper()] = reresult.group(0) if reresult else ET.tostring(elem)
         return KVP
 
     def is_index_request(self):
