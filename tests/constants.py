@@ -3,6 +3,7 @@ from gisserver.geometries import CRS
 WFS_NS = "http://www.opengis.net/wfs/2.0"
 OWS_NS = "http://www.opengis.net/ows/1.1"
 XLINK_NS = "http://www.w3.org/1999/xlink"
+FES_NS = "http://www.opengis.net/fes/2.0"
 NAMESPACES = {
     "app": "http://example.org/gisserver",
     "gml": "http://www.opengis.net/gml/3.2",
@@ -14,3 +15,9 @@ NAMESPACES = {
 RD_NEW_SRID = 28992  # https://epsg.io/28992
 
 RD_NEW = CRS.from_string("urn:ogc:def:crs:EPSG::28992")
+
+XML_NS = f"""
+xmlns="{WFS_NS}"
+xmlns:fes="{FES_NS}"
+xmlns:gml="{NAMESPACES['gml']}"
+"""

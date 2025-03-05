@@ -2,7 +2,7 @@ import pytest
 from django.db import OperationalError
 
 from gisserver import conf, output
-from tests.constants import NAMESPACES
+from tests.constants import NAMESPACES, XML_NS
 from tests.test_gisserver.models import Restaurant
 from tests.utils import WFS_20_XSD, assert_xml_equal, read_response, validate_xsd
 
@@ -17,7 +17,7 @@ class TestGetFeature:
     """
 
     def test_post(self, client, restaurant, coordinates):
-        xml = """<GetFeature xmlns="http://www.opengis.net/wfs/2.0" xmlns:fes="http://www.opengis.net/fes/2.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" service="WFS" version="2.0.0" xsi:schemaLocation="http://www.opengis.net/wfs/2.0 http://schemas.opengis.net/wfs/2.0/wfs.xsd">
+        xml = f"""<GetFeature service="WFS" version="2.0.0" {XML_NS}>
               <Query typeNames="restaurant">
               </Query>
               </GetFeature>

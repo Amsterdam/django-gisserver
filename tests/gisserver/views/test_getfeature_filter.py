@@ -4,7 +4,7 @@ from urllib.parse import quote_plus
 import pytest
 
 from gisserver.geometries import WGS84
-from tests.constants import NAMESPACES
+from tests.constants import NAMESPACES, XML_NS
 from tests.gisserver.views.input import (
     COMPLEX_FILTERS,
     FILTERS,
@@ -123,7 +123,7 @@ class TestGetFeatureWithPostRequest:
 
         Note that we have to pass in the xmlns:gml namespace in order to parse the Envelope correctly
         """
-        xml = """<GetFeature xmlns="http://www.opengis.net/wfs/2.0" xmlns:fes="http://www.opengis.net/fes/2.0" xmlns:gml="http://www.opengis.net/gml/3.2" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" service="WFS" version="2.0.0" xsi:schemaLocation="http://www.opengis.net/wfs/2.0 http://schemas.opengis.net/wfs/2.0/wfs.xsd">
+        xml = f"""<GetFeature service="WFS" version="2.0.0" {XML_NS}>
             <Query typeNames="restaurant">
             <fes:Filter>
                 <fes:BBOX>
@@ -152,7 +152,7 @@ class TestGetFeatureWithPostRequest:
         geometry = feature.find("app:location/gml:Point", namespaces=NAMESPACES)
         assert geometry.attrib["srsName"] == WGS84.urn
 
-        xml2 = """<GetFeature xmlns="http://www.opengis.net/wfs/2.0" xmlns:fes="http://www.opengis.net/fes/2.0" xmlns:gml="http://www.opengis.net/gml/3.2" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" service="WFS" version="2.0.0" xsi:schemaLocation="http://www.opengis.net/wfs/2.0 http://schemas.opengis.net/wfs/2.0/wfs.xsd">
+        xml2 = f"""<GetFeature service="WFS" version="2.0.0" {XML_NS}>
             <Query typeNames="restaurant">
             <fes:Filter>
                 <fes:BBOX>
@@ -175,7 +175,7 @@ class TestGetFeatureWithPostRequest:
     @pytest.mark.parametrize("filter_name", list(FILTERS.keys()))
     def test_post_filter(self, client, restaurant, bad_restaurant, filter_name):
         filter = clean_filter_for_xml(FILTERS[filter_name]).strip()
-        xml = f"""<GetFeature xmlns="http://www.opengis.net/wfs/2.0" xmlns:fes="http://www.opengis.net/fes/2.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" service="WFS" version="2.0.0" xsi:schemaLocation="http://www.opengis.net/wfs/2.0 http://schemas.opengis.net/wfs/2.0/wfs.xsd">
+        xml = f"""<GetFeature service="WFS" version="2.0.0" {XML_NS}>
             <Query typeNames="restaurant">
             {filter}
             </Query>
@@ -188,7 +188,7 @@ class TestGetFeatureWithPostRequest:
     def test_post_filter_complex(self, client, restaurant_m2m, bad_restaurant, filter_name):
         """Prove that that parsing <fes:Filter>... works on post requests."""
         filter = clean_filter_for_xml(COMPLEX_FILTERS[filter_name]).strip()
-        xml = f"""<GetFeature xmlns="http://www.opengis.net/wfs/2.0" xmlns:fes="http://www.opengis.net/fes/2.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" service="WFS" version="2.0.0" xsi:schemaLocation="http://www.opengis.net/wfs/2.0 http://schemas.opengis.net/wfs/2.0/wfs.xsd">
+        xml = f"""<GetFeature service="WFS" version="2.0.0" {XML_NS}>
             <Query typeNames="restaurant">
             {filter}
             </Query>
@@ -202,12 +202,14 @@ class TestGetFeatureWithPostRequest:
         """Prove that that parsing <fes:Filter>... also works
         when the fields are flattened (model_attribute dot-notation).
         """
-
-        filter = FLATTENED_FILTERS[filter_name].strip()
-        response = client.get(
-            "/v1/wfs-flattened/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
-            "&TYPENAMES=restaurant&FILTER=" + quote_plus(filter)
-        )
+        filter = clean_filter_for_xml(FLATTENED_FILTERS[filter_name]).strip()
+        xml = f"""<GetFeature service="WFS" version="2.0.0" {XML_NS}>
+            <Query typeNames="restaurant">
+            {filter}
+            </Query>
+            </GetFeature>
+            """
+        response = client.post("/v1/wfs-flattened/", data=xml, content_type="application/xml")
         _assert_filter(response, expect_name="Café Noir")
 
 
