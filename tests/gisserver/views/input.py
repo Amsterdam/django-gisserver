@@ -421,6 +421,8 @@ INVALID_FILTERS = {
     ),
 }
 
+# TODO: Put everything in one object SORT_BY[BASIC|COMPLEX|FLATTENED|XML|XML_COMPLEX|XML_FLATTENED]
+
 SORT_BY = {
     "name": ("name", ["Café Noir", "Foo Bar"]),
     "name-a": ("name A", ["Café Noir", "Foo Bar"]),
@@ -431,9 +433,29 @@ SORT_BY = {
     "rating,name-asc": ("rating,name ASC", ["Foo Bar", "Café Noir"]),
 }
 
+SORT_BY_COMPLEX = {
+    "city/name": ("city/name", ["Café Noir", "Foo Bar"]),
+    "city/name-desc": ("city/name DESC", ["Foo Bar", "Café Noir"]),
+}
+
+SORT_BY_FLATTENED = {
+    "city-name": ("city-name", ["Café Noir", "Foo Bar"]),
+    "city-name-desc": ("city-name DESC", ["Foo Bar", "Café Noir"]),
+}
+
 SORT_BY_XML = {
     "name": ("name", None, ["Café Noir", "Foo Bar"]),
     "name-asc": ("name", "ASC", ["Café Noir", "Foo Bar"]),
     "name-desc": ("name", "DESC", ["Foo Bar", "Café Noir"]),
     "rating-desc": ("rating", "DESC", ["Café Noir", "Foo Bar"]),
+}
+
+SORT_BY_COMPLEX_XML = {
+    "city/name": ("city/name", None, ["Café Noir", "Foo Bar"]),
+    "city/name-desc": ("city/name", "DESC", ["Foo Bar", "Café Noir"]),
+}
+
+SORT_BY_FLATTENED_XML = {
+    "city-name": ("city-name", None, ["Café Noir", "Foo Bar"]),
+    "city-name-desc": ("city-name", "DESC", ["Foo Bar", "Café Noir"]),
 }
