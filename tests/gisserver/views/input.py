@@ -313,6 +313,10 @@ INVALID_FILTERS = {
             "Invalid data for the 'rating' property: Can't cast 'TEXT' to double.",
             locator="filter",
         ),
+        OperationParsingFailed(
+            "Invalid data for the 'rating' property: Can't cast 'TEXT' to double.",
+            locator="filter",
+        ),
     ),
     "float_like": (
         """
@@ -326,6 +330,11 @@ INVALID_FILTERS = {
             <fes:Literal>2</fes:Literal>
         </fes:PropertyIsLike>
     </fes:Filter>""",
+        OperationProcessingFailed(
+            "Operator '{http://www.opengis.net/fes/2.0}PropertyIsLike'"
+            " is not supported for the 'rating' property.",
+            locator="filter",
+        ),
         OperationProcessingFailed(
             "Operator '{http://www.opengis.net/fes/2.0}PropertyIsLike'"
             " is not supported for the 'rating' property.",
@@ -351,6 +360,11 @@ INVALID_FILTERS = {
             " Date must be in YYYY-MM-DD HH:MM[:ss[.uuuuuu]][TZ] format.",
             locator="filter",
         ),
+        OperationParsingFailed(
+            "Invalid data for the 'created' property:"
+            " Date must be in YYYY-MM-DD HH:MM[:ss[.uuuuuu]][TZ] format.",
+            locator="filter",
+        ),
     ),
     "date_text": (
         """
@@ -364,6 +378,11 @@ INVALID_FILTERS = {
             <fes:Literal>abc</fes:Literal>
         </fes:PropertyIsGreaterThanOrEqualTo>
     </fes:Filter>""",
+        OperationParsingFailed(
+            "Invalid data for the 'created' property:"
+            " Date must be in YYYY-MM-DD HH:MM[:ss[.uuuuuu]][TZ] format.",
+            locator="filter",
+        ),
         OperationParsingFailed(
             "Invalid data for the 'created' property:"
             " Date must be in YYYY-MM-DD HH:MM[:ss[.uuuuuu]][TZ] format.",
