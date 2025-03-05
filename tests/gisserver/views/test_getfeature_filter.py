@@ -5,7 +5,7 @@ import django
 import pytest
 
 from gisserver.geometries import WGS84
-from tests.constants import NAMESPACES
+from tests.constants import NAMESPACES, XML_NS
 from tests.gisserver.views.input import (
     COMPLEX_FILTERS,
     FILTERS,
