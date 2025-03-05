@@ -1,6 +1,7 @@
 import django
 import pytest
 
+from tests.constants import XML_NS
 from tests.utils import read_response
 
 # enable for all tests in this file
