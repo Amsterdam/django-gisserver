@@ -16,6 +16,7 @@ from gisserver.exceptions import (
     InvalidParameterValue,
     MissingParameterValue,
     OperationNotSupported,
+    OperationParsingFailed,
     OWSException,
     PermissionDenied,
 )
@@ -23,7 +24,10 @@ from gisserver.features import FeatureType, ServiceDescription
 from gisserver.operations import base, wfs20
 
 SAFE_VERSION = re.compile(r"\A[0-9.]+\Z")
-KNOWN_ATTRIBUTES = ["service", "version", "acceptVersions", "srsName", "resultType", "count"]
+# Some KVP attributes are not simply the uppercased version of the XML-attributes.
+XML_ATTRIBUTES_MAP = {
+    "storedQueryId": "STOREDQUERY_ID",
+}
 
 
 class GISView(View):
@@ -131,26 +135,29 @@ class GISView(View):
     def parse_xml_post(self, data):
         KVP = {}
         # The Requested method is the tag of the root without the {namespace} before it
-        root = ET.fromstring(data)
-        KVP["REQUEST"] = root.tag.split("}")[-1]
-        # Other top level attributes that we need to insert.
-        for attribute, value in root.items():
-            if attribute in KNOWN_ATTRIBUTES:
-                KVP[attribute.upper()] = value
+        try:
+            root = ET.fromstring(data)
+        except ET.ParseError as e:
+            raise OperationParsingFailed("Unable to parse XML: " + str(e)) from e
 
-        if len(root):
-            # Get the typenames from the Query tag.
-            query = root[0]
-            # Convert space- to comma-separated
-            KVP["TYPENAMES"] = ",".join(query.get("typeNames").split())
+        KVP["REQUEST"] = root.tag.split("}")[-1]
+        # Add other top level attributes.
+        for attribute, value in root.items():
+            attribute_key = XML_ATTRIBUTES_MAP.get(attribute, attribute.upper())
+            KVP[attribute_key] = value
+
+        for child in root:
+            if child.tag.endswith("Query"):
+                # Get the typenames from the Query tag. Convert space- to comma-separated.
+                KVP["TYPENAMES"] = ",".join(child.get("typeNames").split())
             # Other constructs
-            for elem in query:
+            for elem in child:
                 title = elem.tag.split("}")[-1]
                 # Get it from the request body because `fromstring` inserts the default namespace
                 # And we don't want filters to get that (i.e. <Filter> w/o namespace should resolve to fes).
                 pattern = re.compile(f"<{title}.*</{title}>")
                 reresult = re.search(pattern, str(data))
-                KVP[title.upper()] = reresult.group(0) if reresult else ET.tostring(elem)
+                KVP[title.upper()] = reresult.group(0) if reresult else elem
         return KVP
 
     def is_index_request(self):

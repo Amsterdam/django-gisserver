@@ -251,6 +251,10 @@ INVALID_FILTERS = {
             "Unable to parse FILTER argument: unclosed token: line 1, column 60",
             locator="filter",
         ),
+        OperationParsingFailed(
+            "Unable to parse XML: not well-formed (invalid token): line 8, column 12",
+            locator="filter",
+        ),
     ),
     "missing_xmlns": (
         """<?xml version="1.0"?>
@@ -265,6 +269,10 @@ INVALID_FILTERS = {
         </fes:Filter>""",
         OperationParsingFailed(
             "Unable to parse FILTER argument: unbound prefix: line 2, column 8",
+            locator="filter",
+        ),
+        OperationParsingFailed(
+            "Unable to parse XML: unbound prefix: line 7, column 12",
             locator="filter",
         ),
     ),
@@ -282,6 +290,10 @@ INVALID_FILTERS = {
     </fes:Filter>""",
         OperationParsingFailed(
             "Unable to parse FILTER argument: mismatched tag: line 9, column 10",
+            locator="filter",
+        ),
+        OperationParsingFailed(
+            "Unable to parse XML: mismatched tag: line 15, column 10",
             locator="filter",
         ),
     ),
@@ -383,6 +395,10 @@ INVALID_FILTERS = {
             " does not support comparing geometry properties: 'gml:boundedBy'.",
             locator="filter",
         ),
+        OperationParsingFailed(
+            "Unable to parse FILTER argument: not well-formed (invalid token): line 1, column 7",
+            locator="filter",
+        ),
     ),
 }
 
@@ -425,4 +441,11 @@ GENERATED_FIELD_FILTER = {
         </fes:Filter>
         """
     ),
+}
+
+SORT_BY_XML = {
+    "name": ("name", None, ["Café Noir", "Foo Bar"]),
+    "name-asc": ("name", "ASC", ["Café Noir", "Foo Bar"]),
+    "name-desc": ("name", "DESC", ["Foo Bar", "Café Noir"]),
+    "rating-desc": ("rating", "DESC", ["Café Noir", "Foo Bar"]),
 }
