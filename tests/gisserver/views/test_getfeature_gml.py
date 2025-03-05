@@ -1003,7 +1003,6 @@ class TestGetFeatureWithPostRequest:
 </wfs:FeatureCollection>""",  # noqa: E501
         )
 
-    @pytest.mark.skip
     @pytest.mark.parametrize("use_count", [1, 0])
     def test_post_pagination(
         self,
@@ -1021,24 +1020,20 @@ class TestGetFeatureWithPostRequest:
         """
         monkeypatch.setattr(conf, "GISSERVER_COUNT_NUMBER_MATCHED", use_count)
         names = []
-        xml = f"""<GetFeature service="WFS" version="2.0.0" {XML_NS} count="1">
-              <Query typeNames="restaurant">
-                <fes:SortBy>
-                  <fes:SortProperty>
-                      <fes:ValueReference>name</fes:ValueReference>
-                      <fes:SortOrder>ASC</fes:SortOrder>
-                  </fes:SortProperty>
-                </fes:SortBy>
-              </Query>
-              </GetFeature>
-              """
-        url = (
-            "/v1/wfs/"  # ?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
-            # "&SORTBY=name&vendor-arg=foobar"
-        )
-        for _ in range(4):  # test whether last page stops
+        for start_index in range(4):  # test whether last page stops
+            xml = f"""<GetFeature service="WFS" version="2.0.0" {XML_NS} count="1" startIndex="{start_index}">
+                  <Query typeNames="restaurant">
+                    <fes:SortBy>
+                      <fes:SortProperty>
+                          <fes:ValueReference>name</fes:ValueReference>
+                          <fes:SortOrder>ASC</fes:SortOrder>
+                      </fes:SortProperty>
+                    </fes:SortBy>
+                  </Query>
+                  </GetFeature>
+                  """
             with django_assert_max_num_queries(1 + use_count):
-                response = client.post(f"{url}", data=xml, content_type="application/xml")
+                response = client.post("/v1/wfs/", data=xml, content_type="application/xml")
                 content = read_response(response)
             assert response["content-type"] == "text/xml; charset=utf-8", content
             assert response.status_code == 200, content
@@ -1056,23 +1051,14 @@ class TestGetFeatureWithPostRequest:
             # Test pagination links
             next_url = xml_doc.attrib.get("next")
             if not next_url:
-                assert xml_doc.attrib.get("previous") == (
-                    "http://testserver/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
-                    "&TYPENAMES=restaurant&SORTBY=name"
-                    "&vendor-arg=foobar"
-                    "&COUNT=1&STARTINDEX=0"
+                assert (
+                    xml_doc.attrib.get("previous")
+                    == "http://testserver/v1/wfs/?STARTINDEX=0&COUNT=1"
                 )
+
                 break  # last page reached
 
-            assert next_url == (
-                "http://testserver/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
-                "&TYPENAMES=restaurant&SORTBY=name"
-                "&vendor-arg=foobar"
-                "&COUNT=1&STARTINDEX=1"
-            )
-
-            # Resolve next page!
-            url = next_url
+            assert next_url == "http://testserver/v1/wfs/?STARTINDEX=1&COUNT=1"
 
         # Prove that both items were returned
         assert len(names) == 2
