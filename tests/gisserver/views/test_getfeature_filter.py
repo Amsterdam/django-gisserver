@@ -92,7 +92,7 @@ class TestGetFeature:
     @pytest.mark.parametrize("filter_name", list(INVALID_FILTERS.keys()))
     def test_get_filter_invalid(self, client, restaurant, filter_name):
         """Prove that that parsing FILTER=<fes:Filter>... works"""
-        filter, expect_exception = INVALID_FILTERS[filter_name]
+        filter, expect_exception, _ = INVALID_FILTERS[filter_name]
 
         response = client.get(
             "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
