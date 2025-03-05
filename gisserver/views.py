@@ -23,6 +23,7 @@ from gisserver.features import FeatureType, ServiceDescription
 from gisserver.operations import base, wfs20
 
 SAFE_VERSION = re.compile(r"\A[0-9.]+\Z")
+KNOWN_ATTRIBUTES = ["service", "version", "acceptVersions", "srsName", "resultType", "count"]
 
 
 class GISView(View):
@@ -134,7 +135,7 @@ class GISView(View):
         KVP["REQUEST"] = root.tag.split("}")[-1]
         # Other top level attributes that we need to insert.
         for attribute, value in root.items():
-            if attribute.lower() in ["service", "version", "acceptversions"]:
+            if attribute in KNOWN_ATTRIBUTES:
                 KVP[attribute.upper()] = value
 
         if len(root):
