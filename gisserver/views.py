@@ -153,11 +153,11 @@ class GISView(View):
             # Other constructs
             for elem in child:
                 title = elem.tag.split("}")[-1]
-                # Get it from the request body because `fromstring` inserts the default namespace
-                # And we don't want filters to get that (i.e. <Filter> w/o namespace should resolve to fes).
-                pattern = re.compile(f"<{title}.*</{title}>")
-                reresult = re.search(pattern, str(data))
-                KVP[title.upper()] = reresult.group(0) if reresult else elem
+                # If the element does not have a specified namespace in the request body, we use that
+                # instead of the element, as it might use the wrong namespace in the ElementTree.
+                # This supports <Filter> w/o namespace.
+                found_element = re.search(rf"<{title}.*</{title}>", str(data))
+                KVP[title.upper()] = found_element.group(0) if found_element else elem
         return KVP
 
     def is_index_request(self):
