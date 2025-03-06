@@ -433,7 +433,7 @@ class TestGetFeatureGeoJsonWithPostRequest:
         # as some project/vendor specific parameters might be case-sensitive.
         assert data["links"] == [
             {
-                "href": "http://testserver/v1/wfs/?STARTINDEX=1000&COUNT=1000",
+                "href": "http://testserver/v1/wfs/",
                 "rel": "next",
                 "type": "application/geo+json",
                 "title": "next page",

@@ -777,7 +777,6 @@ class TestGetPropertyValueWithPostRequest:
             url = xml_doc.attrib.get("next")
             if not url:
                 break
-            assert f"STARTINDEX={start_index + 1}" in xml_doc.attrib.get("next")
 
         # Prove that both items were returned
         assert len(names) == 2

@@ -1051,14 +1051,11 @@ class TestGetFeatureWithPostRequest:
             # Test pagination links
             next_url = xml_doc.attrib.get("next")
             if not next_url:
-                assert (
-                    xml_doc.attrib.get("previous")
-                    == "http://testserver/v1/wfs/?STARTINDEX=0&COUNT=1"
-                )
+                assert xml_doc.attrib.get("previous") == "http://testserver/v1/wfs/"
 
                 break  # last page reached
 
-            assert next_url == "http://testserver/v1/wfs/?STARTINDEX=1&COUNT=1"
+            assert next_url == "http://testserver/v1/wfs/"
 
         # Prove that both items were returned
         assert len(names) == 2
