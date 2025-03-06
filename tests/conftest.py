@@ -20,6 +20,7 @@ from gisserver import conf
 from gisserver.types import GML32
 from tests.constants import RD_NEW, RD_NEW_SRID
 from tests.test_gisserver import models
+from tests.requests import Request
 from tests.utils import read_json
 from tests.xsd_download import download_schema
 
@@ -271,6 +272,17 @@ if django.VERSION >= (5, 0):
         )
 
 
+@pytest.fixture()
+def empty_restaurant() -> models.Restaurant:
+    return models.Restaurant.objects.create(name="Empty")
+
+
+@pytest.fixture()
+def many_restaurants() -> None:
+    for i in range(1500):
+        models.Restaurant.objects.create(name=f"obj#{i}")
+
+
 @pytest.fixture(scope="session")
 def django_db_setup(django_db_setup, django_db_blocker):
     """Still show which version the tests run against.
@@ -284,3 +296,43 @@ def django_db_setup(django_db_setup, django_db_blocker):
 
         # By fetching this first, it won't pollute django_assert_max_num_queries()
         _ = connection.ops.spatial_version
+
+
+@pytest.fixture()
+def response(client, request):
+    req: Request = request.param
+    if req.method == "GET":
+        if isinstance(req.query, str):
+            response = client.get(req.url + req.query)
+        else:
+            # a function is being passed in.
+            def func(*args):
+                q = req.query(*args)
+                return client.get(req.url + q)
+
+            response = func
+    elif req.method == "POST":
+        if isinstance(req.body, str):
+            response = client.post(req.url, data=req.body, content_type="application/xml")
+        else:
+            # a function is being passed in.
+            def func(*args):
+                b = req.body(*args)
+                return client.post(req.url, data=b, content_type="application/xml")
+
+            response = func
+    else:
+        # Method not supported
+        return None
+
+    if req.expect:
+        response.expect = req.expect
+    return response
+
+
+def pytest_make_parametrize_id(config, val):
+    if isinstance(val, Request):
+        if val.id:
+            return f"{val.method}-{val.id}"
+        return val.method
+    return repr(val)
