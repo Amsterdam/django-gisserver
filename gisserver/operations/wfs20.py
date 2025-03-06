@@ -369,17 +369,20 @@ class BaseWFSGetDataMethod(WFSTypeNamesMethod):
 
     def _replace_url_params(self, **updates) -> str:
         """Replace a query parameter in the URL"""
-        new_params = self.view.request.GET.copy()  # preserve lowercase fields too
+        if self.view.request.method == "GET":
+            new_params = self.view.request.GET.copy()  # preserve lowercase fields too
 
-        # Replace any lower/mixed case variants of the previous names:
-        for name in self.view.request.GET:
-            upper = name.upper()
-            if upper in updates:
-                new_params[name] = updates.pop(upper)
+            # Replace any lower/mixed case variants of the previous names:
+            for name in self.view.request.GET:
+                upper = name.upper()
+                if upper in updates:
+                    new_params[name] = updates.pop(upper)
 
-        # Override/replace with new remaining uppercase variants
-        new_params.update(updates)
-        return f"{self.view.server_url}?{urlencode(new_params)}"
+            # Override/replace with new remaining uppercase variants
+            new_params.update(updates)
+            return f"{self.view.server_url}?{urlencode(new_params)}"
+        # Only a GET request has url_params
+        return self.view.server_url
 
     def _is_orm_error(self, exception: Exception):
         traceback = exception.__traceback__
