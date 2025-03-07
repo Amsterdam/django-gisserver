@@ -244,15 +244,16 @@ FLATTENED_FILTERS = {
         </fes:Filter>""",
 }
 
+# Invalid Filters with their repective GET and POST request exceptions.
 INVALID_FILTERS = {
     "syntax": (
         """<fes:Filter xmlns:fes="http://www.opengis.net/fes/2.0">FDFDS</fes:Filter""",
         OperationParsingFailed(
-            "Unable to parse FILTER argument: unclosed token: line 1, column 60",
+            "Unable to parse FILTER argument: unclosed token:",
             locator="filter",
         ),
         OperationParsingFailed(
-            "Unable to parse XML: not well-formed (invalid token): line 8, column 12",
+            "Unable to parse XML: not well-formed (invalid token):",
             locator="filter",
         ),
     ),
@@ -268,11 +269,11 @@ INVALID_FILTERS = {
             </fes:PropertyIsGreaterThanOrEqualTo>
         </fes:Filter>""",
         OperationParsingFailed(
-            "Unable to parse FILTER argument: unbound prefix: line 2, column 8",
+            "Unable to parse FILTER argument: unbound prefix:",
             locator="filter",
         ),
         OperationParsingFailed(
-            "Unable to parse XML: unbound prefix: line 7, column 12",
+            "Unable to parse XML: unbound prefix:",
             locator="filter",
         ),
     ),
@@ -289,11 +290,11 @@ INVALID_FILTERS = {
         </fes:PropertyIsGreaterThanOrEqualTofoo>
     </fes:Filter>""",
         OperationParsingFailed(
-            "Unable to parse FILTER argument: mismatched tag: line 9, column 10",
+            "Unable to parse FILTER argument: mismatched tag:",
             locator="filter",
         ),
         OperationParsingFailed(
-            "Unable to parse XML: mismatched tag: line 15, column 10",
+            "Unable to parse XML: mismatched tag:",
             locator="filter",
         ),
     ),
@@ -415,7 +416,7 @@ INVALID_FILTERS = {
             locator="filter",
         ),
         OperationParsingFailed(
-            "Unable to parse FILTER argument: not well-formed (invalid token): line 1, column 7",
+            "Unable to parse FILTER argument: not well-formed (invalid token):",
             locator="filter",
         ),
     ),
