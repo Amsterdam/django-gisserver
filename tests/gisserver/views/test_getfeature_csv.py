@@ -2,6 +2,7 @@ import django
 import pytest
 
 from tests.constants import XML_NS
+from tests.requests import Get, Post, parametrize_response
 from tests.utils import read_response
 
 # enable for all tests in this file
@@ -14,13 +15,22 @@ class TestGetFeature:
     The methods need to have at least one datatype, otherwise not all content is rendered.
     """
 
+    @parametrize_response(
+        [
+            Get(
+                "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant&outputformat=csv"
+            ),
+            Post(
+                f"""
+                <GetFeature version="2.0.0" outputFormat="csv" service="WFS" {XML_NS}>
+                <Query typeNames="restaurant"></Query>
+                </GetFeature>
+                """
+            ),
+        ]
+    )
     def test_get_csv(
-        self,
-        client,
-        restaurant,
-        bad_restaurant,
-        django_assert_max_num_queries,
-        coordinates,
+        self, restaurant, bad_restaurant, django_assert_max_num_queries, coordinates, response
     ):
         """Prove that the csv export works.
 
@@ -28,10 +38,6 @@ class TestGetFeature:
         also includes comma's properly.
         """
         with django_assert_max_num_queries(3):
-            response = client.get(
-                "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
-                "&outputformat=csv"
-            )
             assert response["content-type"] == "text/csv; charset=utf-8"
             content = read_response(response)
             assert response.status_code == 200, content
@@ -69,20 +75,26 @@ class TestGetFeature:
 """.lstrip()  # noqa: E501
         assert content == expect
 
+    @parametrize_response(
+        [
+            Get(
+                "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant&outputformat=csv"
+            ),
+            Post(
+                f"""
+                <GetFeature version="2.0.0" outputFormat="csv" service="WFS" {XML_NS}>
+                <Query typeNames="restaurant"></Query>
+                </GetFeature>
+                """
+            ),
+        ],
+        url_type="COMPLEX",
+    )
     def test_get_csv_complex(
-        self,
-        client,
-        restaurant_m2m,
-        bad_restaurant,
-        django_assert_max_num_queries,
-        coordinates,
+        self, restaurant_m2m, bad_restaurant, django_assert_max_num_queries, coordinates, response
     ):
         """Prove that the CSV export works, for complex results."""
         with django_assert_max_num_queries(2):
-            response = client.get(
-                "/v1/wfs-complextypes/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
-                "&TYPENAMES=restaurant&outputformat=csv"
-            )
             assert response["content-type"] == "text/csv; charset=utf-8"
             content = read_response(response)
             assert response.status_code == 200, content
@@ -95,20 +107,26 @@ class TestGetFeature:
         assert content == expect
         assert "SRID=4326;" in content
 
+    @parametrize_response(
+        [
+            Get(
+                "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant&outputformat=csv"
+            ),
+            Post(
+                f"""
+                <GetFeature version="2.0.0" outputFormat="csv" service="WFS" {XML_NS}>
+                <Query typeNames="restaurant"></Query>
+                </GetFeature>
+                """
+            ),
+        ],
+        url_type="FLAT",
+    )
     def test_get_csv_flattened(
-        self,
-        client,
-        restaurant,
-        bad_restaurant,
-        django_assert_max_num_queries,
-        coordinates,
+        self, restaurant, bad_restaurant, django_assert_max_num_queries, coordinates, response
     ):
         """Prove that the geojson export works, for flattened results."""
         with django_assert_max_num_queries(2):
-            response = client.get(
-                "/v1/wfs-flattened/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
-                "&TYPENAMES=restaurant&outputformat=csv"
-            )
             assert response["content-type"] == "text/csv; charset=utf-8"
             content = read_response(response)
             assert response.status_code == 200, content

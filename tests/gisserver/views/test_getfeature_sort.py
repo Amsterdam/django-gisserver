@@ -9,6 +9,7 @@ from tests.gisserver.views.input import (
     SORT_BY_FLATTENED_XML,
     SORT_BY_XML,
 )
+from tests.requests import Get, Post, parametrize_response
 from tests.utils import WFS_20_XSD, read_response, validate_xsd
 
 # enable for all tests in this file
@@ -21,97 +22,116 @@ class TestGetFeatureSort:
     The methods need to have at least one datatype, otherwise not all content is rendered.
     """
 
-    @pytest.mark.parametrize("ordering", list(SORT_BY.keys()))
-    def test_get_sort_by(self, client, restaurant, bad_restaurant, ordering):
+    @parametrize_response(
+        [
+            Get(
+                "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
+                f"&SORTBY={sort_by}",
+                id=name,
+                expect=expect,
+            )
+            for name, (sort_by, expect) in SORT_BY.items()
+        ]
+        + [
+            Post(
+                f"""<GetFeature version="2.0.0" service="WFS" {XML_NS}>
+                <Query typeNames="restaurant">
+                    <fes:SortBy>
+                        <fes:SortProperty>
+                            <fes:ValueReference>{sort_by}</fes:ValueReference>
+                            {f"<fes:SortOrder>{order}</fes:SortOrder>" if order else ""}
+                        </fes:SortProperty>
+                    </fes:SortBy>
+                </Query>
+                </GetFeature>
+                """,
+                id=name,
+                expect=expect,
+            )
+            for name, (sort_by, order, expect) in SORT_BY_XML.items()
+        ]
+        + [
+            Get(
+                "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
+                f"&SORTBY={sort_by}",
+                id=f"{name}(COMPLEX)",
+                expect=expect,
+                url_type="COMPLEX",
+            )
+            for name, (sort_by, expect) in SORT_BY_COMPLEX.items()
+        ]
+        + [
+            Post(
+                f"""<GetFeature version="2.0.0" service="WFS" {XML_NS}>
+                <Query typeNames="restaurant">
+                    <fes:SortBy>
+                        <fes:SortProperty>
+                            <fes:ValueReference>{sort_by}</fes:ValueReference>
+                            {f"<fes:SortOrder>{order}</fes:SortOrder>" if order else ""}
+                        </fes:SortProperty>
+                    </fes:SortBy>
+                </Query>
+                </GetFeature>
+                """,
+                id=f"{name}(COMPLEX)",
+                expect=expect,
+                url_type="COMPLEX",
+            )
+            for name, (sort_by, order, expect) in SORT_BY_COMPLEX_XML.items()
+        ]
+        + [
+            Get(
+                "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
+                f"&SORTBY={sort_by}",
+                id=f"{name}(FLAT)",
+                expect=expect,
+                url_type="FLAT",
+            )
+            for name, (sort_by, expect) in SORT_BY_FLATTENED.items()
+        ]
+        + [
+            Post(
+                f"""<GetFeature version="2.0.0" service="WFS" {XML_NS}>
+                <Query typeNames="restaurant">
+                    <fes:SortBy>
+                        <fes:SortProperty>
+                            <fes:ValueReference>{sort_by}</fes:ValueReference>
+                            {f"<fes:SortOrder>{order}</fes:SortOrder>" if order else ""}
+                        </fes:SortProperty>
+                    </fes:SortBy>
+                </Query>
+                </GetFeature>
+                """,
+                id=f"{name}(FLAT)",
+                expect=expect,
+                url_type="FLAT",
+            )
+            for name, (sort_by, order, expect) in SORT_BY_FLATTENED_XML.items()
+        ]
+        + [  # Sort by multiple keys. Tests that the order is based on the first sort property.
+            Post(
+                f"""<GetFeature version="2.0.0" service="WFS" valueReference="name" {XML_NS}>
+				<Query typeNames="restaurant">
+					<fes:SortBy>
+						<fes:SortProperty>
+							<fes:ValueReference>rating</fes:ValueReference>
+							<fes:SortOrder>ASC</fes:SortOrder>
+						</fes:SortProperty>
+						<fes:SortProperty>
+							<fes:ValueReference>name</fes:ValueReference>
+							<fes:SortOrder>ASC</fes:SortOrder>
+						</fes:SortProperty>
+					</fes:SortBy>
+				</Query>
+				</GetFeature>
+				""",
+                expect=["Foo Bar", "Café Noir"],
+            )
+        ]
+    )
+    def test_get_sort_by(self, restaurant, bad_restaurant, response):
         """Prove that that sorting with SORTBY=... works"""
-        sort_by, expect = SORT_BY[ordering]
-        response = client.get(
-            "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
-            f"&SORTBY={sort_by}"
-        )
-        _assert_sort(response, expect)
-
-    @pytest.mark.parametrize("ordering", list(SORT_BY_COMPLEX.keys()))
-    def test_get_sort_by_complex(self, client, restaurant, bad_restaurant, ordering):
-        """Prove that sorting on XPath works for complex types"""
-        sort_by, expect = SORT_BY_COMPLEX[ordering]
-        response = client.get(
-            "/v1/wfs-complextypes/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
-            f"&TYPENAMES=restaurant&SORTBY={sort_by}"
-        )
-        _assert_sort(response, expect)
-
-    @pytest.mark.parametrize("ordering", list(SORT_BY_FLATTENED.keys()))
-    def test_get_sort_by_flattened(self, client, restaurant, bad_restaurant, ordering):
-        """Prove that sorting on XPath works for flattened types"""
-        sort_by, expect = SORT_BY_FLATTENED[ordering]
-        response = client.get(
-            "/v1/wfs-flattened/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
-            f"&TYPENAMES=restaurant&SORTBY={sort_by}"
-        )
-        _assert_sort(response, expect)
-
-
-@pytest.mark.django_db
-class TestGetFeatureSortWithPostRequest:
-    """All tests for the GetFeature method.
-    The methods need to have at least one datatype, otherwise not all content is rendered.
-    """
-
-    @pytest.mark.parametrize("ordering", list(SORT_BY_XML.keys()))
-    def test_get_sort_by(self, client, restaurant, bad_restaurant, ordering):
-        """Prove that that sorting with SORTBY=... works"""
-        sort_by, order, expect = SORT_BY_XML[ordering]
-        xml = f"""<GetFeature version="2.0.0" service="WFS" {XML_NS}>
-                <Query typeNames="restaurant">
-                    <fes:SortBy>
-                        <fes:SortProperty>
-                            <fes:ValueReference>{sort_by}</fes:ValueReference>
-                            {f"<fes:SortOrder>{order}</fes:SortOrder>" if order else ""}
-                        </fes:SortProperty>
-                    </fes:SortBy>
-                </Query>
-                </GetFeature>
-                """
-
-        response = client.post("/v1/wfs/", data=xml, content_type="application/xml")
-        _assert_sort(response, expect)
-
-    @pytest.mark.parametrize("ordering", list(SORT_BY_COMPLEX_XML.keys()))
-    def test_get_sort_by_complex(self, client, restaurant, bad_restaurant, ordering):
-        """Prove that sorting on XPath works for complex types"""
-        sort_by, order, expect = SORT_BY_COMPLEX_XML[ordering]
-        xml = f"""<GetFeature version="2.0.0" service="WFS" {XML_NS}>
-                <Query typeNames="restaurant">
-                    <fes:SortBy>
-                        <fes:SortProperty>
-                            <fes:ValueReference>{sort_by}</fes:ValueReference>
-                            {f"<fes:SortOrder>{order}</fes:SortOrder>" if order else ""}
-                        </fes:SortProperty>
-                    </fes:SortBy>
-                </Query>
-                </GetFeature>
-                """
-        response = client.post("/v1/wfs-complextypes/", data=xml, content_type="application/xml")
-        _assert_sort(response, expect)
-
-    @pytest.mark.parametrize("ordering", list(SORT_BY_FLATTENED_XML.keys()))
-    def test_get_sort_by_flattened(self, client, restaurant, bad_restaurant, ordering):
-        """Prove that sorting on XPath works for flattened types"""
-        sort_by, order, expect = SORT_BY_FLATTENED_XML[ordering]
-        xml = f"""<GetFeature version="2.0.0" service="WFS" {XML_NS}>
-                <Query typeNames="restaurant">
-                    <fes:SortBy>
-                        <fes:SortProperty>
-                            <fes:ValueReference>{sort_by}</fes:ValueReference>
-                            {f"<fes:SortOrder>{order}</fes:SortOrder>" if order else ""}
-                        </fes:SortProperty>
-                    </fes:SortBy>
-                </Query>
-                </GetFeature>
-                """
-        response = client.post("/v1/wfs-flattened/", data=xml, content_type="application/xml")
-        _assert_sort(response, expect)
+        _assert_sort(response, response.expect)
 
 
 def _assert_sort(response, expect):
