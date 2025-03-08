@@ -492,18 +492,6 @@ INVALID_FILTERS = {
     ),
 }
 
-# TODO: Put everything in one object SORT_BY[BASIC|COMPLEX|FLATTENED|XML|XML_COMPLEX|XML_FLATTENED]
-
-SORT_BY = {
-    "name": ("name", ["Café Noir", "Foo Bar"]),
-    "name-a": ("name A", ["Café Noir", "Foo Bar"]),
-    "name-asc": ("name ASC", ["Café Noir", "Foo Bar"]),
-    "name-d": ("name D", ["Foo Bar", "Café Noir"]),
-    "name-desc": ("name DESC", ["Foo Bar", "Café Noir"]),
-    "rating-desc": ("rating DESC", ["Café Noir", "Foo Bar"]),
-    "rating,name-asc": ("rating,name ASC", ["Foo Bar", "Café Noir"]),
-}
-
 GENERATED_FIELD_FILTER = {
     "name_reversed": (
         """
@@ -535,29 +523,120 @@ GENERATED_FIELD_FILTER = {
     ),
 }
 
-SORT_BY_COMPLEX = {
-    "city/name": ("city/name", ["Café Noir", "Foo Bar"]),
-    "city/name-desc": ("city/name DESC", ["Foo Bar", "Café Noir"]),
-}
+# Of the form (name, type, sort_by, expect)
+SORT_BY = [
+    ("name", "NORMAL", "name", ["Café Noir", "Foo Bar"]),
+    ("name-a", "NORMAL", "name A", ["Café Noir", "Foo Bar"]),
+    ("name-asc", "NORMAL", "name ASC", ["Café Noir", "Foo Bar"]),
+    ("name-d", "NORMAL", "name D", ["Foo Bar", "Café Noir"]),
+    ("name-desc", "NORMAL", "name DESC", ["Foo Bar", "Café Noir"]),
+    ("rating-desc", "NORMAL", "rating DESC", ["Café Noir", "Foo Bar"]),
+    ("rating,name-asc", "NORMAL", "rating,name ASC", ["Foo Bar", "Café Noir"]),
+    ("city/name", "COMPLEX", "city/name", ["Café Noir", "Foo Bar"]),
+    ("city/name-desc", "COMPLEX", "city/name DESC", ["Foo Bar", "Café Noir"]),
+    ("city-name", "FLAT", "city-name", ["Café Noir", "Foo Bar"]),
+    ("city-name-desc", "FLAT", "city-name DESC", ["Foo Bar", "Café Noir"]),
+]
 
-SORT_BY_FLATTENED = {
-    "city-name": ("city-name", ["Café Noir", "Foo Bar"]),
-    "city-name-desc": ("city-name DESC", ["Foo Bar", "Café Noir"]),
-}
-
-SORT_BY_XML = {
-    "name": ("name", None, ["Café Noir", "Foo Bar"]),
-    "name-asc": ("name", "ASC", ["Café Noir", "Foo Bar"]),
-    "name-desc": ("name", "DESC", ["Foo Bar", "Café Noir"]),
-    "rating-desc": ("rating", "DESC", ["Café Noir", "Foo Bar"]),
-}
-
-SORT_BY_COMPLEX_XML = {
-    "city/name": ("city/name", None, ["Café Noir", "Foo Bar"]),
-    "city/name-desc": ("city/name", "DESC", ["Foo Bar", "Café Noir"]),
-}
-
-SORT_BY_FLATTENED_XML = {
-    "city-name": ("city-name", None, ["Café Noir", "Foo Bar"]),
-    "city-name-desc": ("city-name", "DESC", ["Foo Bar", "Café Noir"]),
-}
+SORT_BY_XML = [
+    (
+        "name",
+        "NORMAL",
+        """
+        <fes:SortProperty>
+            <fes:ValueReference>name</fes:ValueReference>
+        </fes:SortProperty>
+        """,
+        ["Café Noir", "Foo Bar"],
+    ),
+    (
+        "name-asc",
+        "NORMAL",
+        """
+        <fes:SortProperty>
+            <fes:ValueReference>name</fes:ValueReference>
+            <fes:SortOrder>ASC</fes:SortOrder>
+        </fes:SortProperty>
+        """,
+        ["Café Noir", "Foo Bar"],
+    ),
+    (
+        "name-desc",
+        "NORMAL",
+        """
+        <fes:SortProperty>
+            <fes:ValueReference>name</fes:ValueReference>
+            <fes:SortOrder>DESC</fes:SortOrder>
+        </fes:SortProperty>
+        """,
+        ["Foo Bar", "Café Noir"],
+    ),
+    (
+        "rating-desc",
+        "NORMAL",
+        """
+        <fes:SortProperty>
+            <fes:ValueReference>rating</fes:ValueReference>
+            <fes:SortOrder>DESC</fes:SortOrder>
+        </fes:SortProperty>
+        """,
+        ["Café Noir", "Foo Bar"],
+    ),
+    (
+        "city-name",
+        "FLAT",
+        """
+        <fes:SortProperty>
+            <fes:ValueReference>city-name</fes:ValueReference>
+        </fes:SortProperty>
+        """,
+        ["Café Noir", "Foo Bar"],
+    ),
+    (
+        "city-name-desc",
+        "FLAT",
+        """
+        <fes:SortProperty>
+            <fes:ValueReference>city-name</fes:ValueReference>
+            <fes:SortOrder>DESC</fes:SortOrder>
+        </fes:SortProperty>
+        """,
+        ["Foo Bar", "Café Noir"],
+    ),
+    (
+        "city/name",
+        "COMPLEX",
+        """
+        <fes:SortProperty>
+            <fes:ValueReference>city/name</fes:ValueReference>
+        </fes:SortProperty>
+        """,
+        ["Café Noir", "Foo Bar"],
+    ),
+    (
+        "city/name-desc",
+        "COMPLEX",
+        """
+        <fes:SortProperty>
+            <fes:ValueReference>city/name</fes:ValueReference>
+            <fes:SortOrder>DESC</fes:SortOrder>
+        </fes:SortProperty>
+        """,
+        ["Foo Bar", "Café Noir"],
+    ),
+    (
+        "rating,name-asc",
+        "NORMAL",
+        """
+        <fes:SortProperty>
+            <fes:ValueReference>rating</fes:ValueReference>
+            <fes:SortOrder>ASC</fes:SortOrder>
+        </fes:SortProperty>
+        <fes:SortProperty>
+            <fes:ValueReference>name</fes:ValueReference>
+            <fes:SortOrder>ASC</fes:SortOrder>
+        </fes:SortProperty>
+        """,
+        ["Foo Bar", "Café Noir"],
+    ),
+]

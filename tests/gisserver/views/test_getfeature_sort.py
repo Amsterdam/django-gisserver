@@ -3,10 +3,6 @@ import pytest
 from tests.constants import NAMESPACES, XML_NS
 from tests.gisserver.views.input import (
     SORT_BY,
-    SORT_BY_COMPLEX,
-    SORT_BY_COMPLEX_XML,
-    SORT_BY_FLATTENED,
-    SORT_BY_FLATTENED_XML,
     SORT_BY_XML,
 )
 from tests.requests import Get, Post, parametrize_response
@@ -27,106 +23,27 @@ class TestGetFeatureSort:
             Get(
                 "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
                 f"&SORTBY={sort_by}",
-                id=name,
+                id=f"{name} ({type})",
                 expect=expect,
+                url_type=type,
             )
-            for name, (sort_by, expect) in SORT_BY.items()
+            for (name, type, sort_by, expect) in SORT_BY
         ]
         + [
             Post(
                 f"""<GetFeature version="2.0.0" service="WFS" {XML_NS}>
                 <Query typeNames="restaurant">
                     <fes:SortBy>
-                        <fes:SortProperty>
-                            <fes:ValueReference>{sort_by}</fes:ValueReference>
-                            {f"<fes:SortOrder>{order}</fes:SortOrder>" if order else ""}
-                        </fes:SortProperty>
+                        {sort_by}
                     </fes:SortBy>
                 </Query>
                 </GetFeature>
                 """,
-                id=name,
+                id=f"{name} ({type})",
                 expect=expect,
+                url_type=type,
             )
-            for name, (sort_by, order, expect) in SORT_BY_XML.items()
-        ]
-        + [
-            Get(
-                "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
-                f"&SORTBY={sort_by}",
-                id=f"{name}(COMPLEX)",
-                expect=expect,
-                url_type="COMPLEX",
-            )
-            for name, (sort_by, expect) in SORT_BY_COMPLEX.items()
-        ]
-        + [
-            Post(
-                f"""<GetFeature version="2.0.0" service="WFS" {XML_NS}>
-                <Query typeNames="restaurant">
-                    <fes:SortBy>
-                        <fes:SortProperty>
-                            <fes:ValueReference>{sort_by}</fes:ValueReference>
-                            {f"<fes:SortOrder>{order}</fes:SortOrder>" if order else ""}
-                        </fes:SortProperty>
-                    </fes:SortBy>
-                </Query>
-                </GetFeature>
-                """,
-                id=f"{name}(COMPLEX)",
-                expect=expect,
-                url_type="COMPLEX",
-            )
-            for name, (sort_by, order, expect) in SORT_BY_COMPLEX_XML.items()
-        ]
-        + [
-            Get(
-                "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
-                f"&SORTBY={sort_by}",
-                id=f"{name}(FLAT)",
-                expect=expect,
-                url_type="FLAT",
-            )
-            for name, (sort_by, expect) in SORT_BY_FLATTENED.items()
-        ]
-        + [
-            Post(
-                f"""<GetFeature version="2.0.0" service="WFS" {XML_NS}>
-                <Query typeNames="restaurant">
-                    <fes:SortBy>
-                        <fes:SortProperty>
-                            <fes:ValueReference>{sort_by}</fes:ValueReference>
-                            {f"<fes:SortOrder>{order}</fes:SortOrder>" if order else ""}
-                        </fes:SortProperty>
-                    </fes:SortBy>
-                </Query>
-                </GetFeature>
-                """,
-                id=f"{name}(FLAT)",
-                expect=expect,
-                url_type="FLAT",
-            )
-            for name, (sort_by, order, expect) in SORT_BY_FLATTENED_XML.items()
-        ]
-        + [  # Sort by multiple keys. Tests that the order is based on the first sort property.
-            Post(
-                f"""<GetFeature version="2.0.0" service="WFS" valueReference="name" {XML_NS}>
-				<Query typeNames="restaurant">
-					<fes:SortBy>
-						<fes:SortProperty>
-							<fes:ValueReference>rating</fes:ValueReference>
-							<fes:SortOrder>ASC</fes:SortOrder>
-						</fes:SortProperty>
-						<fes:SortProperty>
-							<fes:ValueReference>name</fes:ValueReference>
-							<fes:SortOrder>ASC</fes:SortOrder>
-						</fes:SortProperty>
-					</fes:SortBy>
-				</Query>
-				</GetFeature>
-				""",
-                expect=["Foo Bar", "Café Noir"],
-            )
+            for (name, type, sort_by, expect) in SORT_BY_XML
         ]
     )
     def test_get_sort_by(self, restaurant, bad_restaurant, response):
