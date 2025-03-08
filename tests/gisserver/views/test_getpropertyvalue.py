@@ -5,9 +5,7 @@ import pytest
 
 from tests.constants import NAMESPACES, XML_NS
 from tests.gisserver.views.input import (
-    COMPLEX_FILTERS,
     FILTERS,
-    FLATTENED_FILTERS,
     INVALID_FILTERS,
     SORT_BY,
     SORT_BY_XML,
@@ -257,9 +255,10 @@ class TestGetPropertyValue:
             Get(
                 "?SERVICE=WFS&REQUEST=GetPropertyValue&VERSION=2.0.0&TYPENAMES=restaurant"
                 "&VALUEREFERENCE=name&FILTER=" + quote_plus(filter.strip()),
-                id=name,
+                id=f"{name} ({type})",
+                url_type=type,
             )
-            for name, filter in FILTERS.items()
+            for (name, type, filter) in FILTERS
         ]
         + [
             Post(
@@ -269,53 +268,10 @@ class TestGetPropertyValue:
 			</Query>
 			</GetPropertyValue>
 			""",
-                id=name,
+                id=f"{name} ({type})",
+                url_type=type,
             )
-            for name, filter in FILTERS.items()
-        ]
-        + [
-            Get(
-                "?SERVICE=WFS&REQUEST=GetPropertyValue&VERSION=2.0.0&TYPENAMES=restaurant"
-                "&VALUEREFERENCE=name&FILTER=" + quote_plus(filter.strip()),
-                url_type="FLAT",
-                id=f"{name}(FLAT)",
-            )
-            for name, filter in FLATTENED_FILTERS.items()
-        ]
-        + [
-            Post(
-                f"""<GetPropertyValue service="WFS" version="2.0.0" valueReference="name" {XML_NS}>
-			<Query typeNames="restaurant">
-			{clean_filter_for_xml(filter).strip()}
-			</Query>
-			</GetPropertyValue>
-			""",
-                url_type="FLAT",
-                id=f"{name}(FLAT)",
-            )
-            for name, filter in FLATTENED_FILTERS.items()
-        ]
-        + [
-            Get(
-                "?SERVICE=WFS&REQUEST=GetPropertyValue&VERSION=2.0.0&TYPENAMES=restaurant"
-                "&VALUEREFERENCE=name&FILTER=" + quote_plus(filter.strip()),
-                url_type="COMPLEX",
-                id=f"{name}(COMPLEX)",
-            )
-            for name, filter in COMPLEX_FILTERS.items()
-        ]
-        + [
-            Post(
-                f"""<GetPropertyValue service="WFS" version="2.0.0" valueReference="name" {XML_NS}>
-			<Query typeNames="restaurant">
-			{clean_filter_for_xml(filter).strip()}
-			</Query>
-			</GetPropertyValue>
-			""",
-                url_type="COMPLEX",
-                id=f"{name}(COMPLEX)",
-            )
-            for name, filter in COMPLEX_FILTERS.items()
+            for (name, type, filter) in FILTERS
         ]
     )
     def test_get_filter(self, client, restaurant, restaurant_m2m, bad_restaurant, response):

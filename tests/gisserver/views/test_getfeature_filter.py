@@ -6,9 +6,7 @@ import pytest
 from gisserver.geometries import WGS84
 from tests.constants import NAMESPACES, XML_NS
 from tests.gisserver.views.input import (
-    COMPLEX_FILTERS,
     FILTERS,
-    FLATTENED_FILTERS,
     INVALID_FILTERS,
 )
 from tests.requests import Get, Post, parametrize_response
@@ -104,9 +102,10 @@ class TestGetFeature:
             Get(
                 "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
                 "&FILTER=" + quote_plus(filter.strip()),
-                id=name,
+                id=f"{name} ({type})",
+                url_type=type,
             )
-            for name, filter in FILTERS.items()
+            for (name, type, filter) in FILTERS
         ]
         + [
             Post(
@@ -116,53 +115,10 @@ class TestGetFeature:
                 </Query>
                 </GetFeature>
                 """,
-                id=name,
+                id=f"{name} ({type})",
+                url_type=type,
             )
-            for name, filter in FILTERS.items()
-        ]
-        + [
-            Get(
-                "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
-                "&FILTER=" + quote_plus(filter.strip()),
-                id=f"{name}(COMPLEX)",
-                url_type="COMPLEX",
-            )
-            for name, filter in COMPLEX_FILTERS.items()
-        ]
-        + [
-            Post(
-                f"""<GetFeature service="WFS" version="2.0.0" {XML_NS}>
-                <Query typeNames="restaurant">
-                {clean_filter_for_xml(filter).strip()}
-                </Query>
-                </GetFeature>
-                """,
-                id=f"{name}(COMPLEX)",
-                url_type="COMPLEX",
-            )
-            for name, filter in COMPLEX_FILTERS.items()
-        ]
-        + [
-            Get(
-                "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
-                "&FILTER=" + quote_plus(filter.strip()),
-                id=f"{name}(FLAT)",
-                url_type="FLAT",
-            )
-            for name, filter in FLATTENED_FILTERS.items()
-        ]
-        + [
-            Post(
-                f"""<GetFeature service="WFS" version="2.0.0" {XML_NS}>
-                <Query typeNames="restaurant">
-                {clean_filter_for_xml(filter).strip()}
-                </Query>
-                </GetFeature>
-                """,
-                id=f"{name}(FLAT)",
-                url_type="FLAT",
-            )
-            for name, filter in FLATTENED_FILTERS.items()
+            for (name, type, filter) in FILTERS
         ]
     )
     def test_get_filter(self, restaurant, restaurant_m2m, bad_restaurant, response):
