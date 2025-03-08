@@ -401,46 +401,27 @@ class TestGetPropertyValue:
             Get(
                 "?SERVICE=WFS&REQUEST=GetPropertyValue&VERSION=2.0.0&TYPENAMES=restaurant"
                 f"&VALUEREFERENCE=name&SORTBY={sort_by}",
+                id=f"{name} ({type})",
                 expect=expect,
+                url_type=type,
             )
-            for sort_by, expect in SORT_BY.values()
+            for (name, type, sort_by, expect) in SORT_BY
         ]
         + [
             Post(
                 f"""<GetPropertyValue version="2.0.0" service="WFS" valueReference="name" {XML_NS}>
 				<Query typeNames="restaurant">
 					<fes:SortBy>
-						<fes:SortProperty>
-							<fes:ValueReference>{sort_by}</fes:ValueReference>
-							{f"<fes:SortOrder>{order}</fes:SortOrder>" if order else ""}
-						</fes:SortProperty>
+						{sort_by}
 					</fes:SortBy>
 				</Query>
 				</GetPropertyValue>
 				""",
+                id=f"{name} ({type})",
                 expect=expect,
+                url_type=type,
             )
-            for sort_by, order, expect in SORT_BY_XML.values()
-        ]
-        + [  # Sort by multiple keys. Tests that the order is based on the first sort property.
-            Post(
-                f"""<GetPropertyValue version="2.0.0" service="WFS" valueReference="name" {XML_NS}>
-				<Query typeNames="restaurant">
-					<fes:SortBy>
-						<fes:SortProperty>
-							<fes:ValueReference>rating</fes:ValueReference>
-							<fes:SortOrder>ASC</fes:SortOrder>
-						</fes:SortProperty>
-						<fes:SortProperty>
-							<fes:ValueReference>name</fes:ValueReference>
-							<fes:SortOrder>ASC</fes:SortOrder>
-						</fes:SortProperty>
-					</fes:SortBy>
-				</Query>
-				</GetPropertyValue>
-				""",
-                expect=["Foo Bar", "Café Noir"],
-            )
+            for (name, type, sort_by, expect) in SORT_BY_XML
         ]
     )
     def test_get_sort_by(self, client, restaurant, bad_restaurant, response):
