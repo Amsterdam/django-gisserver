@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Optional, Union
 
 import pytest
 
@@ -40,7 +40,7 @@ class Request:
 @dataclass
 class Get(Request):
     method = "GET"
-    query: str | Callable
+    query: Union[str, Callable]
 
     def __init__(self, query, **kwargs):
         super().__init__(**kwargs)
@@ -50,7 +50,7 @@ class Get(Request):
 @dataclass
 class Post(Request):
     method = "POST"
-    body: str | Callable
+    body: Union[str, Callable]
 
     def __init__(self, body, **kwargs):
         super().__init__(**kwargs)
