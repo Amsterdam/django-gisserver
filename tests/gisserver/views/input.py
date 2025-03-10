@@ -1,7 +1,11 @@
 from gisserver.exceptions import OperationParsingFailed, OperationProcessingFailed
 
-FILTERS = {
-    "simple": """
+# Tuples of the shape (name, url_type, filter)
+FILTERS = [
+    (
+        "simple",
+        "NORMAL",
+        """
         <?xml version="1.0"?>
         <fes:Filter
              xmlns:fes="http://www.opengis.net/fes/2.0"
@@ -13,7 +17,11 @@ FILTERS = {
                 <fes:Literal>3.0</fes:Literal>
             </fes:PropertyIsGreaterThanOrEqualTo>
         </fes:Filter>""",
-    "value_datetimefield": """
+    ),
+    (
+        "value_datetimefield",
+        "NORMAL",
+        """
         <?xml version="1.0"?>
         <fes:Filter
              xmlns:fes="http://www.opengis.net/fes/2.0"
@@ -25,7 +33,11 @@ FILTERS = {
                 <fes:ValueReference>created</fes:ValueReference>
             </fes:PropertyIsEqualTo>
         </fes:Filter>""",
-    "value_boolean": """
+    ),
+    (
+        "value_boolean",
+        "NORMAL",
+        """
         <?xml version="1.0"?>
         <fes:Filter
              xmlns:fes="http://www.opengis.net/fes/2.0"
@@ -37,7 +49,11 @@ FILTERS = {
                 <fes:Literal>true</fes:Literal>
             </fes:PropertyIsEqualTo>
         </fes:Filter>""",
-    "value_boolean_cast": """
+    ),
+    (
+        "value_boolean_cast",
+        "NORMAL",
+        """
         <?xml version="1.0"?>
         <fes:Filter
              xmlns:fes="http://www.opengis.net/fes/2.0"
@@ -47,7 +63,11 @@ FILTERS = {
                 <fes:ValueReference>is_open</fes:ValueReference>
             </fes:PropertyIsEqualTo>
         </fes:Filter>""",
-    "value_array": """
+    ),
+    (
+        "value_array",
+        "NORMAL",
+        """
         <?xml version="1.0"?>
         <fes:Filter xmlns:fes="http://www.opengis.net/fes/2.0">
             <fes:PropertyIsEqualTo>
@@ -55,7 +75,11 @@ FILTERS = {
                 <fes:Literal>black</fes:Literal>
             </fes:PropertyIsEqualTo>
         </fes:Filter>""",
-    "value_array_lt": """
+    ),
+    (
+        "value_array_lt",
+        "NORMAL",
+        """
         <?xml version="1.0"?>
         <fes:Filter xmlns:fes="http://www.opengis.net/fes/2.0">
             <fes:PropertyIsLessThan>
@@ -63,14 +87,22 @@ FILTERS = {
                 <fes:Literal>color</fes:Literal>
             </fes:PropertyIsLessThan>
         </fes:Filter>""",
-    "fes1": """
+    ),
+    (
+        "fes1",
+        "NORMAL",
+        """
         <Filter>
             <PropertyIsGreaterThanOrEqualTo>
                 <PropertyName>rating</PropertyName>
                 <Literal>3.0</Literal>
             </PropertyIsGreaterThanOrEqualTo>
         </Filter>""",
-    "like": """
+    ),
+    (
+        "like",
+        "NORMAL",
+        """
         <?xml version="1.0"?>
         <fes:Filter
              xmlns:fes="http://www.opengis.net/fes/2.0"
@@ -82,7 +114,11 @@ FILTERS = {
                 <fes:Literal>C?fé*</fes:Literal>
             </fes:PropertyIsLike>
         </fes:Filter>""",
-    "bbox": """
+    ),
+    (
+        "bbox",
+        "NORMAL",
+        """
         <?xml version="1.0"?>
         <fes:Filter
             xmlns:fes="http://www.opengis.net/fes/2.0"
@@ -100,7 +136,11 @@ FILTERS = {
                 </gml:Envelope>
             </fes:BBOX>
         </fes:Filter>""",
-    "bbox_default": """
+    ),
+    (
+        "bbox_default",
+        "NORMAL",
+        """
         <fes:Filter
             xmlns:ns16="http://example.org/gisserver"
             xmlns:wfs="http://www.opengis.net/wfs/2.0"
@@ -113,7 +153,11 @@ FILTERS = {
                 </gml:Envelope>
             </fes:BBOX>
         </fes:Filter>""",
-    "and": """
+    ),
+    (
+        "and",
+        "NORMAL",
+        """
         <?xml version="1.0"?>
         <fes:Filter
             xmlns:fes="http://www.opengis.net/fes/2.0"
@@ -137,7 +181,11 @@ FILTERS = {
                 </fes:BBOX>
             </fes:And>
         </fes:Filter>""",
-    "gml:name": """
+    ),
+    (
+        "gml:name",
+        "NORMAL",
+        """
         <?xml version="1.0"?>
         <fes:Filter
              xmlns:fes="http://www.opengis.net/fes/2.0"
@@ -149,10 +197,11 @@ FILTERS = {
                 <fes:Literal>Café Noir</fes:Literal>
             </fes:PropertyIsEqualTo>
         </fes:Filter>""",
-}
-
-COMPLEX_FILTERS = {
-    "equal": """
+    ),
+    (
+        "equal",
+        "COMPLEX",
+        """
         <?xml version="1.0"?>
         <fes:Filter
              xmlns:fes="http://www.opengis.net/fes/2.0"
@@ -164,7 +213,11 @@ COMPLEX_FILTERS = {
                 <fes:Literal>CloudCity</fes:Literal>
             </fes:PropertyIsEqualTo>
         </fes:Filter>""",
-    "equal_xmlns": """
+    ),
+    (
+        "equal_xmlns",
+        "COMPLEX",
+        """
         <?xml version="1.0"?>
         <fes:Filter
              xmlns:fes="http://www.opengis.net/fes/2.0"
@@ -176,7 +229,11 @@ COMPLEX_FILTERS = {
                 <fes:Literal>CloudCity</fes:Literal>
             </fes:PropertyIsEqualTo>
         </fes:Filter>""",
-    "not_nil": """
+    ),
+    (
+        "not_nil",
+        "COMPLEX",
+        """
         <?xml version="1.0"?>
         <fes:Filter
              xmlns:fes="http://www.opengis.net/fes/2.0"
@@ -189,7 +246,11 @@ COMPLEX_FILTERS = {
                 </fes:PropertyIsNil>
             </fes:Not>
         </fes:Filter>""",
-    "m2m": """
+    ),
+    (
+        "m2m",
+        "COMPLEX",
+        """
         <?xml version="1.0"?>
         <fes:Filter
              xmlns:fes="http://www.opengis.net/fes/2.0"
@@ -201,11 +262,11 @@ COMPLEX_FILTERS = {
                 <fes:Literal>16:00:00</fes:Literal>
             </fes:PropertyIsEqualTo>
         </fes:Filter>""",
-}
-
-
-FLATTENED_FILTERS = {
-    "equal": """
+    ),
+    (
+        "equal",
+        "FLAT",
+        """
         <?xml version="1.0"?>
         <fes:Filter
              xmlns:fes="http://www.opengis.net/fes/2.0"
@@ -217,7 +278,11 @@ FLATTENED_FILTERS = {
                 <fes:Literal>CloudCity</fes:Literal>
             </fes:PropertyIsEqualTo>
         </fes:Filter>""",
-    "equal_xmlns": """
+    ),
+    (
+        "equal_xmlns",
+        "FLAT",
+        """
         <?xml version="1.0"?>
         <fes:Filter
              xmlns:fes="http://www.opengis.net/fes/2.0"
@@ -229,7 +294,11 @@ FLATTENED_FILTERS = {
                 <fes:Literal>CloudCity</fes:Literal>
             </fes:PropertyIsEqualTo>
         </fes:Filter>""",
-    "not_nil": """
+    ),
+    (
+        "not_nil",
+        "FLAT",
+        """
         <?xml version="1.0"?>
         <fes:Filter
              xmlns:fes="http://www.opengis.net/fes/2.0"
@@ -242,13 +311,19 @@ FLATTENED_FILTERS = {
                 </fes:PropertyIsNil>
             </fes:Not>
         </fes:Filter>""",
-}
+    ),
+]
 
+# Invalid Filters with their repective GET and POST request exceptions.
 INVALID_FILTERS = {
     "syntax": (
         """<fes:Filter xmlns:fes="http://www.opengis.net/fes/2.0">FDFDS</fes:Filter""",
         OperationParsingFailed(
-            "Unable to parse FILTER argument: unclosed token: line 1, column 60",
+            "Unable to parse FILTER argument: unclosed token:",
+            locator="filter",
+        ),
+        OperationParsingFailed(
+            "Unable to parse XML: not well-formed (invalid token):",
             locator="filter",
         ),
     ),
@@ -264,7 +339,11 @@ INVALID_FILTERS = {
             </fes:PropertyIsGreaterThanOrEqualTo>
         </fes:Filter>""",
         OperationParsingFailed(
-            "Unable to parse FILTER argument: unbound prefix: line 2, column 8",
+            "Unable to parse FILTER argument: unbound prefix:",
+            locator="filter",
+        ),
+        OperationParsingFailed(
+            "Unable to parse XML: unbound prefix:",
             locator="filter",
         ),
     ),
@@ -281,7 +360,11 @@ INVALID_FILTERS = {
         </fes:PropertyIsGreaterThanOrEqualTofoo>
     </fes:Filter>""",
         OperationParsingFailed(
-            "Unable to parse FILTER argument: mismatched tag: line 9, column 10",
+            "Unable to parse FILTER argument: mismatched tag:",
+            locator="filter",
+        ),
+        OperationParsingFailed(
+            "Unable to parse XML: mismatched tag:",
             locator="filter",
         ),
     ),
@@ -301,6 +384,10 @@ INVALID_FILTERS = {
             "Invalid data for the 'rating' property: Can't cast 'TEXT' to double.",
             locator="filter",
         ),
+        OperationParsingFailed(
+            "Invalid data for the 'rating' property: Can't cast 'TEXT' to double.",
+            locator="filter",
+        ),
     ),
     "float_like": (
         """
@@ -314,6 +401,11 @@ INVALID_FILTERS = {
             <fes:Literal>2</fes:Literal>
         </fes:PropertyIsLike>
     </fes:Filter>""",
+        OperationProcessingFailed(
+            "Operator '{http://www.opengis.net/fes/2.0}PropertyIsLike'"
+            " is not supported for the 'rating' property.",
+            locator="filter",
+        ),
         OperationProcessingFailed(
             "Operator '{http://www.opengis.net/fes/2.0}PropertyIsLike'"
             " is not supported for the 'rating' property.",
@@ -339,6 +431,11 @@ INVALID_FILTERS = {
             " Date must be in YYYY-MM-DD HH:MM[:ss[.uuuuuu]][TZ] format.",
             locator="filter",
         ),
+        OperationParsingFailed(
+            "Invalid data for the 'created' property:"
+            " Date must be in YYYY-MM-DD HH:MM[:ss[.uuuuuu]][TZ] format.",
+            locator="filter",
+        ),
     ),
     "date_text": (
         """
@@ -352,6 +449,11 @@ INVALID_FILTERS = {
             <fes:Literal>abc</fes:Literal>
         </fes:PropertyIsGreaterThanOrEqualTo>
     </fes:Filter>""",
+        OperationParsingFailed(
+            "Invalid data for the 'created' property:"
+            " Date must be in YYYY-MM-DD HH:MM[:ss[.uuuuuu]][TZ] format.",
+            locator="filter",
+        ),
         OperationParsingFailed(
             "Invalid data for the 'created' property:"
             " Date must be in YYYY-MM-DD HH:MM[:ss[.uuuuuu]][TZ] format.",
@@ -383,15 +485,127 @@ INVALID_FILTERS = {
             " does not support comparing geometry properties: 'gml:boundedBy'.",
             locator="filter",
         ),
+        OperationParsingFailed(
+            "Unable to parse FILTER argument: not well-formed (invalid token):",
+            locator="filter",
+        ),
     ),
 }
 
-SORT_BY = {
-    "name": ("name", ["Café Noir", "Foo Bar"]),
-    "name-a": ("name A", ["Café Noir", "Foo Bar"]),
-    "name-asc": ("name ASC", ["Café Noir", "Foo Bar"]),
-    "name-d": ("name D", ["Foo Bar", "Café Noir"]),
-    "name-desc": ("name DESC", ["Foo Bar", "Café Noir"]),
-    "rating-desc": ("rating DESC", ["Café Noir", "Foo Bar"]),
-    "rating,name-asc": ("rating,name ASC", ["Foo Bar", "Café Noir"]),
-}
+# Of the form (name, type, sort_by, expect)
+SORT_BY = [
+    ("name", "NORMAL", "name", ["Café Noir", "Foo Bar"]),
+    ("name-a", "NORMAL", "name A", ["Café Noir", "Foo Bar"]),
+    ("name-asc", "NORMAL", "name ASC", ["Café Noir", "Foo Bar"]),
+    ("name-d", "NORMAL", "name D", ["Foo Bar", "Café Noir"]),
+    ("name-desc", "NORMAL", "name DESC", ["Foo Bar", "Café Noir"]),
+    ("rating-desc", "NORMAL", "rating DESC", ["Café Noir", "Foo Bar"]),
+    ("rating,name-asc", "NORMAL", "rating,name ASC", ["Foo Bar", "Café Noir"]),
+    ("city/name", "COMPLEX", "city/name", ["Café Noir", "Foo Bar"]),
+    ("city/name-desc", "COMPLEX", "city/name DESC", ["Foo Bar", "Café Noir"]),
+    ("city-name", "FLAT", "city-name", ["Café Noir", "Foo Bar"]),
+    ("city-name-desc", "FLAT", "city-name DESC", ["Foo Bar", "Café Noir"]),
+]
+
+SORT_BY_XML = [
+    (
+        "name",
+        "NORMAL",
+        """
+        <fes:SortProperty>
+            <fes:ValueReference>name</fes:ValueReference>
+        </fes:SortProperty>
+        """,
+        ["Café Noir", "Foo Bar"],
+    ),
+    (
+        "name-asc",
+        "NORMAL",
+        """
+        <fes:SortProperty>
+            <fes:ValueReference>name</fes:ValueReference>
+            <fes:SortOrder>ASC</fes:SortOrder>
+        </fes:SortProperty>
+        """,
+        ["Café Noir", "Foo Bar"],
+    ),
+    (
+        "name-desc",
+        "NORMAL",
+        """
+        <fes:SortProperty>
+            <fes:ValueReference>name</fes:ValueReference>
+            <fes:SortOrder>DESC</fes:SortOrder>
+        </fes:SortProperty>
+        """,
+        ["Foo Bar", "Café Noir"],
+    ),
+    (
+        "rating-desc",
+        "NORMAL",
+        """
+        <fes:SortProperty>
+            <fes:ValueReference>rating</fes:ValueReference>
+            <fes:SortOrder>DESC</fes:SortOrder>
+        </fes:SortProperty>
+        """,
+        ["Café Noir", "Foo Bar"],
+    ),
+    (
+        "city-name",
+        "FLAT",
+        """
+        <fes:SortProperty>
+            <fes:ValueReference>city-name</fes:ValueReference>
+        </fes:SortProperty>
+        """,
+        ["Café Noir", "Foo Bar"],
+    ),
+    (
+        "city-name-desc",
+        "FLAT",
+        """
+        <fes:SortProperty>
+            <fes:ValueReference>city-name</fes:ValueReference>
+            <fes:SortOrder>DESC</fes:SortOrder>
+        </fes:SortProperty>
+        """,
+        ["Foo Bar", "Café Noir"],
+    ),
+    (
+        "city/name",
+        "COMPLEX",
+        """
+        <fes:SortProperty>
+            <fes:ValueReference>city/name</fes:ValueReference>
+        </fes:SortProperty>
+        """,
+        ["Café Noir", "Foo Bar"],
+    ),
+    (
+        "city/name-desc",
+        "COMPLEX",
+        """
+        <fes:SortProperty>
+            <fes:ValueReference>city/name</fes:ValueReference>
+            <fes:SortOrder>DESC</fes:SortOrder>
+        </fes:SortProperty>
+        """,
+        ["Foo Bar", "Café Noir"],
+    ),
+    (
+        "rating,name-asc",
+        "NORMAL",
+        """
+        <fes:SortProperty>
+            <fes:ValueReference>rating</fes:ValueReference>
+            <fes:SortOrder>ASC</fes:SortOrder>
+        </fes:SortProperty>
+        <fes:SortProperty>
+            <fes:ValueReference>name</fes:ValueReference>
+            <fes:SortOrder>ASC</fes:SortOrder>
+        </fes:SortProperty>
+        """,
+        ["Foo Bar", "Café Noir"],
+    ),
+]

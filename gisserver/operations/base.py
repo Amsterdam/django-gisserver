@@ -321,9 +321,6 @@ class WFSMethod:
         param_values = {param.name: param.value_from_query(KVP) for param in self.get_parameters()}
         param_values["NAMESPACES"] = self.namespaces
 
-        for param in self.get_parameters():
-            param_values[param.name] = param.value_from_query(KVP)
-
         # Update version if requested.
         # This is stored on the view, so exceptions also use it.
         if param_values.get("version"):

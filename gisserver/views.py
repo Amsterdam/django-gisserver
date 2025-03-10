@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from urllib.parse import urlencode
 
+import defusedxml.ElementTree as ET
 from django.core.exceptions import ImproperlyConfigured, SuspiciousOperation
 from django.core.exceptions import PermissionDenied as Django_PermissionDenied
 from django.shortcuts import render
@@ -15,6 +16,7 @@ from gisserver.exceptions import (
     InvalidParameterValue,
     MissingParameterValue,
     OperationNotSupported,
+    OperationParsingFailed,
     OWSException,
     PermissionDenied,
 )
@@ -22,6 +24,12 @@ from gisserver.features import FeatureType, ServiceDescription
 from gisserver.operations import base, wfs20
 
 SAFE_VERSION = re.compile(r"\A[0-9.]+\Z")
+# Some KVP attributes are not simply the uppercased version of the XML-attributes.
+XML_ATTRIBUTES_MAP = {
+    "storedQueryId": "STOREDQUERY_ID",
+}
+
+XML_CONCATENATION_SET = {"PropertyName"}
 
 
 class GISView(View):
@@ -102,6 +110,51 @@ class GISView(View):
         # Normal WFS
         wfs_method_cls = self.get_operation_class()
         return self.call_operation(wfs_method_cls)
+
+    def post(self, request, *args, **kwargs):
+        """Entry point to handle HTTP POST requests.
+
+        This parses the XML to get the correct service and operation,
+        to call the proper WFSMethod.
+        """
+        # Convert XML to WFS key-value-pair format.
+        self.KVP = self.parse_xml_post(request.body)
+        wfs_method_cls = self.get_operation_class()
+        return self.call_operation(wfs_method_cls)
+
+    def parse_xml_post(self, data):
+        KVP = {}
+        # The Requested method is the tag of the root without the {namespace} before it
+        try:
+            root = ET.fromstring(data)
+        except ET.ParseError as e:
+            raise OperationParsingFailed("Unable to parse XML: " + str(e)) from e
+
+        KVP["REQUEST"] = root.tag.split("}")[-1]
+        # Add other top level attributes.
+        for attribute, value in root.items():
+            attribute_key = XML_ATTRIBUTES_MAP.get(attribute, attribute.upper())
+            KVP[attribute_key] = value
+
+        for child in root:
+            if child.tag.endswith("Query"):
+                # Get the typenames from the Query tag. Convert space- to comma-separated.
+                KVP["TYPENAMES"] = ",".join(child.get("typeNames").split())
+            # Other constructs
+            for elem in child:
+                title = elem.tag.split("}")[-1]
+                if title in XML_CONCATENATION_SET:
+                    if KVP.get(title.upper(), None):
+                        KVP[title.upper()] += f",{elem.text}"
+                    else:
+                        KVP[title.upper()] = elem.text
+                else:
+                    # If the element does not have a specified namespace in the request body, we use that
+                    # instead of the element, as it might use the wrong namespace in the ElementTree.
+                    # This supports <Filter> w/o namespace.
+                    found_element = re.search(rf"<{title}.*?</{title}>", str(data))
+                    KVP[title.upper()] = found_element.group(0) if found_element else elem
+        return KVP
 
     def is_index_request(self):
         """Tell whether to index page should be shown."""

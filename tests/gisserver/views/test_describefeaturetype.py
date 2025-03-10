@@ -3,21 +3,31 @@ import urllib.parse
 import pytest
 from lxml import etree
 
-from tests.constants import NAMESPACES
+from tests.constants import NAMESPACES, XML_NS
+from tests.requests import Get, Post, parametrize_response
 from tests.utils import WFS_20_XSD, assert_xml_equal, validate_xsd
 
 # enable for all tests in this file
 pytestmark = [pytest.mark.urls("tests.test_gisserver.urls")]
+gml32 = urllib.parse.quote_plus("application/gml+xml; version=3.2")
 
 
 class TestDescribeFeatureType:
     """All tests for the DescribeFeatureType method."""
 
-    def test_describe(self, client):
+    @parametrize_response(
+        [
+            Get("?SERVICE=WFS&REQUEST=DescribeFeatureType&VERSION=2.0.0&TYPENAMES=restaurant"),
+            Post(
+                f"""<DescribeFeatureType version="2.0.0" service="WFS" {XML_NS}>
+              <Query typeNames="restaurant"></Query>
+              </DescribeFeatureType>
+              """
+            ),
+        ]
+    )
+    def test_describe(self, response):
         """Prove that the happy flow works"""
-        response = client.get(
-            "/v1/wfs/?SERVICE=WFS&REQUEST=DescribeFeatureType&VERSION=2.0.0&TYPENAMES=restaurant"
-        )
         content = response.content.decode()
         assert response["content-type"] == "application/gml+xml; version=3.2", content
         assert response.status_code == 200, content
@@ -77,12 +87,20 @@ class TestDescribeFeatureType:
 </schema>""",  # noqa: E501
         )
 
-    def test_describe_complex(self, client):
+    @parametrize_response(
+        [
+            Get("?SERVICE=WFS&REQUEST=DescribeFeatureType&VERSION=2.0.0&TYPENAMES=restaurant"),
+            Post(
+                f"""<DescribeFeatureType version="2.0.0" service="WFS" {XML_NS}>
+              <Query typeNames="restaurant"></Query>
+              </DescribeFeatureType>
+              """
+            ),
+        ],
+        url_type="COMPLEX",
+    )
+    def test_describe_complex(self, response):
         """Prove that complex types are properly rendered"""
-        response = client.get(
-            "/v1/wfs-complextypes/?SERVICE=WFS&REQUEST=DescribeFeatureType&VERSION=2.0.0"
-            "&TYPENAMES=restaurant"
-        )
         content = response.content.decode()
         assert response["content-type"] == "application/gml+xml; version=3.2", content
         assert response.status_code == 200, content
@@ -151,12 +169,20 @@ class TestDescribeFeatureType:
 """,  # noqa: E501
         )
 
-    def test_describe_flattened(self, client):
+    @parametrize_response(
+        [
+            Get("?SERVICE=WFS&REQUEST=DescribeFeatureType&VERSION=2.0.0&TYPENAMES=restaurant"),
+            Post(
+                f"""<DescribeFeatureType version="2.0.0" service="WFS" {XML_NS}>
+              <Query typeNames="restaurant"></Query>
+              </DescribeFeatureType>
+              """
+            ),
+        ],
+        url_type="FLAT",
+    )
+    def test_describe_flattened(self, response):
         """Prove that complex types are properly rendered"""
-        response = client.get(
-            "/v1/wfs-flattened/?SERVICE=WFS&REQUEST=DescribeFeatureType&VERSION=2.0.0"
-            "&TYPENAMES=restaurant"
-        )
         content = response.content.decode()
         assert response["content-type"] == "application/gml+xml; version=3.2", content
         assert response.status_code == 200, content
@@ -202,20 +228,37 @@ class TestDescribeFeatureType:
 </schema>""",  # noqa: E501
         )
 
-    def test_describe_outputformat(self, client):
+    @parametrize_response(
+        [
+            Get(
+                f"?SERVICE=WFS&REQUEST=DescribeFeatureType&VERSION=2.0.0&TYPENAMES=restaurant&outputformat={gml32}"
+            ),
+            Post(
+                f"""<DescribeFeatureType version="2.0.0" service="WFS" outputFormat="application/gml+xml; version=3.2" {XML_NS}>
+              <Query typeNames="restaurant"></Query>
+              </DescribeFeatureType>
+              """
+            ),
+        ]
+    )
+    def test_describe_outputformat(self, response):
         """Test workaround for FME's outputformat."""
-        gml32 = urllib.parse.quote("application/gml+xml; version=3.2")
-        response = client.get(
-            f"/v1/wfs/?SERVICE=WFS&REQUEST=DescribeFeatureType&VERSION=2.0.0&TYPENAMES=restaurant&outputformat={gml32}"
-        )
         content = response.content.decode()
         assert response.status_code == 200, content
 
-    def test_empty_typenames(self, client):
+    @parametrize_response(
+        [
+            Get("?SERVICE=WFS&REQUEST=DescribeFeatureType&VERSION=2.0.0&TYPENAMES="),
+            Post(
+                f"""<DescribeFeatureType version="2.0.0" service="WFS" {XML_NS}>
+              <Query typeNames=""></Query>
+              </DescribeFeatureType>
+              """
+            ),
+        ]
+    )
+    def test_empty_typenames(self, response):
         """Prove that missing arguments are handled"""
-        response = client.get(
-            "/v1/wfs/?SERVICE=WFS&REQUEST=DescribeFeatureType&VERSION=2.0.0&TYPENAMES="
-        )
         content = response.content.decode()
         assert response["content-type"] == "text/xml; charset=utf-8", content
         assert response.status_code == 400, content
@@ -226,9 +269,18 @@ class TestDescribeFeatureType:
         exception = xml_doc.find("ows:Exception", NAMESPACES)
         assert exception.attrib["exceptionCode"] == "MissingParameterValue"
 
-    def test_all_typenames(self, client):
+    @parametrize_response(
+        [
+            Get("?SERVICE=WFS&REQUEST=DescribeFeatureType&VERSION=2.0.0"),
+            Post(
+                f"""<DescribeFeatureType version="2.0.0" service="WFS"  {XML_NS}>
+              </DescribeFeatureType>
+              """
+            ),
+        ]
+    )
+    def test_all_typenames(self, response):
         """Prove that the happy flow works"""
-        response = client.get("/v1/wfs/?SERVICE=WFS&REQUEST=DescribeFeatureType&VERSION=2.0.0")
         content = response.content.decode()
         # assert response["content-type"] == "application/gml+xml; version=3.2", content
         assert response.status_code == 200, content
