@@ -255,7 +255,7 @@ class TestGetPropertyValue:
             Get(
                 "?SERVICE=WFS&REQUEST=GetPropertyValue&VERSION=2.0.0&TYPENAMES=restaurant"
                 "&VALUEREFERENCE=name&FILTER=" + quote_plus(filter.strip()),
-                id=f"{name} ({type})",
+                id=name,
                 url_type=type,
             )
             for (name, type, filter) in FILTERS
@@ -268,7 +268,7 @@ class TestGetPropertyValue:
 			</Query>
 			</GetPropertyValue>
 			""",
-                id=f"{name} ({type})",
+                id=name,
                 url_type=type,
             )
             for (name, type, filter) in FILTERS
@@ -401,7 +401,7 @@ class TestGetPropertyValue:
             Get(
                 "?SERVICE=WFS&REQUEST=GetPropertyValue&VERSION=2.0.0&TYPENAMES=restaurant"
                 f"&VALUEREFERENCE=name&SORTBY={sort_by}",
-                id=f"{name} ({type})",
+                id=name,
                 expect=expect,
                 url_type=type,
             )
@@ -417,7 +417,7 @@ class TestGetPropertyValue:
 				</Query>
 				</GetPropertyValue>
 				""",
-                id=f"{name} ({type})",
+                id=name,
                 expect=expect,
                 url_type=type,
             )
