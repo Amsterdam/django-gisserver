@@ -23,7 +23,7 @@ class TestGetFeatureSort:
             Get(
                 "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
                 f"&SORTBY={sort_by}",
-                id=f"{name} ({type})",
+                id=name,
                 expect=expect,
                 url_type=type,
             )
@@ -39,7 +39,7 @@ class TestGetFeatureSort:
                 </Query>
                 </GetFeature>
                 """,
-                id=f"{name} ({type})",
+                id=name,
                 expect=expect,
                 url_type=type,
             )

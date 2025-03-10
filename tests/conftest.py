@@ -332,7 +332,5 @@ def response(client, request):
 
 def pytest_make_parametrize_id(config, val):
     if isinstance(val, Request):
-        if val.id:
-            return f"{val.method}-{val.id}"
-        return val.method
+        return val.test_id()
     return repr(val)

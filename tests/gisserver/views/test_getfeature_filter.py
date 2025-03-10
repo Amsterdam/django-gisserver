@@ -129,7 +129,7 @@ class TestGetFeature:
             Get(
                 "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
                 "&FILTER=" + quote_plus(filter.strip()),
-                id=f"{name} ({type})",
+                id=name,
                 url_type=type,
             )
             for (name, type, filter) in FILTERS
@@ -142,7 +142,7 @@ class TestGetFeature:
                 </Query>
                 </GetFeature>
                 """,
-                id=f"{name} ({type})",
+                id=name,
                 url_type=type,
             )
             for (name, type, filter) in FILTERS

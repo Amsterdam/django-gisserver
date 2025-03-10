@@ -5,36 +5,44 @@ from typing import Any, Callable, Optional, Union
 import pytest
 
 
-class URL_TYPE(Enum):
-    NORMAL = "NORMAL"
-    FLAT = "FLAT"
-    COMPLEX = "COMPLEX"
-    GENERATED = "GENERATED"
+class Url(Enum):
+    NORMAL = ("/v1/wfs/",)
+    FLAT = ("/v1/wfs-flattened/",)
+    COMPLEX = ("/v1/wfs-complextypes/",)
+    GENERATED = ("/v1/wfs-gen-field/",)
 
-
-URLS = {
-    URL_TYPE.NORMAL: "/v1/wfs/",
-    URL_TYPE.FLAT: "/v1/wfs-flattened/",
-    URL_TYPE.COMPLEX: "/v1/wfs-complextypes/",
-    URL_TYPE.GENERATED: "/v1/wfs-gen-field/",
-}
+    def __init__(self, url):
+        self.url = url
 
 
 @dataclass
 class Request:
     method: str
-    url_type: URL_TYPE
+    _url: Url
     id: Optional[str]
     expect: Optional[Any]
 
-    def __init__(self, *, id=None, expect=None, url_type=URL_TYPE.NORMAL):
+    def __init__(self, *, id=None, expect=None, url_type: str = "NORMAL"):
         self.id = id
         self.expect = expect
-        self.url_type = URL_TYPE(url_type)
+        self._url = Url[url_type]
+
+    def test_id(self):
+        if self.id:
+            return f"{self.method}-{self.id} ({self._url.name})"
+        return f"{self.method} ({self._url.name})"
 
     @property
     def url(self):
-        return URLS[self.url_type]
+        return self._url.url
+
+    @url.setter
+    def url(self, url_type):
+        self._url = Url[url_type]
+
+    @property
+    def url_type(self):
+        return self._url.name
 
 
 @dataclass
@@ -58,7 +66,7 @@ class Post(Request):
 
 
 # Decorator
-def parametrize_response(param_values, *, url_type: URL_TYPE = URL_TYPE.NORMAL, setup=None):
+def parametrize_response(param_values: list[Request], *, url_type: str = "NORMAL"):
     """This is a decorator that wraps the parametrizing of "response", and allows us to
     set global flags (used for getting the correct url).
 
@@ -89,8 +97,8 @@ def parametrize_response(param_values, *, url_type: URL_TYPE = URL_TYPE.NORMAL, 
     testing function arguments.
     """
     for request in param_values:
-        if url_type and request.url_type == URL_TYPE.NORMAL:
-            request.url_type = URL_TYPE(url_type)
+        if url_type and request.url_type == "NORMAL":
+            request.url = url_type
 
     def decorator(func):
         return pytest.mark.parametrize("response", param_values, indirect=True)(func)
