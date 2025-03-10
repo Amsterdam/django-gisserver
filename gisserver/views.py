@@ -29,6 +29,8 @@ XML_ATTRIBUTES_MAP = {
     "storedQueryId": "STOREDQUERY_ID",
 }
 
+XML_CONCATENATION_SET = {"PropertyName"}
+
 
 class GISView(View):
     """The base logic to implement OGC view like WFS.
@@ -141,11 +143,17 @@ class GISView(View):
             # Other constructs
             for elem in child:
                 title = elem.tag.split("}")[-1]
-                # If the element does not have a specified namespace in the request body, we use that
-                # instead of the element, as it might use the wrong namespace in the ElementTree.
-                # This supports <Filter> w/o namespace.
-                found_element = re.search(rf"<{title}.*</{title}>", str(data))
-                KVP[title.upper()] = found_element.group(0) if found_element else elem
+                if title in XML_CONCATENATION_SET:
+                    if KVP.get(title.upper(), None):
+                        KVP[title.upper()] += f",{elem.text}"
+                    else:
+                        KVP[title.upper()] = elem.text
+                else:
+                    # If the element does not have a specified namespace in the request body, we use that
+                    # instead of the element, as it might use the wrong namespace in the ElementTree.
+                    # This supports <Filter> w/o namespace.
+                    found_element = re.search(rf"<{title}.*?</{title}>", str(data))
+                    KVP[title.upper()] = found_element.group(0) if found_element else elem
         return KVP
 
     def is_index_request(self):
