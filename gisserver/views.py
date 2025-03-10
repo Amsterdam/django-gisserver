@@ -117,18 +117,6 @@ class GISView(View):
         """
         # Convert XML to WFS key-value-pair format.
         self.KVP = self.parse_xml_post(request.body)
-
-        # Perform early version parsing. The detailed validation happens by the operation
-        # Parameter objects, but by performing an early check, templates can use that version.
-        version = self.KVP.get("VERSION")
-        if version and version in self.accept_versions:
-            self.set_version(version)
-
-        # Allow for a user-friendly opening page (hence the version check above)
-        if self.use_html_templates and self.is_index_request():
-            return self.render_index()
-
-        # Normal WFS
         wfs_method_cls = self.get_operation_class()
         return self.call_operation(wfs_method_cls)
 
