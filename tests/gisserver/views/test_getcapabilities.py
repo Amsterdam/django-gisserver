@@ -1,3 +1,4 @@
+import re
 from urllib.parse import quote_plus
 
 import pytest
@@ -31,6 +32,12 @@ class TestGetCapabilities:
         assert response["content-type"] == "text/xml; charset=utf-8", content
         assert response.status_code == 200, content
         assert "<ows:OperationsMetadata>" in content
+
+        # assert both GET and POST methods are available for all 6 wfs requests.
+        get = re.compile("ows:Get")
+        post = re.compile("ows:Post")
+        assert len(get.findall(content)) == 6
+        assert len(post.findall(content)) == 6
 
         # Validate against the WFS 2.0 XSD
         xml_doc = validate_xsd(response.content, WFS_20_XSD)
