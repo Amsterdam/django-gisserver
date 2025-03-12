@@ -138,8 +138,15 @@ class GISView(View):
 
         for child in root:
             if child.tag.endswith("Query"):
-                # Get the typenames from the Query tag. Convert space- to comma-separated.
-                KVP["TYPENAMES"] = ",".join(child.get("typeNames").split())
+                for attribute, value in child.items():
+                    attribute_key = XML_ATTRIBUTES_MAP.get(attribute, attribute.upper())
+                    # Get the typenames from the Query tag. Convert space- to comma-separated.
+                    if attribute_key == "TYPENAMES":
+                        # typenames may have a namespace prefix that isn't in our list.
+                        typenames = [t.split(":")[-1] for t in value.split()]
+                        KVP[attribute_key] = ",".join(typenames)
+                    else:
+                        KVP[attribute_key] = value
             # Other constructs
             for elem in child:
                 title = elem.tag.split("}")[-1]
