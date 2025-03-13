@@ -6,13 +6,10 @@ import pytest
 
 
 class Url(Enum):
-    NORMAL = ("/v1/wfs/",)
-    FLAT = ("/v1/wfs-flattened/",)
-    COMPLEX = ("/v1/wfs-complextypes/",)
-    GENERATED = ("/v1/wfs-gen-field/",)
-
-    def __init__(self, url):
-        self.url = url
+    NORMAL = "/v1/wfs/"
+    FLAT = "/v1/wfs-flattened/"
+    COMPLEX = "/v1/wfs-complextypes/"
+    GENERATED = "/v1/wfs-gen-field/"
 
 
 @dataclass
@@ -22,10 +19,10 @@ class Request:
     id: Optional[str]
     expect: Optional[Any]
 
-    def __init__(self, *, id=None, expect=None, url_type: str = "NORMAL"):
+    def __init__(self, *, id=None, expect=None, url: Url = Url.NORMAL):
         self.id = id
         self.expect = expect
-        self._url = Url[url_type]
+        self._url = url
 
     def test_id(self):
         if self.id:
@@ -34,15 +31,11 @@ class Request:
 
     @property
     def url(self):
-        return self._url.url
+        return self._url.value
 
     @url.setter
-    def url(self, url_type):
-        self._url = Url[url_type]
-
-    @property
-    def url_type(self):
-        return self._url.name
+    def url(self, url: Url):
+        self._url = url
 
 
 @dataclass
@@ -66,27 +59,25 @@ class Post(Request):
 
 
 # Decorator
-def parametrize_response(param_values: list[Request], *, url_type: str = "NORMAL"):
+def parametrize_response(*param_values: Request, url: Optional[Url] = None):
     """This is a decorator that wraps the parametrizing of "response", and allows us to
     set global flags (used for getting the correct url).
 
     Usage:
     ```
     @parametrize_response(
-        [
-            Get("?query=test"),
-            Get(lambda id: f"?query=test{id}"),
-            Post("<xml></xml>"),
-            Post("<xml></xml>", expect=AssertionError),
-        ],
-        url_type="FLAT",
+        Get("?query=test"),
+        Get(lambda id: f"?query=test{id}", url=Url.COMPLEX),
+        Post("<xml></xml>"),
+        Post("<xml></xml>", expect=AssertionError),
+        url=Url.FLAT,
     )
     def test_function(response):
         ...
     ```
 
-    Note that each Request value can also take its own url_type, although you can also pass in
-    a global url_type as in the above example.
+    Note that each Request value can also take its own url, although you can also pass in
+    a global url as in the above example.
 
     Requests (Get, Post) either get a string query/body argument or a Callable, which can be used
     later in the testing function to perform different requests at different times in the test.
@@ -97,8 +88,8 @@ def parametrize_response(param_values: list[Request], *, url_type: str = "NORMAL
     testing function arguments.
     """
     for request in param_values:
-        if url_type and request.url_type == "NORMAL":
-            request.url = url_type
+        if url and request.url == Url.NORMAL.value:
+            request.url = url
 
     def decorator(func):
         return pytest.mark.parametrize("response", param_values, indirect=True)(func)

@@ -31,23 +31,25 @@ class TestGetPropertyValue:
     XPATHS = ["name", "app:name", "app:restaurant/app:name", "/restaurant/name"]
 
     @parametrize_response(
-        [
-            Get(
-                f"?SERVICE=WFS&REQUEST=GetPropertyValue&VERSION=2.0.0&TYPENAMES=restaurant"
-                f"&VALUEREFERENCE={xpath}&OUTPUTFORMAT={gml32}"
-            )
-            for xpath in XPATHS
-        ]
-        + [
-            Post(
-                f"""<GetPropertyValue version="2.0.0" service="WFS" outputFormat="application/gml+xml; version=3.2" valueReference="{xpath}" {XML_NS}>
+        *(
+            [
+                Get(
+                    f"?SERVICE=WFS&REQUEST=GetPropertyValue&VERSION=2.0.0&TYPENAMES=restaurant"
+                    f"&VALUEREFERENCE={xpath}&OUTPUTFORMAT={gml32}"
+                )
+                for xpath in XPATHS
+            ]
+            + [
+                Post(
+                    f"""<GetPropertyValue version="2.0.0" service="WFS" outputFormat="application/gml+xml; version=3.2" valueReference="{xpath}" {XML_NS}>
                 <Query typeNames="restaurant">
                 </Query>
                 </GetPropertyValue>
                 """
-            )
-            for xpath in XPATHS
-        ]
+                )
+                for xpath in XPATHS
+            ]
+        )
     )
     def test_get(self, restaurant, bad_restaurant, response):
         """Prove that the happy flow works"""
@@ -81,19 +83,17 @@ class TestGetPropertyValue:
         )
 
     @parametrize_response(
-        [
-            Get(
-                "?SERVICE=WFS&REQUEST=GetPropertyValue&VERSION=2.0.0&TYPENAMES=restaurant"
-                "&VALUEREFERENCE=location"
-            ),
-            Post(
-                f"""<GetPropertyValue version="2.0.0" service="WFS" valueReference="location" {XML_NS}>
+        Get(
+            "?SERVICE=WFS&REQUEST=GetPropertyValue&VERSION=2.0.0&TYPENAMES=restaurant"
+            "&VALUEREFERENCE=location"
+        ),
+        Post(
+            f"""<GetPropertyValue version="2.0.0" service="WFS" valueReference="location" {XML_NS}>
                 <Query typeNames="restaurant">
                 </Query>
                 </GetPropertyValue>
                 """
-            ),
-        ]
+        ),
     )
     def test_get_location(self, restaurant, coordinates, response):
         """Prove that rendering geometry values also works"""
@@ -128,19 +128,17 @@ class TestGetPropertyValue:
         )
 
     @parametrize_response(
-        [
-            Get(
-                "?SERVICE=WFS&REQUEST=GetPropertyValue&VERSION=2.0.0&TYPENAMES=restaurant"
-                "&VALUEREFERENCE=location"
-            ),
-            Post(
-                f"""<GetPropertyValue version="2.0.0" service="WFS" valueReference="location" {XML_NS}>
+        Get(
+            "?SERVICE=WFS&REQUEST=GetPropertyValue&VERSION=2.0.0&TYPENAMES=restaurant"
+            "&VALUEREFERENCE=location"
+        ),
+        Post(
+            f"""<GetPropertyValue version="2.0.0" service="WFS" valueReference="location" {XML_NS}>
                 <Query typeNames="restaurant">
                 </Query>
                 </GetPropertyValue>
                 """
-            ),
-        ],
+        ),
     )
     def test_get_location_null(self, empty_restaurant, response):
         """Prove that the empty geometry values don't crash the rendering."""
@@ -172,19 +170,17 @@ class TestGetPropertyValue:
         )
 
     @parametrize_response(
-        [
-            Get(
-                "?SERVICE=WFS&REQUEST=GetPropertyValue&VERSION=2.0.0&TYPENAMES=restaurant"
-                "&VALUEREFERENCE=tags"
-            ),
-            Post(
-                f"""<GetPropertyValue version="2.0.0" service="WFS" valueReference="tags" {XML_NS}>
+        Get(
+            "?SERVICE=WFS&REQUEST=GetPropertyValue&VERSION=2.0.0&TYPENAMES=restaurant"
+            "&VALUEREFERENCE=tags"
+        ),
+        Post(
+            f"""<GetPropertyValue version="2.0.0" service="WFS" valueReference="tags" {XML_NS}>
                 <Query typeNames="restaurant">
                 </Query>
                 </GetPropertyValue>
                 """
-            ),
-        ]
+        ),
     )
     def test_get_tags_array(self, restaurant, response):
         """Prove that the rendering an array field produces some WFS-compatible response."""
@@ -214,19 +210,17 @@ class TestGetPropertyValue:
         )
 
     @parametrize_response(
-        [
-            Get(
-                "?SERVICE=WFS&REQUEST=GetPropertyValue&VERSION=2.0.0&TYPENAMES=restaurant"
-                "&VALUEREFERENCE=@gml:id"
-            ),
-            Post(
-                f"""<GetPropertyValue version="2.0.0" service="WFS" valueReference="@gml:id" {XML_NS}>
+        Get(
+            "?SERVICE=WFS&REQUEST=GetPropertyValue&VERSION=2.0.0&TYPENAMES=restaurant"
+            "&VALUEREFERENCE=@gml:id"
+        ),
+        Post(
+            f"""<GetPropertyValue version="2.0.0" service="WFS" valueReference="@gml:id" {XML_NS}>
                 <Query typeNames="restaurant">
                 </Query>
                 </GetPropertyValue>
                 """
-            ),
-        ]
+        ),
     )
     def test_get_attribute(self, restaurant, bad_restaurant, response):
         """Prove that referencing attributes works"""
@@ -256,56 +250,60 @@ class TestGetPropertyValue:
         )
 
     @parametrize_response(
-        [
-            Get(
-                "?SERVICE=WFS&REQUEST=GetPropertyValue&VERSION=2.0.0&TYPENAMES=restaurant"
-                "&VALUEREFERENCE=name&FILTER=" + quote_plus(filter.strip()),
-                id=name,
-                url_type=type,
-            )
-            for (name, type, filter) in FILTERS
-        ]
-        + [
-            Post(
-                f"""<GetPropertyValue service="WFS" version="2.0.0" valueReference="name" {XML_NS}>
+        *(
+            [
+                Get(
+                    "?SERVICE=WFS&REQUEST=GetPropertyValue&VERSION=2.0.0&TYPENAMES=restaurant"
+                    "&VALUEREFERENCE=name&FILTER=" + quote_plus(filter.strip()),
+                    id=name,
+                    url=url,
+                )
+                for (name, url, filter) in FILTERS
+            ]
+            + [
+                Post(
+                    f"""<GetPropertyValue service="WFS" version="2.0.0" valueReference="name" {XML_NS}>
             <Query typeNames="restaurant">
             {clean_filter_for_xml(filter).strip()}
             </Query>
             </GetPropertyValue>
             """,
-                id=name,
-                url_type=type,
-            )
-            for (name, type, filter) in FILTERS
-        ]
+                    id=name,
+                    url=url,
+                )
+                for (name, url, filter) in FILTERS
+            ]
+        )
     )
     def test_get_filter(self, client, restaurant, restaurant_m2m, bad_restaurant, response):
         """Prove that that parsing FILTER=<fes:Filter>... works"""
         _assert_filter(response)
 
     @parametrize_response(
-        [
-            Get(
-                "?SERVICE=WFS&REQUEST=GetPropertyValue&VERSION=2.0.0&TYPENAMES=restaurant"
-                "&VALUEREFERENCE=name&FILTER=" + quote_plus(filter.strip()),
-                expect=expect,
-                id=name,
-            )
-            for name, (filter, expect, _) in INVALID_FILTERS.items()
-        ]
-        + [
-            Post(
-                f"""<GetPropertyValue service="WFS" version="2.0.0" valueReference="name" {XML_NS}>
+        *(
+            [
+                Get(
+                    "?SERVICE=WFS&REQUEST=GetPropertyValue&VERSION=2.0.0&TYPENAMES=restaurant"
+                    "&VALUEREFERENCE=name&FILTER=" + quote_plus(filter.strip()),
+                    expect=expect,
+                    id=name,
+                )
+                for name, (filter, expect, _) in INVALID_FILTERS.items()
+            ]
+            + [
+                Post(
+                    f"""<GetPropertyValue service="WFS" version="2.0.0" valueReference="name" {XML_NS}>
                 <Query typeNames="restaurant">
                 {clean_filter_for_xml(filter).strip()}
                 </Query>
                 </GetPropertyValue>
                 """,
-                expect=expect,
-                id=name,
-            )
-            for name, (filter, _, expect) in INVALID_FILTERS.items()
-        ]
+                    expect=expect,
+                    id=name,
+                )
+                for name, (filter, _, expect) in INVALID_FILTERS.items()
+            ]
+        )
     )
     def test_get_filter_invalid(self, restaurant, response):
         """Prove that that parsing FILTER=<fes:Filter>... works"""
@@ -323,19 +321,17 @@ class TestGetPropertyValue:
         assert message.startswith(response.expect.text)
 
     @parametrize_response(
-        [
-            Get(
-                "?SERVICE=WFS&REQUEST=GetPropertyValue&VERSION=2.0.0&TYPENAMES=denied-feature"
-                "&VALUEREFERENCE=name"
-            ),
-            Post(
-                f"""<GetPropertyValue service="WFS" version="2.0.0" valueReference="name" {XML_NS}>
+        Get(
+            "?SERVICE=WFS&REQUEST=GetPropertyValue&VERSION=2.0.0&TYPENAMES=denied-feature"
+            "&VALUEREFERENCE=name"
+        ),
+        Post(
+            f"""<GetPropertyValue service="WFS" version="2.0.0" valueReference="name" {XML_NS}>
             <Query typeNames="denied-feature">
             </Query>
             </GetPropertyValue>
             """
-            ),
-        ]
+        ),
     )
     def test_get_unauth(self, response):
         """Prove that features may block access.
@@ -355,13 +351,12 @@ class TestGetPropertyValue:
         assert message == "No access to this feature."
 
     @parametrize_response(
-        [
-            Get(
-                lambda start_index: "?SERVICE=WFS&REQUEST=GetPropertyValue&VERSION=2.0.0&TYPENAMES=restaurant"
-                f"&VALUEREFERENCE=name&SORTBY=name&COUNT=1&STARTINDEX={start_index}",
-            ),
-            Post(
-                lambda start_index: f"""<GetPropertyValue version="2.0.0" service="WFS" count="1" startIndex="{start_index}" valueReference="name" {XML_NS}>
+        Get(
+            lambda start_index: "?SERVICE=WFS&REQUEST=GetPropertyValue&VERSION=2.0.0&TYPENAMES=restaurant"
+            f"&VALUEREFERENCE=name&SORTBY=name&COUNT=1&STARTINDEX={start_index}",
+        ),
+        Post(
+            lambda start_index: f"""<GetPropertyValue version="2.0.0" service="WFS" count="1" startIndex="{start_index}" valueReference="name" {XML_NS}>
                 <Query typeNames="restaurant">
                     <fes:SortBy>
                         <fes:SortProperty>
@@ -372,8 +367,7 @@ class TestGetPropertyValue:
                 </Query>
                 </GetPropertyValue>
                 """,
-            ),
-        ]
+        ),
     )
     def test_pagination(self, client, restaurant, bad_restaurant, response):
         """Prove that that parsing BBOX=... works"""
@@ -402,19 +396,20 @@ class TestGetPropertyValue:
         assert names[0] != names[1]
 
     @parametrize_response(
-        [
-            Get(
-                "?SERVICE=WFS&REQUEST=GetPropertyValue&VERSION=2.0.0&TYPENAMES=restaurant"
-                f"&VALUEREFERENCE=name&SORTBY={sort_by}",
-                id=name,
-                expect=expect,
-                url_type=type,
-            )
-            for (name, type, sort_by, expect) in SORT_BY
-        ]
-        + [
-            Post(
-                f"""<GetPropertyValue version="2.0.0" service="WFS" valueReference="name" {XML_NS}>
+        *(
+            [
+                Get(
+                    "?SERVICE=WFS&REQUEST=GetPropertyValue&VERSION=2.0.0&TYPENAMES=restaurant"
+                    f"&VALUEREFERENCE=name&SORTBY={sort_by}",
+                    id=name,
+                    expect=expect,
+                    url=url,
+                )
+                for (name, url, sort_by, expect) in SORT_BY
+            ]
+            + [
+                Post(
+                    f"""<GetPropertyValue version="2.0.0" service="WFS" valueReference="name" {XML_NS}>
                 <Query typeNames="restaurant">
                     <fes:SortBy>
                         {sort_by}
@@ -422,12 +417,13 @@ class TestGetPropertyValue:
                 </Query>
                 </GetPropertyValue>
                 """,
-                id=name,
-                expect=expect,
-                url_type=type,
-            )
-            for (name, type, sort_by, expect) in SORT_BY_XML
-        ]
+                    id=name,
+                    expect=expect,
+                    url=url,
+                )
+                for (name, url, sort_by, expect) in SORT_BY_XML
+            ]
+        )
     )
     def test_get_sort_by(self, client, restaurant, bad_restaurant, response):
         """Prove that that parsing BBOX=... works"""
@@ -447,18 +443,16 @@ class TestGetPropertyValue:
         assert names == response.expect
 
     @parametrize_response(
-        [
-            Get(
-                lambda id: "?SERVICE=WFS&REQUEST=GetPropertyValue&VERSION=2.0.0"
-                f"&RESOURCEID=restaurant.{id}&VALUEREFERENCE=name",
-            ),
-            Post(
-                lambda id: f"""<GetPropertyValue service="WFS" version="2.0.0" valueReference="name"
+        Get(
+            lambda id: "?SERVICE=WFS&REQUEST=GetPropertyValue&VERSION=2.0.0"
+            f"&RESOURCEID=restaurant.{id}&VALUEREFERENCE=name",
+        ),
+        Post(
+            lambda id: f"""<GetPropertyValue service="WFS" version="2.0.0" valueReference="name"
                 resourceId="restaurant.{id}" {XML_NS}>
                 </GetPropertyValue>
                 """,
-            ),
-        ]
+        ),
     )
     def test_resource_id(self, restaurant, bad_restaurant, response):
         """Prove that fetching objects by ID works."""
@@ -479,18 +473,16 @@ class TestGetPropertyValue:
         assert names == ["Café Noir"]
 
     @parametrize_response(
-        [
-            Get(
-                "?SERVICE=WFS&REQUEST=GetPropertyValue&VERSION=2.0.0&TYPENAMES=restaurant"
-                "&RESOURCEID=restaurant.0&VALUEREFERENCE=name"
-            ),
-            Post(
-                f"""<GetPropertyValue service="WFS" version="2.0.0" valueReference="name" resourceId="restaurant.0" {XML_NS}>
+        Get(
+            "?SERVICE=WFS&REQUEST=GetPropertyValue&VERSION=2.0.0&TYPENAMES=restaurant"
+            "&RESOURCEID=restaurant.0&VALUEREFERENCE=name"
+        ),
+        Post(
+            f"""<GetPropertyValue service="WFS" version="2.0.0" valueReference="name" resourceId="restaurant.0" {XML_NS}>
                 <Query typeNames="restaurant"></Query>
                 </GetPropertyValue>
                 """
-            ),
-        ]
+        ),
     )
     def test_resource_id_unknown_id(self, restaurant, bad_restaurant, response):
         """Prove that unknown IDs simply return an empty list."""
@@ -509,19 +501,17 @@ class TestGetPropertyValue:
         assert len(members) == 0
 
     @parametrize_response(
-        [
-            Get(
-                lambda id: "?SERVICE=WFS&REQUEST=GetPropertyValue&VERSION=2.0.0"
-                "&TYPENAMES=mini-restaurant"
-                f"&RESOURCEID=restaurant.{id}&VALUEREFERENCE=location",
-            ),
-            Post(
-                lambda id: f"""<GetPropertyValue service="WFS" version="2.0.0" valueReference="location" resourceId="restaurant.{id}" {XML_NS}>
+        Get(
+            lambda id: "?SERVICE=WFS&REQUEST=GetPropertyValue&VERSION=2.0.0"
+            "&TYPENAMES=mini-restaurant"
+            f"&RESOURCEID=restaurant.{id}&VALUEREFERENCE=location",
+        ),
+        Post(
+            lambda id: f"""<GetPropertyValue service="WFS" version="2.0.0" valueReference="location" resourceId="restaurant.{id}" {XML_NS}>
                 <Query typeNames="mini-restaurant"></Query>
                 </GetPropertyValue>
                 """,
-            ),
-        ]
+        ),
     )
     def test_resource_id_typename_mismatch(self, restaurant, bad_restaurant, response):
         """Prove that TYPENAMES should be omitted, or match the RESOURCEID."""
@@ -543,17 +533,15 @@ class TestGetPropertyValue:
         )
 
     @parametrize_response(
-        [
-            Get(
-                "?SERVICE=WFS&REQUEST=GetPropertyValue&VERSION=2.0.0"
-                "&RESOURCEID=restaurant.ABC&VALUEREFERENCE=name"
-            ),
-            Post(
-                f"""<GetPropertyValue service="WFS" version="2.0.0" valueReference="name" resourceId="restaurant.ABC" {XML_NS}>
+        Get(
+            "?SERVICE=WFS&REQUEST=GetPropertyValue&VERSION=2.0.0"
+            "&RESOURCEID=restaurant.ABC&VALUEREFERENCE=name"
+        ),
+        Post(
+            f"""<GetPropertyValue service="WFS" version="2.0.0" valueReference="name" resourceId="restaurant.ABC" {XML_NS}>
                 </GetPropertyValue>
                 """
-            ),
-        ]
+        ),
     )
     def test_resource_id_invalid(self, restaurant, bad_restaurant, response):
         """Prove that TYPENAMES should be omitted, or match the RESOURCEID."""
@@ -571,19 +559,17 @@ class TestGetPropertyValue:
         # message differs in Django versions
 
     @parametrize_response(
-        [
-            Get(
-                lambda id: "?SERVICE=WFS&REQUEST=GetPropertyValue&VERSION=2.0.0"
-                f"&STOREDQUERY_ID=urn:ogc:def:query:OGC-WFS::GetFeatureById"
-                f"&ID=restaurant.{id}&VALUEREFERENCE=name"
-            ),
-            Post(
-                lambda id: f"""<GetPropertyValue service="WFS" version="2.0.0" valueReference="name"
+        Get(
+            lambda id: "?SERVICE=WFS&REQUEST=GetPropertyValue&VERSION=2.0.0"
+            f"&STOREDQUERY_ID=urn:ogc:def:query:OGC-WFS::GetFeatureById"
+            f"&ID=restaurant.{id}&VALUEREFERENCE=name"
+        ),
+        Post(
+            lambda id: f"""<GetPropertyValue service="WFS" version="2.0.0" valueReference="name"
                 storedQueryId="urn:ogc:def:query:OGC-WFS::GetFeatureById" id="restaurant.{id}" {XML_NS}>
                 </GetPropertyValue>
             """,
-            ),
-        ]
+        ),
     )
     def test_get_feature_by_id_stored_query(self, restaurant, bad_restaurant, response):
         """Prove that fetching objects by ID works."""
@@ -603,18 +589,16 @@ class TestGetPropertyValue:
         )
 
     @parametrize_response(
-        [
-            Get(
-                "?SERVICE=WFS&REQUEST=GetPropertyValue&VERSION=2.0.0"
-                "&STOREDQUERY_ID=urn:ogc:def:query:OGC-WFS::GetFeatureById"
-                "&ID=restaurant.ABC&VALUEREFERENCE=name"
-            ),
-            Post(
-                f"""<GetPropertyValue service="WFS" version="2.0.0" valueReference="name"
+        Get(
+            "?SERVICE=WFS&REQUEST=GetPropertyValue&VERSION=2.0.0"
+            "&STOREDQUERY_ID=urn:ogc:def:query:OGC-WFS::GetFeatureById"
+            "&ID=restaurant.ABC&VALUEREFERENCE=name"
+        ),
+        Post(
+            f"""<GetPropertyValue service="WFS" version="2.0.0" valueReference="name"
                 storedQueryId="urn:ogc:def:query:OGC-WFS::GetFeatureById" id="restaurant.ABC" {XML_NS}>
                 </GetPropertyValue>"""
-            ),
-        ]
+        ),
     )
     def test_get_feature_by_id_bad_id(self, restaurant, bad_restaurant, response):
         """Prove that invalid IDs are properly handled."""
@@ -636,19 +620,17 @@ class TestGetPropertyValue:
         assert message == expect
 
     @parametrize_response(
-        [
-            Get(
-                "?SERVICE=WFS&REQUEST=GetPropertyValue&VERSION=2.0.0"
-                "&STOREDQUERY_ID=urn:ogc:def:query:OGC-WFS::GetFeatureById"
-                "&ID=restaurant.0&VALUEREFERENCE=name"
-            ),
-            Post(
-                f"""<GetPropertyValue service="WFS" version="2.0.0" valueReference="name"
+        Get(
+            "?SERVICE=WFS&REQUEST=GetPropertyValue&VERSION=2.0.0"
+            "&STOREDQUERY_ID=urn:ogc:def:query:OGC-WFS::GetFeatureById"
+            "&ID=restaurant.0&VALUEREFERENCE=name"
+        ),
+        Post(
+            f"""<GetPropertyValue service="WFS" version="2.0.0" valueReference="name"
                 storedQueryId="urn:ogc:def:query:OGC-WFS::GetFeatureById" id="restaurant.0" {XML_NS}>
                 </GetPropertyValue>
             """
-            ),
-        ]
+        ),
     )
     def test_get_feature_by_id_404(self, restaurant, bad_restaurant, response):
         """Prove that missing IDs are properly handled."""

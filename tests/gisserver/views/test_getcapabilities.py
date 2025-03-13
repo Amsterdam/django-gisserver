@@ -5,7 +5,7 @@ import pytest
 from lxml import etree
 
 from tests.constants import NAMESPACES, OWS_NS, WFS_NS, XLINK_NS, XML_NS
-from tests.requests import Get, Post, parametrize_response
+from tests.requests import Get, Post, Url, parametrize_response
 from tests.utils import WFS_20_XSD, assert_xml_equal, validate_xsd
 
 # enable for all tests in this file
@@ -19,12 +19,8 @@ class TestGetCapabilities:
     """All tests for the GetCapabilities method."""
 
     @parametrize_response(
-        [
-            Get(f"?SERVICE=WFS&REQUEST=GetCapabilities&ACCEPTVERSIONS=2.0.0&OUTPUTFORMAT={gml32}"),
-            Post(
-                f'<GetCapabilities service="WFS" acceptversions="2.0.0" {XML_NS}></GetCapabilities>'
-            ),
-        ],
+        Get(f"?SERVICE=WFS&REQUEST=GetCapabilities&ACCEPTVERSIONS=2.0.0&OUTPUTFORMAT={gml32}"),
+        Post(f'<GetCapabilities service="WFS" acceptversions="2.0.0" {XML_NS}></GetCapabilities>'),
     )
     def test_get(self, restaurant, coordinates, response):
         """Prove that the happy flow works"""
@@ -153,10 +149,8 @@ class TestGetCapabilities:
         assert exception.attrib["exceptionCode"] == "MissingParameterValue"
 
     @parametrize_response(
-        [
-            Get("?SERVICE=WFS&REQUEST=GetCapabilities&ACCEPTVERSIONS=1.0.0,2.0.0"),
-            Post('<GetCapabilities service="WFS" acceptVersions="1.0.0,2.0.0"></GetCapabilities>'),
-        ],
+        Get("?SERVICE=WFS&REQUEST=GetCapabilities&ACCEPTVERSIONS=1.0.0,2.0.0"),
+        Post('<GetCapabilities service="WFS" acceptVersions="1.0.0,2.0.0"></GetCapabilities>'),
     )
     def test_version_negotiation(self, response):
         """Prove that version negotiation still returns 2.0.0"""
@@ -168,10 +162,8 @@ class TestGetCapabilities:
         assert xml_doc.attrib["version"] == "2.0.0"
 
     @parametrize_response(
-        [
-            Get("?SERVICE=WFS&REQUEST=GetCapabilities&ACCEPTVERSIONS=1.5.0"),
-            Post('<GetCapabilities service="WFS" acceptVersions="1.5.0"></GetCapabilities>'),
-        ],
+        Get("?SERVICE=WFS&REQUEST=GetCapabilities&ACCEPTVERSIONS=1.5.0"),
+        Post('<GetCapabilities service="WFS" acceptVersions="1.5.0"></GetCapabilities>'),
     )
     def test_get_invalid_version(self, response):
         """Prove that version negotiation works"""
@@ -184,15 +176,13 @@ class TestGetCapabilities:
         assert exception.attrib["exceptionCode"] == "VersionNegotiationFailed"
 
     @parametrize_response(
-        [
-            Get(
-                f"?SERVICE=WFS&REQUEST=GetCapabilities&ACCEPTVERSIONS=2.0.0&OUTPUTFORMAT={gml32}",
-            ),
-            Post(
-                '<GetCapabilities service="WFS" acceptVersions="2.0.0"></GetCapabilities>',
-            ),
-        ],
-        url_type="FLAT",
+        Get(
+            f"?SERVICE=WFS&REQUEST=GetCapabilities&ACCEPTVERSIONS=2.0.0&OUTPUTFORMAT={gml32}",
+        ),
+        Post(
+            '<GetCapabilities service="WFS" acceptVersions="2.0.0"></GetCapabilities>',
+        ),
+        url=Url.FLAT,
     )
     def test_get_flattened(self, restaurant, coordinates, response):
         content = response.content.decode()

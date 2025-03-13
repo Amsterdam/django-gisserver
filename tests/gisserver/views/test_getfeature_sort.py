@@ -19,19 +19,20 @@ class TestGetFeatureSort:
     """
 
     @parametrize_response(
-        [
-            Get(
-                "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
-                f"&SORTBY={sort_by}",
-                id=name,
-                expect=expect,
-                url_type=type,
-            )
-            for (name, type, sort_by, expect) in SORT_BY
-        ]
-        + [
-            Post(
-                f"""<GetFeature version="2.0.0" service="WFS" {XML_NS}>
+        *(
+            [
+                Get(
+                    "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
+                    f"&SORTBY={sort_by}",
+                    id=name,
+                    expect=expect,
+                    url=url,
+                )
+                for (name, url, sort_by, expect) in SORT_BY
+            ]
+            + [
+                Post(
+                    f"""<GetFeature version="2.0.0" service="WFS" {XML_NS}>
                 <Query typeNames="restaurant">
                     <fes:SortBy>
                         {sort_by}
@@ -39,12 +40,13 @@ class TestGetFeatureSort:
                 </Query>
                 </GetFeature>
                 """,
-                id=name,
-                expect=expect,
-                url_type=type,
-            )
-            for (name, type, sort_by, expect) in SORT_BY_XML
-        ]
+                    id=name,
+                    expect=expect,
+                    url=url,
+                )
+                for (name, url, sort_by, expect) in SORT_BY_XML
+            ]
+        )
     )
     def test_get_sort_by(self, restaurant, bad_restaurant, response):
         """Prove that that sorting with SORTBY=... works"""

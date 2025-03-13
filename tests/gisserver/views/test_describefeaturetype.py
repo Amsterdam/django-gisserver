@@ -5,7 +5,7 @@ import pytest
 from lxml import etree
 
 from tests.constants import NAMESPACES, XML_NS
-from tests.requests import Get, Post, parametrize_response
+from tests.requests import Get, Post, Url, parametrize_response
 from tests.utils import WFS_20_XSD, assert_xml_equal, validate_xsd
 
 # enable for all tests in this file
@@ -17,15 +17,13 @@ class TestDescribeFeatureType:
     """All tests for the DescribeFeatureType method."""
 
     @parametrize_response(
-        [
-            Get("?SERVICE=WFS&REQUEST=DescribeFeatureType&VERSION=2.0.0&TYPENAMES=restaurant"),
-            Post(
-                f"""<DescribeFeatureType version="2.0.0" service="WFS" {XML_NS}>
+        Get("?SERVICE=WFS&REQUEST=DescribeFeatureType&VERSION=2.0.0&TYPENAMES=restaurant"),
+        Post(
+            f"""<DescribeFeatureType version="2.0.0" service="WFS" {XML_NS}>
               <Query typeNames="restaurant"></Query>
               </DescribeFeatureType>
               """
-            ),
-        ]
+        ),
     )
     def test_describe(self, response):
         """Prove that the happy flow works"""
@@ -150,16 +148,14 @@ class TestDescribeFeatureType:
         )
 
     @parametrize_response(
-        [
-            Get("?SERVICE=WFS&REQUEST=DescribeFeatureType&VERSION=2.0.0&TYPENAMES=restaurant"),
-            Post(
-                f"""<DescribeFeatureType version="2.0.0" service="WFS" {XML_NS}>
+        Get("?SERVICE=WFS&REQUEST=DescribeFeatureType&VERSION=2.0.0&TYPENAMES=restaurant"),
+        Post(
+            f"""<DescribeFeatureType version="2.0.0" service="WFS" {XML_NS}>
               <Query typeNames="restaurant"></Query>
               </DescribeFeatureType>
               """
-            ),
-        ],
-        url_type="COMPLEX",
+        ),
+        url=Url.COMPLEX,
     )
     def test_describe_complex(self, response):
         """Prove that complex types are properly rendered"""
@@ -228,16 +224,14 @@ class TestDescribeFeatureType:
         )
 
     @parametrize_response(
-        [
-            Get("?SERVICE=WFS&REQUEST=DescribeFeatureType&VERSION=2.0.0&TYPENAMES=restaurant"),
-            Post(
-                f"""<DescribeFeatureType version="2.0.0" service="WFS" {XML_NS}>
+        Get("?SERVICE=WFS&REQUEST=DescribeFeatureType&VERSION=2.0.0&TYPENAMES=restaurant"),
+        Post(
+            f"""<DescribeFeatureType version="2.0.0" service="WFS" {XML_NS}>
               <Query typeNames="restaurant"></Query>
               </DescribeFeatureType>
               """
-            ),
-        ],
-        url_type="FLAT",
+        ),
+        url=Url.FLAT,
     )
     def test_describe_flattened(self, response):
         """Prove that complex types are properly rendered"""
@@ -367,17 +361,15 @@ class TestDescribeFeatureType:
         )
 
     @parametrize_response(
-        [
-            Get(
-                f"?SERVICE=WFS&REQUEST=DescribeFeatureType&VERSION=2.0.0&TYPENAMES=restaurant&outputformat={gml32}"
-            ),
-            Post(
-                f"""<DescribeFeatureType version="2.0.0" service="WFS" outputFormat="application/gml+xml; version=3.2" {XML_NS}>
+        Get(
+            f"?SERVICE=WFS&REQUEST=DescribeFeatureType&VERSION=2.0.0&TYPENAMES=restaurant&outputformat={gml32}"
+        ),
+        Post(
+            f"""<DescribeFeatureType version="2.0.0" service="WFS" outputFormat="application/gml+xml; version=3.2" {XML_NS}>
               <Query typeNames="restaurant"></Query>
               </DescribeFeatureType>
               """
-            ),
-        ]
+        ),
     )
     def test_describe_outputformat(self, response):
         """Test workaround for FME's outputformat."""
@@ -385,15 +377,13 @@ class TestDescribeFeatureType:
         assert response.status_code == 200, content
 
     @parametrize_response(
-        [
-            Get("?SERVICE=WFS&REQUEST=DescribeFeatureType&VERSION=2.0.0&TYPENAMES="),
-            Post(
-                f"""<DescribeFeatureType version="2.0.0" service="WFS" {XML_NS}>
+        Get("?SERVICE=WFS&REQUEST=DescribeFeatureType&VERSION=2.0.0&TYPENAMES="),
+        Post(
+            f"""<DescribeFeatureType version="2.0.0" service="WFS" {XML_NS}>
               <Query typeNames=""></Query>
               </DescribeFeatureType>
               """
-            ),
-        ]
+        ),
     )
     def test_empty_typenames(self, response):
         """Prove that missing arguments are handled"""
@@ -408,14 +398,12 @@ class TestDescribeFeatureType:
         assert exception.attrib["exceptionCode"] == "MissingParameterValue"
 
     @parametrize_response(
-        [
-            Get("?SERVICE=WFS&REQUEST=DescribeFeatureType&VERSION=2.0.0"),
-            Post(
-                f"""<DescribeFeatureType version="2.0.0" service="WFS"  {XML_NS}>
+        Get("?SERVICE=WFS&REQUEST=DescribeFeatureType&VERSION=2.0.0"),
+        Post(
+            f"""<DescribeFeatureType version="2.0.0" service="WFS"  {XML_NS}>
               </DescribeFeatureType>
               """
-            ),
-        ]
+        ),
     )
     def test_all_typenames(self, response):
         """Prove that the happy flow works"""

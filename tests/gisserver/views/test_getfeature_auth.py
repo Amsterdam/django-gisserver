@@ -15,16 +15,14 @@ class TestGetFeature:
     """
 
     @parametrize_response(
-        [
-            Get("?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=denied-feature"),
-            Post(
-                f"""
+        Get("?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=denied-feature"),
+        Post(
+            f"""
                 <GetFeature version="2.0.0" service="WFS" {XML_NS}>
                 <Query typeNames="denied-feature"></Query>
                 </GetFeature>
                 """
-            ),
-        ],
+        ),
     )
     def test_get_unauth(self, response):
         """Prove that features may block access.

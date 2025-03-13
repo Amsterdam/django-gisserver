@@ -18,18 +18,16 @@ class TestGetFeature:
     """
 
     @parametrize_response(
-        [
-            Get(
-                lambda id: "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
-                "&STOREDQUERY_ID=urn:ogc:def:query:OGC-WFS::GetFeatureById"
-                f"&ID=restaurant.{id}"
-            ),
-            Post(
-                lambda id: f"""<GetFeature service="WFS" version="2.0.0"
+        Get(
+            lambda id: "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
+            "&STOREDQUERY_ID=urn:ogc:def:query:OGC-WFS::GetFeatureById"
+            f"&ID=restaurant.{id}"
+        ),
+        Post(
+            lambda id: f"""<GetFeature service="WFS" version="2.0.0"
 				storedQueryId="urn:ogc:def:query:OGC-WFS::GetFeatureById" id="restaurant.{id}" {XML_NS}>
 				</GetFeature>"""
-            ),
-        ]
+        ),
     )
     def test_get_feature_by_id_stored_query(
         self, client, restaurant, bad_restaurant, coordinates, response
@@ -84,18 +82,16 @@ class TestGetFeature:
         )
 
     @parametrize_response(
-        [
-            Get(
-                "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
-                "&STOREDQUERY_ID=urn:ogc:def:query:OGC-WFS::GetFeatureById"
-                "&ID=restaurant.ABC"
-            ),
-            Post(
-                f"""<GetFeature service="WFS" version="2.0.0"
+        Get(
+            "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
+            "&STOREDQUERY_ID=urn:ogc:def:query:OGC-WFS::GetFeatureById"
+            "&ID=restaurant.ABC"
+        ),
+        Post(
+            f"""<GetFeature service="WFS" version="2.0.0"
 				storedQueryId="urn:ogc:def:query:OGC-WFS::GetFeatureById" id="restaurant.ABC" {XML_NS}>
 				</GetFeature>"""
-            ),
-        ]
+        ),
     )
     def test_get_feature_by_id_bad_id(self, client, restaurant, bad_restaurant, response):
         """Prove that invalid IDs are properly handled."""
@@ -117,18 +113,16 @@ class TestGetFeature:
         assert message == expect
 
     @parametrize_response(
-        [
-            Get(
-                "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
-                "&STOREDQUERY_ID=urn:ogc:def:query:OGC-WFS::GetFeatureById"
-                "&ID=restaurant.0"
-            ),
-            Post(
-                f"""<GetFeature service="WFS" version="2.0.0"
+        Get(
+            "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
+            "&STOREDQUERY_ID=urn:ogc:def:query:OGC-WFS::GetFeatureById"
+            "&ID=restaurant.0"
+        ),
+        Post(
+            f"""<GetFeature service="WFS" version="2.0.0"
 				storedQueryId="urn:ogc:def:query:OGC-WFS::GetFeatureById" id="restaurant.0" {XML_NS}>
 				</GetFeature>"""
-            ),
-        ]
+        ),
     )
     def test_get_feature_by_id_404(self, restaurant, bad_restaurant, response):
         """Prove that missing IDs are properly handled."""

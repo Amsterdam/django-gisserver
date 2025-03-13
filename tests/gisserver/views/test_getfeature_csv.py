@@ -2,7 +2,7 @@ import django
 import pytest
 
 from tests.constants import XML_NS
-from tests.requests import Get, Post, parametrize_response
+from tests.requests import Get, Post, Url, parametrize_response
 from tests.utils import read_response
 
 # enable for all tests in this file
@@ -16,18 +16,14 @@ class TestGetFeature:
     """
 
     @parametrize_response(
-        [
-            Get(
-                "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant&outputformat=csv"
-            ),
-            Post(
-                f"""
+        Get("?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant&outputformat=csv"),
+        Post(
+            f"""
                 <GetFeature version="2.0.0" outputFormat="csv" service="WFS" {XML_NS}>
                 <Query typeNames="restaurant"></Query>
                 </GetFeature>
                 """
-            ),
-        ]
+        ),
     )
     def test_get_csv(
         self, restaurant, bad_restaurant, django_assert_max_num_queries, coordinates, response
@@ -76,19 +72,15 @@ class TestGetFeature:
         assert content == expect
 
     @parametrize_response(
-        [
-            Get(
-                "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant&outputformat=csv"
-            ),
-            Post(
-                f"""
+        Get("?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant&outputformat=csv"),
+        Post(
+            f"""
                 <GetFeature version="2.0.0" outputFormat="csv" service="WFS" {XML_NS}>
                 <Query typeNames="restaurant"></Query>
                 </GetFeature>
                 """
-            ),
-        ],
-        url_type="COMPLEX",
+        ),
+        url=Url.COMPLEX,
     )
     def test_get_csv_complex(
         self, restaurant_m2m, bad_restaurant, django_assert_max_num_queries, coordinates, response
@@ -108,19 +100,15 @@ class TestGetFeature:
         assert "SRID=4326;" in content
 
     @parametrize_response(
-        [
-            Get(
-                "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant&outputformat=csv"
-            ),
-            Post(
-                f"""
+        Get("?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant&outputformat=csv"),
+        Post(
+            f"""
                 <GetFeature version="2.0.0" outputFormat="csv" service="WFS" {XML_NS}>
                 <Query typeNames="restaurant"></Query>
                 </GetFeature>
                 """
-            ),
-        ],
-        url_type="FLAT",
+        ),
+        url=Url.FLAT,
     )
     def test_get_csv_flattened(
         self, restaurant, bad_restaurant, django_assert_max_num_queries, coordinates, response

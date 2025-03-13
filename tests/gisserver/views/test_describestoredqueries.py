@@ -12,14 +12,12 @@ class TestDescribeStoredQueries:
     """All tests for the DescribeStoredQueries method."""
 
     @parametrize_response(
-        [
-            Get("?SERVICE=WFS&REQUEST=DescribeStoredQueries&VERSION=2.0.0"),
-            Post(
-                f"""<DescribeStoredQueries version="2.0.0" service="WFS" {XML_NS}>
+        Get("?SERVICE=WFS&REQUEST=DescribeStoredQueries&VERSION=2.0.0"),
+        Post(
+            f"""<DescribeStoredQueries version="2.0.0" service="WFS" {XML_NS}>
                 </DescribeStoredQueries>
                 """
-            ),
-        ]
+        ),
     )
     def test_get(self, response):
         """Prove that the happy flow works"""

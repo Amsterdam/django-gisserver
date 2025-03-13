@@ -7,7 +7,7 @@ from django.db import OperationalError
 from gisserver import conf, output
 from tests.constants import NAMESPACES, XML_NS
 from tests.gisserver.views.input import GENERATED_FIELD_FILTER
-from tests.requests import Get, Post, parametrize_response
+from tests.requests import Get, Post, Url, parametrize_response
 from tests.utils import WFS_20_XSD, assert_xml_equal, read_response, validate_xsd
 
 # enable for all tests in this file
@@ -21,16 +21,14 @@ class TestGetFeature:
     """
 
     @parametrize_response(
-        [
-            Get("?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"),
-            Post(
-                f"""<GetFeature service="WFS" version="2.0.0" {XML_NS}>
+        Get("?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"),
+        Post(
+            f"""<GetFeature service="WFS" version="2.0.0" {XML_NS}>
                 <Query typeNames="restaurant">
                 </Query>
                 </GetFeature>
                 """
-            ),
-        ]
+        ),
     )
     def test_get_feature(self, restaurant, coordinates, response):
         """Prove that the happy flow works"""
@@ -88,16 +86,14 @@ class TestGetFeature:
         )
 
     @parametrize_response(
-        [
-            Get("?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"),
-            Post(
-                f"""<GetFeature service="WFS" version="2.0.0" {XML_NS}>
+        Get("?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"),
+        Post(
+            f"""<GetFeature service="WFS" version="2.0.0" {XML_NS}>
               <Query typeNames="restaurant">
               </Query>
               </GetFeature>
               """
-            ),
-        ]
+        ),
     )
     def test_get_empty_geometry(self, empty_restaurant, response):
         """Prove that the empty geometry values don't crash the rendering."""
@@ -140,16 +136,14 @@ class TestGetFeature:
         )
 
     @parametrize_response(
-        [
-            Get("?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=mini-restaurant"),
-            Post(
-                f"""<GetFeature service="WFS" version="2.0.0" {XML_NS}>
+        Get("?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=mini-restaurant"),
+        Post(
+            f"""<GetFeature service="WFS" version="2.0.0" {XML_NS}>
               <Query typeNames="mini-restaurant">
               </Query>
               </GetFeature>
               """
-            ),
-        ]
+        ),
     )
     def test_get_limited_fields(self, restaurant, coordinates, response):
         """Prove that the 'FeatureType(fields=..)' reduces the returned fields."""
@@ -199,17 +193,15 @@ class TestGetFeature:
         )
 
     @parametrize_response(
-        [
-            Get("?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"),
-            Post(
-                f"""<GetFeature service="WFS" version="2.0.0" {XML_NS}>
+        Get("?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"),
+        Post(
+            f"""<GetFeature service="WFS" version="2.0.0" {XML_NS}>
               <Query typeNames="restaurant">
               </Query>
               </GetFeature>
               """
-            ),
-        ],
-        url_type="COMPLEX",
+        ),
+        url=Url.COMPLEX,
     )
     def test_get_complex(self, restaurant_m2m, bad_restaurant, coordinates, response):
         """Prove that rendering complex types works."""
@@ -306,17 +298,15 @@ class TestGetFeature:
         )
 
     @parametrize_response(
-        [
-            Get("?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"),
-            Post(
-                f"""<GetFeature service="WFS" version="2.0.0" {XML_NS}>
+        Get("?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"),
+        Post(
+            f"""<GetFeature service="WFS" version="2.0.0" {XML_NS}>
               <Query typeNames="restaurant">
               </Query>
               </GetFeature>
               """
-            ),
-        ],
-        url_type="FLAT",
+        ),
+        url=Url.FLAT,
     )
     def test_get_flattened(self, restaurant, bad_restaurant, coordinates, response):
         """Prove that rendering complex types works."""
@@ -515,19 +505,17 @@ class TestGetFeature:
         )
 
     @parametrize_response(
-        [
-            Get(
-                "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
-                "&SRSNAME=urn:ogc:def:crs:EPSG::28992"
-            ),
-            Post(
-                f"""<GetFeature service="WFS" version="2.0.0" srsName="urn:ogc:def:crs:EPSG::28992" {XML_NS}>
+        Get(
+            "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
+            "&SRSNAME=urn:ogc:def:crs:EPSG::28992"
+        ),
+        Post(
+            f"""<GetFeature service="WFS" version="2.0.0" srsName="urn:ogc:def:crs:EPSG::28992" {XML_NS}>
               <Query typeNames="restaurant">
               </Query>
               </GetFeature>
               """
-            ),
-        ]
+        ),
     )
     def test_get_srs_name(self, restaurant, coordinates, response):
         """Prove that specifying SRSNAME works"""
@@ -651,19 +639,14 @@ class TestGetFeature:
         )
 
     @parametrize_response(
-        [
-            Get(
-                "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
-                "&RESULTTYPE=hits"
-            ),
-            Post(
-                f"""<GetFeature service="WFS" version="2.0.0" resultType="hits" {XML_NS}>
+        Get("?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant&RESULTTYPE=hits"),
+        Post(
+            f"""<GetFeature service="WFS" version="2.0.0" resultType="hits" {XML_NS}>
               <Query typeNames="restaurant">
               </Query>
               </GetFeature>
               """
-            ),
-        ]
+        ),
     )
     @pytest.mark.parametrize("use_count", [1, 0])
     def test_get_hits(self, restaurant, use_count, monkeypatch, response):
@@ -694,23 +677,22 @@ class TestGetFeature:
         )
 
     @parametrize_response(
-        [
-            Get(
-                lambda start_index: "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
-                f"&SORTBY=name&vendor-arg=foobar&COUNT=1&STARTINDEX={start_index}",
-                expect={
-                    "next": "http://testserver/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
-                    "&TYPENAMES=restaurant&SORTBY=name"
-                    "&vendor-arg=foobar"
-                    "&COUNT=1&STARTINDEX=1",
-                    "previous": "http://testserver/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
-                    "&TYPENAMES=restaurant&SORTBY=name"
-                    "&vendor-arg=foobar"
-                    "&COUNT=1&STARTINDEX=0",
-                },
-            ),
-            Post(
-                lambda start_index: f"""<GetFeature service="WFS" version="2.0.0" {XML_NS} count="1" startIndex="{start_index}">
+        Get(
+            lambda start_index: "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
+            f"&SORTBY=name&vendor-arg=foobar&COUNT=1&STARTINDEX={start_index}",
+            expect={
+                "next": "http://testserver/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
+                "&TYPENAMES=restaurant&SORTBY=name"
+                "&vendor-arg=foobar"
+                "&COUNT=1&STARTINDEX=1",
+                "previous": "http://testserver/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
+                "&TYPENAMES=restaurant&SORTBY=name"
+                "&vendor-arg=foobar"
+                "&COUNT=1&STARTINDEX=0",
+            },
+        ),
+        Post(
+            lambda start_index: f"""<GetFeature service="WFS" version="2.0.0" {XML_NS} count="1" startIndex="{start_index}">
                     <Query typeNames="restaurant">
                     <fes:SortBy>
                         <fes:SortProperty>
@@ -721,12 +703,11 @@ class TestGetFeature:
                     </Query>
                     </GetFeature>
                     """,
-                expect={
-                    "next": "http://testserver/v1/wfs/",
-                    "previous": "http://testserver/v1/wfs/",
-                },
-            ),
-        ]
+            expect={
+                "next": "http://testserver/v1/wfs/",
+                "previous": "http://testserver/v1/wfs/",
+            },
+        ),
     )
     @pytest.mark.parametrize("use_count", [1, 0])
     def test_pagination(
@@ -775,16 +756,14 @@ class TestGetFeature:
         assert names[0] != names[1]
 
     @parametrize_response(
-        [
-            Get("?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"),
-            Post(
-                f"""<GetFeature service="WFS" version="2.0.0" {XML_NS}>
+        Get("?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"),
+        Post(
+            f"""<GetFeature service="WFS" version="2.0.0" {XML_NS}>
               <Query typeNames="restaurant">
               </Query>
               </GetFeature>
               """
-            ),
-        ]
+        ),
     )
     def test_truncated_response(self, restaurant, monkeypatch, response):
         """Prove that errors are properly handled during streaming."""

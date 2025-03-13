@@ -15,17 +15,15 @@ class TestGetFeature:
     """
 
     @parametrize_response(
-        [
-            Get(
-                lambda id: "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
-                f"&RESOURCEID=restaurant.{id}"
-            ),
-            Post(
-                lambda id: f"""<GetFeature service="WFS" version="2.0.0"
+        Get(
+            lambda id: "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
+            f"&RESOURCEID=restaurant.{id}"
+        ),
+        Post(
+            lambda id: f"""<GetFeature service="WFS" version="2.0.0"
 				resourceId="restaurant.{id}" {XML_NS}>
 				</GetFeature>"""
-            ),
-        ]
+        ),
     )
     def test_resource_id(self, restaurant, bad_restaurant, response):
         """Prove that fetching objects by ID works."""
@@ -46,14 +44,12 @@ class TestGetFeature:
         assert names == ["Café Noir"]
 
     @parametrize_response(
-        [
-            Get("?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&RESOURCEID=restaurant.0"),
-            Post(
-                f"""<GetFeature service="WFS" version="2.0.0"
+        Get("?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&RESOURCEID=restaurant.0"),
+        Post(
+            f"""<GetFeature service="WFS" version="2.0.0"
 				resourceId="restaurant.0" {XML_NS}>
 				</GetFeature>"""
-            ),
-        ]
+        ),
     )
     def test_resource_id_unknown_id(self, restaurant, bad_restaurant, response):
         """Prove that unknown IDs simply return an empty list."""
@@ -72,18 +68,16 @@ class TestGetFeature:
         assert len(members) == 0
 
     @parametrize_response(
-        [
-            Get(
-                lambda id: "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=mini-restaurant"
-                f"&RESOURCEID=restaurant.{id}"
-            ),
-            Post(
-                lambda id: f"""<GetFeature service="WFS" version="2.0.0"
+        Get(
+            lambda id: "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=mini-restaurant"
+            f"&RESOURCEID=restaurant.{id}"
+        ),
+        Post(
+            lambda id: f"""<GetFeature service="WFS" version="2.0.0"
 				resourceId="restaurant.{id}" {XML_NS}>
                 <Query typeNames="mini-restaurant"></Query>
 				</GetFeature>"""
-            ),
-        ]
+        ),
     )
     def test_resource_id_typename_mismatch(self, restaurant, bad_restaurant, response):
         """Prove that TYPENAMES should be omitted, or match the RESOURCEID."""
@@ -105,14 +99,12 @@ class TestGetFeature:
         )
 
     @parametrize_response(
-        [
-            Get("?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&RESOURCEID=restaurant.ABC"),
-            Post(
-                f"""<GetFeature service="WFS" version="2.0.0"
+        Get("?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&RESOURCEID=restaurant.ABC"),
+        Post(
+            f"""<GetFeature service="WFS" version="2.0.0"
 				resourceId="restaurant.ABC" {XML_NS}>
 				</GetFeature>"""
-            ),
-        ]
+        ),
     )
     def test_resource_id_invalid(self, restaurant, bad_restaurant, response):
         """Prove that TYPENAMES should be omitted, or match the RESOURCEID."""
@@ -130,17 +122,15 @@ class TestGetFeature:
         # message differs in Django versions
 
     @parametrize_response(
-        [
-            Get(
-                lambda id1, id2: "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
-                f"&RESOURCEID=restaurant.{id1},restaurant.{id2}"
-            ),
-            Post(
-                lambda id1, id2: f"""<GetFeature service="WFS" version="2.0.0"
+        Get(
+            lambda id1, id2: "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
+            f"&RESOURCEID=restaurant.{id1},restaurant.{id2}"
+        ),
+        Post(
+            lambda id1, id2: f"""<GetFeature service="WFS" version="2.0.0"
 				resourceId="restaurant.{id1},restaurant.{id2}" {XML_NS}>
 				</GetFeature>"""
-            ),
-        ]
+        ),
     )
     def test_resource_id_multiple(self, client, restaurant, bad_restaurant, response):
         """Prove that fetching multiple IDs works."""

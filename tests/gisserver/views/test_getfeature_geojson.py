@@ -3,7 +3,7 @@ import pytest
 
 from gisserver import conf
 from tests.constants import XML_NS
-from tests.requests import Get, Post, parametrize_response
+from tests.requests import Get, Post, Url, parametrize_response
 from tests.utils import read_json, read_response
 
 # enable for all tests in this file
@@ -17,19 +17,17 @@ class TestGetFeatureGeoJson:
     """
 
     @parametrize_response(
-        [
-            Get(
-                "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
-                "&outputformat=geojson"
-            ),
-            Post(
-                f"""
+        Get(
+            "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
+            "&outputformat=geojson"
+        ),
+        Post(
+            f"""
                 <GetFeature version="2.0.0" outputFormat="geojson" service="WFS" {XML_NS}>
                 <Query typeNames="restaurant"></Query>
                 </GetFeature>
                 """
-            ),
-        ]
+        ),
     )
     def test_get_geojson(
         self, restaurant, bad_restaurant, django_assert_max_num_queries, coordinates, response
@@ -152,24 +150,22 @@ class TestGetFeatureGeoJson:
         }
 
     @parametrize_response(
-        [
-            Get(
-                "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
-                "&vendor-arg=foobar&outputformat=geojson&COUNT=1000",
-                expect="http://testserver/v1/wfs/"
-                "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
-                "&vendor-arg=foobar"
-                "&outputformat=geojson&COUNT=1000&STARTINDEX=1000",
-            ),
-            Post(
-                f"""
+        Get(
+            "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
+            "&vendor-arg=foobar&outputformat=geojson&COUNT=1000",
+            expect="http://testserver/v1/wfs/"
+            "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
+            "&vendor-arg=foobar"
+            "&outputformat=geojson&COUNT=1000&STARTINDEX=1000",
+        ),
+        Post(
+            f"""
                 <GetFeature version="2.0.0" outputFormat="geojson" count="1000" service="WFS" {XML_NS}>
                 <Query typeNames="restaurant"></Query>
                 </GetFeature>
                 """,
-                expect="http://testserver/v1/wfs/",
-            ),
-        ],
+            expect="http://testserver/v1/wfs/",
+        ),
     )
     @pytest.mark.parametrize("use_count", [1, 0])
     def test_get_geojson_pagination(
@@ -208,20 +204,18 @@ class TestGetFeatureGeoJson:
         ]
 
     @parametrize_response(
-        [
-            Get(
-                "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
-                "&TYPENAMES=restaurant&outputformat=geojson"
-            ),
-            Post(
-                f"""
+        Get(
+            "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
+            "&TYPENAMES=restaurant&outputformat=geojson"
+        ),
+        Post(
+            f"""
             <GetFeature version="2.0.0" outputFormat="geojson" service="WFS" {XML_NS}>
             <Query typeNames="restaurant"></Query>
             </GetFeature>
             """
-            ),
-        ],
-        url_type="COMPLEX",
+        ),
+        url=Url.COMPLEX,
     )
     def test_get_geojson_complex(
         self, restaurant_m2m, bad_restaurant, django_assert_max_num_queries, coordinates, response
@@ -311,20 +305,18 @@ class TestGetFeatureGeoJson:
         }
 
     @parametrize_response(
-        [
-            Get(
-                "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
-                "&TYPENAMES=restaurant&outputformat=geojson"
-            ),
-            Post(
-                f"""
+        Get(
+            "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
+            "&TYPENAMES=restaurant&outputformat=geojson"
+        ),
+        Post(
+            f"""
             <GetFeature version="2.0.0" outputFormat="geojson" service="WFS" {XML_NS}>
             <Query typeNames="restaurant"></Query>
             </GetFeature>
             """
-            ),
-        ],
-        url_type="FLAT",
+        ),
+        url=Url.FLAT,
     )
     def test_get_geojson_flattened(
         self, restaurant, bad_restaurant, django_assert_max_num_queries, coordinates, response

@@ -24,13 +24,12 @@ class TestGetFeature:
     """
 
     @parametrize_response(
-        [
-            Get(
-                "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
-                "&BBOX=122400,486200,122500,486300,urn:ogc:def:crs:EPSG::28992"
-            ),
-            Post(
-                f"""<GetFeature service="WFS" version="2.0.0" {XML_NS}>
+        Get(
+            "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
+            "&BBOX=122400,486200,122500,486300,urn:ogc:def:crs:EPSG::28992"
+        ),
+        Post(
+            f"""<GetFeature service="WFS" version="2.0.0" {XML_NS}>
             <Query typeNames="restaurant">
             <fes:Filter>
                 <fes:BBOX>
@@ -43,8 +42,7 @@ class TestGetFeature:
             </Query>
             </GetFeature>
             """
-            ),
-        ]
+        ),
     )
     def test_get_bbox(self, restaurant, response):
         """Prove that that parsing BBOX=... works"""
@@ -64,13 +62,12 @@ class TestGetFeature:
         assert geometry.attrib["srsName"] == WGS84.urn
 
     @parametrize_response(
-        [
-            Get(
-                "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
-                "&BBOX=100,100,200,200,urn:ogc:def:crs:EPSG::28992"
-            ),
-            Post(
-                f"""<GetFeature service="WFS" version="2.0.0" {XML_NS}>
+        Get(
+            "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
+            "&BBOX=100,100,200,200,urn:ogc:def:crs:EPSG::28992"
+        ),
+        Post(
+            f"""<GetFeature service="WFS" version="2.0.0" {XML_NS}>
                 <Query typeNames="restaurant">
                 <fes:Filter>
                     <fes:BBOX>
@@ -83,8 +80,7 @@ class TestGetFeature:
                 </Query>
                 </GetFeature>
                 """
-            ),
-        ]
+        ),
     )
     def test_get_bbox_no_result(self, restaurant, response):
         # Also prove that using a different BBOX gives empty results
@@ -119,56 +115,60 @@ class TestGetFeature:
         assert geometry.attrib["srsName"] == WGS84.urn
 
     @parametrize_response(
-        [
-            Get(
-                "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
-                "&FILTER=" + quote_plus(filter.strip()),
-                id=name,
-                url_type=type,
-            )
-            for (name, type, filter) in FILTERS
-        ]
-        + [
-            Post(
-                f"""<GetFeature service="WFS" version="2.0.0" {XML_NS}>
+        *(
+            [
+                Get(
+                    "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
+                    "&FILTER=" + quote_plus(filter.strip()),
+                    id=name,
+                    url=url,
+                )
+                for (name, url, filter) in FILTERS
+            ]
+            + [
+                Post(
+                    f"""<GetFeature service="WFS" version="2.0.0" {XML_NS}>
                 <Query typeNames="restaurant">
                 {clean_filter_for_xml(filter).strip()}
                 </Query>
                 </GetFeature>
                 """,
-                id=name,
-                url_type=type,
-            )
-            for (name, type, filter) in FILTERS
-        ]
+                    id=name,
+                    url=url,
+                )
+                for (name, url, filter) in FILTERS
+            ]
+        )
     )
     def test_get_filter(self, restaurant, restaurant_m2m, bad_restaurant, response):
         """Prove that that parsing FILTER=<fes:Filter>... works"""
         _assert_filter(response, expect_name="Café Noir")
 
     @parametrize_response(
-        [
-            Get(
-                "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
-                "&FILTER=" + quote_plus(filter.strip()),
-                expect=expect,
-                id=name,
-            )
-            for name, (filter, expect, _) in INVALID_FILTERS.items()
-        ]
-        + [
-            Post(
-                f"""<GetFeature service="WFS" version="2.0.0" {XML_NS}>
+        *(
+            [
+                Get(
+                    "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
+                    "&FILTER=" + quote_plus(filter.strip()),
+                    expect=expect,
+                    id=name,
+                )
+                for name, (filter, expect, _) in INVALID_FILTERS.items()
+            ]
+            + [
+                Post(
+                    f"""<GetFeature service="WFS" version="2.0.0" {XML_NS}>
                 <Query typeNames="restaurant">
                 {clean_filter_for_xml(filter).strip()}
                 </Query>
                 </GetFeature>
                 """,
-                expect=expect,
-                id=name,
-            )
-            for name, (filter, _, expect) in INVALID_FILTERS.items()
-        ]
+                    expect=expect,
+                    id=name,
+                )
+                for name, (filter, _, expect) in INVALID_FILTERS.items()
+            ]
+        )
     )
     def test_get_filter_invalid(self, client, restaurant, response):
         """Prove that that parsing FILTER=<fes:Filter>... works"""

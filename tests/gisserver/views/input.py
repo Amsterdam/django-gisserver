@@ -1,10 +1,11 @@
 from gisserver.exceptions import OperationParsingFailed, OperationProcessingFailed
+from tests.requests import Url
 
 # Tuples of the shape (name, url_type, filter)
 FILTERS = [
     (
         "simple",
-        "NORMAL",
+        Url.NORMAL,
         """
         <?xml version="1.0"?>
         <fes:Filter
@@ -20,7 +21,7 @@ FILTERS = [
     ),
     (
         "value_datetimefield",
-        "NORMAL",
+        Url.NORMAL,
         """
         <?xml version="1.0"?>
         <fes:Filter
@@ -36,7 +37,7 @@ FILTERS = [
     ),
     (
         "value_boolean",
-        "NORMAL",
+        Url.NORMAL,
         """
         <?xml version="1.0"?>
         <fes:Filter
@@ -52,7 +53,7 @@ FILTERS = [
     ),
     (
         "value_boolean_cast",
-        "NORMAL",
+        Url.NORMAL,
         """
         <?xml version="1.0"?>
         <fes:Filter
@@ -66,7 +67,7 @@ FILTERS = [
     ),
     (
         "value_array",
-        "NORMAL",
+        Url.NORMAL,
         """
         <?xml version="1.0"?>
         <fes:Filter xmlns:fes="http://www.opengis.net/fes/2.0">
@@ -78,7 +79,7 @@ FILTERS = [
     ),
     (
         "value_array_lt",
-        "NORMAL",
+        Url.NORMAL,
         """
         <?xml version="1.0"?>
         <fes:Filter xmlns:fes="http://www.opengis.net/fes/2.0">
@@ -90,7 +91,7 @@ FILTERS = [
     ),
     (
         "fes1",
-        "NORMAL",
+        Url.NORMAL,
         """
         <Filter>
             <PropertyIsGreaterThanOrEqualTo>
@@ -101,7 +102,7 @@ FILTERS = [
     ),
     (
         "like",
-        "NORMAL",
+        Url.NORMAL,
         """
         <?xml version="1.0"?>
         <fes:Filter
@@ -117,7 +118,7 @@ FILTERS = [
     ),
     (
         "bbox",
-        "NORMAL",
+        Url.NORMAL,
         """
         <?xml version="1.0"?>
         <fes:Filter
@@ -139,7 +140,7 @@ FILTERS = [
     ),
     (
         "bbox_default",
-        "NORMAL",
+        Url.NORMAL,
         """
         <fes:Filter
             xmlns:ns16="http://example.org/gisserver"
@@ -156,7 +157,7 @@ FILTERS = [
     ),
     (
         "and",
-        "NORMAL",
+        Url.NORMAL,
         """
         <?xml version="1.0"?>
         <fes:Filter
@@ -184,7 +185,7 @@ FILTERS = [
     ),
     (
         "gml:name",
-        "NORMAL",
+        Url.NORMAL,
         """
         <?xml version="1.0"?>
         <fes:Filter
@@ -200,7 +201,7 @@ FILTERS = [
     ),
     (
         "equal",
-        "COMPLEX",
+        Url.COMPLEX,
         """
         <?xml version="1.0"?>
         <fes:Filter
@@ -216,7 +217,7 @@ FILTERS = [
     ),
     (
         "equal_xmlns",
-        "COMPLEX",
+        Url.COMPLEX,
         """
         <?xml version="1.0"?>
         <fes:Filter
@@ -232,7 +233,7 @@ FILTERS = [
     ),
     (
         "not_nil",
-        "COMPLEX",
+        Url.COMPLEX,
         """
         <?xml version="1.0"?>
         <fes:Filter
@@ -249,7 +250,7 @@ FILTERS = [
     ),
     (
         "m2m",
-        "COMPLEX",
+        Url.COMPLEX,
         """
         <?xml version="1.0"?>
         <fes:Filter
@@ -265,7 +266,7 @@ FILTERS = [
     ),
     (
         "equal",
-        "FLAT",
+        Url.FLAT,
         """
         <?xml version="1.0"?>
         <fes:Filter
@@ -281,7 +282,7 @@ FILTERS = [
     ),
     (
         "equal_xmlns",
-        "FLAT",
+        Url.FLAT,
         """
         <?xml version="1.0"?>
         <fes:Filter
@@ -297,7 +298,7 @@ FILTERS = [
     ),
     (
         "not_nil",
-        "FLAT",
+        Url.FLAT,
         """
         <?xml version="1.0"?>
         <fes:Filter
@@ -525,23 +526,23 @@ GENERATED_FIELD_FILTER = {
 
 # Of the form (name, type, sort_by, expect)
 SORT_BY = [
-    ("name", "NORMAL", "name", ["Café Noir", "Foo Bar"]),
-    ("name-a", "NORMAL", "name A", ["Café Noir", "Foo Bar"]),
-    ("name-asc", "NORMAL", "name ASC", ["Café Noir", "Foo Bar"]),
-    ("name-d", "NORMAL", "name D", ["Foo Bar", "Café Noir"]),
-    ("name-desc", "NORMAL", "name DESC", ["Foo Bar", "Café Noir"]),
-    ("rating-desc", "NORMAL", "rating DESC", ["Café Noir", "Foo Bar"]),
-    ("rating,name-asc", "NORMAL", "rating,name ASC", ["Foo Bar", "Café Noir"]),
-    ("city/name", "COMPLEX", "city/name", ["Café Noir", "Foo Bar"]),
-    ("city/name-desc", "COMPLEX", "city/name DESC", ["Foo Bar", "Café Noir"]),
-    ("city-name", "FLAT", "city-name", ["Café Noir", "Foo Bar"]),
-    ("city-name-desc", "FLAT", "city-name DESC", ["Foo Bar", "Café Noir"]),
+    ("name", Url.NORMAL, "name", ["Café Noir", "Foo Bar"]),
+    ("name-a", Url.NORMAL, "name A", ["Café Noir", "Foo Bar"]),
+    ("name-asc", Url.NORMAL, "name ASC", ["Café Noir", "Foo Bar"]),
+    ("name-d", Url.NORMAL, "name D", ["Foo Bar", "Café Noir"]),
+    ("name-desc", Url.NORMAL, "name DESC", ["Foo Bar", "Café Noir"]),
+    ("rating-desc", Url.NORMAL, "rating DESC", ["Café Noir", "Foo Bar"]),
+    ("rating,name-asc", Url.NORMAL, "rating,name ASC", ["Foo Bar", "Café Noir"]),
+    ("city/name", Url.COMPLEX, "city/name", ["Café Noir", "Foo Bar"]),
+    ("city/name-desc", Url.COMPLEX, "city/name DESC", ["Foo Bar", "Café Noir"]),
+    ("city-name", Url.FLAT, "city-name", ["Café Noir", "Foo Bar"]),
+    ("city-name-desc", Url.FLAT, "city-name DESC", ["Foo Bar", "Café Noir"]),
 ]
 
 SORT_BY_XML = [
     (
         "name",
-        "NORMAL",
+        Url.NORMAL,
         """
         <fes:SortProperty>
             <fes:ValueReference>name</fes:ValueReference>
@@ -551,7 +552,7 @@ SORT_BY_XML = [
     ),
     (
         "name-asc",
-        "NORMAL",
+        Url.NORMAL,
         """
         <fes:SortProperty>
             <fes:ValueReference>name</fes:ValueReference>
@@ -562,7 +563,7 @@ SORT_BY_XML = [
     ),
     (
         "name-desc",
-        "NORMAL",
+        Url.NORMAL,
         """
         <fes:SortProperty>
             <fes:ValueReference>name</fes:ValueReference>
@@ -573,7 +574,7 @@ SORT_BY_XML = [
     ),
     (
         "rating-desc",
-        "NORMAL",
+        Url.NORMAL,
         """
         <fes:SortProperty>
             <fes:ValueReference>rating</fes:ValueReference>
@@ -584,7 +585,7 @@ SORT_BY_XML = [
     ),
     (
         "city-name",
-        "FLAT",
+        Url.FLAT,
         """
         <fes:SortProperty>
             <fes:ValueReference>city-name</fes:ValueReference>
@@ -594,7 +595,7 @@ SORT_BY_XML = [
     ),
     (
         "city-name-desc",
-        "FLAT",
+        Url.FLAT,
         """
         <fes:SortProperty>
             <fes:ValueReference>city-name</fes:ValueReference>
@@ -605,7 +606,7 @@ SORT_BY_XML = [
     ),
     (
         "city/name",
-        "COMPLEX",
+        Url.COMPLEX,
         """
         <fes:SortProperty>
             <fes:ValueReference>city/name</fes:ValueReference>
@@ -615,7 +616,7 @@ SORT_BY_XML = [
     ),
     (
         "city/name-desc",
-        "COMPLEX",
+        Url.COMPLEX,
         """
         <fes:SortProperty>
             <fes:ValueReference>city/name</fes:ValueReference>
@@ -626,7 +627,7 @@ SORT_BY_XML = [
     ),
     (
         "rating,name-asc",
-        "NORMAL",
+        Url.NORMAL,
         """
         <fes:SortProperty>
             <fes:ValueReference>rating</fes:ValueReference>

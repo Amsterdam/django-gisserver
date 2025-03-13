@@ -3,7 +3,7 @@ import pytest
 from django.conf import settings
 
 from tests.constants import XML_NS
-from tests.requests import Get, Post, parametrize_response
+from tests.requests import Get, Post, Url, parametrize_response
 from tests.utils import (
     WFS_20_XSD,
     assert_xml_equal,
@@ -22,13 +22,12 @@ class TestPropertyName:
     """All tests for the PropertyName scenarios"""
 
     @parametrize_response(
-        [
-            Get(
-                lambda: "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
-                "&propertyname=name,city_id"
-            ),
-            Post(
-                lambda: f"""
+        Get(
+            lambda: "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
+            "&propertyname=name,city_id"
+        ),
+        Post(
+            lambda: f"""
                 <GetFeature service="WFS" version="2.0.0" {XML_NS}>
                     <Query typeNames="restaurant">
                     <PropertyName>name</PropertyName>
@@ -36,8 +35,7 @@ class TestPropertyName:
                     </Query>
                 </GetFeature>
                 """
-            ),
-        ]
+        ),
     )
     def test_propertyname_gml(
         self, restaurant, bad_restaurant, django_assert_max_num_queries, coordinates, response
@@ -98,14 +96,13 @@ class TestPropertyName:
         )
 
     @parametrize_response(
-        [
-            Get(
-                lambda: "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
-                "&PROPERTYNAME=name,city/name,opening_hours/weekday,opening_hours/start_time",
-                url_type="COMPLEX",
-            ),
-            Post(
-                lambda: f"""
+        Get(
+            lambda: "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
+            "&PROPERTYNAME=name,city/name,opening_hours/weekday,opening_hours/start_time",
+            url=Url.COMPLEX,
+        ),
+        Post(
+            lambda: f"""
                 <GetFeature service="WFS" version="2.0.0" {XML_NS}>
                     <Query typeNames="restaurant">
                     <PropertyName>name</PropertyName>
@@ -115,9 +112,8 @@ class TestPropertyName:
                     </Query>
                 </GetFeature>
                 """,
-                url_type="COMPLEX",
-            ),
-        ]
+            url=Url.COMPLEX,
+        ),
     )
     def test_propertyname_gml_complex(
         self,
@@ -218,13 +214,12 @@ class TestPropertyName:
         ]
 
     @parametrize_response(
-        [
-            Get(
-                lambda: "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
-                "&outputformat=geojson&propertyname=id,name,city_id,rating,tags"
-            ),
-            Post(
-                lambda: f"""
+        Get(
+            lambda: "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
+            "&outputformat=geojson&propertyname=id,name,city_id,rating,tags"
+        ),
+        Post(
+            lambda: f"""
                 <GetFeature service="WFS" version="2.0.0" outputFormat="geojson"  {XML_NS}>
                     <Query typeNames="restaurant">
                     <PropertyName>id</PropertyName>
@@ -235,8 +230,7 @@ class TestPropertyName:
                     </Query>
                 </GetFeature>
                 """
-            ),
-        ]
+        ),
     )
     def test_propertyname_geojson(
         self, restaurant, bad_restaurant, django_assert_max_num_queries, coordinates, response
@@ -302,15 +296,14 @@ class TestPropertyName:
         }
 
     @parametrize_response(
-        [
-            Get(
-                lambda: "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
-                "&TYPENAMES=restaurant&outputformat=geojson"
-                "&PROPERTYNAME=name,city/name,opening_hours/weekday,opening_hours/start_time",
-                url_type="COMPLEX",
-            ),
-            Post(
-                lambda: f"""
+        Get(
+            lambda: "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
+            "&TYPENAMES=restaurant&outputformat=geojson"
+            "&PROPERTYNAME=name,city/name,opening_hours/weekday,opening_hours/start_time",
+            url=Url.COMPLEX,
+        ),
+        Post(
+            lambda: f"""
                 <GetFeature service="WFS" version="2.0.0" outputFormat="geojson"  {XML_NS}>
                     <Query typeNames="restaurant">
                     <PropertyName>name</PropertyName>
@@ -320,9 +313,8 @@ class TestPropertyName:
                     </Query>
                 </GetFeature>
                 """,
-                url_type="COMPLEX",
-            ),
-        ]
+            url=Url.COMPLEX,
+        ),
     )
     def test_propertyname_geojson_complex(
         self, restaurant_m2m, bad_restaurant, django_assert_max_num_queries, coordinates, response
@@ -444,13 +436,12 @@ class TestPropertyName:
         ]
 
     @parametrize_response(
-        [
-            Get(
-                lambda: "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
-                "&outputformat=csv&propertyname=id,name,city_id,location,rating"
-            ),
-            Post(
-                lambda: f"""
+        Get(
+            lambda: "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
+            "&outputformat=csv&propertyname=id,name,city_id,location,rating"
+        ),
+        Post(
+            lambda: f"""
                 <GetFeature service="WFS" version="2.0.0" outputFormat="csv"  {XML_NS}>
                     <Query typeNames="restaurant">
                     <PropertyName>id</PropertyName>
@@ -461,8 +452,7 @@ class TestPropertyName:
                     </Query>
                 </GetFeature>
                 """
-            ),
-        ]
+        ),
     )
     def test_propertyname_csv(
         self, restaurant, bad_restaurant, django_assert_max_num_queries, coordinates, response

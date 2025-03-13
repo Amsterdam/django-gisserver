@@ -12,12 +12,8 @@ class TestListStoredQueries:
     """All tests for the ListStoredQueries method."""
 
     @parametrize_response(
-        [
-            Get("?SERVICE=WFS&REQUEST=ListStoredQueries&VERSION=2.0.0"),
-            Post(
-                f'<ListStoredQueries version="2.0.0" service="WFS" {XML_NS}></ListStoredQueries>'
-            ),
-        ]
+        Get("?SERVICE=WFS&REQUEST=ListStoredQueries&VERSION=2.0.0"),
+        Post(f'<ListStoredQueries version="2.0.0" service="WFS" {XML_NS}></ListStoredQueries>'),
     )
     def test_get(self, response):
         """Prove that the happy flow works"""
