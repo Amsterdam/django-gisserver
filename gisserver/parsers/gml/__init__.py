@@ -7,10 +7,9 @@ from __future__ import annotations
 
 from xml.etree.ElementTree import Element
 
-from defusedxml.ElementTree import fromstring
-
 from gisserver.exceptions import ExternalParsingError
 from gisserver.parsers.base import tag_registry
+from gisserver.parsers.tags import parse_xml_from_string
 
 from .base import AbstractGeometry, GM_Envelope, GM_Object, TM_Object
 from .geometries import is_gml_element  # also do tag registration
@@ -31,7 +30,7 @@ __all__ = [
 
 def parse_gml(text: str | bytes) -> FES_GML_NODES:
     """Parse an XML <gml:...> string."""
-    root_element = fromstring(text)
+    root_element = parse_xml_from_string(text)
     return parse_gml_node(root_element)
 
 
