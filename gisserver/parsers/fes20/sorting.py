@@ -42,7 +42,7 @@ class SortBy:
     sort_properties: list[SortProperty]
 
     @classmethod
-    def parse(cls, value: str | Element):
+    def from_any(cls, value: str | Element):
         if isinstance(value, Element):
             return cls.from_xml(value)
         else:

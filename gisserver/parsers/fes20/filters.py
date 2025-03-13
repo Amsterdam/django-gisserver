@@ -31,7 +31,7 @@ class Filter:
         self.source = source
 
     @classmethod
-    def parse(cls, text: AnyStr | Element):
+    def from_any(cls, text: AnyStr | Element):
         if isinstance(text, Element):
             return cls.from_xml(text)
         else:
