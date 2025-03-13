@@ -15,9 +15,6 @@ from gisserver.parsers.base import tag_registry
 from .base import AbstractGeometry, GM_Envelope, GM_Object, TM_Object
 from .geometries import is_gml_element  # also do tag registration
 
-# All known root nodes as GML object:
-FES_GML_NODES = (GM_Object, GM_Envelope, TM_Object)
-
 __all__ = [
     "GM_Object",
     "GM_Envelope",
@@ -29,18 +26,19 @@ __all__ = [
 ]
 
 
-def parse_gml(text: str | bytes) -> FES_GML_NODES:
+def parse_gml(text: str | bytes) -> GM_Object | GM_Envelope | TM_Object:
     """Parse an XML <gml:...> string."""
     root_element = fromstring(text)
     return parse_gml_node(root_element)
 
 
-def parse_gml_node(element: Element) -> FES_GML_NODES:
+def parse_gml_node(element: Element) -> GM_Object | GM_Envelope | TM_Object:
     """Parse the element"""
     if not is_gml_element(element):
         raise ExternalParsingError(f"Expected GML namespace for {element.tag}")
 
-    return tag_registry.from_child_xml(element, allowed_types=FES_GML_NODES)
+    # All known root nodes as GML object:
+    return tag_registry.from_child_xml(element, allowed_types=(GM_Object, GM_Envelope, TM_Object))
 
 
 def find_gml_nodes(element: Element) -> list[Element]:
