@@ -10,9 +10,14 @@ from tests.gisserver.views.input import (
     SORT_BY,
     SORT_BY_XML,
 )
-from tests.gisserver.views.test_getfeature_filter import clean_filter_for_xml
 from tests.requests import Get, Post, parametrize_response
-from tests.utils import WFS_20_XSD, assert_xml_equal, read_response, validate_xsd
+from tests.utils import (
+    WFS_20_XSD,
+    assert_xml_equal,
+    clean_filter_for_xml,
+    read_response,
+    validate_xsd,
+)
 
 # enable for all tests in this file
 pytestmark = [pytest.mark.urls("tests.test_gisserver.urls")]

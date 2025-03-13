@@ -1,4 +1,3 @@
-import re
 from urllib.parse import quote_plus
 
 import django
@@ -12,15 +11,10 @@ from tests.gisserver.views.input import (
     INVALID_FILTERS,
 )
 from tests.requests import Get, Post, parametrize_response
-from tests.utils import WFS_20_XSD, read_response, validate_xsd
+from tests.utils import WFS_20_XSD, clean_filter_for_xml, read_response, validate_xsd
 
 # enable for all tests in this file
 pytestmark = [pytest.mark.urls("tests.test_gisserver.urls")]
-
-
-def clean_filter_for_xml(xml):
-    """Removes leading <? xml ?> tag"""
-    return re.sub(r"<\?.*\?>", "", xml)
 
 
 @pytest.mark.django_db

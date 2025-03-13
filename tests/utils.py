@@ -114,3 +114,8 @@ def assert_xml_equal(got: bytes | str, want: str):
         example.want = want  # unencoded, avoid doctest for bytes type.
         message = checker.output_difference(example, got, PARSE_XML)
         raise AssertionError(message)
+
+
+def clean_filter_for_xml(xml):
+    """Removes leading <? xml ?> tag"""
+    return re.sub(r"<\?.*\?>", "", xml)
