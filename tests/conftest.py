@@ -300,6 +300,12 @@ def django_db_setup(django_db_setup, django_db_blocker):
 
 @pytest.fixture()
 def response(client, request):
+    """This fixture can be used to abstract over different types of requests (GET/POST) with
+    different kinds of urls expecting similar outcomes.
+
+    Delaying the call (in which case it returns a function returning a response instead of a
+    response) and adding expect attributes are both possible.
+    """
     req: Request = request.param
     if req.method == "GET":
         if isinstance(req.query, str):
