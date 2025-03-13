@@ -41,10 +41,10 @@ class TestGetPropertyValue:
         + [
             Post(
                 f"""<GetPropertyValue version="2.0.0" service="WFS" outputFormat="application/gml+xml; version=3.2" valueReference="{xpath}" {XML_NS}>
-				<Query typeNames="restaurant">
-				</Query>
-				</GetPropertyValue>
-				"""
+                <Query typeNames="restaurant">
+                </Query>
+                </GetPropertyValue>
+                """
             )
             for xpath in XPATHS
         ]
@@ -65,19 +65,19 @@ class TestGetPropertyValue:
         assert_xml_equal(
             content,
             f"""<wfs:ValueCollection
-					xmlns:app="http://example.org/gisserver"
-					xmlns:gml="http://www.opengis.net/gml/3.2"
-					xmlns:wfs="http://www.opengis.net/wfs/2.0"
-					xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-					xsi:schemaLocation="http://example.org/gisserver http://testserver/v1/wfs/?SERVICE=WFS&amp;VERSION=2.0.0&amp;REQUEST=DescribeFeatureType&amp;TYPENAMES=restaurant http://www.opengis.net/wfs/2.0 http://schemas.opengis.net/wfs/2.0/wfs.xsd http://www.opengis.net/gml/3.2 http://schemas.opengis.net/gml/3.2.1/gml.xsd"
-					timeStamp="{timestamp}" numberMatched="2" numberReturned="2">
-				<wfs:member>
-					<app:name>Café Noir</app:name>
-				</wfs:member>
-				<wfs:member>
-					<app:name>Foo Bar</app:name>
-				</wfs:member>
-				</wfs:ValueCollection>""",  # noqa: E501
+                    xmlns:app="http://example.org/gisserver"
+                    xmlns:gml="http://www.opengis.net/gml/3.2"
+                    xmlns:wfs="http://www.opengis.net/wfs/2.0"
+                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                    xsi:schemaLocation="http://example.org/gisserver http://testserver/v1/wfs/?SERVICE=WFS&amp;VERSION=2.0.0&amp;REQUEST=DescribeFeatureType&amp;TYPENAMES=restaurant http://www.opengis.net/wfs/2.0 http://schemas.opengis.net/wfs/2.0/wfs.xsd http://www.opengis.net/gml/3.2 http://schemas.opengis.net/gml/3.2.1/gml.xsd"
+                    timeStamp="{timestamp}" numberMatched="2" numberReturned="2">
+                <wfs:member>
+                    <app:name>Café Noir</app:name>
+                </wfs:member>
+                <wfs:member>
+                    <app:name>Foo Bar</app:name>
+                </wfs:member>
+                </wfs:ValueCollection>""",  # noqa: E501
         )
 
     @parametrize_response(
@@ -88,10 +88,10 @@ class TestGetPropertyValue:
             ),
             Post(
                 f"""<GetPropertyValue version="2.0.0" service="WFS" valueReference="location" {XML_NS}>
-				<Query typeNames="restaurant">
-				</Query>
-				</GetPropertyValue>
-				"""
+                <Query typeNames="restaurant">
+                </Query>
+                </GetPropertyValue>
+                """
             ),
         ]
     )
@@ -111,20 +111,20 @@ class TestGetPropertyValue:
         assert_xml_equal(
             content,
             f"""<wfs:ValueCollection
-				xmlns:app="http://example.org/gisserver"
-				xmlns:gml="http://www.opengis.net/gml/3.2"
-				xmlns:wfs="http://www.opengis.net/wfs/2.0"
-				xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-				xsi:schemaLocation="http://example.org/gisserver http://testserver/v1/wfs/?SERVICE=WFS&amp;VERSION=2.0.0&amp;REQUEST=DescribeFeatureType&amp;TYPENAMES=restaurant http://www.opengis.net/wfs/2.0 http://schemas.opengis.net/wfs/2.0/wfs.xsd http://www.opengis.net/gml/3.2 http://schemas.opengis.net/gml/3.2.1/gml.xsd"
-				timeStamp="{timestamp}" numberMatched="1" numberReturned="1">
-			<wfs:member>
-				<app:location>
-				<gml:Point gml:id="Restaurant.{restaurant.id}.1" srsName="urn:ogc:def:crs:EPSG::4326">
-					<gml:pos srsDimension="2">{coordinates.point1_xml_wgs84}</gml:pos>
-				</gml:Point>
-				</app:location>
-			</wfs:member>
-			</wfs:ValueCollection>""",  # noqa: E501
+                xmlns:app="http://example.org/gisserver"
+                xmlns:gml="http://www.opengis.net/gml/3.2"
+                xmlns:wfs="http://www.opengis.net/wfs/2.0"
+                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                xsi:schemaLocation="http://example.org/gisserver http://testserver/v1/wfs/?SERVICE=WFS&amp;VERSION=2.0.0&amp;REQUEST=DescribeFeatureType&amp;TYPENAMES=restaurant http://www.opengis.net/wfs/2.0 http://schemas.opengis.net/wfs/2.0/wfs.xsd http://www.opengis.net/gml/3.2 http://schemas.opengis.net/gml/3.2.1/gml.xsd"
+                timeStamp="{timestamp}" numberMatched="1" numberReturned="1">
+            <wfs:member>
+                <app:location>
+                <gml:Point gml:id="Restaurant.{restaurant.id}.1" srsName="urn:ogc:def:crs:EPSG::4326">
+                    <gml:pos srsDimension="2">{coordinates.point1_xml_wgs84}</gml:pos>
+                </gml:Point>
+                </app:location>
+            </wfs:member>
+            </wfs:ValueCollection>""",  # noqa: E501
         )
 
     @parametrize_response(
@@ -135,10 +135,10 @@ class TestGetPropertyValue:
             ),
             Post(
                 f"""<GetPropertyValue version="2.0.0" service="WFS" valueReference="location" {XML_NS}>
-				<Query typeNames="restaurant">
-				</Query>
-				</GetPropertyValue>
-				"""
+                <Query typeNames="restaurant">
+                </Query>
+                </GetPropertyValue>
+                """
             ),
         ],
     )
@@ -159,16 +159,16 @@ class TestGetPropertyValue:
         assert_xml_equal(
             content,
             f"""<wfs:ValueCollection
-				xmlns:app="http://example.org/gisserver"
-				xmlns:gml="http://www.opengis.net/gml/3.2"
-				xmlns:wfs="http://www.opengis.net/wfs/2.0"
-				xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-				xsi:schemaLocation="http://example.org/gisserver http://testserver/v1/wfs/?SERVICE=WFS&amp;VERSION=2.0.0&amp;REQUEST=DescribeFeatureType&amp;TYPENAMES=restaurant http://www.opengis.net/wfs/2.0 http://schemas.opengis.net/wfs/2.0/wfs.xsd http://www.opengis.net/gml/3.2 http://schemas.opengis.net/gml/3.2.1/gml.xsd"
-				timeStamp="{timestamp}" numberMatched="1" numberReturned="1">
-			<wfs:member>
-				<app:location xsi:nil="true"/>
-			</wfs:member>
-			</wfs:ValueCollection>""",  # noqa: E501
+                xmlns:app="http://example.org/gisserver"
+                xmlns:gml="http://www.opengis.net/gml/3.2"
+                xmlns:wfs="http://www.opengis.net/wfs/2.0"
+                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                xsi:schemaLocation="http://example.org/gisserver http://testserver/v1/wfs/?SERVICE=WFS&amp;VERSION=2.0.0&amp;REQUEST=DescribeFeatureType&amp;TYPENAMES=restaurant http://www.opengis.net/wfs/2.0 http://schemas.opengis.net/wfs/2.0/wfs.xsd http://www.opengis.net/gml/3.2 http://schemas.opengis.net/gml/3.2.1/gml.xsd"
+                timeStamp="{timestamp}" numberMatched="1" numberReturned="1">
+            <wfs:member>
+                <app:location xsi:nil="true"/>
+            </wfs:member>
+            </wfs:ValueCollection>""",  # noqa: E501
         )
 
     @parametrize_response(
@@ -179,10 +179,10 @@ class TestGetPropertyValue:
             ),
             Post(
                 f"""<GetPropertyValue version="2.0.0" service="WFS" valueReference="tags" {XML_NS}>
-				<Query typeNames="restaurant">
-				</Query>
-				</GetPropertyValue>
-				"""
+                <Query typeNames="restaurant">
+                </Query>
+                </GetPropertyValue>
+                """
             ),
         ]
     )
@@ -202,15 +202,15 @@ class TestGetPropertyValue:
         assert_xml_equal(
             content,
             f"""<wfs:ValueCollection
-				xmlns:app="http://example.org/gisserver"
-				xmlns:gml="http://www.opengis.net/gml/3.2"
-				xmlns:wfs="http://www.opengis.net/wfs/2.0"
-				xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-				xsi:schemaLocation="http://example.org/gisserver http://testserver/v1/wfs/?SERVICE=WFS&amp;VERSION=2.0.0&amp;REQUEST=DescribeFeatureType&amp;TYPENAMES=restaurant http://www.opengis.net/wfs/2.0 http://schemas.opengis.net/wfs/2.0/wfs.xsd http://www.opengis.net/gml/3.2 http://schemas.opengis.net/gml/3.2.1/gml.xsd"
-				timeStamp="{timestamp}" numberMatched="1" numberReturned="1">
-			<wfs:member><app:tags>cafe</app:tags></wfs:member>
-			<wfs:member><app:tags>black</app:tags></wfs:member>
-			</wfs:ValueCollection>""",  # noqa: E501
+                xmlns:app="http://example.org/gisserver"
+                xmlns:gml="http://www.opengis.net/gml/3.2"
+                xmlns:wfs="http://www.opengis.net/wfs/2.0"
+                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                xsi:schemaLocation="http://example.org/gisserver http://testserver/v1/wfs/?SERVICE=WFS&amp;VERSION=2.0.0&amp;REQUEST=DescribeFeatureType&amp;TYPENAMES=restaurant http://www.opengis.net/wfs/2.0 http://schemas.opengis.net/wfs/2.0/wfs.xsd http://www.opengis.net/gml/3.2 http://schemas.opengis.net/gml/3.2.1/gml.xsd"
+                timeStamp="{timestamp}" numberMatched="1" numberReturned="1">
+            <wfs:member><app:tags>cafe</app:tags></wfs:member>
+            <wfs:member><app:tags>black</app:tags></wfs:member>
+            </wfs:ValueCollection>""",  # noqa: E501
         )
 
     @parametrize_response(
@@ -221,10 +221,10 @@ class TestGetPropertyValue:
             ),
             Post(
                 f"""<GetPropertyValue version="2.0.0" service="WFS" valueReference="@gml:id" {XML_NS}>
-				<Query typeNames="restaurant">
-				</Query>
-				</GetPropertyValue>
-				"""
+                <Query typeNames="restaurant">
+                </Query>
+                </GetPropertyValue>
+                """
             ),
         ]
     )
@@ -244,15 +244,15 @@ class TestGetPropertyValue:
         assert_xml_equal(
             content,
             f"""<wfs:ValueCollection
-				xmlns:app="http://example.org/gisserver"
-				xmlns:gml="http://www.opengis.net/gml/3.2"
-				xmlns:wfs="http://www.opengis.net/wfs/2.0"
-				xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-				xsi:schemaLocation="http://example.org/gisserver http://testserver/v1/wfs/?SERVICE=WFS&amp;VERSION=2.0.0&amp;REQUEST=DescribeFeatureType&amp;TYPENAMES=restaurant http://www.opengis.net/wfs/2.0 http://schemas.opengis.net/wfs/2.0/wfs.xsd http://www.opengis.net/gml/3.2 http://schemas.opengis.net/gml/3.2.1/gml.xsd"
-				timeStamp="{timestamp}" numberMatched="2" numberReturned="2">
-			<wfs:member>restaurant.{restaurant.pk}</wfs:member>
-			<wfs:member>restaurant.{bad_restaurant.pk}</wfs:member>
-			</wfs:ValueCollection>""",  # noqa: E501
+                xmlns:app="http://example.org/gisserver"
+                xmlns:gml="http://www.opengis.net/gml/3.2"
+                xmlns:wfs="http://www.opengis.net/wfs/2.0"
+                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                xsi:schemaLocation="http://example.org/gisserver http://testserver/v1/wfs/?SERVICE=WFS&amp;VERSION=2.0.0&amp;REQUEST=DescribeFeatureType&amp;TYPENAMES=restaurant http://www.opengis.net/wfs/2.0 http://schemas.opengis.net/wfs/2.0/wfs.xsd http://www.opengis.net/gml/3.2 http://schemas.opengis.net/gml/3.2.1/gml.xsd"
+                timeStamp="{timestamp}" numberMatched="2" numberReturned="2">
+            <wfs:member>restaurant.{restaurant.pk}</wfs:member>
+            <wfs:member>restaurant.{bad_restaurant.pk}</wfs:member>
+            </wfs:ValueCollection>""",  # noqa: E501
         )
 
     @parametrize_response(
@@ -268,11 +268,11 @@ class TestGetPropertyValue:
         + [
             Post(
                 f"""<GetPropertyValue service="WFS" version="2.0.0" valueReference="name" {XML_NS}>
-			<Query typeNames="restaurant">
-			{clean_filter_for_xml(filter).strip()}
-			</Query>
-			</GetPropertyValue>
-			""",
+            <Query typeNames="restaurant">
+            {clean_filter_for_xml(filter).strip()}
+            </Query>
+            </GetPropertyValue>
+            """,
                 id=name,
                 url_type=type,
             )
@@ -296,11 +296,11 @@ class TestGetPropertyValue:
         + [
             Post(
                 f"""<GetPropertyValue service="WFS" version="2.0.0" valueReference="name" {XML_NS}>
-				<Query typeNames="restaurant">
-				{clean_filter_for_xml(filter).strip()}
-				</Query>
-				</GetPropertyValue>
-				""",
+                <Query typeNames="restaurant">
+                {clean_filter_for_xml(filter).strip()}
+                </Query>
+                </GetPropertyValue>
+                """,
                 expect=expect,
                 id=name,
             )
@@ -330,10 +330,10 @@ class TestGetPropertyValue:
             ),
             Post(
                 f"""<GetPropertyValue service="WFS" version="2.0.0" valueReference="name" {XML_NS}>
-			<Query typeNames="denied-feature">
-			</Query>
-			</GetPropertyValue>
-			"""
+            <Query typeNames="denied-feature">
+            </Query>
+            </GetPropertyValue>
+            """
             ),
         ]
     )
@@ -362,16 +362,16 @@ class TestGetPropertyValue:
             ),
             Post(
                 lambda start_index: f"""<GetPropertyValue version="2.0.0" service="WFS" count="1" startIndex="{start_index}" valueReference="name" {XML_NS}>
-				<Query typeNames="restaurant">
-					<fes:SortBy>
-						<fes:SortProperty>
-							<fes:ValueReference>name</fes:ValueReference>
-							<fes:SortOrder>ASC</fes:SortOrder>
-						</fes:SortProperty>
-					</fes:SortBy>
-				</Query>
-				</GetPropertyValue>
-				""",
+                <Query typeNames="restaurant">
+                    <fes:SortBy>
+                        <fes:SortProperty>
+                            <fes:ValueReference>name</fes:ValueReference>
+                            <fes:SortOrder>ASC</fes:SortOrder>
+                        </fes:SortProperty>
+                    </fes:SortBy>
+                </Query>
+                </GetPropertyValue>
+                """,
             ),
         ]
     )
@@ -415,13 +415,13 @@ class TestGetPropertyValue:
         + [
             Post(
                 f"""<GetPropertyValue version="2.0.0" service="WFS" valueReference="name" {XML_NS}>
-				<Query typeNames="restaurant">
-					<fes:SortBy>
-						{sort_by}
-					</fes:SortBy>
-				</Query>
-				</GetPropertyValue>
-				""",
+                <Query typeNames="restaurant">
+                    <fes:SortBy>
+                        {sort_by}
+                    </fes:SortBy>
+                </Query>
+                </GetPropertyValue>
+                """,
                 id=name,
                 expect=expect,
                 url_type=type,
@@ -454,9 +454,9 @@ class TestGetPropertyValue:
             ),
             Post(
                 lambda id: f"""<GetPropertyValue service="WFS" version="2.0.0" valueReference="name"
-				resourceId="restaurant.{id}" {XML_NS}>
-				</GetPropertyValue>
-				""",
+                resourceId="restaurant.{id}" {XML_NS}>
+                </GetPropertyValue>
+                """,
             ),
         ]
     )
@@ -486,9 +486,9 @@ class TestGetPropertyValue:
             ),
             Post(
                 f"""<GetPropertyValue service="WFS" version="2.0.0" valueReference="name" resourceId="restaurant.0" {XML_NS}>
-				<Query typeNames="restaurant"></Query>
-				</GetPropertyValue>
-				"""
+                <Query typeNames="restaurant"></Query>
+                </GetPropertyValue>
+                """
             ),
         ]
     )
@@ -517,9 +517,9 @@ class TestGetPropertyValue:
             ),
             Post(
                 lambda id: f"""<GetPropertyValue service="WFS" version="2.0.0" valueReference="location" resourceId="restaurant.{id}" {XML_NS}>
-				<Query typeNames="mini-restaurant"></Query>
-				</GetPropertyValue>
-				""",
+                <Query typeNames="mini-restaurant"></Query>
+                </GetPropertyValue>
+                """,
             ),
         ]
     )
@@ -550,8 +550,8 @@ class TestGetPropertyValue:
             ),
             Post(
                 f"""<GetPropertyValue service="WFS" version="2.0.0" valueReference="name" resourceId="restaurant.ABC" {XML_NS}>
-				</GetPropertyValue>
-				"""
+                </GetPropertyValue>
+                """
             ),
         ]
     )
@@ -579,9 +579,9 @@ class TestGetPropertyValue:
             ),
             Post(
                 lambda id: f"""<GetPropertyValue service="WFS" version="2.0.0" valueReference="name"
-				storedQueryId="urn:ogc:def:query:OGC-WFS::GetFeatureById" id="restaurant.{id}" {XML_NS}>
-				</GetPropertyValue>
-			""",
+                storedQueryId="urn:ogc:def:query:OGC-WFS::GetFeatureById" id="restaurant.{id}" {XML_NS}>
+                </GetPropertyValue>
+            """,
             ),
         ]
     )
@@ -599,7 +599,7 @@ class TestGetPropertyValue:
         assert_xml_equal(
             content,
             """<app:name xmlns:app="http://example.org/gisserver"
-				xmlns:gml="http://www.opengis.net/gml/3.2">Café Noir</app:name>""",
+                xmlns:gml="http://www.opengis.net/gml/3.2">Café Noir</app:name>""",
         )
 
     @parametrize_response(
@@ -611,8 +611,8 @@ class TestGetPropertyValue:
             ),
             Post(
                 f"""<GetPropertyValue service="WFS" version="2.0.0" valueReference="name"
-				storedQueryId="urn:ogc:def:query:OGC-WFS::GetFeatureById" id="restaurant.ABC" {XML_NS}>
-				</GetPropertyValue>"""
+                storedQueryId="urn:ogc:def:query:OGC-WFS::GetFeatureById" id="restaurant.ABC" {XML_NS}>
+                </GetPropertyValue>"""
             ),
         ]
     )
@@ -644,9 +644,9 @@ class TestGetPropertyValue:
             ),
             Post(
                 f"""<GetPropertyValue service="WFS" version="2.0.0" valueReference="name"
-				storedQueryId="urn:ogc:def:query:OGC-WFS::GetFeatureById" id="restaurant.0" {XML_NS}>
-				</GetPropertyValue>
-			"""
+                storedQueryId="urn:ogc:def:query:OGC-WFS::GetFeatureById" id="restaurant.0" {XML_NS}>
+                </GetPropertyValue>
+            """
             ),
         ]
     )
@@ -672,10 +672,10 @@ class TestGetPropertyValueWithPostRequest:
     def test_get_feature_by_id_404(self, client, restaurant, bad_restaurant):
         """Prove that missing IDs are properly handled."""
         xml = f"""<GetPropertyValue service="WFS" version="2.0.0" valueReference="name"
-		storedQueryId="urn:ogc:def:query:OGC-WFS::GetFeatureById" id="restaurant.0"
-		{XML_NS}>
-		</GetPropertyValue>
-			"""
+        storedQueryId="urn:ogc:def:query:OGC-WFS::GetFeatureById" id="restaurant.0"
+        {XML_NS}>
+        </GetPropertyValue>
+            """
         response = client.post("/v1/wfs/", data=xml, content_type="application/xml")
         content = read_response(response)
         assert response["content-type"] == "text/xml; charset=utf-8", content
