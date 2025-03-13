@@ -19,8 +19,8 @@ from psycopg2 import Binary
 from gisserver import conf
 from gisserver.types import GML32
 from tests.constants import RD_NEW, RD_NEW_SRID
-from tests.test_gisserver import models
 from tests.requests import Request
+from tests.test_gisserver import models
 from tests.utils import read_json
 from tests.xsd_download import download_schema
 

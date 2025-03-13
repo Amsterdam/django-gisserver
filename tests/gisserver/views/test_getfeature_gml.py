@@ -7,7 +7,6 @@ from django.db import OperationalError
 from gisserver import conf, output
 from tests.constants import NAMESPACES, XML_NS
 from tests.gisserver.views.input import GENERATED_FIELD_FILTER
-from tests.test_gisserver.models import Restaurant
 from tests.requests import Get, Post, parametrize_response
 from tests.utils import WFS_20_XSD, assert_xml_equal, read_response, validate_xsd
 
