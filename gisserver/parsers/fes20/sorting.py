@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 from enum import Enum
 from xml.etree.ElementTree import Element
 
 from gisserver.exceptions import InvalidParameterValue
 from gisserver.parsers.fes20 import ValueReference
+from gisserver.parsers.tags import get_child, split_ns
 
 
 class SortOrder(Enum):
@@ -74,10 +74,10 @@ class SortBy:
     @classmethod
     def from_xml(cls, elem: Element):
         props = []
-        ns = re.sub(r"}.*", "}", elem.tag)
+        ns, _tag = split_ns(elem.tag)
         for prop in elem:
-            valueref = prop.find(f"{ns}ValueReference")
-            sort_order = prop.find(f"{ns}SortOrder")
+            valueref = get_child(prop, ns, "ValueReference")
+            sort_order = get_child(prop, ns, "SortOrder")
             sort_property = SortProperty(
                 value_reference=ValueReference(valueref.text),
                 sort_order=(

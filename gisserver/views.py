@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from urllib.parse import urlencode
+from xml.etree.ElementTree import QName
 
 import defusedxml.ElementTree as ET
 from django.core.exceptions import ImproperlyConfigured, SuspiciousOperation
@@ -22,6 +23,8 @@ from gisserver.exceptions import (
 )
 from gisserver.features import FeatureType, ServiceDescription
 from gisserver.operations import base, wfs20
+from gisserver.parsers.tags import split_ns
+from tests.constants import WFS_NS
 
 SAFE_VERSION = re.compile(r"\A[0-9.]+\Z")
 # Some KVP attributes are not simply the uppercased version of the XML-attributes.
@@ -130,26 +133,27 @@ class GISView(View):
         except ET.ParseError as e:
             raise OperationParsingFailed("Unable to parse XML: " + str(e)) from e
 
-        KVP["REQUEST"] = root.tag.split("}")[-1]
+        KVP["REQUEST"] = split_ns(root.tag)[-1]
         # Add other top level attributes.
         for attribute, value in root.items():
             attribute_key = XML_ATTRIBUTES_MAP.get(attribute, attribute.upper())
             KVP[attribute_key] = value
 
+        wfs_query_tag = QName(WFS_NS, "Query")
         for child in root:
-            if child.tag.endswith("Query"):
+            if child.tag == wfs_query_tag:
                 for attribute, value in child.items():
                     attribute_key = XML_ATTRIBUTES_MAP.get(attribute, attribute.upper())
                     # Get the typenames from the Query tag. Convert space- to comma-separated.
                     if attribute_key == "TYPENAMES":
                         # typenames may have a namespace prefix that isn't in our list.
-                        typenames = [t.split(":")[-1] for t in value.split()]
+                        typenames = [split_ns(t)[-1] for t in value.split()]
                         KVP[attribute_key] = ",".join(typenames)
                     else:
                         KVP[attribute_key] = value
             # Other constructs
             for elem in child:
-                title = elem.tag.split("}")[-1]
+                title = split_ns(elem.tag)[-1]
                 if title in XML_CONCATENATION_SET:
                     if KVP.get(title.upper(), None):
                         KVP[title.upper()] += f",{elem.text}"
