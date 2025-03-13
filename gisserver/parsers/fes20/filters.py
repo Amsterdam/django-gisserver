@@ -31,6 +31,13 @@ class Filter:
         self.source = source
 
     @classmethod
+    def from_any(cls, text: AnyStr | Element):
+        if isinstance(text, Element):
+            return cls.from_xml(text)
+        else:
+            return cls.from_string(text)
+
+    @classmethod
     def from_string(cls, text: AnyStr) -> Filter:
         """Parse an XML <fes20:Filter> string.
 

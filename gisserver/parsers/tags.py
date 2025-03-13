@@ -87,15 +87,20 @@ def get_attribute(element: Element, name) -> str:
         ) from None
 
 
-def split_ns(tag_name: str) -> tuple[str | None, str]:
-    """Split the element tag into the namespace and local name.
-    The stdlib etree doesn't have the properties for this (lxml does).
+def split_ns(tag_or_value: str) -> tuple[str | None, str]:
+    """Split the element tag or attribute/text value into the namespace and
+    local name. The stdlib etree doesn't have the properties for this (lxml does).
     """
-    if tag_name.startswith("{"):
-        end = tag_name.index("}")
-        return tag_name[1:end], tag_name[end + 1 :]
+    # Tags may start with a `{ns}`
+    if tag_or_value.startswith("{"):
+        end = tag_or_value.index("}")
+        return tag_or_value[1:end], tag_or_value[end + 1 :]
+    # Attribute/text values may start with `ns:`
+    elif tag_or_value.find(":") >= 0:
+        end = tag_or_value.index(":")
+        return tag_or_value[1:end], tag_or_value[end + 1 :]
     else:
-        return None, tag_name
+        return None, tag_or_value
 
 
 if TYPE_CHECKING:
