@@ -3,11 +3,8 @@ from __future__ import annotations
 from typing import AnyStr, Union
 from xml.etree.ElementTree import Element, QName
 
-from defusedxml.ElementTree import ParseError, fromstring
-
-from gisserver.exceptions import ExternalParsingError
 from gisserver.parsers.base import tag_registry
-from gisserver.parsers.tags import expect_tag
+from gisserver.parsers.tags import expect_tag, parse_xml_from_string
 from gisserver.types import FES20, GML32
 
 from . import expressions, identifiers, operators, query
@@ -58,11 +55,7 @@ class Filter:
             ):
                 text = f'{first_tag} xmlns="{FES20}" xmlns:gml="{GML32}"{text[end_first:]}'
 
-        try:
-            root_element = fromstring(text)
-        except ParseError as e:
-            # Offer consistent results for callers to check for invalid data.
-            raise ExternalParsingError(str(e)) from e
+        root_element = parse_xml_from_string(text)
         return Filter.from_xml(root_element, source=text)
 
     @classmethod
