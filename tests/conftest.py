@@ -279,8 +279,10 @@ def empty_restaurant() -> models.Restaurant:
 
 @pytest.fixture()
 def many_restaurants() -> None:
-    for i in range(1500):
-        models.Restaurant.objects.create(name=f"obj#{i}")
+    for i in range(15):
+        models.Restaurant.objects.bulk_create(
+            [models.Restaurant(name=f"obj#{i * j}") for j in range(100)]
+        )
 
 
 @pytest.fixture(scope="session")
