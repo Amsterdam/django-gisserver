@@ -99,6 +99,8 @@ def expect_tag(namespace: str, *tag_names: str, leaf=False):
 
 
 def expect_children(min_child_nodes, *expect_types: str | type[BaseNode]):
+    """Validate whether a parsed tag has the expected child nodes."""
+
     def _wrapper(func):
         @wraps(func)
         def _expect_children_decorator(cls, element: Element, *args, **kwargs):
@@ -133,17 +135,12 @@ def expect_children(min_child_nodes, *expect_types: str | type[BaseNode]):
     return _wrapper
 
 
-def get_child(root, namespace, localname) -> Element:
+def get_child(root: Element, namespace: str, localname: str) -> Element:
     """Find the element using a fully qualified name."""
     return root.find(QName(namespace, localname).text)
 
 
-def get_children(root, namespace, localname) -> list[Element]:
-    """Find the element using a fully qualified name."""
-    return root.findall(QName(namespace, localname).text)
-
-
-def get_attribute(element: Element, name) -> str:
+def get_attribute(element: Element, name: str) -> str:
     """Resolve an attribute, raise an error when it's missing."""
     try:
         return element.attrib[name]
