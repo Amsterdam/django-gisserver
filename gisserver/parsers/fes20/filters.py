@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from typing import AnyStr, Union
-from xml.etree.ElementTree import Element, QName
+from xml.etree.ElementTree import QName
 
 from gisserver.parsers.ast import expect_tag, tag_registry
-from gisserver.parsers.xml import parse_xml_from_string
+from gisserver.parsers.xml import NSElement, parse_xml_from_string
 from gisserver.types import FES20, GML32
 
 from . import expressions, identifiers, operators, query
@@ -60,7 +60,7 @@ class Filter:
 
     @classmethod
     @expect_tag(FES20, "Filter")
-    def from_xml(cls, element: Element, source: AnyStr | None = None) -> Filter:
+    def from_xml(cls, element: NSElement, source: AnyStr | None = None) -> Filter:
         """Parse the <fes20:Filter> element."""
         if len(element) > 1 or element[0].tag == QName(FES20, "ResourceId"):
             # fes20:ResourceId is the only element that may appear multiple times.

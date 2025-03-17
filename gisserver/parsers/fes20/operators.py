@@ -11,7 +11,7 @@ from enum import Enum
 from functools import cached_property, reduce
 from itertools import groupby
 from typing import Protocol, Union
-from xml.etree.ElementTree import Element, QName
+from xml.etree.ElementTree import QName
 
 from django.contrib.gis import measure
 from django.db.models import Q
@@ -26,7 +26,7 @@ from gisserver.parsers.ast import (
     expect_tag,
     tag_registry,
 )
-from gisserver.parsers.xml import get_attribute, get_child
+from gisserver.parsers.xml import NSElement, get_attribute, get_child
 from gisserver.types import FES20
 
 from .expressions import Expression, Literal, RhsTypes, ValueReference
@@ -172,7 +172,7 @@ class Measure(BaseNode):
 
     @classmethod
     @expect_tag(FES20, "Distance")
-    def from_xml(cls, element: Element):
+    def from_xml(cls, element: NSElement):
         return cls(value=Decimal(element.text), uom=get_attribute(element, "uom"))
 
     def build_rhs(self, compiler) -> measure.Distance:
@@ -386,7 +386,7 @@ class DistanceOperator(SpatialOperator):
 
     @classmethod
     @expect_children(3, ValueReference, gml.GM_Object, Measure)
-    def from_xml(cls, element: Element):
+    def from_xml(cls, element: NSElement):
         geometries = gml.find_gml_nodes(element)
         if not geometries:
             raise ExternalParsingError(f"Missing gml element in <{element.tag}>")
@@ -437,7 +437,7 @@ class BinarySpatialOperator(SpatialOperator):
     _source: str | None = field(compare=False, default=None)
 
     @classmethod
-    def from_xml(cls, element: Element):
+    def from_xml(cls, element: NSElement):
         operator_type = SpatialOperatorName.from_xml(element)
         if operator_type is SpatialOperatorName.BBOX and len(element) == 1:
             # For BBOX, the geometry operator is optional
@@ -511,7 +511,7 @@ class TemporalOperator(NonIdOperator):
 
     @classmethod
     @expect_children(2, ValueReference, *TemporalOperand.__args__)
-    def from_xml(cls, element: Element):
+    def from_xml(cls, element: NSElement):
         return cls(
             operatorType=TemporalOperatorName.from_xml(element),
             operand1=ValueReference.from_xml(element[0]),
@@ -560,7 +560,7 @@ class BinaryComparisonOperator(ComparisonOperator):
 
     @classmethod
     @expect_children(2, Expression, Expression)
-    def from_xml(cls, element: Element):
+    def from_xml(cls, element: NSElement):
         return cls(
             operatorType=BinaryComparisonName.from_xml(element),
             expression=(
@@ -601,7 +601,7 @@ class BetweenComparisonOperator(ComparisonOperator):
 
     @classmethod
     @expect_children(3, Expression, "LowerBoundary", "UpperBoundary")
-    def from_xml(cls, element: Element):
+    def from_xml(cls, element: NSElement):
         if element[1].tag != QName(FES20, "LowerBoundary") or element[2].tag != QName(
             FES20, "UpperBoundary"
         ):
@@ -655,7 +655,7 @@ class LikeOperator(ComparisonOperator):
 
     @classmethod
     @expect_children(2, Expression, Expression)
-    def from_xml(cls, element: Element):
+    def from_xml(cls, element: NSElement):
         return cls(
             expression=(
                 Expression.child_from_xml(element[0]),
@@ -711,7 +711,7 @@ class NilOperator(ComparisonOperator):
 
     @classmethod
     @expect_children(1, Expression)
-    def from_xml(cls, element: Element):
+    def from_xml(cls, element: NSElement):
         return cls(
             expression=Expression.child_from_xml(element[0]) if element is not None else None,
             nilReason=element.get("nilReason"),
@@ -743,7 +743,7 @@ class NullOperator(ComparisonOperator):
 
     @classmethod
     @expect_children(1, Expression)
-    def from_xml(cls, element: Element):
+    def from_xml(cls, element: NSElement):
         return cls(expression=Expression.child_from_xml(element[0]), _source=element.tag)
 
     def build_query(self, compiler: CompiledQuery) -> Q:
@@ -784,7 +784,7 @@ class BinaryLogicOperator(LogicalOperator):
 
     @classmethod
     @expect_children(2, NonIdOperator, NonIdOperator)
-    def from_xml(cls, element: Element):
+    def from_xml(cls, element: NSElement):
         return cls(
             operands=[NonIdOperator.child_from_xml(child) for child in element],
             operatorType=BinaryLogicType.from_xml(element),
@@ -817,7 +817,7 @@ class UnaryLogicOperator(LogicalOperator):
 
     @classmethod
     @expect_children(1, NonIdOperator)
-    def from_xml(cls, element: Element):
+    def from_xml(cls, element: NSElement):
         return cls(
             operands=NonIdOperator.child_from_xml(element[0]),
             operatorType=UnaryLogicType.from_xml(element),

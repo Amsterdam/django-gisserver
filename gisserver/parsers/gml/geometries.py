@@ -4,13 +4,13 @@ Overview of GML 3.2 changes: https://mapserver.org/el/development/rfc/ms-rfc-105
 """
 
 from dataclasses import dataclass
-from xml.etree.ElementTree import Element, tostring
+from xml.etree.ElementTree import tostring
 
 from django.contrib.gis.geos import GEOSGeometry
 
 from gisserver.geometries import CRS
 from gisserver.parsers.ast import tag_registry
-from gisserver.parsers.xml import get_attribute
+from gisserver.parsers.xml import NSElement, get_attribute
 from gisserver.types import GML21, GML32
 
 from .base import AbstractGeometry, TM_Object
@@ -49,7 +49,7 @@ class GEOSGMLGeometry(AbstractGeometry):
     geos_data: GEOSGeometry
 
     @classmethod
-    def from_xml(cls, element: Element):
+    def from_xml(cls, element: NSElement):
         """Push the whole <gml:...> element into the GEOS parser.
         This avoids having to support the whole GEOS logic.
 
