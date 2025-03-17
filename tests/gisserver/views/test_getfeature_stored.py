@@ -3,7 +3,15 @@ from xml.etree.ElementTree import QName
 import django
 import pytest
 
-from tests.utils import NAMESPACES, WFS_20_XSD, assert_xml_equal, read_response, validate_xsd
+from tests.requests import Get, Post, parametrize_response
+from tests.utils import (
+    NAMESPACES,
+    WFS_20_XSD,
+    XML_NS,
+    assert_xml_equal,
+    read_response,
+    validate_xsd,
+)
 
 # enable for all tests in this file
 pytestmark = [pytest.mark.urls("tests.test_gisserver.urls")]
@@ -15,16 +23,26 @@ class TestGetFeature:
     The methods need to have at least one datatype, otherwise not all content is rendered.
     """
 
-    def test_get_feature_by_id_stored_query(self, client, restaurant, bad_restaurant, coordinates):
-        """Prove that fetching objects by ID works."""
-        response = client.get(
-            "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
+    @parametrize_response(
+        Get(
+            lambda id: "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
             "&STOREDQUERY_ID=urn:ogc:def:query:OGC-WFS::GetFeatureById"
-            f"&ID=restaurant.{restaurant.id}"
-        )
-        content = read_response(response)
-        assert response["content-type"] == "text/xml; charset=utf-8", content
-        assert response.status_code == 200, content
+            f"&ID=restaurant.{id}"
+        ),
+        Post(
+            lambda id: f"""<GetFeature service="WFS" version="2.0.0"
+				storedQueryId="urn:ogc:def:query:OGC-WFS::GetFeatureById" id="restaurant.{id}" {XML_NS}>
+				</GetFeature>"""
+        ),
+    )
+    def test_get_feature_by_id_stored_query(
+        self, client, restaurant, bad_restaurant, coordinates, response
+    ):
+        """Prove that fetching objects by ID works."""
+        res = response(restaurant.id)
+        content = read_response(res)
+        assert res["content-type"] == "text/xml; charset=utf-8", content
+        assert res.status_code == 200, content
         assert "</app:restaurant>" in content
         assert "</wfs:FeatureCollection>" not in content
 
@@ -69,13 +87,20 @@ class TestGetFeature:
 </app:restaurant>""",  # noqa: E501
         )
 
-    def test_get_feature_by_id_bad_id(self, client, restaurant, bad_restaurant):
-        """Prove that invalid IDs are properly handled."""
-        response = client.get(
-            "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
+    @parametrize_response(
+        Get(
+            "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
             "&STOREDQUERY_ID=urn:ogc:def:query:OGC-WFS::GetFeatureById"
             "&ID=restaurant.ABC"
-        )
+        ),
+        Post(
+            f"""<GetFeature service="WFS" version="2.0.0"
+				storedQueryId="urn:ogc:def:query:OGC-WFS::GetFeatureById" id="restaurant.ABC" {XML_NS}>
+				</GetFeature>"""
+        ),
+    )
+    def test_get_feature_by_id_bad_id(self, client, restaurant, bad_restaurant, response):
+        """Prove that invalid IDs are properly handled."""
         content = read_response(response)
         assert response["content-type"] == "text/xml; charset=utf-8", content
         assert response.status_code == 400, content
@@ -93,13 +118,20 @@ class TestGetFeature:
         )
         assert message == expect
 
-    def test_get_feature_by_id_404(self, client, restaurant, bad_restaurant):
-        """Prove that missing IDs are properly handled."""
-        response = client.get(
-            "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
+    @parametrize_response(
+        Get(
+            "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
             "&STOREDQUERY_ID=urn:ogc:def:query:OGC-WFS::GetFeatureById"
             "&ID=restaurant.0"
-        )
+        ),
+        Post(
+            f"""<GetFeature service="WFS" version="2.0.0"
+				storedQueryId="urn:ogc:def:query:OGC-WFS::GetFeatureById" id="restaurant.0" {XML_NS}>
+				</GetFeature>"""
+        ),
+    )
+    def test_get_feature_by_id_404(self, restaurant, bad_restaurant, response):
+        """Prove that missing IDs are properly handled."""
         content = read_response(response)
         assert response["content-type"] == "text/xml; charset=utf-8", content
         assert response.status_code == 404, content

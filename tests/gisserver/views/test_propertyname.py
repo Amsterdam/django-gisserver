@@ -2,8 +2,10 @@ import django
 import pytest
 from django.conf import settings
 
+from tests.requests import Get, Post, Url, parametrize_response
 from tests.utils import (
     WFS_20_XSD,
+    XML_NS,
     assert_xml_equal,
     get_sql,
     read_json,
@@ -19,13 +21,24 @@ pytestmark = [pytest.mark.urls("tests.test_gisserver.urls")]
 class TestPropertyName:
     """All tests for the PropertyName scenarios"""
 
+    @parametrize_response(
+        Get(
+            lambda: "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
+            "&propertyname=name,city_id"
+        ),
+        Post(
+            lambda: f"""
+                <GetFeature service="WFS" version="2.0.0" {XML_NS}>
+                    <Query typeNames="restaurant">
+                    <PropertyName>name</PropertyName>
+                    <PropertyName>city_id</PropertyName>
+                    </Query>
+                </GetFeature>
+                """
+        ),
+    )
     def test_propertyname_gml(
-        self,
-        client,
-        restaurant,
-        bad_restaurant,
-        django_assert_max_num_queries,
-        coordinates,
+        self, restaurant, bad_restaurant, django_assert_max_num_queries, coordinates, response
     ):
         """Prove that the geojson export works.
 
@@ -33,13 +46,10 @@ class TestPropertyName:
         also includes comma's properly.
         """
         with django_assert_max_num_queries(1) as queries:
-            response = client.get(
-                "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
-                "&propertyname=name,city_id"
-            )
-            content = read_response(response)
-        assert response["content-type"] == "text/xml; charset=utf-8", content
-        assert response.status_code == 200, content
+            res = response()
+            content = read_response(res)
+        assert res["content-type"] == "text/xml; charset=utf-8", content
+        assert res.status_code == 200, content
         assert "</wfs:FeatureCollection>" in content
 
         # Validate against the WFS 2.0 XSD
@@ -85,20 +95,40 @@ class TestPropertyName:
             "LIMIT 5000"
         )
 
+    @parametrize_response(
+        Get(
+            lambda: "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
+            "&PROPERTYNAME=name,city/name,opening_hours/weekday,opening_hours/start_time",
+            url=Url.COMPLEX,
+        ),
+        Post(
+            lambda: f"""
+                <GetFeature service="WFS" version="2.0.0" {XML_NS}>
+                    <Query typeNames="restaurant">
+                    <PropertyName>name</PropertyName>
+                    <PropertyName>city/name</PropertyName>
+                    <PropertyName>opening_hours/weekday</PropertyName>
+                    <PropertyName>opening_hours/start_time</PropertyName>
+                    </Query>
+                </GetFeature>
+                """,
+            url=Url.COMPLEX,
+        ),
+    )
     def test_propertyname_gml_complex(
-        self, client, restaurant_m2m, bad_restaurant, django_assert_max_num_queries, coordinates
+        self,
+        restaurant_m2m,
+        bad_restaurant,
+        django_assert_max_num_queries,
+        coordinates,
+        response,
     ):
         """Prove that rendering complex types works."""
         with django_assert_max_num_queries(3) as queries:
-            response = client.get(
-                # This requests 2 deeper fields (opening_hours), which means the server should still return
-                # a single root with both elements.
-                "/v1/wfs-complextypes/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
-                "&PROPERTYNAME=name,city/name,opening_hours/weekday,opening_hours/start_time"
-            )
-            content = read_response(response)
-            assert response["content-type"] == "text/xml; charset=utf-8", content
-            assert response.status_code == 200, content
+            res = response()
+            content = read_response(res)
+            assert res["content-type"] == "text/xml; charset=utf-8", content
+            assert res.status_code == 200, content
             assert "</wfs:FeatureCollection>" in content
 
         # Validate against the WFS 2.0 XSD
@@ -183,13 +213,27 @@ class TestPropertyName:
             ),
         ]
 
+    @parametrize_response(
+        Get(
+            lambda: "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
+            "&outputformat=geojson&propertyname=id,name,city_id,rating,tags"
+        ),
+        Post(
+            lambda: f"""
+                <GetFeature service="WFS" version="2.0.0" outputFormat="geojson"  {XML_NS}>
+                    <Query typeNames="restaurant">
+                    <PropertyName>id</PropertyName>
+                    <PropertyName>name</PropertyName>
+                    <PropertyName>city_id</PropertyName>
+                    <PropertyName>rating</PropertyName>
+                    <PropertyName>tags</PropertyName>
+                    </Query>
+                </GetFeature>
+                """
+        ),
+    )
     def test_propertyname_geojson(
-        self,
-        client,
-        restaurant,
-        bad_restaurant,
-        django_assert_max_num_queries,
-        coordinates,
+        self, restaurant, bad_restaurant, django_assert_max_num_queries, coordinates, response
     ):
         """Prove that the geojson export works.
 
@@ -197,13 +241,10 @@ class TestPropertyName:
         also includes comma's properly.
         """
         with django_assert_max_num_queries(2):
-            response = client.get(
-                "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
-                "&outputformat=geojson&propertyname=id,name,city_id,rating,tags"
-            )
-            assert response["content-type"] == "application/geo+json; charset=utf-8"
-            content = read_response(response)
-            assert response.status_code == 200, content
+            res = response()
+            assert res["content-type"] == "application/geo+json; charset=utf-8"
+            content = read_response(res)
+            assert res.status_code == 200, content
 
         data = read_json(content)
 
@@ -254,13 +295,29 @@ class TestPropertyName:
             ],
         }
 
+    @parametrize_response(
+        Get(
+            lambda: "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
+            "&TYPENAMES=restaurant&outputformat=geojson"
+            "&PROPERTYNAME=name,city/name,opening_hours/weekday,opening_hours/start_time",
+            url=Url.COMPLEX,
+        ),
+        Post(
+            lambda: f"""
+                <GetFeature service="WFS" version="2.0.0" outputFormat="geojson"  {XML_NS}>
+                    <Query typeNames="restaurant">
+                    <PropertyName>name</PropertyName>
+                    <PropertyName>city/name</PropertyName>
+                    <PropertyName>opening_hours/weekday</PropertyName>
+                    <PropertyName>opening_hours/start_time</PropertyName>
+                    </Query>
+                </GetFeature>
+                """,
+            url=Url.COMPLEX,
+        ),
+    )
     def test_propertyname_geojson_complex(
-        self,
-        client,
-        restaurant_m2m,
-        bad_restaurant,
-        django_assert_max_num_queries,
-        coordinates,
+        self, restaurant_m2m, bad_restaurant, django_assert_max_num_queries, coordinates, response
     ):
         """Prove that the geojson export works for complex field types.
 
@@ -268,14 +325,10 @@ class TestPropertyName:
         also includes comma's properly.
         """
         with django_assert_max_num_queries(3) as queries:
-            response = client.get(
-                "/v1/wfs-complextypes/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
-                "&TYPENAMES=restaurant&outputformat=geojson"
-                "&PROPERTYNAME=name,city/name,opening_hours/weekday,opening_hours/start_time"
-            )
-            assert response["content-type"] == "application/geo+json; charset=utf-8"
-            content = read_response(response)
-            assert response.status_code == 200, content
+            res = response()
+            assert res["content-type"] == "application/geo+json; charset=utf-8"
+            content = read_response(res)
+            assert res.status_code == 200, content
 
         data = read_json(content)
 
@@ -382,13 +435,27 @@ class TestPropertyName:
             ),
         ]
 
+    @parametrize_response(
+        Get(
+            lambda: "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
+            "&outputformat=csv&propertyname=id,name,city_id,location,rating"
+        ),
+        Post(
+            lambda: f"""
+                <GetFeature service="WFS" version="2.0.0" outputFormat="csv"  {XML_NS}>
+                    <Query typeNames="restaurant">
+                    <PropertyName>id</PropertyName>
+                    <PropertyName>name</PropertyName>
+                    <PropertyName>city_id</PropertyName>
+                    <PropertyName>location</PropertyName>
+                    <PropertyName>rating</PropertyName>
+                    </Query>
+                </GetFeature>
+                """
+        ),
+    )
     def test_propertyname_csv(
-        self,
-        client,
-        restaurant,
-        bad_restaurant,
-        django_assert_max_num_queries,
-        coordinates,
+        self, restaurant, bad_restaurant, django_assert_max_num_queries, coordinates, response
     ):
         """Prove that the geojson export works.
 
@@ -396,13 +463,10 @@ class TestPropertyName:
         also includes comma's properly.
         """
         with django_assert_max_num_queries(1):
-            response = client.get(
-                "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
-                "&outputformat=csv&propertyname=id,name,city_id,location,rating"
-            )
-            assert response["content-type"] == "text/csv; charset=utf-8"
-            content = read_response(response)
-            assert response.status_code == 200, content
+            res = response()
+            assert res["content-type"] == "text/csv; charset=utf-8"
+            content = read_response(res)
+            assert res.status_code == 200, content
 
         expect = f"""
 "id","name","city_id","location","rating"

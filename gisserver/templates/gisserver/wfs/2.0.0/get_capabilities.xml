@@ -64,7 +64,7 @@
       <ows:DCP>
         <ows:HTTP>
           <ows:Get xlink:type="simple" xlink:href="{{ server_url }}"/>
-          {# <ows:Post xlink:type="simple" xlink:href="{{ server_url }}"/> #}
+          <ows:Post xlink:type="simple" xlink:href="{{ server_url }}"/>
         </ows:HTTP>
       </ows:DCP>
       {% for parameter in operation.get_parameters %}{% if parameter.in_capabilities and parameter.allowed_values %}

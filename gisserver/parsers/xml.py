@@ -156,3 +156,19 @@ def get_attribute(element: NSElement, name: str) -> str:
         raise ExternalParsingError(
             f"Element {element.tag} misses required attribute '{name}'"
         ) from None
+
+
+def split_ns(tag_or_value: str) -> tuple[str | None, str]:
+    """Split the element tag or attribute/text value into the namespace and
+    local name. The stdlib etree doesn't have the properties for this (lxml does).
+    """
+    # Tags may start with a `{ns}`
+    if tag_or_value.startswith("{"):
+        end = tag_or_value.index("}")
+        return tag_or_value[1:end], tag_or_value[end + 1 :]
+    # Attribute/text values may start with `ns:`
+    elif tag_or_value.find(":") >= 0:
+        end = tag_or_value.index(":")
+        return tag_or_value[1:end], tag_or_value[end + 1 :]
+    else:
+        return None, tag_or_value
