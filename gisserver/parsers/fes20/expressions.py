@@ -73,7 +73,7 @@ class Expression(BaseNode):
     * :class:`Literal` (a scalar value)
     * :class:`Function` (a transformation for a value/field)
 
-    When code uses ``Expression.from_child_xml(element)``, the AST logic will
+    When code uses ``Expression.child_from_xml(element)``, the AST logic will
     initialize the correct subclass for those elements.
     """
 
@@ -258,7 +258,7 @@ class Function(Expression):
     def from_xml(cls, element: Element):
         return cls(
             name=get_attribute(element, "name"),
-            arguments=[Expression.from_child_xml(child) for child in element],
+            arguments=[Expression.child_from_xml(child) for child in element],
         )
 
     def build_rhs(self, compiler) -> RhsTypes:
@@ -285,8 +285,8 @@ class BinaryOperator(Expression):
         return cls(
             _operatorType=BinaryOperatorType.from_xml(element),
             expression=(
-                Expression.from_child_xml(element[0]),
-                Expression.from_child_xml(element[1]),
+                Expression.child_from_xml(element[0]),
+                Expression.child_from_xml(element[1]),
             ),
         )
 

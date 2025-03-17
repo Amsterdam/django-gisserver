@@ -8,9 +8,9 @@ for a given tag. Both normal Python classes and dataclass work,
 as long as it has an :meth:`BaseNode.from_xml` class method.
 The custom `from_xml()` method should copy the XML data into local attributes.
 
-Next, when :meth:`TagRegistry.from_child_xml` is called,
+Next, when :meth:`TagRegistry.node_from_xml` is called,
 it will detect which class the XML Element refers to and initialize it using the ``from_xml()`` call.
-As convenience, calling :meth:`SomeNode.from_child_xml()` will also
+As convenience, calling :meth:`SomeNode.child_from_xml()` will also
 initialize the right subclass and initialize it.
 
 Since clients may not follow the desired XML schema, and make mistakes, one should avoid
@@ -100,10 +100,10 @@ class BaseNode:
         )
 
     @classmethod
-    def from_child_xml(cls, element: Element) -> BaseNode:
+    def child_from_xml(cls, element: Element) -> BaseNode:
         """Parse the element, returning the correct subclass of this tag.
 
-        When ``Expression.from_child_xml(some_node)`` is given, it may
+        When ``Expression.child_from_xml(some_node)`` is given, it may
         return a ``Literal``, ``ValueReference``, ``Function`` or ``BinaryOperator`` node.
         """
         sub_class = tag_registry.resolve_class(element, allowed_types=(cls,))
@@ -197,7 +197,7 @@ class TagRegistry:
         if not hidden:
             node_class.xml_tags.append(tag)  # Allow fetching all names later
 
-    def from_child_xml(self, element: Element, allowed_types: tuple[type[BN]] | None = None) -> BN:
+    def node_from_xml(self, element: Element, allowed_types: tuple[type[BN]] | None = None) -> BN:
         """Find the ``BaseNode`` subclass that corresponds to the given XML element,
         and initialize it with the element. This is a convenience shortcut.
         ``"""

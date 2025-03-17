@@ -66,7 +66,7 @@ class Filter:
             # fes20:ResourceId is the only element that may appear multiple times.
             return Filter(
                 predicate=operators.IdOperator(
-                    [identifiers.Id.from_child_xml(child) for child in element]
+                    [identifiers.Id.child_from_xml(child) for child in element]
                 ),
                 source=source,
             )
@@ -74,7 +74,7 @@ class Filter:
             return Filter(
                 # Can be Function or Operator (e.g. BinaryComparisonOperator),
                 # but not Literal or ValueReference.
-                predicate=tag_registry.from_child_xml(
+                predicate=tag_registry.node_from_xml(
                     element[0], allowed_types=FilterPredicates.__args__
                 ),
                 source=source,
