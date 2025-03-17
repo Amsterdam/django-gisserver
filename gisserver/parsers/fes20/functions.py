@@ -22,8 +22,14 @@ FesFunctionBody = Union[models.Func, Callable[..., models.Func]]
 
 @dataclass(order=True)
 class FesFunction:
-    """Wrapper that defines a fes function, with type descriptions.
-    This is also used to provide metadata to the GetCapabilities call.
+    """A registered database function that can be used by ``<fes:Function name="...">`.
+
+    The :class:`~gisserver.parsers.fes20.expressions.Function` class will resolve
+    these registered functions by name, and call :meth:`build_query` to include them
+    in the database query. This will actually insert a Django ORM function in the query!
+
+    This wrapper class also provides the metadata and type descriptions of the function,
+    which is exposed in the ``GetCapabilities`` call.
     """
 
     #: Name of the function
@@ -50,7 +56,7 @@ class FesFunction:
 
 
 class FesFunctionRegistry:
-    """Registry of functions to be callable by <fes:Function>.
+    """Registry of functions to be callable by ``<fes:Function>``.
 
     The registered functions should be capable of running an SQL function.
     """

@@ -21,6 +21,8 @@ NoneType = type(None)
 
 
 class VersionActionTokens(Enum):
+    """Values for the 'version' attribute of the ResourceId node."""
+
     FIRST = "FIRST"
     LAST = "LAST"
     ALL = "ALL"
@@ -43,7 +45,9 @@ class Id(BaseNode):
 @dataclass
 @tag_registry.register("ResourceId")
 class ResourceId(Id):
-    """The <fes:ResourceId> element."""
+    """The <fes:ResourceId> element.
+    This element allow queries to retrieve a resource by their identifier.
+    """
 
     rid: str
     version: int | datetime | VersionActionTokens | NoneType = None

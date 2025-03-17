@@ -73,7 +73,7 @@ class MatchAction(Enum):
 
 class BinaryComparisonName(TagNameEnum):
     """XML tag names for value comparisons.
-    Values are the used field lookup.
+    This also maps their names to ORM field lookups.
     """
 
     PropertyIsEqualTo = "exact"
@@ -85,14 +85,14 @@ class BinaryComparisonName(TagNameEnum):
 
 
 class DistanceOperatorName(TagNameEnum):
-    """XML tag names for distance operators"""
+    """XML tag names mapped to distance operators for the ORM."""
 
     Beyond = "fes_beyond"  # using __distance_gt=.. would be slower.
     DWithin = "dwithin"  # ST_DWithin uses indices, distance_lte does not.
 
 
 class SpatialOperatorName(TagNameEnum):
-    """XML tag names for geometry operators.
+    """XML tag names mapped to geometry operators.
 
     The values correspond with GeoDjango operators. So a ``BBOX`` query
     will translate into ``geometry__intersects=Polygon(...)``.
@@ -103,18 +103,18 @@ class SpatialOperatorName(TagNameEnum):
     # BBOX can either be implemented using bboverlaps (more efficient), or the
     # more correct "intersects" option (e.g. a line near the box would match otherwise).
     BBOX = "intersects"  # ISO version: "NOT DISJOINT"
-    Equals = "equals"  # Test whether t geometries are topologically equal
+    Equals = "equals"  # Test whether two geometries are topologically equal
     Disjoint = "disjoint"  # Tests whether two geometries are disjoint (do not interact)
     Intersects = "intersects"  # Tests whether two geometries intersect
-    Touches = "touches"  # Tests whether two geometries touch
-    Crosses = "crosses"  # Tests whether two geometries cross
-    Within = "within"  # Tests whether a geometry is within another one
-    Contains = "contains"  # Tests whether a geometry contains another one
+    Touches = "touches"  # Tests whether two geometries touch (e.g. country border).
+    Crosses = "crosses"  # Tests whether two geometries cross (e.g. two streets).
+    Within = "within"  # Tests a geometry is within another one (e.g. city within province).
+    Contains = "contains"  # Tests a geometry contains another one (e.g. province contains city).
     Overlaps = "overlaps"  # Test whether two geometries overlap
 
 
 class TemporalOperatorName(TagNameEnum):
-    """XML tag names for datetime operators.
+    """XML tag names mapped to datetime operators.
 
     Explanation here: http://old.geotools.org/Temporal-Filters_211091519.html
     and: https://github.com/geotools/geotools/wiki/temporal-filters
@@ -150,7 +150,19 @@ class UnaryLogicType(TagNameEnum):
 
 @dataclass
 class Measure(BaseNode):
-    """The <fes:Distance uom="...> element."""
+    """A measurement for a distance element.
+
+    This parses and handles the syntax::
+
+        <fes:Distance uom="...">value</fes:Distance>
+
+    This element is used within the :class:`DistanceOperator` that
+    handles the ``<fes:DWithin>`` and ``<fes:Beyond>`` tags.
+
+    The "unit of measurement" (uom) supports most standard units, like meters (``m``),
+    kilometers (``km``), nautical mile (``nm``), miles (``mi``), inches (``inch``).
+    The full list can be found at: https://docs.djangoproject.com/en/5.1/ref/contrib/gis/measure/#supported-units
+    """
 
     xml_ns = FES20
 
@@ -167,7 +179,13 @@ class Measure(BaseNode):
 
 
 class Operator(BaseNode):
-    """Abstract base class, as defined by FES spec."""
+    """Abstract base class, as defined by FES spec.
+
+    This base class is also used in parsing; for example the ``<fes:Filter>``
+    tag only allows ``Operator`` and ``Expression`` subclasses as allowed arguments.
+    Having all those classes as Python types, makes it very easy to validate
+    whether a given child element is the expected node type.
+    """
 
     xml_ns = FES20
 
@@ -217,6 +235,10 @@ class NonIdOperator(Operator):
 
     This is used for nearly all operators,
     except those that have <fes:ResourceId> elements as children.
+
+    Some operators, such as the ``<fes:And>``, ``<fes:Or>`` and ``<fes:Not>`` operators
+    explicitly support only ``NonIdOperator`` elements as arguments.
+    Hence, having this base class as Python type simplifies parsing.
     """
 
     _source = None
@@ -327,9 +349,21 @@ class SpatialOperator(NonIdOperator):
 
 
 @dataclass
-@tag_registry.register_names(DistanceOperatorName)  # <Beyond>, <DWithin>
+@tag_registry.register("Beyond")
+@tag_registry.register("DWithin")
 class DistanceOperator(SpatialOperator):
-    """Comparing the distance to a geometry."""
+    """Comparing the distance to a geometry.
+
+    This parses and handles the syntax::
+
+        <fes:DWithin>
+            <fes:ValueReference>geometry</fes:ValueReference>
+            <gml:Point srsDimension="2">
+                <gml:pos>43.55749 1.525864</gml:pos>
+            </gml:Point>
+            <fes:Distance oum="m:>100</fes:Distance>
+        </fes:DWithin>
+    """
 
     allow_geometries = True  # override static attribute
 
@@ -368,7 +402,21 @@ class DistanceOperator(SpatialOperator):
 @dataclass
 @tag_registry.register_names(SpatialOperatorName)  # <BBOX>, <Equals>, ...
 class BinarySpatialOperator(SpatialOperator):
-    """A comparison of geometries using 2 values, e.g. A Within B."""
+    """A comparison of geometries using 2 values, e.g. A Within B.
+
+    This parses and handles the syntax, and its variants::
+
+        <fes:BBOX>
+            <fes:ValueReference>Geometry</fes:ValueReference>
+            <gml:Envelope srsName="http://www.opengis.net/def/crs/epsg/0/4326">
+                <gml:lowerCorner>13.0983 31.5899</gml:lowerCorner>
+                <gml:upperCorner>35.5472 42.8143</gml:upperCorner>
+            </gml:Envelope>
+        </fes:BBOX>
+
+    It also handles the ``<fes:Equals>``, ``<fes:Within>``, ``<fes:Intersects>``, etc..
+    that exist in the :class:`SpatialOperatorName` enum.
+    """
 
     allow_geometries = True  # override static attribute
 
@@ -414,7 +462,38 @@ class BinarySpatialOperator(SpatialOperator):
 @dataclass
 @tag_registry.register_names(TemporalOperatorName)  # <After>, <Before>, ...
 class TemporalOperator(NonIdOperator):
-    """Comparisons with dates"""
+    """Comparisons with dates.
+
+    For these operators, only the parsing is implemented.
+    These are not translated into ORM queries yet.
+
+    It supports a syntax such as::
+
+       <fes:TEquals>
+          <fes:ValueReference>SimpleTrajectory/gml:validTime/gml:TimeInstant</fes:ValueReference>
+          <gml:TimeInstant gml:id="TI1">
+             <gml:timePosition>2005-05-19T09:28:40Z</gml:timePosition>
+          </gml:TimeInstant>
+       </fes:TEquals>
+
+    or::
+
+       <fes:During>
+          <fes:ValueReference>SimpleTrajectory/gml:validTime/gml:TimeInstant</fes:ValueReference>
+          <gml:TimePeriod gml:id="TP1">
+             <gml:begin>
+                <gml:TimeInstant gml:id="TI1">
+                   <gml:timePosition>2005-05-17T00:00:00Z</gml:timePosition>
+                </gml:TimeInstant>
+             </gml:begin>
+             <gml:end>
+                <gml:TimeInstant gml:id="TI2">
+                   <gml:timePosition>2005-05-23T00:00:00Z</gml:timePosition>
+                </gml:TimeInstant>
+             </gml:end>
+          </gml:TimePeriod>
+       </fes:During>
+    """
 
     operatorType: TemporalOperatorName
     operand1: ValueReference
@@ -435,7 +514,10 @@ class TemporalOperator(NonIdOperator):
 
 
 class ComparisonOperator(NonIdOperator):
-    """Base class for comparisons"""
+    """Base class for comparisons.
+    This class name mirrors the fes-spec name,
+    and allows grouping various comparisons together.
+    """
 
     # Start counting fresh here, to collect the capabilities
     # that are listed in the <fes20:ComparisonOperators> node:
@@ -445,7 +527,21 @@ class ComparisonOperator(NonIdOperator):
 @dataclass
 @tag_registry.register_names(BinaryComparisonName)  # <PropertyIs...>
 class BinaryComparisonOperator(ComparisonOperator):
-    """A comparison between 2 values, e.g. A == B."""
+    """A comparison between 2 values, e.g. A == B.
+
+    This parses and handles the syntax::
+
+        <fes:PropertyIsEqualTo>
+            <fes:ValueReference>city/name</fes:ValueReference>
+            <fes:Literal>CloudCity</fes:Literal>
+        </fes:PropertyIsEqualTo>
+
+    ...and all variations (``<fes:PropertyIsLessThan>``, etc...)
+    that are listed in the :class:`BinaryComparisonName` enum.
+
+    Note that both arguments are expressions, so these can be value references, literals
+    or functions. The ``<fes:Literal>`` element may hold a GML element as its value.
+    """
 
     operatorType: BinaryComparisonName
     expression: tuple[Expression, Expression]
@@ -475,7 +571,19 @@ class BinaryComparisonOperator(ComparisonOperator):
 @dataclass
 @tag_registry.register("PropertyIsBetween")
 class BetweenComparisonOperator(ComparisonOperator):
-    """Check whether a value is between two elements."""
+    """Check whether a value is between two elements.
+
+    This parses and handles the syntax::
+
+        <fes:PropertyIsBetween>
+            <fes:ValueReference>DEPTH</fes:ValueReference>
+            <fes:LowerBoundary><fes:Literal>100</fes:Literal></fes:LowerBoundary>
+            <fes:UpperBoundary><fes:Literal>200</fes:Literal></fes:UpperBoundary>
+        </fes:PropertyIsBetween>
+
+    Note that both boundary arguments receive expressions, so these can be value
+    references, literals or functions!
+    """
 
     expression: Expression
     lowerBoundary: Expression
@@ -520,7 +628,15 @@ class BetweenComparisonOperator(ComparisonOperator):
 @dataclass
 @tag_registry.register("PropertyIsLike")
 class LikeOperator(ComparisonOperator):
-    """Perform wildcard matching."""
+    """Perform wildcard matching.
+
+    This parses and handles the syntax::
+
+        <fes:PropertyIsLike wildCard="*" singleChar="#" escapeChar="!">
+            <fes:ValueReference>last_name</fes:ValueReference>
+            <fes:Literal>John*</fes:Literal>
+        </fes:PropertyIsLike>
+    """
 
     expression: tuple[Expression, Expression]
     wildCard: str
@@ -569,6 +685,15 @@ class LikeOperator(ComparisonOperator):
 class NilOperator(ComparisonOperator):
     """Check whether the value evaluates to null/None.
     If the WFS returned a property element with <tns:p xsi:nil='true'>, this returns true.
+
+    It parses and handles syntax such as::
+
+        <fes:PropertyIsNil>
+            <fes:ValueReference>city/name</fes:ValueReference>
+        </fes:PropertyIsNil>
+
+    Note that the provided argument can be any expression, not just a value reference.
+    Thus, it can also check whether a function returns null.
     """
 
     expression: Expression | None
@@ -594,6 +719,14 @@ class NilOperator(ComparisonOperator):
 class NullOperator(ComparisonOperator):
     """Check whether the property exists.
     If the WFS would not return the property element <tns:p>, this returns true.
+
+    It parses and handles syntax such as::
+
+        <fes:PropertyIsNull>
+            <fes:ValueReference>city/name</fes:ValueReference>
+        </fes:PropertyIsNull>
+
+    Note that the provided argument can be any expression, not just a value reference.
     """
 
     expression: Expression
@@ -613,14 +746,28 @@ class NullOperator(ComparisonOperator):
 
 
 class LogicalOperator(NonIdOperator):
-    """Base class for AND, OR, NOT comparisons"""
+    """Base class in the fes-spec for AND, OR, NOT comparisons"""
 
 
 @dataclass
 @tag_registry.register("And")
 @tag_registry.register("Or")
 class BinaryLogicOperator(LogicalOperator):
-    """Apply an 'AND' or 'OR' operator"""
+    """Apply an 'AND' or 'OR' operator.
+
+    This parses and handles the syntax::
+
+        <fes:And>
+            <fes:PropertyIsGreaterThanOrEqualTo>
+                ...
+            </fes:PropertyIsGreaterThanOrEqualTo>
+            <fes:BBOX>
+                ...
+            </fes:BBOX>
+        </fes:And>
+
+    Any tag deriving from :class:`NonIdOperator` is allowed here.
+    """
 
     operands: list[NonIdOperator]
     operatorType: BinaryLogicType
@@ -644,7 +791,16 @@ class BinaryLogicOperator(LogicalOperator):
 @dataclass
 @tag_registry.register("Not")
 class UnaryLogicOperator(LogicalOperator):
-    """Apply a NOT operator"""
+    """Apply a NOT operator.
+
+    This parses and handles the syntax::
+
+        <fes:Not>
+            <fes:PropertyIsNil>
+                <fes:ValueReference>city/name</fes:ValueReference>
+            </fes:PropertyIsNil>
+        </fes:Not>
+    """
 
     operands: NonIdOperator
     operatorType: UnaryLogicType
@@ -665,4 +821,8 @@ class UnaryLogicOperator(LogicalOperator):
 
 
 class ExtensionOperator(NonIdOperator):
-    """Base class for extensions to FES20"""
+    """Base class for extensions to FES20.
+
+    It's fully allowed to introduce new operators on your own namespace.
+    These need to inherit from this class.
+    """

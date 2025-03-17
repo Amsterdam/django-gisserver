@@ -19,11 +19,13 @@ from . import expressions, sorting
 class CompiledQuery:
     """Intermediate data for translating FES queries to Django.
 
-    This class contains all data from the ``<fes:Filter>`` object in a model
-    that can be translated to a django QuerySet.
+    This class effectively contains all data from the ``<fes:Filter>`` object,
+    but using a format that can be translated to a django QuerySet.
 
-    This object is passed though all build_...() methods,
-    so it can be used to add extra lookups and annotations.
+    As the Abstract Syntax Tree of a FES-filter creates the ORM query,
+    it fills this object with all intermediate bits. This allows building
+    the final QuerySet object in a single round. Each ``build_...()`` method
+    in the tree may add extra lookups and annotations.
     """
 
     def __init__(

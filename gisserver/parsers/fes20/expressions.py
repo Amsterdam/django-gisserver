@@ -86,7 +86,21 @@ class Expression(BaseNode):
 @dataclass(repr=False)
 @tag_registry.register("Literal")
 class Literal(Expression):
-    """The <fes:Literal> element that holds a literal value"""
+    """The <fes:Literal> element that holds a literal value.
+
+    This can be a string value, possibly annotated with a type::
+
+        <fes:Literal type="xs:boolean">true</fes:Literal>
+
+    Following the spec, the value may also contain a complete geometry:
+
+        <fes:Literal>
+            <gml:Envelope xmlns:gml="http://www.opengis.net/gml/3.2" srsName="urn:ogc:def:crs:EPSG::4326">
+                <gml:lowerCorner>5.7 53.1</gml:lowerCorner>
+                <gml:upperCorner>6.1 53.5</gml:upperCorner>
+            </gml:Envelope>
+        </fes:Literal>
+    """
 
     # The XSD definition even defines a sequence of xsd:any as possible member!
     raw_value: NoneType | str | GM_Object | GM_Envelope | TM_Object
@@ -112,6 +126,9 @@ class Literal(Expression):
 
     @cached_property
     def type(self) -> XsdTypes | None:
+        """Tell which datatype the literal holds.
+        This returns the type="..." value of the element.
+        """
         if not self.raw_type:
             return None
 
