@@ -9,8 +9,8 @@ from typing import Union
 from xml.etree.ElementTree import Element
 
 from gisserver.exceptions import ExternalParsingError
-from gisserver.parsers.base import tag_registry
-from gisserver.parsers.tags import parse_xml_from_string
+from gisserver.parsers.ast import tag_registry
+from gisserver.parsers.xml import parse_xml_from_string
 
 from .base import AbstractGeometry, GM_Envelope, GM_Object, TM_Object
 from .geometries import is_gml_element  # also do tag registration

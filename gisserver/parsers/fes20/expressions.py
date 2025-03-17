@@ -18,7 +18,13 @@ from django.db.models import Func, Q, Value
 from django.db.models.expressions import Combinable
 
 from gisserver.exceptions import ExternalParsingError
-from gisserver.parsers.base import BaseNode, TagNameEnum, tag_registry
+from gisserver.parsers.ast import (
+    BaseNode,
+    TagNameEnum,
+    expect_no_children,
+    expect_tag,
+    tag_registry,
+)
 from gisserver.parsers.fes20.functions import function_registry
 from gisserver.parsers.gml import (
     GM_Envelope,
@@ -27,8 +33,8 @@ from gisserver.parsers.gml import (
     is_gml_element,
     parse_gml_node,
 )
-from gisserver.parsers.tags import expect_no_children, expect_tag, get_attribute
 from gisserver.parsers.values import auto_cast
+from gisserver.parsers.xml import get_attribute
 from gisserver.types import FES20, ORMPath, XsdTypes, split_xml_name
 
 NoneType = type(None)
@@ -60,7 +66,16 @@ class BinaryOperatorType(TagNameEnum):
 
 
 class Expression(BaseNode):
-    """Abstract base class, as defined by FES spec."""
+    """Abstract base class, as defined by FES spec.
+
+    The FES spec defines the following subclasses:
+    * :class:`ValueReference` (pointing to a field name)
+    * :class:`Literal` (a scalar value)
+    * :class:`Function` (a transformation for a value/field)
+
+    When code uses ``Expression.from_child_xml(element)``, the AST logic will
+    initialize the correct subclass for those elements.
+    """
 
     xml_ns = FES20
 
