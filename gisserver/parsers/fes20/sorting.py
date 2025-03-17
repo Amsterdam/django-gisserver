@@ -5,6 +5,7 @@ from enum import Enum
 
 from gisserver.exceptions import InvalidParameterValue
 from gisserver.parsers.fes20 import ValueReference
+from gisserver.parsers.xml import NSElement, get_child, split_ns
 
 
 class SortOrder(Enum):
@@ -40,6 +41,13 @@ class SortBy:
     sort_properties: list[SortProperty]
 
     @classmethod
+    def from_any(cls, value: str | NSElement):
+        if isinstance(value, NSElement):
+            return cls.from_xml(value)
+        else:
+            return cls.from_string(value)
+
+    @classmethod
     def from_string(cls, value: str):
         """Construct the SortBy object from a KVP "SORTBY" parameter."""
         props = []
@@ -60,6 +68,24 @@ class SortBy:
             else:
                 props.append(SortProperty(value_reference=ValueReference(field)))
 
+        return cls(sort_properties=props)
+
+    @classmethod
+    def from_xml(cls, elem: NSElement):
+        props = []
+        ns, _tag = split_ns(elem.tag)
+        for prop in elem:
+            valueref = get_child(prop, ns, "ValueReference")
+            sort_order = get_child(prop, ns, "SortOrder")
+            sort_property = SortProperty(
+                value_reference=ValueReference(valueref.text),
+                sort_order=(
+                    SortOrder.from_string(sort_order.text)
+                    if sort_order is not None
+                    else SortOrder.ASC
+                ),
+            )
+            props.append(sort_property)
         return cls(sort_properties=props)
 
     def build_ordering(self, feature_type=None) -> list[str]:

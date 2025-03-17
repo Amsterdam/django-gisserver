@@ -30,6 +30,8 @@ NAMESPACES = {
     "xsd": xmlns.xsd.value,
 }
 
+XML_NS = f'xmlns="{xmlns.wfs}" xmlns:fes="{xmlns.fes20}" xmlns:gml="{xmlns.gml32}"'
+
 # Additional coordinate reference systems
 RD_NEW = CRS.from_string("urn:ogc:def:crs:EPSG::28992")  # https://epsg.io/28992
 
@@ -130,3 +132,8 @@ def assert_xml_equal(got: bytes | str, want: str):
         example.want = want  # unencoded, avoid doctest for bytes type.
         message = checker.output_difference(example, got, PARSE_XML)
         raise AssertionError(message)
+
+
+def clean_filter_for_xml(xml):
+    """Removes leading <? xml ?> tag"""
+    return re.sub(r"<\?.*\?>", "", xml)

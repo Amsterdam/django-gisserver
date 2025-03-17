@@ -1,6 +1,7 @@
 import pytest
 
-from tests.utils import NAMESPACES, WFS_20_XSD, read_response, validate_xsd
+from tests.requests import Get, Post, parametrize_response
+from tests.utils import NAMESPACES, WFS_20_XSD, XML_NS, read_response, validate_xsd
 
 # enable for all tests in this file
 pytestmark = [pytest.mark.urls("tests.test_gisserver.urls")]
@@ -12,13 +13,20 @@ class TestGetFeature:
     The methods need to have at least one datatype, otherwise not all content is rendered.
     """
 
-    def test_get_unauth(self, client):
+    @parametrize_response(
+        Get("?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=denied-feature"),
+        Post(
+            f"""
+                <GetFeature version="2.0.0" service="WFS" {XML_NS}>
+                <Query typeNames="denied-feature"></Query>
+                </GetFeature>
+                """
+        ),
+    )
+    def test_get_unauth(self, response):
         """Prove that features may block access.
         Note that HTTP 403 is not in the WFS 2.0 spec, but still useful to have.
         """
-        response = client.get(
-            "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=denied-feature"
-        )
         content = read_response(response)
         assert response["content-type"] == "text/xml; charset=utf-8", content
         assert response.status_code == 403, content

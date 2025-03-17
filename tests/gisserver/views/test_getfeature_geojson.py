@@ -2,26 +2,34 @@ import django
 import pytest
 
 from gisserver import conf
-from tests.test_gisserver.models import Restaurant
-from tests.utils import read_json, read_response
+from tests.requests import Get, Post, Url, parametrize_response
+from tests.utils import XML_NS, read_json, read_response
 
 # enable for all tests in this file
 pytestmark = [pytest.mark.urls("tests.test_gisserver.urls")]
 
 
 @pytest.mark.django_db
-class TestGetFeature:
+class TestGetFeatureGeoJson:
     """All tests for the GetFeature method.
     The methods need to have at least one datatype, otherwise not all content is rendered.
     """
 
+    @parametrize_response(
+        Get(
+            "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
+            "&outputformat=geojson"
+        ),
+        Post(
+            f"""
+                <GetFeature version="2.0.0" outputFormat="geojson" service="WFS" {XML_NS}>
+                <Query typeNames="restaurant"></Query>
+                </GetFeature>
+                """
+        ),
+    )
     def test_get_geojson(
-        self,
-        client,
-        restaurant,
-        bad_restaurant,
-        django_assert_max_num_queries,
-        coordinates,
+        self, restaurant, bad_restaurant, django_assert_max_num_queries, coordinates, response
     ):
         """Prove that the geojson export works.
 
@@ -29,10 +37,6 @@ class TestGetFeature:
         also includes comma's properly.
         """
         with django_assert_max_num_queries(2):
-            response = client.get(
-                "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
-                "&outputformat=geojson"
-            )
             assert response["content-type"] == "application/geo+json; charset=utf-8"
             content = read_response(response)
             assert response.status_code == 200, content
@@ -144,9 +148,27 @@ class TestGetFeature:
             ],
         }
 
+    @parametrize_response(
+        Get(
+            "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
+            "&vendor-arg=foobar&outputformat=geojson&COUNT=1000",
+            expect="http://testserver/v1/wfs/"
+            "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
+            "&vendor-arg=foobar"
+            "&outputformat=geojson&COUNT=1000&STARTINDEX=1000",
+        ),
+        Post(
+            f"""
+                <GetFeature version="2.0.0" outputFormat="geojson" count="1000" service="WFS" {XML_NS}>
+                <Query typeNames="restaurant"></Query>
+                </GetFeature>
+                """,
+            expect="http://testserver/v1/wfs/",
+        ),
+    )
     @pytest.mark.parametrize("use_count", [1, 0])
     def test_get_geojson_pagination(
-        self, client, use_count, monkeypatch, django_assert_max_num_queries
+        self, use_count, monkeypatch, many_restaurants, django_assert_max_num_queries, response
     ):
         """Prove that the geojson export handles pagination.
 
@@ -155,15 +177,7 @@ class TestGetFeature:
         """
         monkeypatch.setattr(conf, "GISSERVER_COUNT_NUMBER_MATCHED", use_count)
 
-        # Create a large set so the buffer needs to flush.
-        for i in range(1500):
-            Restaurant.objects.create(name=f"obj#{i}")
-
         with django_assert_max_num_queries(1 + use_count):
-            response = client.get(
-                "/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
-                "&vendor-arg=foobar&outputformat=geojson&COUNT=1000"
-            )
             assert (
                 response["content-type"] == "application/geo+json; charset=utf-8"
             )  # before stream starts
@@ -181,25 +195,29 @@ class TestGetFeature:
         # as some project/vendor specific parameters might be case-sensitive.
         assert data["links"] == [
             {
-                "href": (
-                    "http://testserver/v1/wfs/"
-                    "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
-                    "&vendor-arg=foobar"
-                    "&outputformat=geojson&COUNT=1000&STARTINDEX=1000"
-                ),
+                "href": response.expect,
                 "rel": "next",
                 "type": "application/geo+json",
                 "title": "next page",
             }
         ]
 
+    @parametrize_response(
+        Get(
+            "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
+            "&TYPENAMES=restaurant&outputformat=geojson"
+        ),
+        Post(
+            f"""
+            <GetFeature version="2.0.0" outputFormat="geojson" service="WFS" {XML_NS}>
+            <Query typeNames="restaurant"></Query>
+            </GetFeature>
+            """
+        ),
+        url=Url.COMPLEX,
+    )
     def test_get_geojson_complex(
-        self,
-        client,
-        restaurant_m2m,
-        bad_restaurant,
-        django_assert_max_num_queries,
-        coordinates,
+        self, restaurant_m2m, bad_restaurant, django_assert_max_num_queries, coordinates, response
     ):
         """Prove that the geojson export works for complex field types.
 
@@ -207,10 +225,6 @@ class TestGetFeature:
         also includes comma's properly.
         """
         with django_assert_max_num_queries(3):
-            response = client.get(
-                "/v1/wfs-complextypes/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
-                "&TYPENAMES=restaurant&outputformat=geojson"
-            )
             assert response["content-type"] == "application/geo+json; charset=utf-8"
             content = read_response(response)
             assert response.status_code == 200, content
@@ -289,20 +303,25 @@ class TestGetFeature:
             ],
         }
 
+    @parametrize_response(
+        Get(
+            "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
+            "&TYPENAMES=restaurant&outputformat=geojson"
+        ),
+        Post(
+            f"""
+            <GetFeature version="2.0.0" outputFormat="geojson" service="WFS" {XML_NS}>
+            <Query typeNames="restaurant"></Query>
+            </GetFeature>
+            """
+        ),
+        url=Url.FLAT,
+    )
     def test_get_geojson_flattened(
-        self,
-        client,
-        restaurant,
-        bad_restaurant,
-        django_assert_max_num_queries,
-        coordinates,
+        self, restaurant, bad_restaurant, django_assert_max_num_queries, coordinates, response
     ):
         """Prove that the geojson export works for flattened field types."""
         with django_assert_max_num_queries(2):
-            response = client.get(
-                "/v1/wfs-flattened/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
-                "&TYPENAMES=restaurant&outputformat=geojson"
-            )
             assert response["content-type"] == "application/geo+json; charset=utf-8"
             content = read_response(response)
             assert response.status_code == 200, content

@@ -321,9 +321,9 @@ class NonIdOperator(Operator):
                     return ARRAY_LOOKUPS[lookup]
                 except KeyError:
                     raise OperationProcessingFailed(
-                        "filter",
                         f"Operator '{tag}' is not supported for "
                         f"the '{xsd_element.name}' property.",
+                        locator="filter",
                         status_code=400,  # not HTTP 500 here. Spec allows both.
                     ) from None
 

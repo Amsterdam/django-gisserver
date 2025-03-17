@@ -1,29 +1,39 @@
+import re
 from urllib.parse import quote_plus
 
 import pytest
 from lxml import etree
 
 from gisserver.parsers.xml import xmlns
-from tests.utils import NAMESPACES, WFS_20_XSD, assert_xml_equal, validate_xsd
+from tests.requests import Get, Post, Url, parametrize_response
+from tests.utils import NAMESPACES, WFS_20_XSD, XML_NS, assert_xml_equal, validate_xsd
 
 # enable for all tests in this file
 pytestmark = [pytest.mark.urls("tests.test_gisserver.urls")]
+
+gml32 = quote_plus("application/gml+xml; version=3.2")
 
 
 @pytest.mark.django_db
 class TestGetCapabilities:
     """All tests for the GetCapabilities method."""
 
-    def test_get(self, client, restaurant, coordinates):
+    @parametrize_response(
+        Get(f"?SERVICE=WFS&REQUEST=GetCapabilities&ACCEPTVERSIONS=2.0.0&OUTPUTFORMAT={gml32}"),
+        Post(f'<GetCapabilities service="WFS" acceptversions="2.0.0" {XML_NS}></GetCapabilities>'),
+    )
+    def test_get(self, restaurant, coordinates, response):
         """Prove that the happy flow works"""
-        gml32 = quote_plus("application/gml+xml; version=3.2")
-        response = client.get(
-            f"/v1/wfs/?SERVICE=WFS&REQUEST=GetCapabilities&ACCEPTVERSIONS=2.0.0&OUTPUTFORMAT={gml32}"
-        )
         content = response.content.decode()
         assert response["content-type"] == "text/xml; charset=utf-8", content
         assert response.status_code == 200, content
         assert "<ows:OperationsMetadata>" in content
+
+        # assert both GET and POST methods are available for all 6 wfs requests.
+        get = re.compile("ows:Get")
+        post = re.compile("ows:Post")
+        assert len(get.findall(content)) == 6
+        assert len(post.findall(content)) == 6
 
         # Validate against the WFS 2.0 XSD
         xml_doc = validate_xsd(response.content, WFS_20_XSD)
@@ -138,11 +148,12 @@ class TestGetCapabilities:
         exception = xml_doc.find("ows:Exception", NAMESPACES)
         assert exception.attrib["exceptionCode"] == "MissingParameterValue"
 
-    def test_version_negotiation(self, client):
+    @parametrize_response(
+        Get("?SERVICE=WFS&REQUEST=GetCapabilities&ACCEPTVERSIONS=1.0.0,2.0.0"),
+        Post('<GetCapabilities service="WFS" acceptVersions="1.0.0,2.0.0"></GetCapabilities>'),
+    )
+    def test_version_negotiation(self, response):
         """Prove that version negotiation still returns 2.0.0"""
-        response = client.get(
-            "/v1/wfs/?SERVICE=WFS&REQUEST=GetCapabilities&ACCEPTVERSIONS=1.0.0,2.0.0"
-        )
         content = response.content.decode()
         assert response["content-type"] == "text/xml; charset=utf-8", content
         assert response.status_code == 200, content
@@ -150,9 +161,12 @@ class TestGetCapabilities:
         xml_doc = validate_xsd(response.content, WFS_20_XSD)
         assert xml_doc.attrib["version"] == "2.0.0"
 
-    def test_get_invalid_version(self, client):
+    @parametrize_response(
+        Get("?SERVICE=WFS&REQUEST=GetCapabilities&ACCEPTVERSIONS=1.5.0"),
+        Post('<GetCapabilities service="WFS" acceptVersions="1.5.0"></GetCapabilities>'),
+    )
+    def test_get_invalid_version(self, response):
         """Prove that version negotiation works"""
-        response = client.get("/v1/wfs/?SERVICE=WFS&REQUEST=GetCapabilities&ACCEPTVERSIONS=1.5.0")
         content = response.content.decode()
         assert response["content-type"] == "text/xml; charset=utf-8", content
         assert response.status_code == 400, content
@@ -161,12 +175,16 @@ class TestGetCapabilities:
         exception = xml_doc.find("ows:Exception", NAMESPACES)
         assert exception.attrib["exceptionCode"] == "VersionNegotiationFailed"
 
-    def test_get_flattened(self, client, restaurant, coordinates):
-        gml32 = quote_plus("application/gml+xml; version=3.2")
-        response = client.get(
-            f"/v1/wfs-flattened/?SERVICE=WFS&REQUEST=GetCapabilities&"
-            f"ACCEPTVERSIONS=2.0.0&OUTPUTFORMAT={gml32}"
-        )
+    @parametrize_response(
+        Get(
+            f"?SERVICE=WFS&REQUEST=GetCapabilities&ACCEPTVERSIONS=2.0.0&OUTPUTFORMAT={gml32}",
+        ),
+        Post(
+            '<GetCapabilities service="WFS" acceptVersions="2.0.0"></GetCapabilities>',
+        ),
+        url=Url.FLAT,
+    )
+    def test_get_flattened(self, restaurant, coordinates, response):
         content = response.content.decode()
         assert response["content-type"] == "text/xml; charset=utf-8", content
         assert response.status_code == 200, content
