@@ -41,7 +41,7 @@ def parse_gml_node(element: Element) -> GmlRootNodes:
         raise ExternalParsingError(f"Expected GML namespace for {element.tag}")
 
     # All known root nodes as GML object:
-    return tag_registry.from_child_xml(element, allowed_types=GmlRootNodes.__args__)
+    return tag_registry.node_from_xml(element, allowed_types=GmlRootNodes.__args__)
 
 
 def find_gml_nodes(element: Element) -> list[Element]:

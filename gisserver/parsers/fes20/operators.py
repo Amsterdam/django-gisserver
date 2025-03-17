@@ -451,7 +451,7 @@ class BinarySpatialOperator(SpatialOperator):
         return cls(
             operatorType=operator_type,
             operand1=ValueReference.from_xml(ref) if ref is not None else None,
-            operand2=tag_registry.from_child_xml(geo, allowed_types=SpatialDescription.__args__),
+            operand2=tag_registry.node_from_xml(geo, allowed_types=SpatialDescription.__args__),
             _source=element.tag,
         )
 
@@ -515,7 +515,7 @@ class TemporalOperator(NonIdOperator):
         return cls(
             operatorType=TemporalOperatorName.from_xml(element),
             operand1=ValueReference.from_xml(element[0]),
-            operand2=tag_registry.from_child_xml(
+            operand2=tag_registry.node_from_xml(
                 element[1], allowed_types=TemporalOperand.__args__
             ),
             _source=element.tag,
@@ -564,8 +564,8 @@ class BinaryComparisonOperator(ComparisonOperator):
         return cls(
             operatorType=BinaryComparisonName.from_xml(element),
             expression=(
-                Expression.from_child_xml(element[0]),
-                Expression.from_child_xml(element[1]),
+                Expression.child_from_xml(element[0]),
+                Expression.child_from_xml(element[1]),
             ),
             matchCase=element.get("matchCase", True),
             matchAction=MatchAction(element.get("matchAction", default=MatchAction.Any)),
@@ -619,9 +619,9 @@ class BetweenComparisonOperator(ComparisonOperator):
             raise ExternalParsingError(f"{upper.tag} should have 1 expression child node")
 
         return cls(
-            expression=Expression.from_child_xml(element[0]),
-            lowerBoundary=Expression.from_child_xml(lower[0]),
-            upperBoundary=Expression.from_child_xml(upper[0]),
+            expression=Expression.child_from_xml(element[0]),
+            lowerBoundary=Expression.child_from_xml(lower[0]),
+            upperBoundary=Expression.child_from_xml(upper[0]),
             _source=element.tag,
         )
 
@@ -658,8 +658,8 @@ class LikeOperator(ComparisonOperator):
     def from_xml(cls, element: Element):
         return cls(
             expression=(
-                Expression.from_child_xml(element[0]),
-                Expression.from_child_xml(element[1]),
+                Expression.child_from_xml(element[0]),
+                Expression.child_from_xml(element[1]),
             ),
             # These attributes are required by the WFS spec:
             wildCard=get_attribute(element, "wildCard"),
@@ -713,7 +713,7 @@ class NilOperator(ComparisonOperator):
     @expect_children(1, Expression)
     def from_xml(cls, element: Element):
         return cls(
-            expression=Expression.from_child_xml(element[0]) if element is not None else None,
+            expression=Expression.child_from_xml(element[0]) if element is not None else None,
             nilReason=element.get("nilReason"),
             _source=element.tag,
         )
@@ -744,7 +744,7 @@ class NullOperator(ComparisonOperator):
     @classmethod
     @expect_children(1, Expression)
     def from_xml(cls, element: Element):
-        return cls(expression=Expression.from_child_xml(element[0]), _source=element.tag)
+        return cls(expression=Expression.child_from_xml(element[0]), _source=element.tag)
 
     def build_query(self, compiler: CompiledQuery) -> Q:
         # For now, the implementation is identical to PropertyIsNil.
@@ -786,7 +786,7 @@ class BinaryLogicOperator(LogicalOperator):
     @expect_children(2, NonIdOperator, NonIdOperator)
     def from_xml(cls, element: Element):
         return cls(
-            operands=[NonIdOperator.from_child_xml(child) for child in element],
+            operands=[NonIdOperator.child_from_xml(child) for child in element],
             operatorType=BinaryLogicType.from_xml(element),
             _source=element.tag,
         )
@@ -819,7 +819,7 @@ class UnaryLogicOperator(LogicalOperator):
     @expect_children(1, NonIdOperator)
     def from_xml(cls, element: Element):
         return cls(
-            operands=NonIdOperator.from_child_xml(element[0]),
+            operands=NonIdOperator.child_from_xml(element[0]),
             operatorType=UnaryLogicType.from_xml(element),
             _source=element.tag,
         )
