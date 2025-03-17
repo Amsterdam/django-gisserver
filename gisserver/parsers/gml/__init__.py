@@ -6,11 +6,10 @@ These functions locate GML objects, and redirect to the proper parser.
 from __future__ import annotations
 
 from typing import Union
-from xml.etree.ElementTree import Element
 
 from gisserver.exceptions import ExternalParsingError
 from gisserver.parsers.ast import tag_registry
-from gisserver.parsers.xml import parse_xml_from_string
+from gisserver.parsers.xml import NSElement, parse_xml_from_string
 
 from .base import AbstractGeometry, GM_Envelope, GM_Object, TM_Object
 from .geometries import is_gml_element  # also do tag registration
@@ -35,7 +34,7 @@ def parse_gml(text: str | bytes) -> GmlRootNodes:
     return parse_gml_node(root_element)
 
 
-def parse_gml_node(element: Element) -> GmlRootNodes:
+def parse_gml_node(element: NSElement) -> GmlRootNodes:
     """Parse the element"""
     if not is_gml_element(element):
         raise ExternalParsingError(f"Expected GML namespace for {element.tag}")
@@ -44,7 +43,7 @@ def parse_gml_node(element: Element) -> GmlRootNodes:
     return tag_registry.node_from_xml(element, allowed_types=GmlRootNodes.__args__)
 
 
-def find_gml_nodes(element: Element) -> list[Element]:
+def find_gml_nodes(element: NSElement) -> list[NSElement]:
     """Find all gml elements in a node"""
     result = []
     for child in element:

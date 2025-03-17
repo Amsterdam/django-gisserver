@@ -29,7 +29,7 @@ from enum import Enum
 from functools import wraps
 from itertools import chain
 from typing import TypeVar
-from xml.etree.ElementTree import Element, QName
+from xml.etree.ElementTree import QName
 
 from gisserver.exceptions import ExternalParsingError
 
@@ -43,6 +43,8 @@ __all__ = (
     "expect_no_children",
 )
 
+from gisserver.parsers.xml import NSElement
+
 
 class TagNameEnum(Enum):
     """An enumeration of XML tag names.
@@ -52,7 +54,7 @@ class TagNameEnum(Enum):
     """
 
     @classmethod
-    def from_xml(cls, element: Element):
+    def from_xml(cls, element: NSElement):
         """Cast the element tag name into the enum member"""
         tag_name = element.tag
         if tag_name.startswith("{"):
@@ -91,7 +93,7 @@ class BaseNode:
         cls.xml_tags = []
 
     @classmethod
-    def from_xml(cls, element: Element):
+    def from_xml(cls, element: NSElement):
         """Initialize this Python class from the data of the corresponding XML tag.
         Each subclass overrides this to implement the XMl parsing of that particular XML tag.
         """
@@ -100,7 +102,7 @@ class BaseNode:
         )
 
     @classmethod
-    def child_from_xml(cls, element: Element) -> BaseNode:
+    def child_from_xml(cls, element: NSElement) -> BaseNode:
         """Parse the element, returning the correct subclass of this tag.
 
         When ``Expression.child_from_xml(some_node)`` is given, it may
@@ -145,7 +147,7 @@ class TagRegistry:
                 xml_ns = FES
 
                 @classmethod
-                def from_xml(cls, element: Element):
+                def from_xml(cls, element: NSElement):
                     return cls(
                         ...
                     )
@@ -197,7 +199,9 @@ class TagRegistry:
         if not hidden:
             node_class.xml_tags.append(tag)  # Allow fetching all names later
 
-    def node_from_xml(self, element: Element, allowed_types: tuple[type[BN]] | None = None) -> BN:
+    def node_from_xml(
+        self, element: NSElement, allowed_types: tuple[type[BN]] | None = None
+    ) -> BN:
         """Find the ``BaseNode`` subclass that corresponds to the given XML element,
         and initialize it with the element. This is a convenience shortcut.
         ``"""
@@ -205,7 +209,7 @@ class TagRegistry:
         return node_class.from_xml(element)
 
     def resolve_class(
-        self, element: Element, allowed_types: tuple[type[BN]] | None = None
+        self, element: NSElement, allowed_types: tuple[type[BN]] | None = None
     ) -> type[BN]:
         """Find the ``BaseNode`` subclass that corresponds to the given XML element."""
         try:
@@ -237,7 +241,7 @@ def expect_tag(namespace: str, *tag_names: str):
 
     def _wrapper(func):
         @wraps(func)
-        def _expect_tag_decorator(cls, element: Element, *args, **kwargs):
+        def _expect_tag_decorator(cls, element: NSElement, *args, **kwargs):
             if element.tag not in valid_tags:
                 raise ExternalParsingError(
                     f"{cls.__name__} parser expects an <{expect0}> node, got <{element.tag}>"
@@ -253,7 +257,7 @@ def expect_no_children(from_xml_func):
     """Validate that the XML tag has no child nodes."""
 
     @wraps(from_xml_func)
-    def _expect_no_children_decorator(cls, element: Element, *args, **kwargs):
+    def _expect_no_children_decorator(cls, element: NSElement, *args, **kwargs):
         if len(element):
             raise ExternalParsingError(
                 f"Unsupported child element for {element.tag} element: {element[0].tag}."
@@ -278,7 +282,7 @@ def expect_children(min_child_nodes, *expect_types: str | type[BaseNode]):
 
     def _wrapper(func):
         @wraps(func)
-        def _expect_children_decorator(cls, element: Element, *args, **kwargs):
+        def _expect_children_decorator(cls, element: NSElement, *args, **kwargs):
             if len(element) < min_child_nodes:
                 type_names = ", ".join(known_tag_names)
                 suffix = f" (possible tags: {type_names})" if type_names else ""

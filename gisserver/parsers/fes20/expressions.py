@@ -10,7 +10,6 @@ from datetime import date, datetime
 from decimal import Decimal as D
 from functools import cached_property
 from typing import Union
-from xml.etree.ElementTree import Element
 
 from django.contrib.gis.geos import GEOSGeometry
 from django.db import models
@@ -34,7 +33,7 @@ from gisserver.parsers.gml import (
     parse_gml_node,
 )
 from gisserver.parsers.values import auto_cast
-from gisserver.parsers.xml import get_attribute
+from gisserver.parsers.xml import NSElement, get_attribute
 from gisserver.types import FES20, ORMPath, XsdTypes, split_xml_name
 
 NoneType = type(None)
@@ -156,7 +155,7 @@ class Literal(Expression):
 
     @classmethod
     @expect_tag(FES20, "Literal")
-    def from_xml(cls, element: Element):
+    def from_xml(cls, element: NSElement):
         children = len(element)
         if not children:
             # Common case: value is raw text
@@ -216,7 +215,7 @@ class ValueReference(Expression):
     @classmethod
     @expect_tag(FES20, "ValueReference", "PropertyName")
     @expect_no_children
-    def from_xml(cls, element: Element):
+    def from_xml(cls, element: NSElement):
         return cls(xpath=element.text)
 
     def build_lhs(self, compiler) -> str:
@@ -255,7 +254,7 @@ class Function(Expression):
 
     @classmethod
     @expect_tag(FES20, "Function")
-    def from_xml(cls, element: Element):
+    def from_xml(cls, element: NSElement):
         return cls(
             name=get_attribute(element, "name"),
             arguments=[Expression.child_from_xml(child) for child in element],
@@ -281,7 +280,7 @@ class BinaryOperator(Expression):
     expression: tuple[Expression, Expression]
 
     @classmethod
-    def from_xml(cls, element: Element):
+    def from_xml(cls, element: NSElement):
         return cls(
             _operatorType=BinaryOperatorType.from_xml(element),
             expression=(

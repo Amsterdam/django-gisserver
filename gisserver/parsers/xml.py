@@ -89,12 +89,12 @@ def parse_xml_from_string(xml_string: str | bytes) -> NSElement:
         raise ExternalParsingError(str(e)) from e
 
 
-def get_child(root: Element, namespace: str, localname: str) -> Element | None:
+def get_child(root: NSElement, namespace: str, localname: str) -> NSElement | None:
     """Find the element using a fully qualified name."""
     return root.find(QName(namespace, localname).text)
 
 
-def get_attribute(element: Element, name: str) -> str:
+def get_attribute(element: NSElement, name: str) -> str:
     """Resolve an attribute, raise an error when it's missing."""
     try:
         return element.attrib[name]
