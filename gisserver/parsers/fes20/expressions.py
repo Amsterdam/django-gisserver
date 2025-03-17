@@ -27,7 +27,7 @@ from gisserver.parsers.gml import (
     is_gml_element,
     parse_gml_node,
 )
-from gisserver.parsers.tags import expect_tag, get_attribute
+from gisserver.parsers.tags import expect_no_children, expect_tag, get_attribute
 from gisserver.parsers.values import auto_cast
 from gisserver.types import FES20, ORMPath, XsdTypes, split_xml_name
 
@@ -199,7 +199,8 @@ class ValueReference(Expression):
         return f"ValueReference({self.xpath!r})"
 
     @classmethod
-    @expect_tag(FES20, "ValueReference", "PropertyName", leaf=True)
+    @expect_tag(FES20, "ValueReference", "PropertyName")
+    @expect_no_children
     def from_xml(cls, element: Element):
         return cls(xpath=element.text)
 
@@ -253,7 +254,7 @@ class Function(Expression):
 
 
 @dataclass
-@tag_registry.register_names(BinaryOperatorType)
+@tag_registry.register(BinaryOperatorType)
 class BinaryOperator(Expression):
     """Support for FES 1.0 arithmetic operators.
 

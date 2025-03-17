@@ -10,7 +10,7 @@ from decimal import Decimal
 from enum import Enum
 from functools import cached_property, reduce
 from itertools import groupby
-from typing import Any, Union
+from typing import Protocol, Union
 from xml.etree.ElementTree import Element, QName
 
 from django.contrib.gis import measure
@@ -31,15 +31,10 @@ SpatialDescription = Union[gml.GM_Object, gml.GM_Envelope, ValueReference]
 TemporalOperand = Union[gml.TM_Object, ValueReference]
 
 
-# Define interface for any class that has "build_rhs()"
-try:
-    from typing import Protocol
-except ImportError:
-    HasBuildRhs = Any  # Python 3.7 and below
-else:
+class HasBuildRhs(Protocol):
+    """Define interface for any class that has ``build_rhs()``."""
 
-    class HasBuildRhs(Protocol):
-        def build_rhs(self, compiler) -> RhsTypes: ...
+    def build_rhs(self, compiler) -> RhsTypes: ...
 
 
 if ArrayField is not None:
@@ -280,7 +275,17 @@ class NonIdOperator(Operator):
         rhs: Expression | RhsTypes,
     ):
         """Validate whether a given comparison is even possible.
-        Where needed, the lhs/rhs are already ordered in a logical sequence.
+
+        For example, comparisons like ``name == "test"`` are fine,
+        but ``geometry < 4`` or ``datefield == 35.2" raise an error.
+
+        The lhs/rhs are expected to be ordered in a logical sequence.
+        So ``<value> == <element>`` should be provided as ``<element> == <value>``.
+
+        :param compiler: The object that holds the intermediate state
+        :param lhs: The left-hand-side of the comparison (e.g. the element).
+        :param lookup: The ORM lookup expression being used (e.g. ``equals``).
+        :param rhs: The right-hand-side of the comparison (e.g. the value).
         """
         if isinstance(lhs, ValueReference):
             xsd_element = compiler.feature_type.resolve_element(lhs.xpath).child
@@ -400,7 +405,7 @@ class DistanceOperator(SpatialOperator):
 
 
 @dataclass
-@tag_registry.register_names(SpatialOperatorName)  # <BBOX>, <Equals>, ...
+@tag_registry.register(SpatialOperatorName)  # <BBOX>, <Equals>, ...
 class BinarySpatialOperator(SpatialOperator):
     """A comparison of geometries using 2 values, e.g. A Within B.
 
@@ -440,9 +445,7 @@ class BinarySpatialOperator(SpatialOperator):
         return cls(
             operatorType=operator_type,
             operand1=ValueReference.from_xml(ref) if ref is not None else None,
-            operand2=tag_registry.from_child_xml(
-                geo, allowed_types=SpatialDescription.__args__  # get_args() in 3.8
-            ),
+            operand2=tag_registry.from_child_xml(geo, allowed_types=SpatialDescription.__args__),
             _source=element.tag,
         )
 
@@ -460,7 +463,7 @@ class BinarySpatialOperator(SpatialOperator):
 
 
 @dataclass
-@tag_registry.register_names(TemporalOperatorName)  # <After>, <Before>, ...
+@tag_registry.register(TemporalOperatorName)  # <After>, <Before>, ...
 class TemporalOperator(NonIdOperator):
     """Comparisons with dates.
 
@@ -501,13 +504,13 @@ class TemporalOperator(NonIdOperator):
     _source: str | None = field(compare=False, default=None)
 
     @classmethod
-    @expect_children(2, ValueReference, TemporalOperand)
+    @expect_children(2, ValueReference, *TemporalOperand.__args__)
     def from_xml(cls, element: Element):
         return cls(
             operatorType=TemporalOperatorName.from_xml(element),
             operand1=ValueReference.from_xml(element[0]),
             operand2=tag_registry.from_child_xml(
-                element[1], allowed_types=TemporalOperand.__args__  # get_args() in 3.8
+                element[1], allowed_types=TemporalOperand.__args__
             ),
             _source=element.tag,
         )
@@ -525,7 +528,7 @@ class ComparisonOperator(NonIdOperator):
 
 
 @dataclass
-@tag_registry.register_names(BinaryComparisonName)  # <PropertyIs...>
+@tag_registry.register(BinaryComparisonName)  # <PropertyIs...>
 class BinaryComparisonOperator(ComparisonOperator):
     """A comparison between 2 values, e.g. A == B.
 
