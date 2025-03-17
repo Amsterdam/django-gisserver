@@ -3,8 +3,8 @@ from __future__ import annotations
 from typing import AnyStr, Union
 from xml.etree.ElementTree import Element, QName
 
-from gisserver.parsers.base import tag_registry
-from gisserver.parsers.tags import expect_tag, parse_xml_from_string
+from gisserver.parsers.ast import expect_tag, tag_registry
+from gisserver.parsers.xml import parse_xml_from_string
 from gisserver.types import FES20, GML32
 
 from . import expressions, identifiers, operators, query

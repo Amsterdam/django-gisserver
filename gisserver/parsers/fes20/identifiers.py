@@ -12,9 +12,9 @@ from django.db.models import Q
 
 from gisserver import conf
 from gisserver.exceptions import ExternalValueError
-from gisserver.parsers.base import BaseNode, tag_registry
-from gisserver.parsers.tags import expect_no_children, expect_tag, get_attribute
+from gisserver.parsers.ast import BaseNode, expect_no_children, expect_tag, tag_registry
 from gisserver.parsers.values import auto_cast, parse_iso_datetime
+from gisserver.parsers.xml import get_attribute
 from gisserver.types import FES20
 
 NoneType = type(None)

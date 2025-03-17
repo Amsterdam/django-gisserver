@@ -19,8 +19,14 @@ from django.db.models import Q
 from gisserver.compat import ArrayField
 from gisserver.exceptions import ExternalParsingError, OperationProcessingFailed
 from gisserver.parsers import gml
-from gisserver.parsers.base import BaseNode, TagNameEnum, tag_registry
-from gisserver.parsers.tags import expect_children, expect_tag, get_attribute, get_child
+from gisserver.parsers.ast import (
+    BaseNode,
+    TagNameEnum,
+    expect_children,
+    expect_tag,
+    tag_registry,
+)
+from gisserver.parsers.xml import get_attribute, get_child
 from gisserver.types import FES20
 
 from .expressions import Expression, Literal, RhsTypes, ValueReference

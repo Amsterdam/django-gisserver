@@ -1,12 +1,47 @@
+"""Utilities for building an Abstract Syntax Tree (AST) from an XML fragment.
+
+By transforming the XML Element nodes into Python objects, most logic naturally follows.
+For example, the FES filter syntax can be processed into objects that build an ORM query.
+
+Python classes can inherit :class:`BaseNode` and register themselves as the parser/handler
+for a given tag. Both normal Python classes and dataclass work,
+as long as it has an :meth:`BaseNode.from_xml` class method.
+The custom `from_xml()` method should copy the XML data into local attributes.
+
+Next, when :meth:`TagRegistry.from_child_xml` is called,
+it will detect which class the XML Element refers to and initialize it using the ``from_xml()`` call.
+As convenience, calling :meth:`SomeNode.from_child_xml()` will also
+initialize the right subclass and initialize it.
+
+Since clients may not follow the desired XML schema, and make mistakes, one should avoid
+creating an invalid Abstract Syntax Tree. When using :meth:`TagRegistry.node_from_xml`,
+the allowed child types can also be provided, preventing invalid child elements.
+Furthermore, to support the creation of ``from_xml()`` methods, the :func:`expect_tag`,
+:func:`expect_children` and :func:`expect_no_children` decorators validate
+whether the given tag has the expected elements. This combination should make it easy
+to validate whether a provided XML structure confirms to the supported schema.
+"""
+
 from __future__ import annotations
 
 from collections.abc import Iterable
 from enum import Enum
+from functools import wraps
 from itertools import chain
 from typing import TypeVar
 from xml.etree.ElementTree import Element, QName
 
 from gisserver.exceptions import ExternalParsingError
+
+__all__ = (
+    "TagNameEnum",
+    "BaseNode",
+    "TagRegistry",
+    "tag_registry",
+    "expect_children",
+    "expect_tag",
+    "expect_no_children",
+)
 
 
 class TagNameEnum(Enum):
@@ -193,6 +228,70 @@ class TagRegistry:
             )
 
         return node_class
+
+
+def expect_tag(namespace: str, *tag_names: str):
+    """Validate whether a given tag is need."""
+    valid_tags = {QName(namespace, name).text for name in tag_names}
+    expect0 = QName(namespace, tag_names[0]).text
+
+    def _wrapper(func):
+        @wraps(func)
+        def _expect_tag_decorator(cls, element: Element, *args, **kwargs):
+            if element.tag not in valid_tags:
+                raise ExternalParsingError(
+                    f"{cls.__name__} parser expects an <{expect0}> node, got <{element.tag}>"
+                )
+            return func(cls, element, *args, **kwargs)
+
+        return _expect_tag_decorator
+
+    return _wrapper
+
+
+def expect_no_children(from_xml_func):
+    """Validate that the XML tag has no child nodes."""
+
+    @wraps(from_xml_func)
+    def _expect_no_children_decorator(cls, element: Element, *args, **kwargs):
+        if len(element):
+            raise ExternalParsingError(
+                f"Unsupported child element for {element.tag} element: {element[0].tag}."
+            )
+
+        return from_xml_func(cls, element, *args, **kwargs)
+
+    return _expect_no_children_decorator
+
+
+def expect_children(min_child_nodes, *expect_types: str | type[BaseNode]):
+    """Validate whether an element has enough children to continue parsing."""
+    known_tag_names = set()
+    for child_type in expect_types:
+        if isinstance(child_type, type) and issubclass(child_type, BaseNode):
+            known_tag_names.update(child_type.get_tag_names())
+        elif isinstance(child_type, str):
+            known_tag_names.add(child_type)
+        else:
+            raise TypeError()
+    known_tag_names = sorted(known_tag_names)
+
+    def _wrapper(func):
+        @wraps(func)
+        def _expect_children_decorator(cls, element: Element, *args, **kwargs):
+            if len(element) < min_child_nodes:
+                type_names = ", ".join(known_tag_names)
+                suffix = f" (possible tags: {type_names})" if type_names else ""
+                raise ExternalParsingError(
+                    f"<{element.tag}> should have {min_child_nodes} child nodes, "
+                    f"got {len(element)}{suffix}"
+                )
+
+            return func(cls, element, *args, **kwargs)
+
+        return _expect_children_decorator
+
+    return _wrapper
 
 
 tag_registry = TagRegistry()

@@ -4,7 +4,7 @@ See "Table D.2" in the GML 3.2.1 spec, showing how the UML names
 map to the GML implementations. These names are referenced by the FES spec.
 """
 
-from gisserver.parsers.base import BaseNode
+from gisserver.parsers.ast import BaseNode
 
 
 class AbstractGeometry(BaseNode):

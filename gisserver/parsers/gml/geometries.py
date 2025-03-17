@@ -9,8 +9,8 @@ from xml.etree.ElementTree import Element, tostring
 from django.contrib.gis.geos import GEOSGeometry
 
 from gisserver.geometries import CRS
-from gisserver.parsers.base import tag_registry
-from gisserver.parsers.tags import get_attribute
+from gisserver.parsers.ast import tag_registry
+from gisserver.parsers.xml import get_attribute
 from gisserver.types import GML21, GML32
 
 from .base import AbstractGeometry, TM_Object
