@@ -1,15 +1,16 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from enum import Enum
+from itertools import chain
+from typing import TypeVar
 from xml.etree.ElementTree import Element, QName
 
 from gisserver.exceptions import ExternalParsingError
 
-from .tags import split_ns
-
 
 class TagNameEnum(Enum):
-    """An enumeration of tag names.
+    """An enumeration of XML tag names.
 
     All enumerations that represent tag names inherit from this.
     Each member name should be exactly the XML tag that it refers to.
@@ -18,8 +19,14 @@ class TagNameEnum(Enum):
     @classmethod
     def from_xml(cls, element: Element):
         """Cast the element tag name into the enum member"""
-        ns, localname = split_ns(element.tag)
-        return cls[localname]
+        tag_name = element.tag
+        if tag_name.startswith("{"):
+            # Split the element tag into the namespace and local name.
+            # The stdlib etree doesn't have the properties for this (lxml does).
+            end = tag_name.index("}")
+            tag_name = tag_name[end + 1 :]
+
+        return cls[tag_name]
 
     @classmethod
     def _missing_(cls, value):
@@ -31,26 +38,49 @@ class TagNameEnum(Enum):
 
 
 class BaseNode:
-    """The base node for all classes that represent an XML tag."""
+    """The base node for all classes that represent an XML tag.
+
+    All subclasses of this class build an Abstract Syntax Tree (AST)
+    that describes the XML content in Python objects. Each object can handle
+    implement additional logic to
+
+    Each subclass should implement the :meth:`from_xml` to translate
+    an XML tag into a Python (data) class.
+    """
 
     xml_ns = None
     xml_tags = []
 
     def __init_subclass__(cls):
+        # Each class level has a fresh list of supported child tags.
         cls.xml_tags = []
 
     @classmethod
     def from_xml(cls, element: Element):
+        """Initialize this Python class from the data of the corresponding XML tag.
+        Each subclass overrides this to implement the XMl parsing of that particular XML tag.
+        """
         raise NotImplementedError(
             f"{cls.__name__}.from_xml() is not implemented to parse <{element.tag}>"
         )
 
     @classmethod
     def from_child_xml(cls, element: Element) -> BaseNode:
-        """By default, the node attempts to locate a child-class from the registry.
-        The individual tags should override `from_xml()` to return their own type.
+        """Parse the element, returning the correct subclass of this tag.
+
+        When ``Expression.from_child_xml(some_node)`` is given, it may
+        return a ``Literal``, ``ValueReference``, ``Function`` or ``BinaryOperator`` node.
         """
-        return tag_registry.from_child_xml(element, allowed_types=(cls,))
+        sub_class = tag_registry.resolve_class(element, allowed_types=(cls,))
+        return sub_class.from_xml(element)
+
+    @classmethod
+    def get_tag_names(cls) -> Iterable[str]:
+        """Provide all known XMl tags that this code can parse."""
+        return chain.from_iterable(sub_type.xml_tags for sub_type in cls.__subclasses__())
+
+
+BN = TypeVar("BN", bound=BaseNode)
 
 
 class TagRegistry:
@@ -64,11 +94,13 @@ class TagRegistry:
     def __init__(self):
         self.parsers = {}
 
-    def register(self, name=None, namespace=None, hidden=False):
-        """Decorator to register a class as XML node parser.
-
-        This registers the decorated class as the designated parser
-        for a specific XML tag.
+    def register(
+        self,
+        tag: str | type[TagNameEnum] | None = None,
+        namespace: str | None = None,
+        hidden: bool = False,
+    ):
+        """Decorator to register a class as XML element parser.
 
         Usage:
 
@@ -83,67 +115,84 @@ class TagRegistry:
                         ...
                     )
 
+        Whenever an element of the registered XML name is found,
+        the given "SomeXmlTag" will be initialized.
+
+        It's also possible to register tag names using an enum;
+        each member name is assumed to be an XML tag name.
         """
 
-        def _dec(sub_class: type[BaseNode]) -> type[BaseNode]:
-            if sub_class.xml_ns is None:
-                raise RuntimeError(f"{sub_class.__name__}.xml_ns should be set")
+        def _dec(node_class: type[BaseNode]) -> type[BaseNode]:
+            if tag is None or isinstance(tag, str):
+                # Single tag name for the class.
+                self._register_tag_parser(
+                    node_class, tag=tag or node_class.__name__, namespace=namespace, hidden=hidden
+                )
+            elif issubclass(tag, TagNameEnum):
+                # Allow tags to be an Enum listing possible tag names.
+                # Note using __members__, not _member_names_.
+                # The latter will skip aliased items (like BBOX/Within).
+                for member_name in tag.__members__:
+                    self._register_tag_parser(node_class, tag=member_name, namespace=namespace)
+            else:
+                raise TypeError("tag type incorrect")
 
-            localname = name or sub_class.__name__
-            qname = QName(namespace or sub_class.xml_ns, localname)
-
-            self.parsers[qname] = sub_class  # Track this parser to resolve the tag.
-            if not hidden:
-                sub_class.xml_tags.append(name)  # Allow fetching all names later
-            return sub_class  # allow decorator usage
+            return node_class
 
         return _dec
 
-    def register_names(self, names: type[TagNameEnum], namespace=None):
-        """Decorator to register the 'tag_class' as the
-        parser-backend for all member-names in this enum.
-        """
+    def _register_tag_parser(
+        self,
+        node_class: type[BaseNode],
+        tag: str,
+        namespace: str | None = None,
+        hidden: bool = False,
+    ):
+        """Register a Python (data) class as parser for an XML node."""
+        if namespace is None and node_class.xml_ns is None:
+            raise RuntimeError(
+                f"{node_class.__name__}.xml_ns should be set, or namespace should be given."
+            )
 
-        def _dec(sub_class: type[BaseNode]):
-            # Looping over _member_names_ will skip aliased items (like BBOX/Within)
-            for member_name in names.__members__:
-                self.register(name=member_name, namespace=namespace)(sub_class)
-            return sub_class
+        qname = QName((namespace or node_class.xml_ns), tag=tag)
+        if qname.text in self.parsers:
+            raise RuntimeError(f"Another class is already registered to parse the <{qname}> tag.")
 
-        return _dec
+        self.parsers[qname.text] = node_class  # Track this parser to resolve the tag.
+        if not hidden:
+            node_class.xml_tags.append(tag)  # Allow fetching all names later
 
-    def from_child_xml(self, element: Element, allowed_types=None) -> BaseNode:
-        """Convert the element into a Python class.
+    def from_child_xml(self, element: Element, allowed_types: tuple[type[BN]] | None = None) -> BN:
+        """Find the ``BaseNode`` subclass that corresponds to the given XML element,
+        and initialize it with the element. This is a convenience shortcut.
+        ``"""
+        node_class = self.resolve_class(element, allowed_types)
+        return node_class.from_xml(element)
 
-        This locates the parser from the registered tag.
-        It's assumed that the tag has a "from_xml()" method too.
-        """
+    def resolve_class(
+        self, element: Element, allowed_types: tuple[type[BN]] | None = None
+    ) -> type[BN]:
+        """Find the ``BaseNode`` subclass that corresponds to the given XML element."""
         try:
-            real_cls = self.resolve_class(element.tag)
-        except ExternalParsingError as e:
+            node_class = self.parsers[element.tag]
+        except KeyError:
+            msg = f"Unsupported tag: <{element.tag}>"
             if allowed_types:
                 # Show better exception message
                 types = ", ".join(c.__name__ for c in allowed_types)
-                raise ExternalParsingError(f"{e}, expected one of: {types}") from None
+                msg = f"{msg}, expected one of: {types}"
 
-            raise
+            raise ExternalParsingError(msg) from None
 
         # Check whether the resolved class is indeed a valid option here.
-        if allowed_types is not None and not issubclass(real_cls, allowed_types):
+        if allowed_types is not None and not issubclass(node_class, allowed_types):
             types = ", ".join(c.__name__ for c in allowed_types)
             raise ExternalParsingError(
-                f"Unexpected {real_cls.__name__} for <{element.tag}> node, "
+                f"Unexpected {node_class.__name__} for <{element.tag}> node, "
                 f"expected one of: {types}"
             )
 
-        return real_cls.from_xml(element)
-
-    def resolve_class(self, tag_name) -> type[BaseNode]:
-        # Resolve the dataclass using the tag name
-        try:
-            return self.parsers[tag_name]
-        except KeyError:
-            raise ExternalParsingError(f"Unsupported tag: <{tag_name}>") from None
+        return node_class
 
 
 tag_registry = TagRegistry()

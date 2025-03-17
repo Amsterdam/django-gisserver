@@ -482,6 +482,11 @@ class XsdNode:
 
         The raw string value can be passed here. Auto-cased values could
         raise an TypeError due to being unsupported by the validation.
+
+        :param raw_value: The string value taken from the XML node.
+        :param lookup: The ORM lookup (e.g. ``equals``).
+        :param tag: The filter operator tag name, e.g. ``PropertyIsEqualTo``.
+        :returns: The parsed Python value.
         """
         if self.source is not None:
             # Not calling self.source.validate() as that checks for allowed choices,

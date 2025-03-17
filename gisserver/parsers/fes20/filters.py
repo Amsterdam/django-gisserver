@@ -72,8 +72,10 @@ class Filter:
             )
         else:
             return Filter(
+                # Can be Function or Operator (e.g. BinaryComparisonOperator),
+                # but not Literal or ValueReference.
                 predicate=tag_registry.from_child_xml(
-                    element[0], allowed_types=(expressions.Function, operators.Operator)
+                    element[0], allowed_types=FilterPredicates.__args__
                 ),
                 source=source,
             )

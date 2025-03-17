@@ -45,8 +45,6 @@ class GEOSGMLGeometry(AbstractGeometry):
     # - MultiGeometry
     # - Surface
 
-    xml_ns = ...
-
     srs: CRS
     geos_data: GEOSGeometry
 
@@ -83,19 +81,19 @@ class GEOSGMLGeometry(AbstractGeometry):
         return self.geos_data
 
 
-@tag_registry.register("After", GML32)
-@tag_registry.register("Before", GML32)
-@tag_registry.register("Begins", GML32)
-@tag_registry.register("BegunBy", GML32)
-@tag_registry.register("TContains", GML32)
-@tag_registry.register("TEquals", GML32)
-@tag_registry.register("TOverlaps", GML32)
-@tag_registry.register("During", GML32)
-@tag_registry.register("Meets", GML32)
-@tag_registry.register("OverlappedBy", GML32)
-@tag_registry.register("MetBy", GML32)
-@tag_registry.register("EndedBy", GML32)
-@tag_registry.register("AnyInteracts", GML32)
+@tag_registry.register("After")
+@tag_registry.register("Before")
+@tag_registry.register("Begins")
+@tag_registry.register("BegunBy")
+@tag_registry.register("TContains")
+@tag_registry.register("TEquals")
+@tag_registry.register("TOverlaps")
+@tag_registry.register("During")
+@tag_registry.register("Meets")
+@tag_registry.register("OverlappedBy")
+@tag_registry.register("MetBy")
+@tag_registry.register("EndedBy")
+@tag_registry.register("AnyInteracts")
 class TM_GeometricPrimitive(TM_Object):
     """Not implemented: the whole GML temporal logic"""
 

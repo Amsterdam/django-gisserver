@@ -13,7 +13,7 @@ from django.db.models import Q
 from gisserver import conf
 from gisserver.exceptions import ExternalValueError
 from gisserver.parsers.base import BaseNode, tag_registry
-from gisserver.parsers.tags import expect_tag, get_attribute
+from gisserver.parsers.tags import expect_no_children, expect_tag, get_attribute
 from gisserver.parsers.values import auto_cast, parse_iso_datetime
 from gisserver.types import FES20
 
@@ -66,7 +66,8 @@ class ResourceId(Id):
             self.id = None
 
     @classmethod
-    @expect_tag(FES20, "ResourceId", leaf=True)
+    @expect_tag(FES20, "ResourceId")
+    @expect_no_children
     def from_xml(cls, element):
         version = element.get("version")
         startTime = element.get("startTime")
