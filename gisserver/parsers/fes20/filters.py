@@ -18,7 +18,16 @@ FilterPredicates = Union[expressions.Function, operators.Operator]
 class Filter:
     """The <fes:Filter> element.
 
-    As this is a wrapper, it only contains a "predicate" element with the contents.
+    This parses and handles the syntax::
+
+        <fes:Filter>
+            <fes:SomeOperator>
+                ...
+            </fes:SomeOperator>
+        </fes:Filter>
+
+    The :meth:`compile_query` will convert the parsed tree
+    into a format that can build a Django ORM QuerySet.
     """
 
     query_language = "urn:ogc:def:queryLanguage:OGC-FES:Filter"

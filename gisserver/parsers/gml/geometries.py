@@ -35,7 +35,9 @@ def is_gml_element(element) -> bool:
 @tag_registry.register("Polygon", GML32)
 @tag_registry.register("Envelope", GML32)
 class GEOSGMLGeometry(AbstractGeometry):
-    """Convert the incoming GML into a Django GEOSGeometry"""
+    """Convert the incoming GML into a Django GEOSGeometry.
+    This tag parses all ``<gml:...>`` geometry elements within the query.
+    """
 
     # Not implemented:
     # - Curve
