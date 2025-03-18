@@ -6,7 +6,7 @@
   {% block link %}<link rel="stylesheet" type="text/css" href="{% static 'gisserver/index.css' %}">{% endblock %}
   {% block extrahead %}{% endblock %}
 </head>
-<body>
+<body class="{% block body-class %}meta-page{% endblock %}">
   <header>
     {% block header %}{% include "gisserver/service_description.html" %}{% endblock %}
   </header>
