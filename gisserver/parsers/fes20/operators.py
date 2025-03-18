@@ -13,10 +13,10 @@ from itertools import groupby
 from typing import Any, Union
 from xml.etree.ElementTree import Element, QName
 
-from django.conf import settings
 from django.contrib.gis import measure
 from django.db.models import Q
 
+from gisserver.compat import ArrayField
 from gisserver.exceptions import ExternalParsingError, OperationProcessingFailed
 from gisserver.parsers import gml
 from gisserver.parsers.base import BaseNode, TagNameEnum, tag_registry
@@ -42,7 +42,7 @@ else:
         def build_rhs(self, compiler) -> RhsTypes: ...
 
 
-if "django.contrib.postgres" in settings.INSTALLED_APPS:
+if ArrayField is not None:
     # Comparisons with array fields go through a separate ORM lookup expression,
     # so these can check whether ANY element matches in the array.
     # This gives consistency between other repeated elements (e.g. M2M, reverse FK)

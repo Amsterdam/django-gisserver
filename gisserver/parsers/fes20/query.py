@@ -3,7 +3,6 @@ from __future__ import annotations
 import operator
 from functools import reduce
 
-from django.conf import settings
 from django.contrib.gis.db.models.fields import BaseSpatialField
 from django.contrib.gis.db.models.lookups import DWithinLookup
 from django.core.exceptions import FieldError
@@ -11,6 +10,7 @@ from django.db import models
 from django.db.models import Q, QuerySet, lookups
 from django.db.models.expressions import Combinable
 
+from gisserver.compat import ArrayField
 from gisserver.features import FeatureType
 
 from . import expressions, sorting
@@ -241,8 +241,7 @@ class FesBeyondLookup(DWithinLookup):
         return connection.ops.gis_operators["dwithin"]
 
 
-if "django.contrib.postgres" in settings.INSTALLED_APPS:
-    from django.contrib.postgres.fields import ArrayField
+if ArrayField is not None:
 
     class ArrayAnyMixin:
         any_operators = {
