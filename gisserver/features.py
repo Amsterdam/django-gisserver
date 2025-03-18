@@ -23,14 +23,13 @@ from dataclasses import dataclass
 from functools import cached_property, lru_cache
 from typing import TYPE_CHECKING, Literal, Union
 
-import django
-from django.conf import settings
 from django.contrib.gis.db import models as gis_models
 from django.contrib.gis.db.models import Extent, GeometryField
 from django.core.exceptions import FieldDoesNotExist, ImproperlyConfigured
 from django.db import models
 from django.db.models.fields.related import ForeignObjectRel  # Django 2.2 import
 
+from gisserver.compat import ArrayField, GeneratedField
 from gisserver.db import get_db_geometry_target
 from gisserver.exceptions import ExternalValueError
 from gisserver.geometries import CRS, WGS84, BoundingBox
@@ -45,13 +44,6 @@ from gisserver.types import (
     XsdElement,
     XsdTypes,
 )
-
-GeneratedField = models.GeneratedField if django.VERSION >= (5, 0) else type(None)
-
-if "django.contrib.postgres" in settings.INSTALLED_APPS:
-    from django.contrib.postgres.fields import ArrayField
-else:
-    ArrayField = None
 
 if TYPE_CHECKING:
     from gisserver.queries import FeatureRelation
@@ -102,7 +94,7 @@ def get_basic_field_type(
         # The array notation is written as "is_many"
         model_field = model_field.base_field
 
-    if isinstance(model_field, GeneratedField):
+    if GeneratedField is not None and isinstance(model_field, GeneratedField):
         # Allow things like: models.GeneratedField(SomeFunction("geofield"), output_field=models.GeometryField())
         model_field = model_field.output_field
 
@@ -292,7 +284,7 @@ class FeatureField:
         else:
             try:
                 self.model_field = self.model._meta.get_field(self.name)
-                if isinstance(self.model_field, GeneratedField):
+                if GeneratedField is not None and isinstance(self.model_field, GeneratedField):
                     self._nillable_output_field = self.model_field.output_field.null
             except FieldDoesNotExist as e:
                 raise ImproperlyConfigured(

@@ -35,7 +35,6 @@ from functools import cached_property, reduce
 from typing import TYPE_CHECKING, Literal
 
 import django
-from django.conf import settings
 from django.contrib.gis.db.models import F, GeometryField
 from django.contrib.gis.geos import GEOSGeometry
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
@@ -44,17 +43,11 @@ from django.db.models import Q
 from django.db.models.fields.related import ForeignObjectRel, RelatedField
 from django.utils import dateparse
 
+from gisserver.compat import ArrayField, GeneratedField
 from gisserver.exceptions import ExternalParsingError, OperationProcessingFailed
 from gisserver.geometries import CRS, WGS84, BoundingBox  # noqa: F401 / backwards compatibility
 
 _unbounded = Literal["unbounded"]
-
-if "django.contrib.postgres" in settings.INSTALLED_APPS:
-    from django.contrib.postgres.fields import ArrayField
-else:
-    ArrayField = None
-
-GeneratedField = models.GeneratedField if django.VERSION >= (5, 0) else type(None)
 
 
 __all__ = [
@@ -649,7 +642,7 @@ class GmlElement(XsdElement):
     @cached_property
     def source_srid(self) -> int:
         """Tell which Spatial Reference Identifier the source information is stored under."""
-        if isinstance(self.source, GeneratedField):
+        if GeneratedField is not None and isinstance(self.source, GeneratedField):
             # Allow GeometryField to be wrapped as:
             # models.GeneratedField(SomeFunction("geofield"), output_field=models.GeometryField())
             return self.source.output_field.srid
