@@ -43,7 +43,7 @@ __all__ = (
     "expect_no_children",
 )
 
-from gisserver.parsers.xml import NSElement
+from gisserver.parsers.xml import NSElement, xmlns
 
 
 class TagNameEnum(Enum):
@@ -85,7 +85,7 @@ class BaseNode:
     an XML tag into a Python (data) class.
     """
 
-    xml_ns = None
+    xml_ns: xmlns | str | None = None
     xml_tags = []
 
     def __init_subclass__(cls):
@@ -134,7 +134,7 @@ class TagRegistry:
     def register(
         self,
         tag: str | type[TagNameEnum] | None = None,
-        namespace: str | None = None,
+        namespace: xmlns | str | None = None,
         hidden: bool = False,
     ):
         """Decorator to register a class as XML element parser.
@@ -182,7 +182,7 @@ class TagRegistry:
         self,
         node_class: type[BaseNode],
         tag: str,
-        namespace: str | None = None,
+        namespace: xmlns | str | None = None,
         hidden: bool = False,
     ):
         """Register a Python (data) class as parser for an XML node."""
@@ -234,7 +234,7 @@ class TagRegistry:
         return node_class
 
 
-def expect_tag(namespace: str, *tag_names: str):
+def expect_tag(namespace: xmlns | str, *tag_names: str):
     """Validate whether a given tag is need."""
     valid_tags = {QName(namespace, name).text for name in tag_names}
     expect0 = QName(namespace, tag_names[0]).text
@@ -277,7 +277,7 @@ def expect_children(min_child_nodes, *expect_types: str | type[BaseNode]):
         elif isinstance(child_type, str):
             known_tag_names.add(child_type)
         else:
-            raise TypeError()
+            raise TypeError(f"Unexpected {child_type!r}")
     known_tag_names = sorted(known_tag_names)
 
     def _wrapper(func):

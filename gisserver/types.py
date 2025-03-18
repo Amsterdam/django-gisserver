@@ -63,16 +63,7 @@ __all__ = [
     "XsdNode",
     "XsdTypes",
     "split_xml_name",
-    "FES20",
-    "GML21",
-    "GML32",
-    "XSI",
 ]
-
-GML21 = "http://www.opengis.net/gml"
-GML32 = "http://www.opengis.net/gml/3.2"
-XSI = "http://www.w3.org/2001/XMLSchema-instance"
-FES20 = "http://www.opengis.net/fes/2.0"
 
 RE_XPATH_ATTR = re.compile(r"\[[^\]]+\]$")  # match [@attr=..]
 TYPES_TO_PYTHON = {}

@@ -4,8 +4,7 @@ import django
 import pytest
 from lxml import etree
 
-from tests.constants import NAMESPACES
-from tests.utils import WFS_20_XSD, assert_xml_equal, validate_xsd
+from tests.utils import NAMESPACES, WFS_20_XSD, assert_xml_equal, validate_xsd
 
 # enable for all tests in this file
 pytestmark = [pytest.mark.urls("tests.test_gisserver.urls")]

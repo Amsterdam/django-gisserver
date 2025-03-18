@@ -14,8 +14,7 @@ from gisserver import conf
 from gisserver.exceptions import ExternalValueError
 from gisserver.parsers.ast import BaseNode, expect_no_children, expect_tag, tag_registry
 from gisserver.parsers.values import auto_cast, parse_iso_datetime
-from gisserver.parsers.xml import get_attribute
-from gisserver.types import FES20
+from gisserver.parsers.xml import get_attribute, xmlns
 
 NoneType = type(None)
 
@@ -33,7 +32,7 @@ class VersionActionTokens(Enum):
 class Id(BaseNode):
     """Abstract base class, as defined by FES spec."""
 
-    xml_ns = FES20
+    xml_ns = xmlns.fes20
 
     #: Tell which the type this ID belongs to, needs to be overwritten.
     type_name = ...  # need to be defined by subclass!
@@ -66,7 +65,7 @@ class ResourceId(Id):
             self.id = None
 
     @classmethod
-    @expect_tag(FES20, "ResourceId")
+    @expect_tag(xmlns.fes20, "ResourceId")
     @expect_no_children
     def from_xml(cls, element):
         version = element.get("version")

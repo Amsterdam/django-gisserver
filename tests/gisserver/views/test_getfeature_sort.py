@@ -1,8 +1,7 @@
 import pytest
 
-from tests.constants import NAMESPACES
 from tests.gisserver.views.input import SORT_BY
-from tests.utils import WFS_20_XSD, read_response, validate_xsd
+from tests.utils import NAMESPACES, WFS_20_XSD, read_response, validate_xsd
 
 # enable for all tests in this file
 pytestmark = [pytest.mark.urls("tests.test_gisserver.urls")]
