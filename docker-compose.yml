@@ -1,0 +1,41 @@
+services:
+  database:
+    image: postgis/postgis:14-3.5
+    restart: always
+    user: postgres
+    shm_size: 128mb
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -d $${POSTGRES_DB} -U $${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 60s
+      retries: 10
+      start_period: 5s
+    ports:
+      - "15432:5432"
+    environment:
+      POSTGRES_DB: gisserver_example
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: insecure
+    command: ["postgres", "-c", "log_statement=all"]
+
+  web:
+    build:
+      context: .
+    ports:
+      - "8000:8000"
+    links:
+      - database
+    depends_on:
+      database:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: "${DATABASE_URL:-postgresql://postgres:insecure@database/gisserver_example}"
+    volumes:
+      - .:/code/
+    working_dir: /code/example/
+    post_start:
+      - command: ./manage.py migrate
+      - command: ./manage.py loaddata testdata.json
+    # No effect:
+    #pre_stop:
+    #  - command: ./manage.py dumpdata --indent=2 auth.User places > testdata.json
