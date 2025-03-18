@@ -22,6 +22,12 @@ Django speaking WFS 2.0 to expose geo data.
 
 For more details, see: <https://django-gisserver.readthedocs.io/>
 
+## Test drive
+
+* Run `docker compose up`.
+* Open http://localhost:8000/ to see this works.
+* Connect to http://localhost:8000/wfs/ in your GIS client (e.g. QGis) and zoom to Amsterdam.
+* Add more data on the map using the Django admin, username and password are both "admin".
 
 ## Quickstart
 

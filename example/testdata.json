@@ -1,0 +1,99 @@
+[
+{
+  "model": "auth.user",
+  "pk": 1,
+  "fields": {
+    "password": "pbkdf2_sha256$870000$Osy82Yh1omg3bZcjd0hqm2$YnLOQNDQYcjc/bqwlmMaE35D67dFjuCDMcfKN7z7HS4=",
+    "last_login": "2025-03-17T22:08:56.903Z",
+    "is_superuser": true,
+    "username": "admin",
+    "first_name": "",
+    "last_name": "",
+    "email": "admin@example.com",
+    "is_staff": true,
+    "is_active": true,
+    "date_joined": "2025-03-17T21:43:48.944Z",
+    "groups": [],
+    "user_permissions": []
+  }
+},
+{
+  "model": "places.category",
+  "pk": 1,
+  "fields": {
+    "name": "Museum"
+  }
+},
+{
+  "model": "places.category",
+  "pk": 2,
+  "fields": {
+    "name": "Park"
+  }
+},
+{
+  "model": "places.category",
+  "pk": 3,
+  "fields": {
+    "name": "Zoo"
+  }
+},
+{
+  "model": "places.place",
+  "pk": 1,
+  "fields": {
+    "name": "Artis",
+    "location": "SRID=4326;POINT (4.9566404301400135 52.39909345718829)",
+    "category": 3,
+    "has_free_parking": false,
+    "tags": "[\"animals\", \"child-friendly\"]",
+    "created": "2025-03-17T22:09:52.469Z",
+    "owners": [
+      1
+    ]
+  }
+},
+{
+  "model": "places.place",
+  "pk": 2,
+  "fields": {
+    "name": "De dam amsterdam",
+    "location": "SRID=4326;POINT (4.8936582 52.3731716)",
+    "category": null,
+    "has_free_parking": false,
+    "tags": "[\"site-seeing\"]",
+    "created": "2025-03-17T22:22:57.726Z",
+    "owners": []
+  }
+},
+{
+  "model": "places.openinghour",
+  "pk": 1,
+  "fields": {
+    "place": 1,
+    "weekday": 1,
+    "start_time": "10:00:00",
+    "end_time": "18:00:00"
+  }
+},
+{
+  "model": "places.openinghour",
+  "pk": 2,
+  "fields": {
+    "place": 1,
+    "weekday": 2,
+    "start_time": "10:00:00",
+    "end_time": "18:00:00"
+  }
+},
+{
+  "model": "places.openinghour",
+  "pk": 3,
+  "fields": {
+    "place": 1,
+    "weekday": 3,
+    "start_time": "10:00:00",
+    "end_time": "18:00:00"
+  }
+}
+]
