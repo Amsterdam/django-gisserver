@@ -1,11 +1,9 @@
 from __future__ import annotations
 
 from typing import AnyStr, Union
-from xml.etree.ElementTree import QName
 
 from gisserver.parsers.ast import expect_tag, tag_registry
-from gisserver.parsers.xml import NSElement, parse_xml_from_string
-from gisserver.types import FES20, GML32
+from gisserver.parsers.xml import NSElement, parse_xml_from_string, xmlns
 
 from . import expressions, identifiers, operators, query
 
@@ -53,16 +51,16 @@ class Filter:
             if "xmlns" not in first_tag and (
                 first_tag == "<Filter" or first_tag.startswith("<Filter ")
             ):
-                text = f'{first_tag} xmlns="{FES20}" xmlns:gml="{GML32}"{text[end_first:]}'
+                text = f'{first_tag} xmlns="{xmlns.fes20}" xmlns:gml="{xmlns.gml32}"{text[end_first:]}'
 
         root_element = parse_xml_from_string(text)
         return Filter.from_xml(root_element, source=text)
 
     @classmethod
-    @expect_tag(FES20, "Filter")
+    @expect_tag(xmlns.fes20, "Filter")
     def from_xml(cls, element: NSElement, source: AnyStr | None = None) -> Filter:
         """Parse the <fes20:Filter> element."""
-        if len(element) > 1 or element[0].tag == QName(FES20, "ResourceId"):
+        if len(element) > 1 or element[0].tag == xmlns.fes20.qname("ResourceId"):
             # fes20:ResourceId is the only element that may appear multiple times.
             return Filter(
                 predicate=operators.IdOperator(

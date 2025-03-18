@@ -3,8 +3,8 @@ from urllib.parse import quote_plus
 import pytest
 from lxml import etree
 
-from tests.constants import NAMESPACES, OWS_NS, WFS_NS, XLINK_NS
-from tests.utils import WFS_20_XSD, assert_xml_equal, validate_xsd
+from gisserver.parsers.xml import xmlns
+from tests.utils import NAMESPACES, WFS_20_XSD, assert_xml_equal, validate_xsd
 
 # enable for all tests in this file
 pytestmark = [pytest.mark.urls("tests.test_gisserver.urls")]
@@ -53,7 +53,7 @@ class TestGetCapabilities:
 
         assert_xml_equal(
             etree.tostring(feature_type_list, inclusive_ns_prefixes=True).decode(),
-            f"""<FeatureTypeList xmlns="{WFS_NS}" xmlns:ows="{OWS_NS}" xmlns:xlink="{XLINK_NS}">
+            f"""<FeatureTypeList xmlns="{xmlns.wfs}" xmlns:ows="{xmlns.ows}" xmlns:xlink="{xmlns.xlink}">
       <FeatureType>
         <Name>app:restaurant</Name>
         <Title>restaurant</Title>

@@ -11,7 +11,6 @@ from enum import Enum
 from functools import cached_property, reduce
 from itertools import groupby
 from typing import Protocol, Union
-from xml.etree.ElementTree import QName
 
 from django.contrib.gis import measure
 from django.db.models import Q
@@ -26,8 +25,7 @@ from gisserver.parsers.ast import (
     expect_tag,
     tag_registry,
 )
-from gisserver.parsers.xml import NSElement, get_attribute, get_child
-from gisserver.types import FES20
+from gisserver.parsers.xml import NSElement, get_attribute, get_child, xmlns
 
 from .expressions import Expression, Literal, RhsTypes, ValueReference
 from .identifiers import Id
@@ -165,13 +163,13 @@ class Measure(BaseNode):
     The full list can be found at: https://docs.djangoproject.com/en/5.1/ref/contrib/gis/measure/#supported-units
     """
 
-    xml_ns = FES20
+    xml_ns = xmlns.fes20
 
     value: Decimal
     uom: str  # Unit of measurement, fes20:UomSymbol | fes20:UomURI
 
     @classmethod
-    @expect_tag(FES20, "Distance")
+    @expect_tag(xmlns.fes20, "Distance")
     def from_xml(cls, element: NSElement):
         return cls(value=Decimal(element.text), uom=get_attribute(element, "uom"))
 
@@ -188,7 +186,7 @@ class Operator(BaseNode):
     whether a given child element is the expected node type.
     """
 
-    xml_ns = FES20
+    xml_ns = xmlns.fes20
 
     def build_query(self, compiler: CompiledQuery) -> Q | None:
         raise NotImplementedError(f"Using {self.__class__.__name__} is not supported yet.")
@@ -394,10 +392,12 @@ class DistanceOperator(SpatialOperator):
             raise ExternalParsingError(f"Multiple gml elements found in <{element.tag}>")
 
         return cls(
-            valueReference=ValueReference.from_xml(get_child(element, FES20, "ValueReference")),
+            valueReference=ValueReference.from_xml(
+                get_child(element, xmlns.fes20, "ValueReference")
+            ),
             operatorType=DistanceOperatorName.from_xml(element),
             geometry=gml.parse_gml_node(geometries[0]),
-            distance=Measure.from_xml(get_child(element, FES20, "Distance")),
+            distance=Measure.from_xml(get_child(element, xmlns.fes20, "Distance")),
             _source=element.tag,
         )
 
@@ -602,16 +602,16 @@ class BetweenComparisonOperator(ComparisonOperator):
     @classmethod
     @expect_children(3, Expression, "LowerBoundary", "UpperBoundary")
     def from_xml(cls, element: NSElement):
-        if element[1].tag != QName(FES20, "LowerBoundary") or element[2].tag != QName(
-            FES20, "UpperBoundary"
+        if (element[1].tag != xmlns.fes20.qname("LowerBoundary")) or (
+            element[2].tag != xmlns.fes20.qname("UpperBoundary")
         ):
             raise ExternalParsingError(
                 f"{element.tag} should have 3 child nodes: "
                 f"(expression), <LowerBoundary>, <UpperBoundary>"
             )
 
-        lower = get_child(element, FES20, "LowerBoundary")
-        upper = get_child(element, FES20, "UpperBoundary")
+        lower = get_child(element, xmlns.fes20, "LowerBoundary")
+        upper = get_child(element, xmlns.fes20, "UpperBoundary")
 
         if len(lower) != 1:
             raise ExternalParsingError(f"{lower.tag} should have 1 expression child node")
@@ -830,7 +830,7 @@ class UnaryLogicOperator(LogicalOperator):
 
 
 class ExtensionOperator(NonIdOperator):
-    """Base class for extensions to FES20.
+    """Base class for extensions to FES 2.0.
 
     It's fully allowed to introduce new operators on your own namespace.
     These need to inherit from this class.

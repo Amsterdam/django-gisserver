@@ -10,8 +10,7 @@ from django.contrib.gis.geos import GEOSGeometry
 
 from gisserver.geometries import CRS
 from gisserver.parsers.ast import tag_registry
-from gisserver.parsers.xml import NSElement, get_attribute
-from gisserver.types import GML21, GML32
+from gisserver.parsers.xml import NSElement, get_attribute, xmlns
 
 from .base import AbstractGeometry, TM_Object
 
@@ -24,16 +23,16 @@ def is_gml_element(element) -> bool:
 
 
 @dataclass(repr=False)
-@tag_registry.register("Polygon", GML21)
-@tag_registry.register("LineString", GML32)
-@tag_registry.register("LinearRing", GML32)
-@tag_registry.register("MultiLineString", GML32)
-@tag_registry.register("MultiPoint", GML32)
-@tag_registry.register("MultiPolygon", GML32)
-@tag_registry.register("MultiSurface", GML32)
-@tag_registry.register("Point", GML32)
-@tag_registry.register("Polygon", GML32)
-@tag_registry.register("Envelope", GML32)
+@tag_registry.register("Polygon", xmlns.gml21)
+@tag_registry.register("LineString", xmlns.gml32)
+@tag_registry.register("LinearRing", xmlns.gml32)
+@tag_registry.register("MultiLineString", xmlns.gml32)
+@tag_registry.register("MultiPoint", xmlns.gml32)
+@tag_registry.register("MultiPolygon", xmlns.gml32)
+@tag_registry.register("MultiSurface", xmlns.gml32)
+@tag_registry.register("Point", xmlns.gml32)
+@tag_registry.register("Polygon", xmlns.gml32)
+@tag_registry.register("Envelope", xmlns.gml32)
 class GEOSGMLGeometry(AbstractGeometry):
     """Convert the incoming GML into a Django GEOSGeometry.
     This tag parses all ``<gml:...>`` geometry elements within the query.
@@ -97,4 +96,4 @@ class GEOSGMLGeometry(AbstractGeometry):
 class TM_GeometricPrimitive(TM_Object):
     """Not implemented: the whole GML temporal logic"""
 
-    xml_ns = GML32
+    xml_ns = xmlns.gml32

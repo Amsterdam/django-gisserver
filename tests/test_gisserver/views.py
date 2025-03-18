@@ -3,8 +3,8 @@ from django.core.exceptions import PermissionDenied
 
 from gisserver.features import FeatureType, ServiceDescription, field
 from gisserver.views import WFSView
-from tests.constants import RD_NEW
 from tests.test_gisserver import models
+from tests.utils import RD_NEW
 
 
 class DeniedFeatureType(FeatureType):

@@ -17,10 +17,9 @@ from django.db import connection
 from psycopg2 import Binary
 
 from gisserver import conf
-from gisserver.types import GML32
-from tests.constants import RD_NEW, RD_NEW_SRID
+from gisserver.parsers.xml import xmlns
 from tests.test_gisserver import models
-from tests.utils import read_json
+from tests.utils import RD_NEW, read_json
 from tests.xsd_download import download_schema
 
 HERE = Path(__file__).parent
@@ -44,8 +43,8 @@ def pytest_configure():
 
 @dataclass
 class CoordinateInputs:
-    point1_rd = Point(122411, 486250, srid=RD_NEW_SRID)
-    point2_rd = Point(199709, 307385, srid=RD_NEW_SRID)
+    point1_rd = Point(122411, 486250, srid=RD_NEW.srid)
+    point2_rd = Point(199709, 307385, srid=RD_NEW.srid)
 
     point1_wgs84: Point  # How GeoDjango retrieved the object from the database
     point1_ewkt: str
@@ -88,22 +87,22 @@ def _get_geojson_coordinates(value: str) -> list[Decimal]:
 def _parse_gml(xml: str) -> ElementTree.Element:
     """Feed a GML fragment without any namespacing to the parser."""
     end_first = xml.index(">")
-    xml = f'{xml[:end_first]} xmlns:gml="{GML32}"{xml[end_first:]}'
+    xml = f'{xml[:end_first]} xmlns:gml="{xmlns.gml32}"{xml[end_first:]}'
     return ElementTree.fromstring(xml)
 
 
 def _get_gml_coordinates(xml: str) -> str:
     """Extract the coordinates from a GML Point"""
     tree = _parse_gml(xml)
-    coordinates = tree.findtext("gml:pos", namespaces={"gml": GML32})
+    coordinates = tree.findtext("gml:pos", namespaces={"gml": xmlns.gml32})
     return coordinates.replace(",", " ")
 
 
 def _get_gml_envelope(xml: str) -> tuple[str, str]:
     tree = _parse_gml(xml)
     return [
-        tree.findtext("gml:lowerCorner", namespaces={"gml": GML32}),
-        tree.findtext("gml:upperCorner", namespaces={"gml": GML32}),
+        tree.findtext("gml:lowerCorner", namespaces={"gml": xmlns.gml32}),
+        tree.findtext("gml:upperCorner", namespaces={"gml": xmlns.gml32}),
     ]
 
 

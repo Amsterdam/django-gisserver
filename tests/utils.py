@@ -10,12 +10,28 @@ from django.http.response import HttpResponseBase
 from lxml import etree
 from lxml.doctestcompare import PARSE_XML, LXMLOutputChecker
 
+from gisserver.geometries import CRS
+from gisserver.parsers.xml import xmlns
+
 # XSD schemas are downloaded from http://schemas.opengis.net/wfs/2.0/wfs.xsd
 # using https://github.com/n-a-t-e/xsd_download/blob/master/xsd_download.py
 # The download itself is really slow, hence these files are cached.
 XSD_ROOT = Path(__file__).parent.joinpath("files/xsd")
 GML321_XSD = str(XSD_ROOT.joinpath("schemas.opengis.net/gml/3.2.1/gml.xsd"))
 WFS_20_XSD = str(XSD_ROOT.joinpath("schemas.opengis.net/wfs/2.0/wfs.xsd"))
+
+# Namespaces for tag retrieval
+NAMESPACES = {
+    # Namespaces
+    "app": "http://example.org/gisserver",
+    "gml": xmlns.gml32.value,
+    "ows": xmlns.ows.value,
+    "wfs": xmlns.wfs.value,
+    "xsd": xmlns.xsd.value,
+}
+
+# Additional coordinate reference systems
+RD_NEW = CRS.from_string("urn:ogc:def:crs:EPSG::28992")  # https://epsg.io/28992
 
 
 def read_response(response: HttpResponseBase) -> str:

@@ -33,8 +33,8 @@ from gisserver.parsers.gml import (
     parse_gml_node,
 )
 from gisserver.parsers.values import auto_cast
-from gisserver.parsers.xml import NSElement, get_attribute
-from gisserver.types import FES20, ORMPath, XsdTypes, split_xml_name
+from gisserver.parsers.xml import NSElement, get_attribute, xmlns
+from gisserver.types import ORMPath, XsdTypes, split_xml_name
 
 NoneType = type(None)
 RhsTypes = Union[Combinable, Func, Q, GEOSGeometry, bool, int, str, date, datetime, tuple]
@@ -76,7 +76,7 @@ class Expression(BaseNode):
     initialize the correct subclass for those elements.
     """
 
-    xml_ns = FES20
+    xml_ns = xmlns.fes20
 
     def build_lhs(self, compiler) -> str:
         """Get the expression as the left-hand-side of the equation.
@@ -154,7 +154,7 @@ class Literal(Expression):
             return XsdTypes(localname)
 
     @classmethod
-    @expect_tag(FES20, "Literal")
+    @expect_tag(xmlns.fes20, "Literal")
     def from_xml(cls, element: NSElement):
         children = len(element)
         if not children:
@@ -213,7 +213,7 @@ class ValueReference(Expression):
         return f"ValueReference({self.xpath!r})"
 
     @classmethod
-    @expect_tag(FES20, "ValueReference", "PropertyName")
+    @expect_tag(xmlns.fes20, "ValueReference", "PropertyName")
     @expect_no_children
     def from_xml(cls, element: NSElement):
         return cls(xpath=element.text)
@@ -253,7 +253,7 @@ class Function(Expression):
     arguments: list[Expression]  # xsd:element ref="fes20:expression"
 
     @classmethod
-    @expect_tag(FES20, "Function")
+    @expect_tag(xmlns.fes20, "Function")
     def from_xml(cls, element: NSElement):
         return cls(
             name=get_attribute(element, "name"),
