@@ -37,8 +37,38 @@ use `<https://cite.opengeospatial.org/teamengine/>`_.
 
 ``http://example.org/v1/wfs/?VERSION=2.0.0&REQUEST=GetCapabilities``
 
+
+Local testing
+~~~~~~~~~~~~~
 Local testing can't be done with NGrok, as it exceeds the rate limiting.
-Instead, consider opening a temporary port-forward at your router/modem.
+Instead, consider opening a temporary port-forward at your router/modem and
+using the online test suite.
+Alternatively, you can build a local test suite runner from source.
+
+In either case, you need to create a local server that serves at least one
+model with some geofield on it. One can copy over the code from the test/
+test_gisserver folder into a new django project, and removing what you don't
+need. If you built new functionality that may affect the outcome of the tests,
+ensure that this is also available in this app.
+
+NB:
+- It is easiest if you disable CSRF here, as the POST requests would otherwise
+encounter 403's.
+- Ensure you use a postgres DB rather than the default SQLite.
+- Run your migrations
+- This app is also suitable to test everything in QGIS/ArcGIS.
+
+The local test suite runner can be built from this repo:
+
+``https://github.com/opengeospatial/ets-wfs20``
+
+You need java and maven (mvn) for this. For the rest you can follow the
+instructions in the readme of said repo, where you put the url of your
+local server in the `test-run-props.xml` file.
+
+In the future we may build a docker image for the test suite and can
+perform them on CI. Right now, some edge-cases are still not implemented by
+choice, so these tests would fail.
 
 
 Internal logic
