@@ -22,6 +22,7 @@ __all__ = (
     "xmlns",
     "NSElement",
     "parse_xml_from_string",
+    "parse_qname",
     "get_attribute",
     "get_child",
 )
@@ -55,8 +56,9 @@ class xmlns(Enum):
 
 class NSElement(Element):
     """Custom XML element, which also exposes its original namespace aliases.
-    That information is needed to parse text content and attributes in WFS.
-    For example:
+    That information is needed to parse text content and attributes in WFS
+    that hold a QName value. For example:
+
     * ``<ValueReference>ns0:elementName</ValueReference>``
     * ``<Query typeNames="ns1:name">``
     """
@@ -64,6 +66,30 @@ class NSElement(Element):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.ns_aliases = {}
+
+    def to_qname(self, qname: str) -> str:
+        """Resolve an aliased QName value to its fully qualified name."""
+        return parse_qname(qname, self.ns_aliases)
+
+
+def parse_qname(qname: str, ns_aliases: dict) -> str:
+    """Resolve the namespace aliases.
+
+    For example, ``gml:Point`` will be resolved to ``{http://www.opengis.net/gml/3.2}Point``.
+    The XML namespace prefix is a custom alias, so if "ns0" is declared as "http://www.opengis.net/gml/3.2",
+    it means "ns0:Point" should resolve to the same fully qualified type name.
+    """
+    prefix, _, localname = qname.partition(":")
+    if not localname:
+        return prefix  # no namespace, prefix actually is localname here
+    else:
+        try:
+            uri = ns_aliases[prefix]
+        except KeyError:
+            raise ExternalParsingError(
+                f"Can't resolve {qname}, an XML namespace declaration is missing."
+            ) from None
+        return QName(uri, localname).text
 
 
 class NSTreeBuilder(TreeBuilder):
