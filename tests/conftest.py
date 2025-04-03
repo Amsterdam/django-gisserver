@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import calendar
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import time, timedelta
 from decimal import Decimal
@@ -14,6 +15,7 @@ from django.contrib.gis.gdal import gdal_full_version
 from django.contrib.gis.geos import Point, geos_version
 from django.contrib.gis.geos.geometry import GEOSGeometry
 from django.db import connection
+from django.http import HttpResponseBase
 from psycopg2 import Binary
 
 from gisserver import conf
@@ -300,44 +302,28 @@ def django_db_setup(django_db_setup, django_db_blocker):
 
 
 @pytest.fixture()
-def response(client, request):
+def response(client, request) -> HttpResponseBase | Callable[..., HttpResponseBase]:
     """This fixture can be used to abstract over different types of requests (GET/POST) with
     different kinds of urls expecting similar outcomes.
 
     Delaying the call (in which case it returns a function returning a response instead of a
     response) and adding expect attributes are both possible.
+
+    Usage::
+
+        @parametrize_response(
+            Get("?query=test"),
+            Get(lambda id: f"?query=test{id}", url=Url.COMPLEX),
+            Post("<xml></xml>"),
+            Post("<xml></xml>", expect=AssertionError),
+            url=Url.FLAT,
+        )
+        def test_function(response):
+            ...
     """
     req: Request = request.param
-    if req.method == "GET":
-        if isinstance(req.query, str):
-            response = client.get(req.url + req.query)
-        else:
-            # a function is being passed in.
-            def func(*args):
-                q = req.query(*args)
-                return client.get(req.url + q)
-
-            response = func
-    elif req.method == "POST":
-        if isinstance(req.body, str):
-            response = client.post(req.url, data=req.body, content_type="application/xml")
-        else:
-            # a function is being passed in.
-            def func(*args):
-                b = req.body(*args)
-                return client.post(req.url, data=b, content_type="application/xml")
-
-            response = func
-    else:
-        # Method not supported
-        return None
+    response = req.get_response(client)
 
     if req.expect:
         response.expect = req.expect
     return response
-
-
-def pytest_make_parametrize_id(config, val):
-    if isinstance(val, Request):
-        return val.test_id()
-    return repr(val)
