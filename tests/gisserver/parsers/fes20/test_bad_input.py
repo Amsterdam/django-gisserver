@@ -1,7 +1,7 @@
 import pytest
 
 from gisserver.exceptions import ExternalParsingError
-from gisserver.parsers import Filter
+from gisserver.parsers.fes20 import Filter
 
 
 def test_unclosed_xml():
