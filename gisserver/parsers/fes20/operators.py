@@ -25,7 +25,7 @@ from gisserver.parsers.ast import (
     tag_registry,
 )
 from gisserver.parsers.query import CompiledQuery, RhsTypes
-from gisserver.parsers.xml import NSElement, get_attribute, get_child, xmlns
+from gisserver.parsers.xml import NSElement, xmlns
 
 from .expressions import Expression, Literal, ValueReference
 from .identifiers import Id
@@ -33,6 +33,12 @@ from .lookups import ARRAY_LOOKUPS  # also registers the lookups.
 
 SpatialDescription = Union[gml.GM_Object, gml.GM_Envelope, ValueReference]
 TemporalOperand = Union[gml.TM_Object, ValueReference]
+
+# Fully qualified tag names
+FES_VALUE_REFERENCE = xmlns.fes20.qname("ValueReference")
+FES_DISTANCE = xmlns.fes20.qname("Distance")
+FES_LOWER_BOUNDARY = xmlns.fes20.qname("LowerBoundary")
+FES_UPPER_BOUNDARY = xmlns.fes20.qname("UpperBoundary")
 
 
 class HasBuildRhs(Protocol):
@@ -154,7 +160,7 @@ class Measure(BaseNode):
     @classmethod
     @expect_tag(xmlns.fes20, "Distance")
     def from_xml(cls, element: NSElement):
-        return cls(value=Decimal(element.text), uom=get_attribute(element, "uom"))
+        return cls(value=Decimal(element.text), uom=element.get_attribute("uom"))
 
     def build_rhs(self, compiler) -> measure.Distance:
         return measure.Distance(default_unit=self.uom, **{self.uom: self.value})
@@ -375,12 +381,10 @@ class DistanceOperator(SpatialOperator):
             raise ExternalParsingError(f"Multiple gml elements found in <{element.tag}>")
 
         return cls(
-            valueReference=ValueReference.from_xml(
-                get_child(element, xmlns.fes20, "ValueReference")
-            ),
+            valueReference=ValueReference.from_xml(element.find(FES_VALUE_REFERENCE)),
             operatorType=DistanceOperatorName.from_xml(element),
             geometry=gml.parse_gml_node(geometries[0]),
-            distance=Measure.from_xml(get_child(element, xmlns.fes20, "Distance")),
+            distance=Measure.from_xml(element.find(FES_DISTANCE)),
             _source=element.tag,
         )
 
@@ -585,16 +589,14 @@ class BetweenComparisonOperator(ComparisonOperator):
     @classmethod
     @expect_children(3, Expression, "LowerBoundary", "UpperBoundary")
     def from_xml(cls, element: NSElement):
-        if (element[1].tag != xmlns.fes20.qname("LowerBoundary")) or (
-            element[2].tag != xmlns.fes20.qname("UpperBoundary")
-        ):
+        if (element[1].tag != FES_LOWER_BOUNDARY) or (element[2].tag != FES_UPPER_BOUNDARY):
             raise ExternalParsingError(
                 f"{element.tag} should have 3 child nodes: "
                 f"(expression), <LowerBoundary>, <UpperBoundary>"
             )
 
-        lower = get_child(element, xmlns.fes20, "LowerBoundary")
-        upper = get_child(element, xmlns.fes20, "UpperBoundary")
+        lower = element[1]
+        upper = element[2]
 
         if len(lower) != 1:
             raise ExternalParsingError(f"{lower.tag} should have 1 expression child node")
@@ -645,9 +647,9 @@ class LikeOperator(ComparisonOperator):
                 Expression.child_from_xml(element[1]),
             ),
             # These attributes are required by the WFS spec:
-            wildCard=get_attribute(element, "wildCard"),
-            singleChar=get_attribute(element, "singleChar"),
-            escapeChar=get_attribute(element, "escapeChar"),
+            wildCard=element.get_attribute("wildCard"),
+            singleChar=element.get_attribute("singleChar"),
+            escapeChar=element.get_attribute("escapeChar"),
             _source=element.tag,
         )
 

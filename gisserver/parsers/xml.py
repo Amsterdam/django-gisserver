@@ -11,6 +11,8 @@ The :mod:`gisserver.parsers.ast` module provides the building blocks for that.
 
 from __future__ import annotations
 
+import logging
+import typing
 from enum import Enum
 from xml.etree.ElementTree import Element, QName, TreeBuilder
 
@@ -18,13 +20,14 @@ from defusedxml.ElementTree import DefusedXMLParser, ParseError
 
 from gisserver.exceptions import ExternalParsingError
 
+logger = logging.getLogger(__name__)
+
 __all__ = (
     "xmlns",
     "NSElement",
     "parse_xml_from_string",
     "parse_qname",
-    "get_attribute",
-    "get_child",
+    "split_ns",
 )
 
 
@@ -71,6 +74,26 @@ class NSElement(Element):
         """Resolve an aliased QName value to its fully qualified name."""
         return parse_qname(qname, self.ns_aliases)
 
+    def get_attribute(self, name: str) -> str:
+        """Resolve an attribute, raise an error when it's missing."""
+        try:
+            return self.attrib[name]
+        except KeyError:
+            raise ExternalParsingError(
+                f"Element {self.tag} misses required attribute '{name}'"
+            ) from None
+
+    if typing.TYPE_CHECKING:
+        # Make sure the type checking knows the actual type of the elements.
+        def find(self, path: str, namespaces: dict[str, str] | None = None) -> NSElement | None:
+            return super().find(path, namespaces)
+
+        def findall(self, path: str, namespaces: dict[str, str] | None = None) -> list[NSElement]:
+            return super().findall(path, namespaces)
+
+        def __iter__(self) -> typing.Iterator[NSElement]:
+            return super().__iter__()
+
 
 def parse_qname(qname: str | None, ns_aliases: dict) -> str | None:
     """Resolve the QName aliases.
@@ -97,6 +120,7 @@ def parse_qname(qname: str | None, ns_aliases: dict) -> str | None:
         try:
             uri = ns_aliases[prefix]
         except KeyError:
+            logger.debug("Can't resolve QName '%s', available namespaces: %r", qname, ns_aliases)
             raise ExternalParsingError(
                 f"Can't resolve QName '{qname}', an XML namespace declaration is missing."
             ) from None
@@ -153,22 +177,8 @@ def parse_xml_from_string(xml_string: str | bytes) -> NSElement:
         return parser.close()
     except ParseError as e:
         # Offer consistent results for callers to check for invalid data.
+        logger.debug("Parsing XML error: %s: %s", e, xml_string)
         raise ExternalParsingError(str(e)) from e
-
-
-def get_child(root: NSElement, namespace: xmlns | str, localname: str) -> NSElement | None:
-    """Find the element using a fully qualified name."""
-    return root.find(QName(namespace, localname).text)
-
-
-def get_attribute(element: NSElement, name: str) -> str:
-    """Resolve an attribute, raise an error when it's missing."""
-    try:
-        return element.attrib[name]
-    except KeyError:
-        raise ExternalParsingError(
-            f"Element {element.tag} misses required attribute '{name}'"
-        ) from None
 
 
 def split_ns(tag_or_value: str) -> tuple[str | None, str]:
