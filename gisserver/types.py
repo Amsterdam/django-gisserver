@@ -46,6 +46,7 @@ from django.utils import dateparse
 from gisserver.compat import ArrayField, GeneratedField
 from gisserver.exceptions import ExternalParsingError, OperationProcessingFailed
 from gisserver.geometries import CRS, BoundingBox
+from gisserver.parsers import values
 
 _unbounded = Literal["unbounded"]
 
@@ -66,7 +67,6 @@ __all__ = [
 ]
 
 RE_XPATH_ATTR = re.compile(r"\[[^\]]+\]$")  # match [@attr=..]
-TYPES_TO_PYTHON = {}
 
 
 class XsdAnyType:
@@ -168,9 +168,6 @@ class XsdTypes(XsdAnyType, Enum):
 
     @cached_property
     def _to_python_func(self):
-        if not TYPES_TO_PYTHON:
-            _init_types_to_python()
-
         try:
             return TYPES_TO_PYTHON[self]
         except KeyError:
@@ -209,37 +206,31 @@ for _type in (
     _type.is_geometry = True
 
 
-def _init_types_to_python():
-    """Define how well-known scalar types are parsed into python
-    (mimicking Django's to_python()):
-    """
-    global TYPES_TO_PYTHON
-    from gisserver.parsers import values  # avoid cyclic import
+def _as_is(v):
+    return v
 
-    def as_is(v):
-        return v
 
-    TYPES_TO_PYTHON = {
-        XsdTypes.date: dateparse.parse_date,
-        XsdTypes.dateTime: values.parse_iso_datetime,
-        XsdTypes.time: dateparse.parse_time,
-        XsdTypes.string: as_is,
-        XsdTypes.boolean: values.parse_bool,
-        XsdTypes.integer: int,
-        XsdTypes.int: int,
-        XsdTypes.long: int,
-        XsdTypes.short: int,
-        XsdTypes.byte: int,
-        XsdTypes.unsignedInt: int,
-        XsdTypes.unsignedLong: int,
-        XsdTypes.unsignedShort: int,
-        XsdTypes.unsignedByte: int,
-        XsdTypes.float: D,
-        XsdTypes.double: D,
-        XsdTypes.decimal: D,
-        XsdTypes.gmlCodeType: as_is,
-        XsdTypes.anyType: values.auto_cast,
-    }
+TYPES_TO_PYTHON = {
+    XsdTypes.date: dateparse.parse_date,
+    XsdTypes.dateTime: values.parse_iso_datetime,
+    XsdTypes.time: dateparse.parse_time,
+    XsdTypes.string: _as_is,
+    XsdTypes.boolean: values.parse_bool,
+    XsdTypes.integer: int,
+    XsdTypes.int: int,
+    XsdTypes.long: int,
+    XsdTypes.short: int,
+    XsdTypes.byte: int,
+    XsdTypes.unsignedInt: int,
+    XsdTypes.unsignedLong: int,
+    XsdTypes.unsignedShort: int,
+    XsdTypes.unsignedByte: int,
+    XsdTypes.float: D,
+    XsdTypes.double: D,
+    XsdTypes.decimal: D,
+    XsdTypes.gmlCodeType: _as_is,
+    XsdTypes.anyType: values.auto_cast,
+}
 
 
 class XsdNode:
