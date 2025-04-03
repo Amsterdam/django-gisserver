@@ -6,9 +6,8 @@ from gisserver.exceptions import InvalidParameterValue
 from gisserver.features import FeatureType
 from gisserver.output import FeatureCollection, SimpleFeatureCollection
 from gisserver.parsers import fes20
+from gisserver.projection import FeatureProjection
 from gisserver.types import split_xml_name
-
-from .projection import FeatureProjection
 
 
 class QueryExpression:

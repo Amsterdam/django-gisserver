@@ -19,11 +19,12 @@ from django.utils.timezone import now
 from gisserver import conf
 from gisserver.features import FeatureType
 from gisserver.geometries import BoundingBox
+from gisserver.projection import FeatureProjection
 
 from .iters import ChunkedQuerySetIterator, CountingIterator
 
 if typing.TYPE_CHECKING:
-    from gisserver.queries import FeatureProjection, QueryExpression
+    from gisserver.queries import QueryExpression
 
 
 class SimpleFeatureCollection:

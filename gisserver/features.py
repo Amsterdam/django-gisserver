@@ -46,7 +46,7 @@ from gisserver.types import (
 )
 
 if TYPE_CHECKING:
-    from gisserver.queries import FeatureRelation
+    from gisserver.projection import FeatureRelation
 
 _all_ = Literal["__all__"]
 

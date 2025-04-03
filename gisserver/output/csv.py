@@ -11,7 +11,7 @@ from django.db import models
 from gisserver import conf
 from gisserver.db import AsEWKT, get_db_rendered_geometry, replace_queryset_geometries
 from gisserver.geometries import CRS
-from gisserver.queries import FeatureProjection, FeatureRelation
+from gisserver.projection import FeatureProjection, FeatureRelation
 from gisserver.types import GmlElement, XsdElement, XsdTypes
 
 from .base import CollectionOutputRenderer

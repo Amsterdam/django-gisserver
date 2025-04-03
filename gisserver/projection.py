@@ -1,23 +1,38 @@
+"""In WFS, a "projection" is placed on top of the queried data.
+
+It translates the incoming data into the subset of properties to display.
+Practically, this code does inform and adjust the constructed QuerySet
+to make sure it will provide only the actual fields that are part of the projection.
+"""
+
 from __future__ import annotations
 
 import itertools
 import operator
+import typing
 from collections import defaultdict
 from collections.abc import Callable
 from dataclasses import dataclass
 from functools import cached_property
 
-from django.contrib.gis.geos import GEOSGeometry
-from django.db import models
-
-from gisserver.features import FeatureType
-from gisserver.parsers import fes20
 from gisserver.types import (
     GmlElement,
     XPathMatch,
     XsdElement,
     XsdTypes,
     _XsdElement_WithComplexType,
+)
+
+if typing.TYPE_CHECKING:
+    from django.contrib.gis.geos import GEOSGeometry
+    from django.db import models
+
+    from gisserver.features import FeatureType
+    from gisserver.parsers import fes20
+
+__all__ = (
+    "FeatureProjection",
+    "FeatureRelation",
 )
 
 
