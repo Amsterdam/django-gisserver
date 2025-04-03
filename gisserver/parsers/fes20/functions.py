@@ -108,7 +108,7 @@ class FesFunctionRegistry:
             return self.functions[function_name]
         except KeyError:
             raise InvalidParameterValue(
-                "filter", f"Unsupported function: {function_name}"
+                f"Unsupported function: {function_name}", locator="filter"
             ) from None
 
 
