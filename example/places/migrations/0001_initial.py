@@ -31,6 +31,7 @@ class Migration(migrations.Migration):
                 ),
                 ("name", models.CharField(max_length=200)),
             ],
+            options={"verbose_name": "Category", "verbose_name_plural": "Categories"},
         ),
         migrations.CreateModel(
             name="Place",
@@ -75,6 +76,8 @@ class Migration(migrations.Migration):
             ],
             options={
                 "ordering": ["name"],
+                "verbose_name": "Place",
+                "verbose_name_plural": "Places",
             },
         ),
         migrations.CreateModel(
@@ -113,6 +116,8 @@ class Migration(migrations.Migration):
             ],
             options={
                 "ordering": ("weekday", "start_time"),
+                "verbose_name": "Opening Hour",
+                "verbose_name_plural": "Opening Hours",
             },
         ),
     ]
