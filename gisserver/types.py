@@ -446,11 +446,6 @@ class XsdNode:
         """
         return value
 
-    @cached_property
-    def _form_field(self):
-        """Internal cached field for to_python()"""
-        return self.source.formfield()
-
     def to_python(self, raw_value: str):
         """Convert a raw value to the Python data type for this element type."""
         try:
