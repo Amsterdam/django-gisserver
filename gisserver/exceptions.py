@@ -38,7 +38,7 @@ class OWSException(Exception):
     def __init__(self, text=None, code=None, locator=None, status_code=None):
         text = text or self.text_template.format(code=self.code, locator=locator)
         if (code and len(text) < len(code)) or (locator and len(text) < len(locator)):
-            raise ValueError("text/locator arguments are switched")
+            raise ValueError(f"text/locator arguments are switched: {text!r}, locator={locator!r}")
 
         super().__init__(text)
         self.locator = locator
