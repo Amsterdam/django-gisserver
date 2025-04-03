@@ -34,7 +34,7 @@ from gisserver.parsers.fes20 import ValueReference
 from gisserver.queries import FeatureProjection, FeatureRelation
 from gisserver.types import GmlBoundedByElement, GmlElement, XsdElement, XsdNode, XsdTypes
 
-from .base import OutputRenderer
+from .base import CollectionOutputRenderer
 from .results import SimpleFeatureCollection
 
 GML_RENDER_FUNCTIONS = {}
@@ -85,7 +85,7 @@ def _value_to_text(value):
         return value  # f"{value} works faster and produces the right format.
 
 
-class GML32Renderer(OutputRenderer):
+class GML32Renderer(CollectionOutputRenderer):
     """Render the GetFeature XML output in GML 3.2 format"""
 
     content_type = "text/xml; charset=utf-8"

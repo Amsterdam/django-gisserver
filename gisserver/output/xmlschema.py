@@ -22,8 +22,7 @@ class XMLSchemaRenderer(OutputRenderer):
 
     def __init__(self, method: WFSMethod, feature_types: list[FeatureType]):
         """Overwritten method to handle the DescribeFeatureType context."""
-        self.server_url = method.view.server_url
-        self.app_xml_namespace = method.view.xml_namespace
+        super().__init__(method)
         self.feature_types = feature_types
 
     def render_stream(self):

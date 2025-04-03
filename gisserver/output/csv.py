@@ -14,10 +14,10 @@ from gisserver.geometries import CRS
 from gisserver.queries import FeatureProjection, FeatureRelation
 from gisserver.types import GmlElement, XsdElement, XsdTypes
 
-from .base import OutputRenderer
+from .base import CollectionOutputRenderer
 
 
-class CSVRenderer(OutputRenderer):
+class CSVRenderer(CollectionOutputRenderer):
     """Fast CSV renderer, using a stream response.
 
     The complex encoding bits are handled by the "csv" library.

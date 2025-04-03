@@ -24,6 +24,71 @@ if typing.TYPE_CHECKING:
 
 
 class OutputRenderer:
+    """Base class for rendering content."""
+
+    #: Default content type for the HTTP response
+    content_type = "text/xml; charset=utf-8"
+
+    def __init__(self, method: WFSMethod):
+        """Base method for all output rendering."""
+        self.method = method
+
+        # Common elements for output rendering:
+        self.server_url = method.view.server_url
+        self.app_xml_namespace = method.view.xml_namespace
+
+    def get_response(self):
+        """Render the output as streaming response."""
+        stream = self.render_stream()
+        if isinstance(stream, (str, bytes)):
+            # Not a real stream, output anyway as regular HTTP response.
+            response = HttpResponse(content=stream, content_type=self.content_type)
+        else:
+            # An actual generator.
+            stream = self._trap_exceptions(stream)
+            response = StreamingHttpResponse(
+                streaming_content=stream,
+                content_type=self.content_type,
+            )
+
+        # Add HTTP headers
+        for name, value in self.get_headers().items():
+            response[name] = value
+
+        # Handover to WSGI server (starts streaming when reading the contents)
+        return response
+
+    def get_headers(self):
+        return {}
+
+    def _trap_exceptions(self, stream):
+        """Decorate the generator to show exceptions"""
+        try:
+            yield from stream
+        except Exception as e:
+            # Can't return 500 at this point,
+            # but can still tell the client what happened.
+            yield self.render_exception(e)
+            raise
+
+    def render_exception(self, exception: Exception):
+        """Inform the client that the stream processing was interrupted with an exception.
+        The exception can be rendered in the format fits with the output.
+
+        Purposefully, not much information is given, so avoid informing clients.
+        The actual exception is still raised and logged server-side.
+        """
+        if settings.DEBUG:
+            return f"{exception.__class__.__name__}: {exception}"
+        else:
+            return f"{exception.__class__.__name__} during rendering!"
+
+    def render_stream(self):
+        """Implement this in subclasses to implement a custom output format."""
+        raise NotImplementedError()
+
+
+class CollectionOutputRenderer(OutputRenderer):
     """Base class to create streaming responses.
 
     It receives the collected 'context' data of the WFSMethod.
@@ -55,15 +120,12 @@ class OutputRenderer:
         :param collection: The collected data for rendering.
         :param output_crs: The requested output projection.
         """
+        super().__init__(method)
         self.method = method
         self.source_query = source_query
         self.collection = collection
         self.output_crs = output_crs
         self.xml_srs_name = escape(str(self.output_crs))
-
-        # Common elements for output rendering:
-        self.server_url = method.view.server_url
-        self.app_xml_namespace = method.view.xml_namespace
 
     @classmethod
     def decorate_collection(cls, collection: FeatureCollection, output_crs: CRS, **params):
@@ -166,27 +228,6 @@ class OutputRenderer:
         # This will also apply .only() based on the projection's feature_relation
         return projection.feature_type.get_related_queryset(feature_relation)
 
-    def get_response(self):
-        """Render the output as streaming response."""
-        stream = self.render_stream()
-        if isinstance(stream, (str, bytes)):
-            # Not a real stream, output anyway as regular HTTP response.
-            response = HttpResponse(content=stream, content_type=self.content_type)
-        else:
-            # A actual generator.
-            stream = self._trap_exceptions(stream)
-            response = StreamingHttpResponse(
-                streaming_content=stream,
-                content_type=self.content_type,
-            )
-
-        # Add HTTP headers
-        for name, value in self.get_headers().items():
-            response[name] = value
-
-        # Handover to WSGI server (starts streaming when reading the contents)
-        return response
-
     def get_headers(self):
         """Return the response headers"""
         if self.content_disposition:
@@ -209,29 +250,3 @@ class OutputRenderer:
             }
 
         return {}
-
-    def _trap_exceptions(self, stream):
-        """Decorate the generator to show exceptions"""
-        try:
-            yield from stream
-        except Exception as e:
-            # Can't return 500 at this point,
-            # but can still tell the client what happened.
-            yield self.render_exception(e)
-            raise
-
-    def render_exception(self, exception: Exception):
-        """Inform the client that the stream processing was interrupted with an exception.
-        The exception can be rendered in the format fits with the output.
-
-        Purposefully, not much information is given, so avoid informing clients.
-        The actual exception is still raised and logged server-side.
-        """
-        if settings.DEBUG:
-            return f"{exception.__class__.__name__}: {exception}"
-        else:
-            return f"{exception.__class__.__name__} during rendering!"
-
-    def render_stream(self):
-        """Implement this in subclasses to implement a custom output format."""
-        raise NotImplementedError()
