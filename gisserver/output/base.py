@@ -20,7 +20,7 @@ if typing.TYPE_CHECKING:
     from gisserver.operations.base import WFSMethod
     from gisserver.queries import FeatureProjection, FeatureRelation, QueryExpression
 
-    from .results import FeatureCollection, SimpleFeatureCollection
+    from .results import FeatureCollection
 
 
 class OutputRenderer:
@@ -235,7 +235,3 @@ class OutputRenderer:
     def render_stream(self):
         """Implement this in subclasses to implement a custom output format."""
         raise NotImplementedError()
-
-    def get_projection(self, sub_collection: SimpleFeatureCollection) -> FeatureProjection:
-        """Provide the projection clause for the given sub-collection."""
-        return self.source_query.get_projection(sub_collection.feature_type)
