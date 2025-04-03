@@ -31,7 +31,7 @@ from gisserver.db import (
 from gisserver.exceptions import NotFound, WFSException
 from gisserver.geometries import CRS, BoundingBox
 from gisserver.parsers.fes20 import ValueReference
-from gisserver.queries import FeatureProjection, FeatureRelation
+from gisserver.projection import FeatureProjection, FeatureRelation
 from gisserver.types import GmlBoundedByElement, GmlElement, XsdElement, XsdNode, XsdTypes
 
 from .base import CollectionOutputRenderer

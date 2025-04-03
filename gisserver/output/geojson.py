@@ -12,7 +12,7 @@ from django.utils.functional import Promise
 from gisserver import conf
 from gisserver.db import get_db_geometry_target
 from gisserver.geometries import CRS
-from gisserver.queries import FeatureProjection
+from gisserver.projection import FeatureProjection
 from gisserver.types import XsdElement
 
 from .base import CollectionOutputRenderer

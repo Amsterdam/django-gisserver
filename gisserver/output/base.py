@@ -18,7 +18,8 @@ if typing.TYPE_CHECKING:
     from gisserver.features import FeatureType
     from gisserver.geometries import CRS
     from gisserver.operations.base import WFSMethod
-    from gisserver.queries import FeatureProjection, FeatureRelation, QueryExpression
+    from gisserver.projection import FeatureProjection, FeatureRelation
+    from gisserver.queries import QueryExpression
 
     from .results import FeatureCollection
 
