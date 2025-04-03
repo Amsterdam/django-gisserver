@@ -34,7 +34,7 @@ class XMLSchemaRenderer(OutputRenderer):
             for p in sorted({feature_type.xml_prefix for feature_type in self.feature_types})
         )
 
-        output = StringIO()
+        self.output = output = StringIO()
         output.write(
             f"""<?xml version='1.0' encoding="UTF-8" ?>
 <schema
@@ -50,7 +50,7 @@ class XMLSchemaRenderer(OutputRenderer):
         output.write("\n")
 
         for feature_type in self.feature_types:
-            output.write(self.render_feature_type(feature_type))
+            self.write_feature_type(feature_type)
 
         output.write("</schema>\n")
         return output.getvalue()
@@ -61,12 +61,11 @@ class XMLSchemaRenderer(OutputRenderer):
             ' schemaLocation="http://schemas.opengis.net/gml/3.2.1/gml.xsd" />\n'
         )
 
-    def render_feature_type(self, feature_type: FeatureType):
-        output = StringIO()
+    def write_feature_type(self, feature_type: FeatureType):
         xsd_type: XsdComplexType = feature_type.xsd_type
 
         # This declares the that a top-level <app:featureName> is a class of a type.
-        output.write(
+        self.output.write(
             f'  <element name="{feature_type.name}"'
             f' type="{xsd_type}" substitutionGroup="gml:AbstractFeature" />\n\n'
         )
@@ -74,29 +73,25 @@ class XMLSchemaRenderer(OutputRenderer):
         # Next, the complexType is rendered that defines the element contents.
         # Next, the complexType(s) are rendered that defines the element contents.
         # In case any fields are expanded (hence become subtypes), these are also included.
-        output.write(self.render_complex_type(xsd_type))
+        self.write_complex_type(xsd_type)
         for complex_type in self._get_complex_types(xsd_type):
-            output.write(self.render_complex_type(complex_type))
+            self.write_complex_type(complex_type)
 
-        return output.getvalue()
-
-    def render_complex_type(self, complex_type: XsdComplexType):
+    def write_complex_type(self, complex_type: XsdComplexType):
         """Write the definition of a single class."""
-        output = StringIO()
-        output.write(f'  <complexType name="{complex_type.name}">\n    <complexContent>\n')
+        self.output.write(f'  <complexType name="{complex_type.name}">\n    <complexContent>\n')
         if complex_type.base is not None:
-            output.write(f'      <extension base="{complex_type.base}">\n')
+            self.output.write(f'      <extension base="{complex_type.base}">\n')
 
-        output.write("        <sequence>\n")
+        self.output.write("        <sequence>\n")
 
         for xsd_element in complex_type.elements:
-            output.write(f"          {xsd_element}\n")
+            self.output.write(f"          {xsd_element}\n")
 
-        output.write("        </sequence>\n")
+        self.output.write("        </sequence>\n")
         if complex_type.base is not None:
-            output.write("      </extension>\n")
-        output.write("    </complexContent>\n  </complexType>\n\n")
-        return output.getvalue()
+            self.output.write("      </extension>\n")
+        self.output.write("    </complexContent>\n  </complexType>\n\n")
 
     def _get_complex_types(self, root: XsdComplexType) -> Iterable[XsdComplexType]:
         """Find all fields that reference to complex types, including nested elements."""
