@@ -308,6 +308,7 @@ class WFSView(GISView):
     max_page_size = conf.GISSERVER_DEFAULT_MAX_PAGE_SIZE
 
     #: Define the features (=tables) in this dataset.
+    #: For dynamic per-request logic, consider overwriting :meth:`get_feature_types` instead.
     feature_types: list[FeatureType] = []
 
     #: Internal configuration of all available RPC calls.
