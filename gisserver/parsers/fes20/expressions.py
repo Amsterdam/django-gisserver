@@ -33,7 +33,7 @@ from gisserver.parsers.gml import (
 )
 from gisserver.parsers.query import RhsTypes
 from gisserver.parsers.values import auto_cast
-from gisserver.parsers.xml import NSElement, get_attribute, xmlns
+from gisserver.parsers.xml import NSElement, xmlns
 from gisserver.types import ORMPath, XsdTypes, split_xml_name
 
 NoneType = type(None)
@@ -255,7 +255,7 @@ class Function(Expression):
     @expect_tag(xmlns.fes20, "Function")
     def from_xml(cls, element: NSElement):
         return cls(
-            name=get_attribute(element, "name"),
+            name=element.get_attribute("name"),
             arguments=[Expression.child_from_xml(child) for child in element],
         )
 

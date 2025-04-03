@@ -14,7 +14,7 @@ from gisserver import conf
 from gisserver.exceptions import ExternalValueError
 from gisserver.parsers.ast import BaseNode, expect_no_children, expect_tag, tag_registry
 from gisserver.parsers.values import auto_cast, parse_iso_datetime
-from gisserver.parsers.xml import get_attribute, xmlns
+from gisserver.parsers.xml import xmlns
 
 NoneType = type(None)
 
@@ -76,7 +76,7 @@ class ResourceId(Id):
             version = auto_cast(version)
 
         return cls(
-            rid=get_attribute(element, "rid"),
+            rid=element.get_attribute("rid"),
             version=version,
             startTime=parse_iso_datetime(startTime) if startTime else None,
             endTime=parse_iso_datetime(endTime) if endTime else None,

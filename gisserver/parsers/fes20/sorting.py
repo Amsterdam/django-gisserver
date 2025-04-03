@@ -6,7 +6,9 @@ from enum import Enum
 from gisserver.exceptions import InvalidParameterValue
 from gisserver.parsers.fes20 import ValueReference
 from gisserver.parsers.query import CompiledQuery
-from gisserver.parsers.xml import NSElement, get_child, split_ns
+from gisserver.parsers.xml import NSElement, split_ns, xmlns
+
+FES_SORT_ORDER = xmlns.fes20.qname("SortOrder")
 
 
 class SortOrder(Enum):
@@ -72,14 +74,13 @@ class SortBy:
         return cls(sort_properties=props)
 
     @classmethod
-    def from_xml(cls, elem: NSElement):
+    def from_xml(cls, element: NSElement):
         props = []
-        ns, _tag = split_ns(elem.tag)
-        for prop in elem:
-            valueref = get_child(prop, ns, "ValueReference")
-            sort_order = get_child(prop, ns, "SortOrder")
+        ns, _tag = split_ns(element.tag)
+        for prop in element:
+            sort_order = prop.find(FES_SORT_ORDER)
             sort_property = SortProperty(
-                value_reference=ValueReference(valueref.text),
+                value_reference=ValueReference.from_xml(prop[0]),
                 sort_order=(
                     SortOrder.from_string(sort_order.text)
                     if sort_order is not None
