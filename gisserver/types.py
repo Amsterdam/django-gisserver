@@ -45,7 +45,7 @@ from django.utils import dateparse
 
 from gisserver.compat import ArrayField, GeneratedField
 from gisserver.exceptions import ExternalParsingError, OperationProcessingFailed
-from gisserver.geometries import CRS, WGS84, BoundingBox  # noqa: F401 / backwards compatibility
+from gisserver.geometries import CRS, BoundingBox
 
 _unbounded = Literal["unbounded"]
 
