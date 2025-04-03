@@ -6,6 +6,7 @@ from gisserver.exceptions import InvalidParameterValue
 from gisserver.features import FeatureType
 from gisserver.output import FeatureCollection, SimpleFeatureCollection
 from gisserver.parsers import fes20
+from gisserver.parsers.query import CompiledQuery
 from gisserver.projection import FeatureProjection
 from gisserver.types import split_xml_name
 
@@ -136,7 +137,8 @@ class QueryExpression:
         # If defined, limit which fields will be queried.
         if self.property_names:
             for property_name in self.property_names:
-                compiler.add_property_name(property_name)
+                # Make sure any xpath [attr=value] lookups work.
+                property_name.build_rhs(compiler)
 
         if self.value_reference is not None:
             if feature_type.resolve_element(self.value_reference.xpath) is None:
@@ -148,7 +150,8 @@ class QueryExpression:
             # For GetPropertyValue, adjust the query so only that value is requested.
             # This makes sure XPath attribute selectors are already handled by the
             # database query, instead of being a presentation-layer handling.
-            field = compiler.add_value_reference(self.value_reference)
+            # This supports cases like: ``addresses/Address[street="Oxfordstrasse"]/number``
+            field = self.value_reference.build_rhs(compiler)
             queryset = compiler.filter_queryset(queryset, feature_type=feature_type)
             return queryset.values("pk", member=field)
         else:
@@ -176,7 +179,7 @@ class QueryExpression:
             self.projections[feature_type] = projection
             return projection
 
-    def compile_query(self, feature_type: FeatureType, using=None) -> fes20.CompiledQuery:
+    def compile_query(self, feature_type: FeatureType, using=None) -> CompiledQuery:
         """Define the compiled query that filters the queryset.
 
         Subclasses need to define this method, unless

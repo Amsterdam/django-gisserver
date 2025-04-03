@@ -18,7 +18,7 @@ from gisserver.parsers.fes20.operators import (
     BinaryComparisonOperator,
     MatchAction,
 )
-from gisserver.parsers.fes20.query import CompiledQuery
+from gisserver.parsers.query import CompiledQuery
 
 
 def test_fes10_add_sub():

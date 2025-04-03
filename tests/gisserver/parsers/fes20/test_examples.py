@@ -42,9 +42,9 @@ from gisserver.parsers.fes20.operators import (
     UnaryLogicOperator,
     UnaryLogicType,
 )
-from gisserver.parsers.fes20.query import CompiledQuery
 from gisserver.parsers.gml import geometries
 from gisserver.parsers.gml.geometries import GEOSGMLGeometry
+from gisserver.parsers.query import CompiledQuery
 from gisserver.types import XsdTypes
 
 

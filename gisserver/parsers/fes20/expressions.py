@@ -11,9 +11,8 @@ from decimal import Decimal as D
 from functools import cached_property
 from typing import Union
 
-from django.contrib.gis.geos import GEOSGeometry
 from django.db import models
-from django.db.models import Func, Q, Value
+from django.db.models import Q, Value
 from django.db.models.expressions import Combinable
 
 from gisserver.exceptions import ExternalParsingError
@@ -32,12 +31,12 @@ from gisserver.parsers.gml import (
     is_gml_element,
     parse_gml_node,
 )
+from gisserver.parsers.query import RhsTypes
 from gisserver.parsers.values import auto_cast
 from gisserver.parsers.xml import NSElement, get_attribute, xmlns
 from gisserver.types import ORMPath, XsdTypes, split_xml_name
 
 NoneType = type(None)
-RhsTypes = Union[Combinable, Func, Q, GEOSGeometry, bool, int, str, date, datetime, tuple]
 ParsedValue = Union[int, str, date, D, datetime, GM_Object, GM_Envelope, TM_Object, NoneType]
 
 OUTPUT_FIELDS = {

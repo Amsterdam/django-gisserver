@@ -14,6 +14,7 @@ from gisserver.features import FeatureType
 from gisserver.operations.base import Parameter
 from gisserver.output import FeatureCollection
 from gisserver.parsers import fes20
+from gisserver.parsers.query import CompiledQuery
 from gisserver.types import XsdTypes
 
 from .base import QueryExpression
@@ -199,8 +200,8 @@ class GetFeatureById(StoredQuery):
 
         return collection
 
-    def compile_query(self, feature_type: FeatureType, using=None) -> fes20.CompiledQuery:
+    def compile_query(self, feature_type: FeatureType, using=None) -> CompiledQuery:
         """Create the internal query object that will be applied to the queryset."""
-        compiler = fes20.CompiledQuery(feature_type=feature_type)
+        compiler = CompiledQuery(feature_type=feature_type)
         compiler.add_lookups(Q(pk=self.id), type_name=self.type_name)
         return compiler

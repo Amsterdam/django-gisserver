@@ -5,6 +5,7 @@ map to the GML implementations. These names are referenced by the FES spec.
 """
 
 from gisserver.parsers.ast import BaseNode
+from gisserver.parsers.query import CompiledQuery
 
 
 class AbstractGeometry(BaseNode):
@@ -13,7 +14,7 @@ class AbstractGeometry(BaseNode):
     <gml:AbstractGeometry> implements the ISO 19107 GM_Object.
     """
 
-    def build_rhs(self, compiler):
+    def build_rhs(self, compiler: CompiledQuery):
         # Allow the value to be used in a binary operator
         raise NotImplementedError()
 
