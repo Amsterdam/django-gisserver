@@ -1,19 +1,20 @@
+"""The intermediate query result used by the various ``build_...()`` methods."""
+
 from __future__ import annotations
 
 import operator
+from datetime import date, datetime
 from functools import reduce
+from typing import Union
 
-from django.contrib.gis.db.models.fields import BaseSpatialField
-from django.contrib.gis.db.models.lookups import DWithinLookup
+from django.contrib.gis.geos import GEOSGeometry
 from django.core.exceptions import FieldError
-from django.db import models
-from django.db.models import Q, QuerySet, lookups
-from django.db.models.expressions import Combinable
+from django.db.models import Q, QuerySet
+from django.db.models.expressions import Combinable, Func
 
-from gisserver.compat import ArrayField
 from gisserver.features import FeatureType
 
-from . import expressions, sorting
+RhsTypes = Union[Combinable, Func, Q, GEOSGeometry, bool, int, str, date, datetime, tuple]
 
 
 class CompiledQuery:
@@ -36,7 +37,12 @@ class CompiledQuery:
         typed_lookups: dict[str, list[Q]] | None = None,
         annotations: dict[str, Combinable | Q] | None = None,
     ):
-        """The init method is typically used only in unit tests."""
+        """
+        :param feature_type: The feature type this query uses.
+        :param using: The Django database alias.
+
+        The extra parameters of the init method ar typically used only in unit tests.
+        """
         self.feature_type = feature_type
         self.using = using
         self.lookups = lookups or []
@@ -83,29 +89,9 @@ class CompiledQuery:
             raise TypeError()
         self.extra_lookups.append(q_object)
 
-    def add_sort_by(self, sort_by: sorting.SortBy):
+    def add_ordering(self, ordering: list[str]):
         """Read the desired result ordering from a ``<fes:SortBy>`` element."""
-        self.ordering += sort_by.build_ordering(self.feature_type)
-
-    def add_value_reference(
-        self, value_reference: expressions.ValueReference
-    ) -> expressions.RhsTypes:
-        """Add a reference that should be returned by the query.
-
-        This includes the XPath expression to the query, in case that adds
-        extra lookups. The name (or alias) is returned that can be used in the
-         ``queryset.values()`` result. This is needed to support cases like
-        these in the future: ``addresses/Address[street="Oxfordstrasse"]/number``
-        """
-        # The actual limiting of fields happens inside the decorate_queryset() of the renderer.
-        return value_reference.build_rhs(self)
-
-    def add_property_name(self, property_name: expressions.ValueReference) -> expressions.RhsTypes:
-        """Define which field should be returned by the query."""
-        # Make sure any xpath [attr=value] lookups work.
-        # This will also validate the name because it resolves the ORM path.
-        # The actual limiting of fields happens inside the decorate_queryset() of the renderer.
-        return property_name.build_rhs(self)
+        self.ordering.extend(ordering)
 
     def apply_extra_lookups(self, comparison: Q) -> Q:
         """Combine stashed lookups with the provided Q object.
@@ -185,107 +171,3 @@ class CompiledQuery:
             )
         else:
             return NotImplemented
-
-
-@models.CharField.register_lookup
-@models.TextField.register_lookup
-@models.ForeignObject.register_lookup
-class FesLike(lookups.Lookup):
-    """Allow fieldname__fes_like=... lookups in querysets."""
-
-    lookup_name = "fes_like"
-
-    def as_sql(self, compiler, connection):
-        """Generate the required SQL."""
-        # lhs = "table"."field"
-        # rhs = %s
-        # lhs_params = []
-        # lhs_params = ["prep-value"]
-        lhs, lhs_params = self.process_lhs(compiler, connection)
-        rhs, rhs_params = self.process_rhs(compiler, connection)
-        return f"{lhs} LIKE {rhs}", lhs_params + rhs_params
-
-    def get_db_prep_lookup(self, value, connection):
-        """This expects that the right-hand-side already has wildcard characters."""
-        return "%s", [value]
-
-
-@models.Field.register_lookup
-@models.ForeignObject.register_lookup
-class FesNotEqual(lookups.Lookup):
-    """Allow fieldname__fes_notequal=... lookups in querysets."""
-
-    lookup_name = "fes_notequal"
-
-    def as_sql(self, compiler, connection):
-        """Generate the required SQL."""
-        lhs, lhs_params = self.process_lhs(compiler, connection)  # = (table.field, %s)
-        rhs, rhs_params = self.process_rhs(compiler, connection)  # = ("prep-value", [])
-        return f"{lhs} != {rhs}", (lhs_params + rhs_params)
-
-
-@BaseSpatialField.register_lookup
-class FesBeyondLookup(DWithinLookup):
-    """Based on the FES 2.0.3 corrigendum:
-
-    DWithin(A,B,d) = Distance(A,B) < d
-    Beyond(A,B,d) = Distance(A,B) > d
-
-    See: https://docs.opengeospatial.org/is/09-026r2/09-026r2.html#61
-    """
-
-    lookup_name = "fes_beyond"
-    sql_template = "NOT %(func)s(%(lhs)s, %(rhs)s, %(value)s)"
-
-    def get_rhs_op(self, connection, rhs):
-        # Allow the SQL $(func)s to be different from the ORM lookup name.
-        # This uses ST_DWithin() on PostGIS
-        return connection.ops.gis_operators["dwithin"]
-
-
-if ArrayField is not None:
-
-    class ArrayAnyMixin:
-        any_operators = {
-            "exact": "= ANY(%s)",
-            "ne": "!= ANY(%s)",
-            "gt": "< ANY(%s)",
-            "gte": "<= ANY(%s)",
-            "lt": "> ANY(%s)",
-            "lte": ">= ANY(%s)",
-        }
-
-        def as_sql(self, compiler, connection):
-            # For the ANY() comparison, the filter operands need to be reversed.
-            # So instead of "field < value", it becomes "value > ANY(field)
-            lhs_sql, lhs_params = self.process_lhs(compiler, connection)
-            rhs_sql, rhs_params = self.process_rhs(compiler, connection)
-            lhs_sql = self.get_rhs_op(connection, lhs_sql)
-            return f"{rhs_sql} {lhs_sql}", (rhs_params + lhs_params)
-
-        def get_rhs_op(self, connection, rhs):
-            return self.any_operators[self.lookup_name] % rhs
-
-    def _register_any_lookup(base: type[lookups.BuiltinLookup]):
-        """Register array lookups under a different name."""
-        cls = type(f"FesArrayAny{base.__name__}", (ArrayAnyMixin, base), {})
-        ArrayField.register_lookup(cls, lookup_name=f"fes_any{base.lookup_name}")
-
-    _register_any_lookup(lookups.Exact)
-    _register_any_lookup(lookups.Exact)
-    _register_any_lookup(lookups.GreaterThan)
-    _register_any_lookup(lookups.GreaterThanOrEqual)
-    _register_any_lookup(lookups.LessThan)
-    _register_any_lookup(lookups.LessThanOrEqual)
-
-    @ArrayField.register_lookup
-    class FesArrayAnyNotEqual(FesNotEqual):
-        """Inequality test for a single item in the array"""
-
-        lookup_name = "fes_anynotequal"
-
-        def as_sql(self, compiler, connection):
-            """Generate the required SQL."""
-            lhs, lhs_params = self.process_lhs(compiler, connection)
-            rhs, rhs_params = self.process_rhs(compiler, connection)
-            return f"{rhs} != ANY({lhs})", (rhs_params + lhs_params)

@@ -15,7 +15,6 @@ from typing import Protocol, Union
 from django.contrib.gis import measure
 from django.db.models import Q
 
-from gisserver.compat import ArrayField
 from gisserver.exceptions import ExternalParsingError, OperationProcessingFailed
 from gisserver.parsers import gml
 from gisserver.parsers.ast import (
@@ -25,11 +24,12 @@ from gisserver.parsers.ast import (
     expect_tag,
     tag_registry,
 )
+from gisserver.parsers.query import CompiledQuery, RhsTypes
 from gisserver.parsers.xml import NSElement, get_attribute, get_child, xmlns
 
-from .expressions import Expression, Literal, RhsTypes, ValueReference
+from .expressions import Expression, Literal, ValueReference
 from .identifiers import Id
-from .query import CompiledQuery
+from .lookups import ARRAY_LOOKUPS  # also registers the lookups.
 
 SpatialDescription = Union[gml.GM_Object, gml.GM_Envelope, ValueReference]
 TemporalOperand = Union[gml.TM_Object, ValueReference]
@@ -39,23 +39,6 @@ class HasBuildRhs(Protocol):
     """Define interface for any class that has ``build_rhs()``."""
 
     def build_rhs(self, compiler) -> RhsTypes: ...
-
-
-if ArrayField is not None:
-    # Comparisons with array fields go through a separate ORM lookup expression,
-    # so these can check whether ANY element matches in the array.
-    # This gives consistency between other repeated elements (e.g. M2M, reverse FK)
-    # where the whole object is returned when one of the sub-objects match.
-    ARRAY_LOOKUPS = {
-        "exact": "fes_anyexact",
-        "fes_notequal": "fes_anynotequal",
-        "lt": "fes_anylt",
-        "lte": "fes_anylte",
-        "gt": "fes_anygt",
-        "gte": "fes_anygte",
-    }
-else:
-    ARRAY_LOOKUPS = None
 
 
 class MatchAction(Enum):

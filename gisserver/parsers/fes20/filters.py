@@ -3,9 +3,10 @@ from __future__ import annotations
 from typing import AnyStr, Union
 
 from gisserver.parsers.ast import expect_tag, tag_registry
+from gisserver.parsers.query import CompiledQuery
 from gisserver.parsers.xml import NSElement, parse_xml_from_string, xmlns
 
-from . import expressions, identifiers, operators, query
+from . import expressions, identifiers, operators
 
 FilterPredicates = Union[expressions.Function, operators.Operator]
 
@@ -85,9 +86,9 @@ class Filter:
                 source=source,
             )
 
-    def compile_query(self, feature_type=None, using=None) -> query.CompiledQuery:
+    def compile_query(self, feature_type=None, using=None) -> CompiledQuery:
         """Collect the data to perform a Django ORM query."""
-        compiler = query.CompiledQuery(feature_type=feature_type, using=using)
+        compiler = CompiledQuery(feature_type=feature_type, using=using)
 
         # Function, Operator, IdList
         q_object = self.predicate.build_query(compiler)

@@ -19,6 +19,7 @@ from gisserver.features import FeatureType
 from gisserver.geometries import BoundingBox
 from gisserver.parsers import fes20
 from gisserver.parsers.fes20 import operators
+from gisserver.parsers.query import CompiledQuery
 
 from .base import QueryExpression
 
@@ -136,7 +137,7 @@ class AdhocQuery(QueryExpression):
     def get_type_names(self):
         return self.typeNames
 
-    def compile_query(self, feature_type: FeatureType, using=None) -> fes20.CompiledQuery:
+    def compile_query(self, feature_type: FeatureType, using=None) -> CompiledQuery:
         """Return our internal CompiledQuery object that can be applied to the queryset."""
         if self.filter:
             # Generate the internal query object from the <fes:Filter>
@@ -151,7 +152,7 @@ class AdhocQuery(QueryExpression):
         This is slightly more efficient than generating the fes Filter object
         from these KVP parameters (which could also be done within the request method).
         """
-        compiler = fes20.CompiledQuery(feature_type=feature_type, using=using)
+        compiler = CompiledQuery(feature_type=feature_type, using=using)
 
         if self.bbox:
             # Validate whether the provided SRID is supported.
@@ -180,6 +181,6 @@ class AdhocQuery(QueryExpression):
             self.resourceId.build_query(compiler=compiler)
 
         if self.sortBy:
-            compiler.add_sort_by(self.sortBy)
+            self.sortBy.build_ordering(compiler)
 
         return compiler

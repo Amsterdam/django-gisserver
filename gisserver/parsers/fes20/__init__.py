@@ -2,17 +2,16 @@ from __future__ import annotations
 
 from gisserver.exceptions import OperationParsingFailed
 
+from . import lookups  # noqa: F401 (need to register ORM lookups)
 from .expressions import ValueReference
 from .filters import Filter
 from .functions import function_registry
 from .identifiers import ResourceId
 from .operators import IdOperator
-from .query import CompiledQuery
 from .sorting import SortBy
 
 __all__ = [
     "Filter",
-    "CompiledQuery",
     "ValueReference",
     "ResourceId",
     "IdOperator",

@@ -1,6 +1,6 @@
 import pytest
 
-from gisserver.parsers.fes20.query import FesBeyondLookup  # noqa: F401
+from gisserver.parsers.fes20.lookups import FesBeyondLookup  # noqa: F401
 from tests.test_gisserver.models import Restaurant
 
 

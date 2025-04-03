@@ -1066,4 +1066,4 @@ class XPathMatch(ORMPath):
 
 if TYPE_CHECKING:
     from .features import FeatureType
-    from .parsers.fes20 import CompiledQuery
+    from .parsers.query import CompiledQuery
