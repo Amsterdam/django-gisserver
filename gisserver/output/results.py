@@ -20,7 +20,7 @@ from gisserver import conf
 from gisserver.features import FeatureType
 from gisserver.geometries import BoundingBox
 
-from .utils import ChunkedQuerySetIterator, CountingIterator
+from .iters import ChunkedQuerySetIterator, CountingIterator
 
 if typing.TYPE_CHECKING:
     from gisserver.queries import FeatureProjection, QueryExpression
