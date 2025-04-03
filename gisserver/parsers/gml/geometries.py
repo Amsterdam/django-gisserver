@@ -3,13 +3,18 @@
 Overview of GML 3.2 changes: https://mapserver.org/el/development/rfc/ms-rfc-105.html#rfc105
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass
 from xml.etree.ElementTree import tostring
 
 from django.contrib.gis.geos import GEOSGeometry
 
+from gisserver import conf
+from gisserver.exceptions import InvalidParameterValue
 from gisserver.geometries import CRS
 from gisserver.parsers.ast import tag_registry
+from gisserver.parsers.query import CompiledQuery
 from gisserver.parsers.xml import NSElement, xmlns
 
 from .base import AbstractGeometry, TM_Object
@@ -76,7 +81,17 @@ class GEOSGMLGeometry(AbstractGeometry):
     def json(self):
         return self.geos_data.json
 
-    def build_rhs(self, compiler):
+    def build_rhs(self, compiler: CompiledQuery):
+        # Perform final validation during the construction of the query.
+        if (
+            conf.GISSERVER_SUPPORTED_CRS_ONLY
+            and compiler.feature_type  # for unit tests
+            and self.srs not in compiler.feature_type.supported_crs
+        ):
+            raise InvalidParameterValue(
+                f"Feature '{compiler.feature_type.name}' does not support SRID {self.srs.srid}."
+            )
+
         return self.geos_data
 
 
