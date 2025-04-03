@@ -392,7 +392,9 @@ class ComplexFeatureField(FeatureField):
     @cached_property
     def fields(self) -> list[FeatureField]:
         """Provide all fields that will be rendered as part of this complex field."""
-        return _get_model_fields(self.target_model, self._fields, parent=self)
+        return _get_model_fields(
+            self.target_model, self._fields, parent=self, feature_type=self.feature_type
+        )
 
     def _get_xsd_type(self) -> XsdComplexType:
         """Generate the XSD description for the field with an object relation."""
