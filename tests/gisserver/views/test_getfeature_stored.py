@@ -1,6 +1,5 @@
 from xml.etree.ElementTree import QName
 
-import django
 import pytest
 
 from tests.requests import Get, Post, parametrize_response
@@ -111,12 +110,7 @@ class TestGetFeature:
         assert exception.attrib["exceptionCode"] == "InvalidParameterValue"
 
         message = exception.find("ows:ExceptionText", NAMESPACES).text
-        expect = (
-            "Invalid ID value: Field 'id' expected a number but got 'ABC'."
-            if django.VERSION >= (3, 0)
-            else "Invalid ID value: invalid literal for int() with base 10: 'ABC'"
-        )
-        assert message == expect
+        assert message == "Invalid ID value: Field 'id' expected a number but got 'ABC'."
 
     @parametrize_response(
         Get(
