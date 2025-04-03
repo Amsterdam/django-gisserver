@@ -85,6 +85,30 @@ SECRET_KEY = env.str(
     "SECRET_KEY", default="django-insecure-_=n*h+nd3ty@7)w#1kn_8ohdge3be*v19#wvv-h)@5_sam)$6b"
 )
 
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": True,
+    "handlers": {
+        "console": {
+            "level": "DEBUG",
+            "class": "logging.StreamHandler",
+        },
+    },
+    "root": {
+        "level": "DEBUG",
+        "handlers": ["console"],
+    },
+    "loggers": {
+        "django.db": {
+            "handlers": ["console"],
+            "level": "DEBUG" if DEBUG else "INFO",
+            "propagate": False,
+        },
+        "django.utils.autoreload": {"handlers": ["console"], "level": "INFO", "propagate": False},
+        "gisserver": {"handlers": ["console"], "level": "DEBUG", "propagate": False},
+    },
+}
+
 
 # -- Internationalization
 
