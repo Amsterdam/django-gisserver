@@ -15,7 +15,7 @@ from gisserver.geometries import CRS
 from gisserver.queries import FeatureProjection
 from gisserver.types import XsdElement
 
-from .base import OutputRenderer
+from .base import CollectionOutputRenderer
 
 
 def _json_default(obj):
@@ -25,7 +25,7 @@ def _json_default(obj):
     raise TypeError(f"Unable to serialize {obj.__class__.__name__} to JSON")
 
 
-class GeoJsonRenderer(OutputRenderer):
+class GeoJsonRenderer(CollectionOutputRenderer):
     """Fast GeoJSON renderer, using a stream response.
 
     The complex encoding bits are handled by the C-library "orjson"

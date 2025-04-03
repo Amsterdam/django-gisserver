@@ -6,7 +6,7 @@ from django.utils.functional import classproperty
 
 from gisserver import conf
 
-from .base import OutputRenderer
+from .base import CollectionOutputRenderer, OutputRenderer
 from .csv import CSVRenderer, DBCSVRenderer
 from .geojson import DBGeoJsonRenderer, GeoJsonRenderer
 from .gml32 import (
@@ -19,6 +19,7 @@ from .xmlschema import XMLSchemaRenderer
 
 __all__ = [
     "OutputRenderer",
+    "CollectionOutputRenderer",
     "FeatureCollection",
     "SimpleFeatureCollection",
     "DBCSVRenderer",
