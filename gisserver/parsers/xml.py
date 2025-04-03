@@ -51,7 +51,7 @@ class xmlns(Enum):
 
     def qname(self, local_name) -> str:
         """Convert the tag name into a fully qualified name."""
-        return QName(self.value, local_name).text
+        return f"{{{self.value}}}{local_name}"  # same as QName(..).text
 
 
 class NSElement(Element):
@@ -65,31 +65,44 @@ class NSElement(Element):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.ns_aliases = {}
+        self.ns_aliases = {}  # assigned by NSTreeBuilder, in {prefix: uri} format.
 
-    def to_qname(self, qname: str) -> str:
+    def parse_qname(self, qname: str) -> str:
         """Resolve an aliased QName value to its fully qualified name."""
         return parse_qname(qname, self.ns_aliases)
 
 
-def parse_qname(qname: str, ns_aliases: dict) -> str:
-    """Resolve the namespace aliases.
+def parse_qname(qname: str | None, ns_aliases: dict) -> str | None:
+    """Resolve the QName aliases.
 
     For example, ``gml:Point`` will be resolved to ``{http://www.opengis.net/gml/3.2}Point``.
     The XML namespace prefix is a custom alias, so if "ns0" is declared as "http://www.opengis.net/gml/3.2",
     it means "ns0:Point" should resolve to the same fully qualified type name.
     """
-    prefix, _, localname = qname.partition(":")
-    if not localname:
-        return prefix  # no namespace, prefix actually is localname here
+    if not qname:
+        return None
+
+    if "/" in qname:
+        raise ExternalParsingError(f"Can't resolve QName '{qname}', this is an XPath notation.")
+
+    # Allow resolving @gml:id, remove the @ sigm.
+    is_attribute = qname[0] == "@"
+    if is_attribute:
+        qname = qname[1:]
+
+    prefix, _, localname = qname.rpartition(":")
+    if not prefix and "" not in ns_aliases:
+        full_name = localname
     else:
         try:
             uri = ns_aliases[prefix]
         except KeyError:
             raise ExternalParsingError(
-                f"Can't resolve {qname}, an XML namespace declaration is missing."
+                f"Can't resolve QName '{qname}', an XML namespace declaration is missing."
             ) from None
-        return QName(uri, localname).text
+        full_name = QName(uri, localname).text
+
+    return f"@{full_name}" if is_attribute else full_name
 
 
 class NSTreeBuilder(TreeBuilder):
@@ -101,15 +114,15 @@ class NSTreeBuilder(TreeBuilder):
 
     def start(self, tag, attrs):
         super().start(tag, attrs)
-        self.ns_stack.append({})
+        self.ns_stack.append({})  # reserve stack for child tags
 
     def start_ns(self, prefix, uri):
         self.ns_stack[-1][prefix] = uri
 
     def end(self, tag) -> Element:
         element = super().end(tag)
+        self.ns_stack.pop()  # clear reservation for child tags
         element.ns_aliases = self._flatten_ns()
-        self.ns_stack.pop()
         return element
 
     def _flatten_ns(self) -> dict:
