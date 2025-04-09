@@ -47,6 +47,8 @@ from gisserver.parsers.gml.geometries import GEOSGMLGeometry
 from gisserver.parsers.query import CompiledQuery
 from gisserver.types import XsdTypes
 
+from .utils import compile_query
+
 
 def test_fes20_c5_example1():
     """A simple non-spatial filter checking to see if SomeProperty is equal to 100."""
@@ -75,8 +77,10 @@ def test_fes20_c5_example1():
     assert result == expected, f"result={result!r}"
 
     # Test SQL generating
-    query = result.compile_query()
-    assert query == CompiledQuery(lookups=[Q(SomeProperty__exact=100)]), repr(query)
+    query = compile_query(result)
+    assert query == CompiledQuery(query.feature_type, lookups=[Q(SomeProperty__exact=100)]), repr(
+        query
+    )
 
 
 def test_fes20_c5_example2():
@@ -106,8 +110,11 @@ def test_fes20_c5_example2():
     assert result == expected, f"result={result!r}"
 
     # Test SQL generating
-    query = result.compile_query()
-    assert query == CompiledQuery(lookups=[Q(DEPTH__lt=30)]), repr(query)
+    query = compile_query(result)
+    assert query == CompiledQuery(
+        query.feature_type,
+        lookups=[Q(DEPTH__lt=30)],
+    ), repr(query)
 
 
 def test_fes20_c5_example3():
@@ -158,8 +165,9 @@ def test_fes20_c5_example3():
     assert result == expected, f"result={result!r}"
 
     # Test SQL generating
-    query = result.compile_query()
+    query = compile_query(result)
     assert query == CompiledQuery(
+        query.feature_type,
         lookups=[
             ~Q(
                 Geometry__disjoint=GEOSGeometry(
@@ -168,7 +176,7 @@ def test_fes20_c5_example3():
                     srid=4326,
                 )
             )
-        ]
+        ],
     ), repr(query)
 
 
@@ -210,8 +218,9 @@ def test_fes20_c5_example3_b():
     assert result == expected, f"result={result!r}"
 
     # Test SQL generating
-    query = result.compile_query()
+    query = compile_query(result)
     assert query == CompiledQuery(
+        query.feature_type,
         lookups=[
             Q(
                 Geometry__intersects=GEOSGeometry(
@@ -220,7 +229,7 @@ def test_fes20_c5_example3_b():
                     srid=4326,
                 )
             )
-        ]
+        ],
     ), repr(query)
 
 
@@ -291,8 +300,9 @@ def test_fes20_c5_example4():
     assert result == expected, f"result={result!r}"
 
     # Test SQL generating
-    query = result.compile_query()
+    query = compile_query(result)
     assert query == CompiledQuery(
+        query.feature_type,
         lookups=[
             Q(DEPTH__lt=30)
             & ~Q(
@@ -302,7 +312,7 @@ def test_fes20_c5_example4():
                     srid=4326,
                 )
             )
-        ]
+        ],
     ), repr(query)
 
 
@@ -345,13 +355,14 @@ def test_fes20_c5_example5():
     assert result == expected, f"result={result!r}"
 
     # Test SQL generating
-    query = result.compile_query()
+    query = compile_query(result)
     assert query == CompiledQuery(
+        query.feature_type,
         typed_lookups={
             "BUILTUPA_1M": [Q(pk="4321")],
             "INWATERA_1M": [Q(pk="3456") | Q(pk="7890")],
             "TREESA_1M": [Q(pk="1234") | Q(pk="5678") | Q(pk="9012")],
-        }
+        },
     ), repr(query)
 
 
@@ -401,9 +412,11 @@ def test_fes20_c5_example6():
     assert result == expected, f"result={result!r}"
 
     # Test SQL generating
-    query = result.compile_query()
+    query = compile_query(result)
     assert query == CompiledQuery(
-        annotations={"a1": Sin(F("DISPERSION_ANGLE"))}, lookups=[Q(a1__exact=1)]
+        query.feature_type,
+        annotations={"a1": Sin(F("DISPERSION_ANGLE"))},
+        lookups=[Q(a1__exact=1)],
     ), repr(query)
 
 
@@ -457,10 +470,12 @@ def test_fes20_c5_example7():
 
     # Test SQL generating
     # Testing against repr() because CombinedExpression / Value doesn't do __eq__ testing.
-    query = result.compile_query()
-    assert repr(query) == repr(CompiledQuery(lookups=[Q(PROPA__exact=F("PROPB") + 100)])), repr(
-        query
+    query = compile_query(result)
+    expect = CompiledQuery(
+        query.feature_type,
+        lookups=[Q(PROPA__exact=F("PROPB") + 100)],
     )
+    assert repr(query) == repr(expect), repr(query)
 
 
 def test_fes20_c5_example8():
@@ -494,8 +509,11 @@ def test_fes20_c5_example8():
     assert result == expected, f"result={result!r}"
 
     # Test SQL generating
-    query = result.compile_query()
-    assert query == CompiledQuery(lookups=[Q(DEPTH__range=(100, 200))]), repr(query)
+    query = compile_query(result)
+    assert query == CompiledQuery(
+        query.feature_type,
+        lookups=[Q(DEPTH__range=(100, 200))],
+    ), repr(query)
 
 
 def test_fes20_c5_example9():
@@ -530,8 +548,9 @@ def test_fes20_c5_example9():
     assert result == expected, f"result={result!r}"
 
     # Test SQL generating
-    query = result.compile_query()
+    query = compile_query(result)
     assert query == CompiledQuery(
+        query.feature_type,
         lookups=[
             Q(
                 SAMPLE_DATE__range=(
@@ -539,7 +558,7 @@ def test_fes20_c5_example9():
                     datetime(2001, 3, 6, 12, 0),  # noqa: DTZ001
                 )
             )
-        ]
+        ],
     ), repr(query)
 
 
@@ -575,8 +594,10 @@ def test_fes20_c5_example10():
     assert result == expected, f"result={result!r}"
 
     # Test SQL generating
-    query = result.compile_query()
-    assert query == CompiledQuery(lookups=[Q(LAST_NAME__fes_like="JOHN%")]), repr(query)
+    query = compile_query(result)
+    assert query == CompiledQuery(
+        query.feature_type, lookups=[Q(LAST_NAME__fes_like="JOHN%")]
+    ), repr(query)
 
 
 def test_fes20_c5_example11():
@@ -618,15 +639,16 @@ def test_fes20_c5_example11():
     assert result == expected, f"result={result!r}"
 
     # Test SQL generating
-    query = result.compile_query()
+    query = compile_query(result)
     assert query == CompiledQuery(
+        query.feature_type,
         lookups=[
             Q(
                 Geometry__overlaps=GEOSGeometry(
                     "POLYGON ((10 10, 20 20, 30 30, 40 40, 10 10))", srid=4326
                 )
             )
-        ]
+        ],
     ), repr(query)
 
 
@@ -672,15 +694,16 @@ def test_fes20_c5_example11_b():
     assert result == expected, f"result={result!r}"
 
     # Test SQL generating
-    query = result.compile_query()
+    query = compile_query(result)
     assert query == CompiledQuery(
+        query.feature_type,
         lookups=[
             Q(
                 Geometry__overlaps=GEOSGeometry(
                     "POLYGON ((10 10, 20 20, 30 30, 40 40, 10 10))", srid=4326
                 )
             )
-        ]
+        ],
     ), repr(query)
 
 
@@ -757,9 +780,10 @@ def test_fes20_c5_example12():
     assert result == expected, f"result={result!r}"
 
     # Test SQL generating
-    query = result.compile_query()
+    query = compile_query(result)
     assert query == CompiledQuery(
-        lookups=[(Q(FIELD1__exact=10) | Q(FIELD1__exact=20)) & Q(STATUS__exact="VALID")]
+        query.feature_type,
+        lookups=[(Q(FIELD1__exact=10) | Q(FIELD1__exact=20)) & Q(STATUS__exact="VALID")],
     ), repr(query)
 
 
@@ -831,8 +855,9 @@ def test_fes20_c5_example13():
     assert result == expected, f"result={result!r}"
 
     # Test SQL generating
-    query = result.compile_query()
+    query = compile_query(result)
     assert query == CompiledQuery(
+        query.feature_type,
         lookups=[
             Q(
                 WKB_GEOM__within=GEOSGeometry(
@@ -840,7 +865,7 @@ def test_fes20_c5_example13():
                 )
             )
             & Q(DEPTH__range=(400, 800))
-        ]
+        ],
     ), repr(query)
 
 
@@ -897,9 +922,10 @@ def test_fes20_c5_example14():
     assert result == expected, f"result={result!r}"
 
     # Test SQL generating
-    query = result.compile_query()
+    query = compile_query(result)
     assert query == CompiledQuery(
-        lookups=[Q(Person__age__gt=50) & Q(Person__mailAddress__Address__city__exact="Toronto")]
+        query.feature_type,
+        lookups=[Q(Person__age__gt=50) & Q(Person__mailAddress__Address__city__exact="Toronto")],
     ), repr(query)
 
 
@@ -939,8 +965,9 @@ def test_fes20_c5_example15():
     assert result == expected, f"result={result!r}"
 
     # Test SQL generating
-    query = result.compile_query()
+    query = compile_query(result)
     assert query == CompiledQuery(
+        query.feature_type,
         lookups=[
             Q(
                 geometry__dwithin=(
@@ -948,7 +975,7 @@ def test_fes20_c5_example15():
                     measure.Distance(m=10.0),
                 )
             )
-        ]
+        ],
     ), repr(query)
 
 
@@ -993,8 +1020,9 @@ def test_fes20_c7_example1():
     assert result == expected, f"result={result!r}"
 
     # Test SQL generating
-    query = result.compile_query()
+    query = compile_query(result)
     assert query == CompiledQuery(
+        query.feature_type,
         lookups=[
             Q(
                 geometry__dwithin=(
@@ -1002,7 +1030,7 @@ def test_fes20_c7_example1():
                     measure.Distance(m=10),
                 )
             )
-        ]
+        ],
     ), repr(query)
 
 

@@ -31,20 +31,17 @@ class CompiledQuery:
 
     def __init__(
         self,
-        feature_type: FeatureType | None = None,
-        using: str | None = None,
+        feature_type: FeatureType,
         lookups: list[Q] | None = None,
         typed_lookups: dict[str, list[Q]] | None = None,
         annotations: dict[str, Combinable | Q] | None = None,
     ):
         """
         :param feature_type: The feature type this query uses.
-        :param using: The Django database alias.
 
         The extra parameters of the init method ar typically used only in unit tests.
         """
         self.feature_type = feature_type
-        self.using = using
         self.lookups = lookups or []
         self.typed_lookups = typed_lookups or {}
         self.annotations = annotations or {}
@@ -114,12 +111,13 @@ class CompiledQuery:
         """Mark as returning no results."""
         self.is_empty = True
 
-    def filter_queryset(self, queryset: QuerySet, feature_type: FeatureType) -> QuerySet:
+    def get_queryset(self) -> QuerySet:
         """Apply the filters and lookups to the queryset.
 
         :param queryset: The queryset to filter.
         :param feature_type: The feature type that the queryset originated from.
         """
+        queryset = self.feature_type.get_queryset()
         if self.is_empty:
             return queryset.none()
 
@@ -134,7 +132,7 @@ class CompiledQuery:
 
         lookups = self.lookups
         try:
-            lookups += self.typed_lookups[feature_type.name]
+            lookups += self.typed_lookups[self.feature_type.name]
         except KeyError:
             pass
 

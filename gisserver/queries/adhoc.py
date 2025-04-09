@@ -137,23 +137,27 @@ class AdhocQuery(QueryExpression):
     def get_type_names(self):
         return self.typeNames
 
-    def compile_query(self, feature_type: FeatureType, using=None) -> CompiledQuery:
+    def build_query(self, compiler: CompiledQuery) -> Q | None:
         """Return our internal CompiledQuery object that can be applied to the queryset."""
+        # Add the
+        if self.sortBy is not None:
+            self.sortBy.build_ordering(compiler)
+
         if self.filter:
-            # Generate the internal query object from the <fes:Filter>
-            return self.filter.compile_query(feature_type, using=using)
+            # Generate the internal query object from the <fes:Filter>,
+            # this can return a Q object.
+            return self.filter.build_query(compiler)
         else:
             # Generate the internal query object from the BBOX and sortBy args.
-            return self._compile_non_filter_query(feature_type, using=using)
+            self._compile_non_filter_query(compiler)
+            return None
 
-    def _compile_non_filter_query(self, feature_type: FeatureType, using=None):
+    def _compile_non_filter_query(self, compiler: CompiledQuery):
         """Generate the query based on the remaining parameters.
 
         This is slightly more efficient than generating the fes Filter object
         from these KVP parameters (which could also be done within the request method).
         """
-        compiler = CompiledQuery(feature_type=feature_type, using=using)
-
         if self.bbox:
             # Validate whether the provided SRID is supported.
             # While PostGIS would support many more ID's,
@@ -162,25 +166,20 @@ class AdhocQuery(QueryExpression):
             if (
                 conf.GISSERVER_SUPPORTED_CRS_ONLY
                 and crs is not None
-                and crs not in feature_type.supported_crs
+                and crs not in compiler.feature_type.supported_crs
             ):
                 raise InvalidParameterValue(
                     "bbox",
-                    f"Feature '{feature_type.name}' does not support SRID {crs.srid}.",
+                    f"Feature '{compiler.feature_type.name}' does not support SRID {crs.srid}.",
                 )
 
             # Using __within does not work with geometries
             # that only partially exist within the bbox
             lookup = operators.SpatialOperatorName.BBOX.value  # "intersects"
             filters = {
-                f"{feature_type.main_geometry_element.orm_path}__{lookup}": self.bbox.as_polygon(),
+                f"{compiler.feature_type.main_geometry_element.orm_path}__{lookup}": self.bbox.as_polygon(),
             }
             compiler.add_lookups(Q(**filters))
 
         if self.resourceId:
             self.resourceId.build_query(compiler=compiler)
-
-        if self.sortBy:
-            self.sortBy.build_ordering(compiler)
-
-        return compiler

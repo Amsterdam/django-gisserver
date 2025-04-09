@@ -20,6 +20,8 @@ from gisserver.parsers.fes20.operators import (
 )
 from gisserver.parsers.query import CompiledQuery
 
+from .utils import compile_query
+
 
 def test_fes10_add_sub():
     """A simple non-spatial filter checking to see if SomeProperty is equal to 100."""
@@ -68,9 +70,10 @@ def test_fes10_add_sub():
     assert result == expected, f"result={result!r}"
 
     # Test SQL generating
-    query = result.compile_query()
+    query = compile_query(result)
     integer_field = models.IntegerField()
     assert query == CompiledQuery(
+        query.feature_type,
         lookups=[
             Q(
                 SomeProperty__exact=(
@@ -79,7 +82,7 @@ def test_fes10_add_sub():
                     + Value(200, output_field=integer_field)
                 )
             )
-        ]
+        ],
     ), repr(query)
 
 
