@@ -11,7 +11,7 @@ from enum import Enum
 from django.db.models import Q
 
 from gisserver import conf
-from gisserver.exceptions import ExternalValueError
+from gisserver.exceptions import ExternalValueError, InvalidParameterValue
 from gisserver.parsers.ast import BaseNode, expect_no_children, expect_tag, tag_registry
 from gisserver.parsers.values import auto_cast, parse_iso_datetime
 from gisserver.parsers.xml import xmlns
@@ -34,8 +34,8 @@ class Id(BaseNode):
 
     xml_ns = xmlns.fes20
 
-    #: Tell which the type this ID belongs to, needs to be overwritten.
-    type_name = ...  # need to be defined by subclass!
+    def get_type_name(self):
+        raise NotImplementedError()
 
     def build_query(self, compiler) -> Q:
         raise NotImplementedError()
@@ -53,16 +53,12 @@ class ResourceId(Id):
     startTime: datetime | None = None
     endTime: datetime | None = None
 
-    def __post_init__(self):
-        try:
-            self.type_name, self.id = self.rid.rsplit(".", 1)
-        except ValueError:
-            if conf.GISSERVER_WFS_STRICT_STANDARD:
-                raise ExternalValueError("Expected typename.id format") from None
+    def get_type_name(self):
+        return self.rid.rpartition(".")[0]
 
-            # This should end in a 404 instead.
-            self.type_name = None
-            self.id = None
+    def __post_init__(self):
+        if conf.GISSERVER_WFS_STRICT_STANDARD and "." not in self.rid:
+            raise ExternalValueError("Expected typename.id format") from None
 
     @classmethod
     @expect_tag(xmlns.fes20, "ResourceId")
@@ -82,17 +78,22 @@ class ResourceId(Id):
             endTime=parse_iso_datetime(endTime) if endTime else None,
         )
 
-    def build_query(self, compiler=None) -> Q:
+    def build_query(self, compiler) -> Q:
         """Render the SQL filter"""
         if self.startTime or self.endTime or self.version:
             raise NotImplementedError(
                 "No support for <fes:ResourceId> startTime/endTime/version attributes"
             )
 
-        lookup = Q(pk=self.id or self.rid)
-        if compiler is not None:
-            # When the
-            # NOTE: type_name is currently read by the IdOperator that contains this object,
-            # This code path only happens for stand-alone KVP invocation.
-            compiler.add_lookups(lookup, type_name=self.type_name)
-        return lookup
+        object_id = self.rid.rpartition(".")[2]
+
+        try:
+            # The 'ID' parameter is typed as string, but here we can check
+            # whether the database model needs an integer instead.
+            compiler.feature_type.model._meta.pk.get_prep_value(object_id)
+        except (TypeError, ValueError) as e:
+            raise InvalidParameterValue(
+                f"Invalid resourceId value: {e}", locator="resourceId"
+            ) from e
+
+        return Q(pk=object_id)

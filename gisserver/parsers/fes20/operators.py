@@ -198,7 +198,7 @@ class IdOperator(Operator):
         ids = sorted(self.id, key=operator.attrgetter("rid"))
         return {
             type_name: list(items)
-            for type_name, items in groupby(ids, key=operator.attrgetter("type_name"))
+            for type_name, items in groupby(ids, key=lambda id: id.get_type_name())
         }
 
     def build_query(self, compiler):
@@ -214,7 +214,7 @@ class IdOperator(Operator):
             return
 
         for type_name, items in self.grouped_ids.items():
-            ids_subset = reduce(operator.or_, [id.build_query(compiler=None) for id in items])
+            ids_subset = reduce(operator.or_, [id.build_query(compiler) for id in items])
             compiler.add_lookups(ids_subset, type_name=type_name)
 
 

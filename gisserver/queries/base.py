@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from django.db.models import QuerySet
+from django.db.models import Q, QuerySet
 
 from gisserver.exceptions import InvalidParameterValue
 from gisserver.features import FeatureType
@@ -23,7 +23,7 @@ class QueryExpression:
     The subclasses can override the following logic:
 
     * :meth:`get_type_names` defines which types this query applies to.
-    * :meth:`compile_query` defines how to filter the queryset.
+    * :meth:`build_query` defines how to filter the queryset.
 
     For full control, these methods can also be overwritten instead:
 
@@ -81,7 +81,7 @@ class QueryExpression:
         """Run the query, return the number of hits only.
 
         Override this method in case you need full control over the response data.
-        Otherwise, override :meth:`compile_query` or :meth:`get_queryset`.
+        Otherwise, override :meth:`build_query` or :meth:`get_queryset`.
         """
         results = []
         number_matched = 0
@@ -103,7 +103,7 @@ class QueryExpression:
         """Run the query, return the full paginated results.
 
         Override this method in case you need full control over the response data.
-        Otherwise, override :meth:`compile_query` or :meth:`get_queryset`.
+        Otherwise, override :meth:`build_query` or :meth:`get_queryset`.
         """
         stop = start_index + count
         results = [
@@ -129,10 +129,13 @@ class QueryExpression:
         This method can be overwritten in subclasses to define the returned data.
         However, consider overwriting :meth:`compile_query` instead of simple data.
         """
-        queryset = feature_type.get_queryset()
-
-        # Apply filters
-        compiler = self.compile_query(feature_type, using=queryset.db)
+        # To apply the filters, an internal CompiledQuery object is created.
+        # This collects all steps, to create the final QuerySet object.
+        # The build_query() method may return an Q object, or fill the compiler itself.
+        compiler = CompiledQuery(feature_type)
+        q_object = self.build_query(compiler)
+        if q_object is not None:
+            compiler.add_lookups(q_object)
 
         # If defined, limit which fields will be queried.
         if self.property_names:
@@ -152,10 +155,11 @@ class QueryExpression:
             # database query, instead of being a presentation-layer handling.
             # This supports cases like: ``addresses/Address[street="Oxfordstrasse"]/number``
             field = self.value_reference.build_rhs(compiler)
-            queryset = compiler.filter_queryset(queryset, feature_type=feature_type)
+
+            queryset = compiler.get_queryset()
             return queryset.values("pk", member=field)
         else:
-            return compiler.filter_queryset(queryset, feature_type=feature_type)
+            return compiler.get_queryset()
 
     def get_type_names(self) -> list[FeatureType]:
         """Tell which type names this query applies to.
@@ -179,10 +183,6 @@ class QueryExpression:
             self.projections[feature_type] = projection
             return projection
 
-    def compile_query(self, feature_type: FeatureType, using=None) -> CompiledQuery:
-        """Define the compiled query that filters the queryset.
-
-        Subclasses need to define this method, unless
-        :meth:`get_queryset` is completely overwritten.
-        """
+    def build_query(self, compiler: CompiledQuery) -> Q | None:
+        """Define the compiled query that filters the queryset."""
         raise NotImplementedError()

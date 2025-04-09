@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import AnyStr, Union
 
+from django.db.models import Q
+
 from gisserver.parsers.ast import expect_tag, tag_registry
 from gisserver.parsers.query import CompiledQuery
 from gisserver.parsers.xml import NSElement, parse_xml_from_string, xmlns
@@ -22,7 +24,7 @@ class Filter:
             </fes:SomeOperator>
         </fes:Filter>
 
-    The :meth:`compile_query` will convert the parsed tree
+    The :meth:`build_query` will convert the parsed tree
     into a format that can build a Django ORM QuerySet.
     """
 
@@ -86,16 +88,12 @@ class Filter:
                 source=source,
             )
 
-    def compile_query(self, feature_type=None, using=None) -> CompiledQuery:
+    def build_query(self, compiler: CompiledQuery) -> Q | None:
         """Collect the data to perform a Django ORM query."""
-        compiler = CompiledQuery(feature_type=feature_type, using=using)
 
         # Function, Operator, IdList
-        q_object = self.predicate.build_query(compiler)
-        if q_object is not None:
-            compiler.add_lookups(q_object)
-
-        return compiler
+        # The operators may add the logic themselves, or return a Q object.
+        return self.predicate.build_query(compiler)
 
     def __repr__(self):
         return f"Filter(predicate={self.predicate!r}, source={self.source})"

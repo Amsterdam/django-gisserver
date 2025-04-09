@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from django.db.models import Q, QuerySet
+from django.db.models import Q
 
 from gisserver.exceptions import InvalidParameterValue, MissingParameterValue, NotFound
 from gisserver.features import FeatureType
@@ -166,27 +166,26 @@ class GetFeatureById(StoredQuery):
     """
 
     def __init__(self, ID):
-        super().__init__(ID=ID)
-        try:
-            type_name, id = ID.rsplit(".", 1)
-        except ValueError:
+        """Initialize the query with the request parameters."""
+        if "." not in ID:
             # Always report this as 404
             raise NotFound("Expected typeName.id for ID parameter", locator="ID") from None
 
-        self.type_name = type_name
-        self.id = id
+        # GetFeatureById is essentially a ResourceId lookup, reuse that logic here.
+        self.resource_id = fes20.ResourceId(rid=ID)
 
     def get_type_names(self) -> list[FeatureType]:
         """Tell which type names this query applies to."""
-        feature_type = self.all_feature_types[self.type_name]
+        type_name = self.resource_id.get_type_name()
+        feature_type = self.all_feature_types[type_name]
         return [feature_type]
 
-    def get_queryset(self, feature_type: FeatureType) -> QuerySet:
-        """Override to implement ID type checking."""
+    def build_query(self, compiler: CompiledQuery) -> Q:
+        """Contribute our filter expression to the internal query."""
         try:
-            return super().get_queryset(feature_type)
-        except (ValueError, TypeError) as e:
-            raise InvalidParameterValue(f"Invalid ID value: {e}", locator="ID") from e
+            return self.resource_id.build_query(compiler)
+        except InvalidParameterValue as e:
+            raise InvalidParameterValue(f"Invalid ID value: {e.__cause__}", locator="ID") from e
 
     def get_results(self, *args, **kwargs) -> FeatureCollection:
         """Override to implement 404 checking."""
@@ -196,12 +195,6 @@ class GetFeatureById(StoredQuery):
         # Avoid having to do that in the output renderer.
         if collection.results[0].first() is None:
             # WFS 2.0.2: Return NotFound instead of InvalidParameterValue
-            raise NotFound(f"Feature not found with ID {self.id}.", locator="ID")
+            raise NotFound(f"Feature not found with ID {self.resource_id.rid}.", locator="ID")
 
         return collection
-
-    def compile_query(self, feature_type: FeatureType, using=None) -> CompiledQuery:
-        """Create the internal query object that will be applied to the queryset."""
-        compiler = CompiledQuery(feature_type=feature_type)
-        compiler.add_lookups(Q(pk=self.id), type_name=self.type_name)
-        return compiler

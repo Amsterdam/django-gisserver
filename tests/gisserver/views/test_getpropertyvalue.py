@@ -639,7 +639,7 @@ class TestGetPropertyValue:
         assert exception.attrib["exceptionCode"] == "NotFound"
 
         message = exception.find("ows:ExceptionText", NAMESPACES).text
-        assert message == "Feature not found with ID 0."
+        assert message == "Feature not found with ID restaurant.0."
 
 
 def _assert_filter(response, expect="Café Noir"):
