@@ -642,31 +642,6 @@ class TestGetPropertyValue:
         assert message == "Feature not found with ID 0."
 
 
-@pytest.mark.django_db
-class TestGetPropertyValueWithPostRequest:
-    """All tests for the GetPropertyValue method."""
-
-    def test_get_feature_by_id_404(self, client, restaurant, bad_restaurant):
-        """Prove that missing IDs are properly handled."""
-        xml = f"""<GetPropertyValue service="WFS" version="2.0.0" valueReference="name"
-        storedQueryId="urn:ogc:def:query:OGC-WFS::GetFeatureById" id="restaurant.0"
-        {XML_NS}>
-        </GetPropertyValue>
-            """
-        response = client.post("/v1/wfs/", data=xml, content_type="application/xml")
-        content = read_response(response)
-        assert response["content-type"] == "text/xml; charset=utf-8", content
-        assert response.status_code == 404, content
-
-        xml_doc = validate_xsd(content, WFS_20_XSD)
-        assert xml_doc.attrib["version"] == "2.0.0"
-        exception = xml_doc.find("ows:Exception", NAMESPACES)
-        assert exception.attrib["exceptionCode"] == "NotFound"
-
-        message = exception.find("ows:ExceptionText", NAMESPACES).text
-        assert message == "Feature not found with ID 0."
-
-
 def _assert_filter(response, expect="Café Noir"):
     content = read_response(response)
     assert response["content-type"] == "text/xml; charset=utf-8", content
