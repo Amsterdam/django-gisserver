@@ -285,10 +285,10 @@ class TestGetPropertyValue:
                 Get(
                     "?SERVICE=WFS&REQUEST=GetPropertyValue&VERSION=2.0.0&TYPENAMES=restaurant"
                     "&VALUEREFERENCE=name&FILTER=" + quote_plus(filter.strip()),
-                    expect=expect,
+                    expect=expect_get,
                     id=name,
                 )
-                for name, (filter, expect, _) in INVALID_FILTERS.items()
+                for name, (filter, expect_get, _) in INVALID_FILTERS.items()
             ]
             + [
                 Post(
@@ -298,10 +298,10 @@ class TestGetPropertyValue:
                 </Query>
                 </GetPropertyValue>
                 """,
-                    expect=expect,
+                    expect=expect_post or expect_get,
                     id=name,
                 )
-                for name, (filter, _, expect) in INVALID_FILTERS.items()
+                for name, (filter, expect_get, expect_post) in INVALID_FILTERS.items()
             ]
         )
     )
