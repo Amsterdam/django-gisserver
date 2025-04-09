@@ -385,10 +385,7 @@ INVALID_FILTERS = {
             "Invalid data for the 'rating' property: Can't cast 'TEXT' to double.",
             locator="filter",
         ),
-        OperationParsingFailed(
-            "Invalid data for the 'rating' property: Can't cast 'TEXT' to double.",
-            locator="filter",
-        ),
+        None,
     ),
     "float_like": (
         """
@@ -407,11 +404,7 @@ INVALID_FILTERS = {
             " is not supported for the 'rating' property.",
             locator="filter",
         ),
-        OperationProcessingFailed(
-            "Operator '{http://www.opengis.net/fes/2.0}PropertyIsLike'"
-            " is not supported for the 'rating' property.",
-            locator="filter",
-        ),
+        None,
     ),
     "date_number": (
         # this also tests auto_cast() logic for Literal,
@@ -432,11 +425,7 @@ INVALID_FILTERS = {
             " Date must be in YYYY-MM-DD HH:MM[:ss[.uuuuuu]][TZ] format.",
             locator="filter",
         ),
-        OperationParsingFailed(
-            "Invalid data for the 'created' property:"
-            " Date must be in YYYY-MM-DD HH:MM[:ss[.uuuuuu]][TZ] format.",
-            locator="filter",
-        ),
+        None,
     ),
     "date_text": (
         """
@@ -455,11 +444,7 @@ INVALID_FILTERS = {
             " Date must be in YYYY-MM-DD HH:MM[:ss[.uuuuuu]][TZ] format.",
             locator="filter",
         ),
-        OperationParsingFailed(
-            "Invalid data for the 'created' property:"
-            " Date must be in YYYY-MM-DD HH:MM[:ss[.uuuuuu]][TZ] format.",
-            locator="filter",
-        ),
+        None,
     ),
     "geometry_lte": (
         # There is so much wrong with this filter that I don't see why
