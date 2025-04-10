@@ -6,6 +6,7 @@ from enum import Enum
 from gisserver.exceptions import InvalidParameterValue
 from gisserver.parsers.ast import BaseNode, expect_children, expect_tag, tag_registry
 from gisserver.parsers.fes20 import ValueReference
+from gisserver.parsers.ows import KVPRequest
 from gisserver.parsers.query import CompiledQuery
 from gisserver.parsers.xml import NSElement, xmlns
 
@@ -71,11 +72,11 @@ class SortProperty(BaseNode):
         )
 
     @classmethod
-    def from_string(cls, value: str) -> SortProperty:
+    def from_string(cls, value: str, ns_aliases: dict[str, str]) -> SortProperty:
         """Parse the incoming GET parameter."""
         xpath, _, direction = value.partition(" ")
         return SortProperty(
-            value_reference=ValueReference(xpath),
+            value_reference=ValueReference(xpath, ns_aliases),
             sort_order=SortOrder.from_string(direction) if direction else SortOrder.ASC,
         )
 
@@ -100,13 +101,6 @@ class SortBy(BaseNode):
     sort_properties: list[SortProperty]
 
     @classmethod
-    def from_any(cls, value: str | NSElement):
-        if isinstance(value, NSElement):
-            return cls.from_xml(value)
-        else:
-            return cls.from_string(value)
-
-    @classmethod
     @expect_children(1)
     def from_xml(cls, element: NSElement) -> SortBy:
         """Parse the XML tag."""
@@ -119,21 +113,23 @@ class SortBy(BaseNode):
         )
 
     @classmethod
-    def from_string(cls, value: str):
-        """Construct the SortBy object from a KVP "SORTBY" parameter."""
+    def from_kvp_request(cls, kvp: KVPRequest) -> SortBy | None:
+        """Construct the SortBy object from a KVP "SORTBY" parameter, and considering NAMESPACES."""
+        value = kvp.get_str("SortBy", default=None)
+        if value is None:
+            return None
+
         return cls(
-            sort_properties=[SortProperty.from_string(field) for field in value.split(",")],
+            sort_properties=[
+                SortProperty.from_string(field, kvp.ns_aliases) for field in value.split(",")
+            ]
         )
 
     def build_ordering(self, compiler: CompiledQuery):
         """Build the ordering for the Django ORM call."""
         ordering = []
         for prop in self.sort_properties:
-            if compiler.feature_type is not None:
-                orm_path = prop.value_reference.parse_xpath(compiler.feature_type).orm_path
-            else:
-                orm_path = prop.value_reference.xpath.replace("/", "__")
-
+            orm_path = prop.value_reference.parse_xpath(compiler.feature_types).orm_path
             ordering.append(f"{prop.sort_order.value}{orm_path}")
 
         compiler.add_ordering(ordering)

@@ -29,9 +29,11 @@ class TestGetFeature:
             f"&ID=restaurant.{id}"
         ),
         Post(
-            lambda id: f"""<GetFeature service="WFS" version="2.0.0"
-				storedQueryId="urn:ogc:def:query:OGC-WFS::GetFeatureById" id="restaurant.{id}" {XML_NS}>
-				</GetFeature>"""
+            lambda id: f"""<GetFeature service="WFS" version="2.0.0" {XML_NS}>
+                  <StoredQuery id="urn:ogc:def:query:OGC-WFS::GetFeatureById">
+                    <Parameter name="ID">restaurant.{id}</Parameter>
+                  </StoredQuery>
+                </GetFeature>"""
         ),
     )
     def test_get_feature_by_id_stored_query(
@@ -93,9 +95,11 @@ class TestGetFeature:
             "&ID=restaurant.ABC"
         ),
         Post(
-            f"""<GetFeature service="WFS" version="2.0.0"
-				storedQueryId="urn:ogc:def:query:OGC-WFS::GetFeatureById" id="restaurant.ABC" {XML_NS}>
-				</GetFeature>"""
+            f"""<GetFeature service="WFS" version="2.0.0" {XML_NS}>
+                  <StoredQuery id="urn:ogc:def:query:OGC-WFS::GetFeatureById">
+                    <Parameter name="ID">restaurant.ABC</Parameter>
+                  </StoredQuery>
+                </GetFeature>"""
         ),
     )
     def test_get_feature_by_id_bad_id(self, client, restaurant, bad_restaurant, response):
@@ -119,9 +123,11 @@ class TestGetFeature:
             "&ID=restaurant.0"
         ),
         Post(
-            f"""<GetFeature service="WFS" version="2.0.0"
-				storedQueryId="urn:ogc:def:query:OGC-WFS::GetFeatureById" id="restaurant.0" {XML_NS}>
-				</GetFeature>"""
+            f"""<GetFeature service="WFS" version="2.0.0" {XML_NS}>
+                  <StoredQuery id="urn:ogc:def:query:OGC-WFS::GetFeatureById">
+                    <Parameter name="ID">restaurant.0</Parameter>
+                  </StoredQuery>
+                </GetFeature>"""
         ),
     )
     def test_get_feature_by_id_404(self, restaurant, bad_restaurant, response):

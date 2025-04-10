@@ -113,6 +113,7 @@ class TestPropertyName:
                 </GetFeature>
                 """,
             url=Url.COMPLEX,
+            validate_xml=False,  # PropertyName should officially be an QName only!
         ),
     )
     def test_propertyname_gml_complex(
@@ -184,7 +185,7 @@ class TestPropertyName:
         sql = get_sql(queries)
         assert sql == [
             (
-                "SELECT DISTINCT"
+                "SELECT"
                 ' "test_gisserver_restaurant"."id",'
                 ' "test_gisserver_restaurant"."name",'
                 ' "test_gisserver_restaurant"."city_id"'
@@ -314,6 +315,7 @@ class TestPropertyName:
                 </GetFeature>
                 """,
             url=Url.COMPLEX,
+            validate_xml=False,  # PropertyName should officially be an QName only!
         ),
     )
     def test_propertyname_geojson_complex(
@@ -406,7 +408,7 @@ class TestPropertyName:
         sql = get_sql(queries)
         assert sql == [
             (
-                "SELECT DISTINCT"
+                "SELECT"
                 ' "test_gisserver_restaurant"."id",'
                 ' "test_gisserver_restaurant"."name",'
                 ' "test_gisserver_restaurant"."city_id",'
@@ -490,7 +492,7 @@ class TestPropertyName:
                 "&TYPENAMES=restaurant&outputformat=csv"
                 "&PROPERTYNAME=name,city/name"
             )
-            assert response["content-type"] == "text/csv; charset=utf-8"
+            assert response["content-type"] == "text/csv; charset=utf-8", response
             content = read_response(response)
             assert response.status_code == 200, content
 

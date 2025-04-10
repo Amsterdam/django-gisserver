@@ -9,6 +9,8 @@ HTML Version: https://docs.opengeospatial.org/is/09-026r2/09-026r2.html
 This test style is inspired by pyfes (which is also Apache licensed)
 """
 
+from __future__ import annotations
+
 from datetime import datetime
 from decimal import Decimal as D
 
@@ -18,10 +20,10 @@ from django.contrib.gis.geos import GEOSGeometry
 from django.db.models import F, Q
 from django.db.models.functions import Sin
 
+from gisserver.extensions.functions import function_registry
 from gisserver.geometries import WGS84
 from gisserver.parsers.fes20 import Filter
 from gisserver.parsers.fes20.expressions import Function, Literal, ValueReference
-from gisserver.parsers.fes20.functions import function_registry
 from gisserver.parsers.fes20.identifiers import ResourceId
 
 # Direct imports, so copy-paste from assertion errors works:
@@ -78,9 +80,10 @@ def test_fes20_c5_example1():
 
     # Test SQL generating
     query = compile_query(result)
-    assert query == CompiledQuery(query.feature_type, lookups=[Q(SomeProperty__exact=100)]), repr(
-        query
-    )
+    assert query == CompiledQuery(
+        query.feature_types,
+        lookups=[Q(SomeProperty__exact=100)],
+    ), repr(query)
 
 
 def test_fes20_c5_example2():
@@ -112,7 +115,7 @@ def test_fes20_c5_example2():
     # Test SQL generating
     query = compile_query(result)
     assert query == CompiledQuery(
-        query.feature_type,
+        query.feature_types,
         lookups=[Q(DEPTH__lt=30)],
     ), repr(query)
 
@@ -167,7 +170,7 @@ def test_fes20_c5_example3():
     # Test SQL generating
     query = compile_query(result)
     assert query == CompiledQuery(
-        query.feature_type,
+        query.feature_types,
         lookups=[
             ~Q(
                 Geometry__disjoint=GEOSGeometry(
@@ -220,7 +223,7 @@ def test_fes20_c5_example3_b():
     # Test SQL generating
     query = compile_query(result)
     assert query == CompiledQuery(
-        query.feature_type,
+        query.feature_types,
         lookups=[
             Q(
                 Geometry__intersects=GEOSGeometry(
@@ -302,7 +305,7 @@ def test_fes20_c5_example4():
     # Test SQL generating
     query = compile_query(result)
     assert query == CompiledQuery(
-        query.feature_type,
+        query.feature_types,
         lookups=[
             Q(DEPTH__lt=30)
             & ~Q(
@@ -342,12 +345,12 @@ def test_fes20_c5_example5():
     expected = Filter(
         IdOperator(
             [
-                ResourceId(rid="TREESA_1M.1234"),
-                ResourceId(rid="TREESA_1M.5678"),
-                ResourceId(rid="TREESA_1M.9012"),
-                ResourceId(rid="INWATERA_1M.3456"),
-                ResourceId(rid="INWATERA_1M.7890"),
-                ResourceId(rid="BUILTUPA_1M.4321"),
+                ResourceId(rid="TREESA_1M.1234", type_name="TREESA_1M"),
+                ResourceId(rid="TREESA_1M.5678", type_name="TREESA_1M"),
+                ResourceId(rid="TREESA_1M.9012", type_name="TREESA_1M"),
+                ResourceId(rid="INWATERA_1M.3456", type_name="INWATERA_1M"),
+                ResourceId(rid="INWATERA_1M.7890", type_name="INWATERA_1M"),
+                ResourceId(rid="BUILTUPA_1M.4321", type_name="BUILTUPA_1M"),
             ]
         )
     )
@@ -355,13 +358,17 @@ def test_fes20_c5_example5():
     assert result == expected, f"result={result!r}"
 
     # Test SQL generating
-    query = compile_query(result)
+    query = compile_query(
+        result, feature_type_names=["BUILTUPA_1M", "INWATERA_1M", "TREESA_1M", "FOOBAR"]
+    )
     assert query == CompiledQuery(
-        query.feature_type,
+        query.feature_types,
         typed_lookups={
-            "BUILTUPA_1M": [Q(pk="4321")],
-            "INWATERA_1M": [Q(pk="3456") | Q(pk="7890")],
-            "TREESA_1M": [Q(pk="1234") | Q(pk="5678") | Q(pk="9012")],
+            "{http://example.org/gisserver}BUILTUPA_1M": [Q(pk="4321")],
+            "{http://example.org/gisserver}INWATERA_1M": [Q(pk="3456") | Q(pk="7890")],
+            "{http://example.org/gisserver}TREESA_1M": [
+                Q(pk="1234") | Q(pk="5678") | Q(pk="9012")
+            ],
         },
     ), repr(query)
 
@@ -414,7 +421,7 @@ def test_fes20_c5_example6():
     # Test SQL generating
     query = compile_query(result)
     assert query == CompiledQuery(
-        query.feature_type,
+        query.feature_types,
         annotations={"a1": Sin(F("DISPERSION_ANGLE"))},
         lookups=[Q(a1__exact=1)],
     ), repr(query)
@@ -472,7 +479,7 @@ def test_fes20_c5_example7():
     # Testing against repr() because CombinedExpression / Value doesn't do __eq__ testing.
     query = compile_query(result)
     expect = CompiledQuery(
-        query.feature_type,
+        query.feature_types,
         lookups=[Q(PROPA__exact=F("PROPB") + 100)],
     )
     assert repr(query) == repr(expect), repr(query)
@@ -511,7 +518,7 @@ def test_fes20_c5_example8():
     # Test SQL generating
     query = compile_query(result)
     assert query == CompiledQuery(
-        query.feature_type,
+        query.feature_types,
         lookups=[Q(DEPTH__range=(100, 200))],
     ), repr(query)
 
@@ -550,7 +557,7 @@ def test_fes20_c5_example9():
     # Test SQL generating
     query = compile_query(result)
     assert query == CompiledQuery(
-        query.feature_type,
+        query.feature_types,
         lookups=[
             Q(
                 SAMPLE_DATE__range=(
@@ -596,7 +603,7 @@ def test_fes20_c5_example10():
     # Test SQL generating
     query = compile_query(result)
     assert query == CompiledQuery(
-        query.feature_type, lookups=[Q(LAST_NAME__fes_like="JOHN%")]
+        query.feature_types, lookups=[Q(LAST_NAME__fes_like="JOHN%")]
     ), repr(query)
 
 
@@ -641,7 +648,7 @@ def test_fes20_c5_example11():
     # Test SQL generating
     query = compile_query(result)
     assert query == CompiledQuery(
-        query.feature_type,
+        query.feature_types,
         lookups=[
             Q(
                 Geometry__overlaps=GEOSGeometry(
@@ -696,7 +703,7 @@ def test_fes20_c5_example11_b():
     # Test SQL generating
     query = compile_query(result)
     assert query == CompiledQuery(
-        query.feature_type,
+        query.feature_types,
         lookups=[
             Q(
                 Geometry__overlaps=GEOSGeometry(
@@ -782,7 +789,7 @@ def test_fes20_c5_example12():
     # Test SQL generating
     query = compile_query(result)
     assert query == CompiledQuery(
-        query.feature_type,
+        query.feature_types,
         lookups=[(Q(FIELD1__exact=10) | Q(FIELD1__exact=20)) & Q(STATUS__exact="VALID")],
     ), repr(query)
 
@@ -857,7 +864,7 @@ def test_fes20_c5_example13():
     # Test SQL generating
     query = compile_query(result)
     assert query == CompiledQuery(
-        query.feature_type,
+        query.feature_types,
         lookups=[
             Q(
                 WKB_GEOM__within=GEOSGeometry(
@@ -924,7 +931,7 @@ def test_fes20_c5_example14():
     # Test SQL generating
     query = compile_query(result)
     assert query == CompiledQuery(
-        query.feature_type,
+        query.feature_types,
         lookups=[Q(Person__age__gt=50) & Q(Person__mailAddress__Address__city__exact="Toronto")],
     ), repr(query)
 
@@ -967,7 +974,7 @@ def test_fes20_c5_example15():
     # Test SQL generating
     query = compile_query(result)
     assert query == CompiledQuery(
-        query.feature_type,
+        query.feature_types,
         lookups=[
             Q(
                 geometry__dwithin=(
@@ -1022,7 +1029,7 @@ def test_fes20_c7_example1():
     # Test SQL generating
     query = compile_query(result)
     assert query == CompiledQuery(
-        query.feature_type,
+        query.feature_types,
         lookups=[
             Q(
                 geometry__dwithin=(
@@ -1034,7 +1041,7 @@ def test_fes20_c7_example1():
     ), repr(query)
 
 
-@pytest.mark.skip
+@pytest.mark.skip(reason="GML Temporal support is incomplete")
 def test_fes20_c7_example2():
     """Time instant to time instant:"""
     xml_text = """
@@ -1058,7 +1065,7 @@ def test_fes20_c7_example2():
     result = Filter.from_string(xml_text)
     assert result == expected, f"result={result!r}"
 
-    print(result.compile_query())
+    print(compile_query(result))
 
 
 @pytest.mark.skip(reason="GML Temporal support is incomplete")
@@ -1085,7 +1092,7 @@ def test_fes20_c7_example3():
     result = Filter.from_string(xml_text)
     assert result == expected, f"result={result!r}"
 
-    print(result.compile_query())
+    print(compile_query(result))
 
 
 @pytest.mark.skip(reason="GML Temporal support is incomplete")
@@ -1121,7 +1128,7 @@ def test_fes20_c7_example4():
     result = Filter.from_string(xml_text)
     assert result == expected, f"result={result!r}"
 
-    print(result.compile_query())
+    print(compile_query(result))
 
 
 @pytest.mark.skip(reason="GML Temporal support is incomplete")
@@ -1157,4 +1164,4 @@ def test_fes20_c7_example5():
     result = Filter.from_string(xml_text)
     assert result == expected, f"result={result!r}"
 
-    print(result.compile_query())
+    print(compile_query(result))

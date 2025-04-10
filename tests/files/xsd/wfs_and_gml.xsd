@@ -1,0 +1,5 @@
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema" elementFormDefault="qualified" version="2.0.2">
+   <!-- Internal schema to feed both WFS and GML schema definitions to the validator. -->
+   <xsd:import namespace="http://www.opengis.net/wfs/2.0" schemaLocation="schemas.opengis.net/wfs/2.0/wfs.xsd"/>
+   <xsd:import namespace="http://www.opengis.net/gml/3.2" schemaLocation="schemas.opengis.net/gml/3.2.1/gml.xsd"/>
+</xsd:schema>

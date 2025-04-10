@@ -14,7 +14,6 @@ from gisserver import conf
 from gisserver.exceptions import (
     ExternalParsingError,
     InvalidParameterValue,
-    MissingParameterValue,
     OperationNotSupported,
     OperationParsingFailed,
     OWSException,
@@ -22,15 +21,10 @@ from gisserver.exceptions import (
 )
 from gisserver.features import FeatureType, ServiceDescription
 from gisserver.operations import base, wfs20
-from gisserver.parsers.xml import parse_xml_from_string, split_ns, xmlns
+from gisserver.parsers.ows import KVPRequest, resolve_kvp_parser_class, resolve_xml_parser_class
+from gisserver.parsers.xml import parse_xml_from_string, split_ns
 
 SAFE_VERSION = re.compile(r"\A[0-9.]+\Z")
-# Some KVP attributes are not simply the uppercased version of the XML-attributes.
-XML_ATTRIBUTES_MAP = {
-    "storedQueryId": "STOREDQUERY_ID",
-}
-
-XML_CONCATENATION_SET = {"PropertyName"}
 
 
 class GISView(View):
@@ -41,6 +35,9 @@ class GISView(View):
 
     #: Define the namespace to use in the XML
     xml_namespace = "http://example.org/gisserver"
+
+    #: Define namespace aliases to use, default is {"app": self.xml_namespace}
+    xml_namespace_aliases = None
 
     #: Default version to use
     version = "2.0.0"
@@ -87,6 +84,23 @@ class GISView(View):
         else:
             return None
 
+    @classmethod
+    def get_xml_namespace_aliases(cls) -> dict[str, str]:
+        """Provide all namespaces aliases with a namespace.
+        This is most useful for parsing input.
+        """
+        return cls.xml_namespace_aliases or {"app": cls.xml_namespace}
+
+    @classmethod
+    def get_xml_namespaces_to_prefixes(cls) -> dict[str, str]:
+        """Provide a mapping from namespace to prefix.
+        This is most useful for rendering output.
+        """
+        return {
+            xml_namespace: prefix
+            for prefix, xml_namespace in cls.get_xml_namespace_aliases().items()
+        }
+
     def get(self, request, *args, **kwargs):
         """Entry point to handle HTTP GET requests.
 
@@ -95,21 +109,31 @@ class GISView(View):
 
         All query parameters are handled as case-insensitive.
         """
-        # Convert to WFS key-value-pair format.
-        self.KVP = {key.upper(): value for key, value in request.GET.items()}
+        # Parse GET parameters in Key-Value-Pair syntax format.
+        self.kvp = kvp = KVPRequest(request.GET, ns_aliases=self.get_xml_namespace_aliases())
+
+        # Get service (only raises error when value is missing and "default" parameter is not given)
+        defaults = {"default": self.default_service} if self.default_service else {}
+        service = kvp.get_str("service", **defaults).upper()
 
         # Perform early version parsing. The detailed validation happens by the operation
         # Parameter objects, but by performing an early check, templates can use that version.
-        version = self.KVP.get("VERSION")
-        if version and version in self.accept_versions:
-            self.set_version(version)
+        version = kvp.get_str("version", default=None)
+        self.set_version(service, version)
 
         # Allow for a user-friendly opening page (hence the version check above)
         if self.use_html_templates and self.is_index_request():
-            return self.render_index()
+            return self.render_index(service)
 
-        # Normal WFS
-        wfs_method_cls = self.get_operation_class()
+        # Find the registered operation that handles the request
+        operation = kvp.get_str("request")
+        wfs_method_cls = self.get_operation_class(service, operation)
+
+        # Parse the request syntax
+        request_cls = wfs_method_cls.parser_class or resolve_kvp_parser_class(kvp)
+        self.ows_request = request_cls.from_kvp_request(kvp)
+
+        # Process the request!
         return self.call_operation(wfs_method_cls)
 
     def post(self, request, *args, **kwargs):
@@ -118,52 +142,30 @@ class GISView(View):
         This parses the XML to get the correct service and operation,
         to call the proper WFSMethod.
         """
-        # Convert XML to WFS key-value-pair format.
-        self.KVP = self.parse_xml_post(request.body)
-        wfs_method_cls = self.get_operation_class()
-        return self.call_operation(wfs_method_cls)
-
-    def parse_xml_post(self, data):
-        KVP = {}
-        # The Requested method is the tag of the root without the {namespace} before it
+        # Parse the XML body
         try:
-            root = parse_xml_from_string(data)
+            root = parse_xml_from_string(
+                request.body, extra_ns_aliases=self.get_xml_namespace_aliases()
+            )
         except ExternalParsingError as e:
-            raise OperationParsingFailed("Unable to parse XML: " + str(e)) from e
+            raise OperationParsingFailed(f"Unable to parse XML: {e}") from e
 
-        KVP["REQUEST"] = split_ns(root.tag)[-1]
-        # Add other top level attributes.
-        for attribute, value in root.items():
-            attribute_key = XML_ATTRIBUTES_MAP.get(attribute, attribute.upper())
-            KVP[attribute_key] = value
+        # Find the registered operation that handles the request
+        service = (
+            root.attrib.get("service", self.default_service)
+            if self.default_service
+            else root.get_str_attribute("service")
+        )
+        operation = split_ns(root.tag)[1]
+        wfs_method_cls = self.get_operation_class(service, operation)
 
-        wfs_query_tag = xmlns.wfs.qname("Query")
-        for child in root:
-            if child.tag == wfs_query_tag:
-                for attribute, value in child.items():
-                    attribute_key = XML_ATTRIBUTES_MAP.get(attribute, attribute.upper())
-                    # Get the typenames from the Query tag. Convert space- to comma-separated.
-                    if attribute_key == "TYPENAMES":
-                        # typenames may have a namespace prefix that isn't in our list.
-                        typenames = [split_ns(t)[-1] for t in value.split()]
-                        KVP[attribute_key] = ",".join(typenames)
-                    else:
-                        KVP[attribute_key] = value
-            # Other constructs
-            for elem in child:
-                title = split_ns(elem.tag)[-1]
-                if title in XML_CONCATENATION_SET:
-                    if KVP.get(title.upper(), None):
-                        KVP[title.upper()] += f",{elem.text}"
-                    else:
-                        KVP[title.upper()] = elem.text
-                else:
-                    # If the element does not have a specified namespace in the request body, we use that
-                    # instead of the element, as it might use the wrong namespace in the ElementTree.
-                    # This supports <Filter> w/o namespace.
-                    found_element = re.search(rf"<{title}.*?</{title}>", str(data))
-                    KVP[title.upper()] = found_element.group(0) if found_element else elem
-        return KVP
+        # Parse the request syntax
+        request_cls = wfs_method_cls.parser_class or resolve_xml_parser_class(root)
+        self.ows_request = request_cls.from_xml(root)
+        self.set_version(service, self.ows_request.version)
+
+        # Process the request!
+        return self.call_operation(wfs_method_cls)
 
     def is_index_request(self):
         """Tell whether to index page should be shown."""
@@ -171,22 +173,25 @@ class GISView(View):
         # (misspelled?) parameters on the query string, this is considered to be an index page.
         # Minimal request has 2 parameters (SERVICE=WFS&REQUEST=GetCapabilities).
         # Some servers also allow a default of SERVICE, thus needing even less.
-        return len(self.KVP) < 2 and {
+        return len(self.request.GET) < 2 and {
             "REQUEST",
             "SERVICE",
             "VERSION",
             "ACCEPTVERSIONS",
-        }.isdisjoint(self.KVP.keys())
+        }.isdisjoint(key.upper() for key in self.request.GET)
 
-    def render_index(self):
+    def render_index(self, service: str | None = None):
         """Render the index page."""
         # Not using the whole TemplateResponseMixin config with configurable parameters.
         # If this really needs more configuration, overriding is likely just as easy.
-        return render(self.request, self.get_index_template_names(), self.get_index_context_data())
+        return render(
+            self.request,
+            self.get_index_template_names(service),
+            self.get_index_context_data(service=service),
+        )
 
-    def get_index_context_data(self, **kwargs):
+    def get_index_context_data(self, service: str | None = None, **kwargs):
         """Provide the context data for the index page."""
-        service = self.KVP.get("SERVICE", self.default_service)
         root_url = self.request.build_absolute_uri()
 
         # Allow passing extra vendor parameters to the links generated in the template
@@ -211,16 +216,11 @@ class GISView(View):
             **kwargs,
         }
 
-    def get_index_template_names(self):
+    def get_index_template_names(self, service: str | None = None):
         """Get the index page template name.
         If no template is configured, some reasonable defaults are selected.
         """
-        raw_service = self.KVP.get("SERVICE", self.default_service)
-        if raw_service and raw_service in self.accept_operations:
-            service = raw_service.lower()
-        else:
-            service = "default"
-
+        service = service.lower() if service and service in self.accept_operations else "default"
         if self.index_template_name:
             # Allow the same substitutions for a manually configured template.
             return [self.index_template_name.format(service=service, version=self.version)]
@@ -231,15 +231,13 @@ class GISView(View):
                 "gisserver/index.html",
             ]
 
-    def get_operation_class(self) -> type[base.WFSMethod]:
+    def get_operation_class(self, service: str, request: str) -> type[base.WFSMethod]:
         """Resolve the method that the client wants to call."""
         if not self.accept_operations:
             raise ImproperlyConfigured("View has no operations")
 
-        # The service is always WFS
-        service = self._get_required_arg("SERVICE", self.default_service).upper()
         try:
-            operations = self.accept_operations[service]
+            operations = self.accept_operations[service.upper()]
         except KeyError:
             allowed = ", ".join(sorted(self.accept_operations.keys()))
             raise InvalidParameterValue(
@@ -249,41 +247,39 @@ class GISView(View):
 
         # Resolve the operation
         # In mapserver, the operation name is case-insensitive.
-        operation = self._get_required_arg("REQUEST").upper()
         uc_methods = {name.upper(): method for name, method in operations.items()}
-
         try:
-            return uc_methods[operation]
+            return uc_methods[request.upper()]
         except KeyError:
             allowed = ", ".join(operations.keys())
             raise OperationNotSupported(
-                f"'{operation.lower()}' is not implemented, supported are: {allowed}.",
+                f"'{request}' is not implemented, supported are: {allowed}.",
                 locator="request",
             ) from None
 
     def call_operation(self, wfs_method_cls: type[base.WFSMethod]):
         """Call the resolved method."""
-        wfs_method = wfs_method_cls(self)
-        param_values = wfs_method.parse_request(self.KVP)
-        return wfs_method(**param_values)  # goes into __call__()
+        wfs_method = wfs_method_cls(self, self.ows_request)
+        wfs_method.validate_request(self.ows_request)
+        return wfs_method.process_request(self.ows_request)
 
-    def _get_required_arg(self, argname, default=None):
-        try:
-            return self.KVP[argname]
-        except KeyError:
-            if default is not None:
-                return default
-            raise MissingParameterValue(locator=argname.lower()) from None
-
-    def get_service_description(self, service: str) -> ServiceDescription:
+    def get_service_description(self, service: str | None = None) -> ServiceDescription:
         """Provide the (dynamically generated) service description."""
         return self.service_description or ServiceDescription(title="Unnamed")
 
-    def set_version(self, version):
+    def set_version(self, service: str, version: str | None):
         """Enforce a particular version based on the request."""
+        if not version:
+            return
+
         if not SAFE_VERSION.match(version):
             # Make really sure we didn't mess things up, as this causes file includes.
             raise SuspiciousOperation("Invalid/insecure version number parsed")
+
+        if version not in self.accept_versions:
+            raise InvalidParameterValue(
+                f"{service} Server does not support VERSION {version}.", locator="version"
+            )
 
         # Enforce the requested version
         self.version = version
@@ -333,7 +329,7 @@ class WFSView(GISView):
         "ImplementsTransactionalWFS": False,  # only reads
         "ImplementsLockingWFS": False,  # only basic WFS
         "KVPEncoding": True,  # HTTP GET support
-        "XMLEncoding": False,  # HTTP POST requests
+        "XMLEncoding": True,  # HTTP POST requests
         "SOAPEncoding": False,  # no SOAP requests
         "ImplementsInheritance": False,
         "ImplementsRemoteResolve": False,
@@ -368,17 +364,40 @@ class WFSView(GISView):
     }
 
     def get_feature_types(self) -> list[FeatureType]:
-        """Return all available feature types this server exposes"""
+        """Return all available feature types this server exposes.
+
+        This method may be overwritten to provide feature types dynamically,
+        for example to give them different elements based on user permissions.
+        """
         return self.feature_types
+
+    def get_bound_feature_types(self) -> list[FeatureType]:
+        """Internal logic wrapping the FeatureType definitions provided by the developer.
+        This binds the XML namespace information from this view to the declared types.
+        """
+        feature_types = self.get_feature_types()
+        for feature_type in feature_types:
+            # Make sure the feature type can advertise itself with an XML namespace.
+            feature_type.bind_namespace(default_xml_namespace=self.xml_namespace)
+        return feature_types
 
     def get_index_context_data(self, **kwargs):
         """Add WFS specific metadata"""
-        wfs_output_formats = self.accept_operations["WFS"]["GetFeature"].output_formats
+        get_feature_operation = self.accept_operations["WFS"]["GetFeature"]
+        operation = get_feature_operation(self, ows_request=None)
+
+        # Remove aliases
+        wfs_output_formats = []
+        seen = set()
+        for output_format in operation.get_output_formats():
+            if output_format.identifier not in seen:
+                wfs_output_formats.append(output_format)
+            seen.add(output_format.identifier)
 
         context = super().get_index_context_data(**kwargs)
         context.update(
             {
-                "wfs_features": self.get_feature_types(),
+                "wfs_features": self.get_bound_feature_types(),
                 "wfs_output_formats": wfs_output_formats,
                 "wfs_filter_capabilities": self.wfs_filter_capabilities,
                 "wfs_service_constraints": self.wfs_service_constraints,

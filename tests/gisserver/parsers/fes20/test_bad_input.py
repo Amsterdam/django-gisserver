@@ -56,8 +56,16 @@ def test_missing_children():
         Filter.from_string(xml_text)
 
     assert str(e.value) == (
-        "<{http://www.opengis.net/fes/2.0}PropertyIsLessThan> should have 2 child "
-        "nodes, got 1 (possible tags: Add, Div, Function, Literal, Mul, Sub, ValueReference)"
+        "<{http://www.opengis.net/fes/2.0}PropertyIsLessThan> should have 2 child nodes, got 1 "
+        "(possible tags:"
+        " {http://www.opengis.net/fes/2.0}Add,"
+        " {http://www.opengis.net/fes/2.0}Div,"
+        " {http://www.opengis.net/fes/2.0}Function,"
+        " {http://www.opengis.net/fes/2.0}Literal,"
+        " {http://www.opengis.net/fes/2.0}Mul,"
+        " {http://www.opengis.net/fes/2.0}Sub,"
+        " {http://www.opengis.net/fes/2.0}ValueReference"
+        ")"
     )
 
 

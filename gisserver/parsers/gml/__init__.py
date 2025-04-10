@@ -12,7 +12,7 @@ from gisserver.parsers.ast import tag_registry
 from gisserver.parsers.xml import NSElement, parse_xml_from_string
 
 from .base import AbstractGeometry, GM_Envelope, GM_Object, TM_Object
-from .geometries import is_gml_element  # also do tag registration
+from .geometries import GEOSGMLGeometry, is_gml_element  # also do tag registration
 
 # All known root nodes as GML object:
 GmlRootNodes = Union[GM_Object, GM_Envelope, TM_Object]
@@ -22,6 +22,7 @@ __all__ = [
     "GM_Envelope",
     "TM_Object",
     "AbstractGeometry",
+    "GEOSGMLGeometry",
     "parse_gml",
     "parse_gml_node",
     "find_gml_nodes",

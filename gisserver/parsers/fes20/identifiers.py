@@ -14,7 +14,7 @@ from gisserver import conf
 from gisserver.exceptions import ExternalValueError, InvalidParameterValue
 from gisserver.parsers.ast import BaseNode, expect_no_children, expect_tag, tag_registry
 from gisserver.parsers.values import auto_cast, parse_iso_datetime
-from gisserver.parsers.xml import xmlns
+from gisserver.parsers.xml import parse_qname, xmlns
 
 NoneType = type(None)
 
@@ -48,17 +48,28 @@ class ResourceId(Id):
     This element allow queries to retrieve a resource by their identifier.
     """
 
+    # A raw "resource identifier". Needs to encode the object name somehow,
+    # and it's completely unrelated to XML namespacing.
     rid: str
+    type_name: str | None
     version: int | datetime | VersionActionTokens | NoneType = None
     startTime: datetime | None = None
     endTime: datetime | None = None
 
     def get_type_name(self):
-        return self.rid.rpartition(".")[0]
+        return self.type_name
 
     def __post_init__(self):
         if conf.GISSERVER_WFS_STRICT_STANDARD and "." not in self.rid:
             raise ExternalValueError("Expected typename.id format") from None
+
+    @classmethod
+    def from_string(cls, rid, ns_aliases: dict[str, str]):
+        # Like GeoServer, assume the "name" part of the "resource id" is a QName.
+        return cls(
+            rid=rid,
+            type_name=parse_qname(rid.rpartition(".")[0], ns_aliases),
+        )
 
     @classmethod
     @expect_tag(xmlns.fes20, "ResourceId")
@@ -71,8 +82,10 @@ class ResourceId(Id):
         if version:
             version = auto_cast(version)
 
+        rid = element.get_str_attribute("rid")
         return cls(
-            rid=element.get_attribute("rid"),
+            rid=rid,
+            type_name=element.parse_qname(rid.rpartition(".")[0]),
             version=version,
             startTime=parse_iso_datetime(startTime) if startTime else None,
             endTime=parse_iso_datetime(endTime) if endTime else None,
@@ -90,7 +103,7 @@ class ResourceId(Id):
         try:
             # The 'ID' parameter is typed as string, but here we can check
             # whether the database model needs an integer instead.
-            compiler.feature_type.model._meta.pk.get_prep_value(object_id)
+            compiler.feature_types[0].model._meta.pk.get_prep_value(object_id)
         except (TypeError, ValueError) as e:
             raise InvalidParameterValue(
                 f"Invalid resourceId value: {e}", locator="resourceId"

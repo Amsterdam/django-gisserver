@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import re
 from doctest import Example
 from functools import lru_cache
@@ -13,12 +14,15 @@ from lxml.doctestcompare import PARSE_XML, LXMLOutputChecker
 from gisserver.geometries import CRS
 from gisserver.parsers.xml import xmlns
 
+logger = logging.getLogger(__name__)
+
 # XSD schemas are downloaded from http://schemas.opengis.net/wfs/2.0/wfs.xsd
 # using https://github.com/n-a-t-e/xsd_download/blob/master/xsd_download.py
 # The download itself is really slow, hence these files are cached.
 XSD_ROOT = Path(__file__).parent.joinpath("files/xsd")
 GML321_XSD = str(XSD_ROOT.joinpath("schemas.opengis.net/gml/3.2.1/gml.xsd"))
 WFS_20_XSD = str(XSD_ROOT.joinpath("schemas.opengis.net/wfs/2.0/wfs.xsd"))
+WFS_20_AND_GML_XSD = str(XSD_ROOT.joinpath("wfs_and_gml.xsd"))
 
 # Namespaces for tag retrieval
 NAMESPACES = {
@@ -30,7 +34,21 @@ NAMESPACES = {
     "xsd": xmlns.xsd.value,
 }
 
-XML_NS = f'xmlns="{xmlns.wfs}" xmlns:fes="{xmlns.fes20}" xmlns:gml="{xmlns.gml32}"'
+XML_NS = (
+    f'xmlns="{xmlns.wfs}"'
+    f' xmlns:ows="{xmlns.ows}"'
+    f' xmlns:fes="{xmlns.fes20}"'
+    f' xmlns:gml="{xmlns.gml32}"'
+    f' xmlns:app="http://example.org/gisserver"'
+)
+
+XML_NS_WFS = (
+    f'xmlns:wfs="{xmlns.wfs}"'
+    f' xmlns:ows="{xmlns.ows}"'
+    f' xmlns:fes="{xmlns.fes20}"'
+    f' xmlns:gml="{xmlns.gml32}"'
+    f' xmlns:app="http://example.org/gisserver"'
+)
 
 # Additional coordinate reference systems
 RD_NEW = CRS.from_string("urn:ogc:def:crs:EPSG::28992")  # https://epsg.io/28992
@@ -102,6 +120,8 @@ def validate_xsd(xml_text: bytes | str, xsd_file=None, xsd_content=None) -> etre
     if not xml_schema.validate(xml_doc):
         # Improve error message display, to ease debugging of XML data
         source_lines = xml_str.splitlines()
+        if len(source_lines) < 40:
+            logger.debug("Failed XML validation for:\n%s", xml_str)
         raise etree.DocumentInvalid(
             "\n".join(
                 [

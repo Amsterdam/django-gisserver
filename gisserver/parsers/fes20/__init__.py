@@ -1,11 +1,20 @@
-from __future__ import annotations
+"""Parsing and processing of the OGC Filter Encoding Standard 2.0 (FES).
 
-from gisserver.exceptions import OperationParsingFailed
+This parses the XML syntax, and translates that into a Django ORM query.
+
+It's also possible to register custom functions,
+which will include Django ORM function as part of the filter language.
+
+The full spec can be found at: https://www.ogc.org/publications/standard/filter/.
+Secondly, using https://www.mediamaps.ch/ogc/schemas-xsdoc/sld/1.2/filter_xsd.html
+can be very helpful to see which options each object type should support.
+"""
+
+from __future__ import annotations
 
 from . import lookups  # noqa: F401 (need to register ORM lookups)
 from .expressions import ValueReference
 from .filters import Filter
-from .functions import function_registry
 from .identifiers import ResourceId
 from .operators import IdOperator
 from .sorting import SortBy
@@ -16,26 +25,4 @@ __all__ = [
     "ResourceId",
     "IdOperator",
     "SortBy",
-    "function_registry",
 ]
-
-
-def parse_resource_id_kvp(value) -> IdOperator:
-    """Parse the RESOURCEID parameter.
-    This returns an IdOperator, as it needs to support multiple pairs.
-    """
-    return IdOperator([ResourceId(rid) for rid in value.split(",")])
-
-
-def parse_property_name(value) -> list[ValueReference] | None:
-    """Parse the PROPERTYNAME parameter"""
-    if not value or value == "*":
-        return None  # WFS 1 logic
-
-    if "(" in value:
-        raise OperationParsingFailed(
-            "Parameter lists to perform multiple queries are not supported yet.",
-            locator="propertyname",
-        )
-
-    return [ValueReference(x) for x in value.split(",")]

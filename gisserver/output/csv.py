@@ -10,7 +10,6 @@ from django.db import models
 
 from gisserver import conf
 from gisserver.db import AsEWKT, get_db_rendered_geometry, replace_queryset_geometries
-from gisserver.geometries import CRS
 from gisserver.projection import FeatureProjection, FeatureRelation
 from gisserver.types import GmlElement, XsdElement, XsdTypes
 
@@ -32,13 +31,8 @@ class CSVRenderer(CollectionOutputRenderer):
     #: or one of the registered names like: "unix", "excel", "excel-tab"
     dialect = "unix"
 
-    @classmethod
     def decorate_queryset(
-        cls,
-        projection: FeatureProjection,
-        queryset: models.QuerySet,
-        output_crs: CRS,
-        **params,
+        self, projection: FeatureProjection, queryset: models.QuerySet
     ) -> models.QuerySet:
         """Make sure relations are included with select-related to avoid N-queries.
         Using prefetch_related() isn't possible with .iterator().
@@ -47,12 +41,12 @@ class CSVRenderer(CollectionOutputRenderer):
         # as these are not possible to render in CSV.
         projection.remove_fields(
             lambda e: e.is_many
-            or e.xml_name == "gml:name"
-            or e.type == XsdTypes.gmlBoundingShapeType
+            or e.type == XsdTypes.gmlCodeType  # gml:name
+            or e.type == XsdTypes.gmlBoundingShapeType  # gml:boundedBy
         )
 
         # All database optimizations
-        return super().decorate_queryset(projection, queryset, output_crs, **params)
+        return super().decorate_queryset(projection, queryset)
 
     def render_stream(self):
         self.output = output = StringIO()
@@ -150,36 +144,27 @@ class DBCSVRenderer(CSVRenderer):
     This is about 40% faster than calling the GEOS C-API from python.
     """
 
-    @classmethod
     def decorate_queryset(
-        cls,
-        projection: FeatureProjection,
-        queryset: models.QuerySet,
-        output_crs: CRS,
-        **params,
+        self, projection: FeatureProjection, queryset: models.QuerySet
     ) -> models.QuerySet:
         # Instead of reading the binary geometry data, let the database generate EWKT data.
         # As annotations can't be done for select_related() objects, prefetches are used instead.
-        queryset = super().decorate_queryset(projection, queryset, output_crs, **params)
+        queryset = super().decorate_queryset(projection, queryset)
         return replace_queryset_geometries(
-            queryset, projection.geometry_elements, output_crs, AsEWKT
+            queryset, projection.geometry_elements, projection.output_crs, AsEWKT
         )
 
-    @classmethod
     def get_prefetch_queryset(
-        cls,
-        projection: FeatureProjection,
-        feature_relation: FeatureRelation,
-        output_crs: CRS,
+        self, projection: FeatureProjection, feature_relation: FeatureRelation
     ) -> models.QuerySet | None:
         """Perform DB annotations for prefetched relations too."""
-        queryset = super().get_prefetch_queryset(projection, feature_relation, output_crs)
+        queryset = super().get_prefetch_queryset(projection, feature_relation)
         if queryset is None:
             return None
 
         # Find which fields are GML elements, annotate these too.
         return replace_queryset_geometries(
-            queryset, feature_relation.geometry_elements, output_crs, AsEWKT
+            queryset, feature_relation.geometry_elements, projection.output_crs, AsEWKT
         )
 
     def render_geometry(self, instance: models.Model, gml_element: GmlElement):

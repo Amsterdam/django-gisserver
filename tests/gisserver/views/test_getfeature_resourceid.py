@@ -19,9 +19,13 @@ class TestGetFeature:
             f"&RESOURCEID=restaurant.{id}"
         ),
         Post(
-            lambda id: f"""<GetFeature service="WFS" version="2.0.0"
-				resourceId="restaurant.{id}" {XML_NS}>
-				</GetFeature>"""
+            lambda id: f"""<GetFeature service="WFS" version="2.0.0" {XML_NS}>
+                  <Query typeNames="restaurant">
+                    <fes:Filter>
+                      <fes:ResourceId rid="restaurant.{id}" />
+                    </fes:Filter>
+                  </Query>
+                </GetFeature>"""
         ),
     )
     def test_resource_id(self, restaurant, bad_restaurant, response):
@@ -45,9 +49,13 @@ class TestGetFeature:
     @parametrize_response(
         Get("?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&RESOURCEID=restaurant.0"),
         Post(
-            f"""<GetFeature service="WFS" version="2.0.0"
-				resourceId="restaurant.0" {XML_NS}>
-				</GetFeature>"""
+            f"""<GetFeature service="WFS" version="2.0.0" {XML_NS}>
+                  <Query typeNames="restaurant">
+                    <fes:Filter>
+                      <fes:ResourceId rid="restaurant.0" />
+                    </fes:Filter>
+                  </Query>
+                </GetFeature>"""
         ),
     )
     def test_resource_id_unknown_id(self, restaurant, bad_restaurant, response):
@@ -72,10 +80,13 @@ class TestGetFeature:
             f"&RESOURCEID=restaurant.{id}"
         ),
         Post(
-            lambda id: f"""<GetFeature service="WFS" version="2.0.0"
-				resourceId="restaurant.{id}" {XML_NS}>
-                <Query typeNames="mini-restaurant"></Query>
-				</GetFeature>"""
+            lambda id: f"""<GetFeature service="WFS" version="2.0.0" {XML_NS}>
+                  <Query typeNames="mini-restaurant">
+                    <fes:Filter>
+                      <fes:ResourceId rid="restaurant.{id}" />
+                    </fes:Filter>
+                  </Query>
+                </GetFeature>"""
         ),
     )
     def test_resource_id_typename_mismatch(self, restaurant, bad_restaurant, response):
@@ -100,9 +111,13 @@ class TestGetFeature:
     @parametrize_response(
         Get("?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&RESOURCEID=restaurant.ABC"),
         Post(
-            f"""<GetFeature service="WFS" version="2.0.0"
-				resourceId="restaurant.ABC" {XML_NS}>
-				</GetFeature>"""
+            f"""<GetFeature service="WFS" version="2.0.0" {XML_NS}>
+                  <Query typeNames="restaurant">
+                    <fes:Filter>
+                      <fes:ResourceId rid="restaurant.ABC" />
+                    </fes:Filter>
+                  </Query>
+                </GetFeature>"""
         ),
     )
     def test_resource_id_invalid(self, restaurant, bad_restaurant, response):
@@ -126,9 +141,14 @@ class TestGetFeature:
             f"&RESOURCEID=restaurant.{id1},restaurant.{id2}"
         ),
         Post(
-            lambda id1, id2: f"""<GetFeature service="WFS" version="2.0.0"
-				resourceId="restaurant.{id1},restaurant.{id2}" {XML_NS}>
-				</GetFeature>"""
+            lambda id1, id2: f"""<GetFeature service="WFS" version="2.0.0" {XML_NS}>
+                  <Query typeNames="restaurant">
+                    <fes:Filter>
+                      <fes:ResourceId rid="restaurant.{id1}" />
+                      <fes:ResourceId rid="restaurant.{id2}" />
+                    </fes:Filter>
+                  </Query>
+                </GetFeature>"""
         ),
     )
     def test_resource_id_multiple(self, client, restaurant, bad_restaurant, response):
