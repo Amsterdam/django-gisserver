@@ -15,7 +15,11 @@ from typing import Protocol, Union
 from django.contrib.gis import measure
 from django.db.models import Q
 
-from gisserver.exceptions import ExternalParsingError, OperationProcessingFailed
+from gisserver.exceptions import (
+    ExternalParsingError,
+    InvalidParameterValue,
+    OperationProcessingFailed,
+)
 from gisserver.parsers import gml
 from gisserver.parsers.ast import (
     BaseNode,
@@ -25,7 +29,9 @@ from gisserver.parsers.ast import (
     tag_registry,
 )
 from gisserver.parsers.query import CompiledQuery, RhsTypes
+from gisserver.parsers.values import fix_type_name
 from gisserver.parsers.xml import NSElement, xmlns
+from gisserver.types import GmlElement, XPathMatch
 
 from .expressions import Expression, Literal, ValueReference
 from .identifiers import Id
@@ -160,7 +166,7 @@ class Measure(BaseNode):
     @classmethod
     @expect_tag(xmlns.fes20, "Distance")
     def from_xml(cls, element: NSElement):
-        return cls(value=Decimal(element.text), uom=element.get_attribute("uom"))
+        return cls(value=Decimal(element.text), uom=element.get_str_attribute("uom"))
 
     def build_rhs(self, compiler) -> measure.Distance:
         return measure.Distance(default_unit=self.uom, **{self.uom: self.value})
@@ -187,8 +193,7 @@ class IdOperator(Operator):
 
     id: list[Id]
 
-    @property
-    def type_names(self) -> list[str]:
+    def get_type_names(self) -> list[str]:
         """Provide a list of all type names accessed by this operator"""
         return [type_name for type_name in self.grouped_ids if type_name is not None]
 
@@ -213,7 +218,19 @@ class IdOperator(Operator):
             compiler.mark_empty()
             return
 
+        type_names = {ft.xml_name for ft in compiler.feature_types}
         for type_name, items in self.grouped_ids.items():
+            type_name = fix_type_name(type_name, compiler.feature_types[0].xml_namespace)
+            if type_name not in type_names:
+                # When ResourceId + typenames is defined, it should be a value from typenames see WFS spec 7.9.2.4.1
+                # This is tested here for RESOURCEID with a typename.id format.
+                # Otherwise, this breaks the CITE RESOURCEID=test-UUID parameter.
+                raise InvalidParameterValue(
+                    "When TYPENAMES and RESOURCEID are combined, "
+                    "the RESOURCEID type should be included in TYPENAMES.",
+                    locator="resourceId",
+                )
+
             ids_subset = reduce(operator.or_, [id.build_query(compiler) for id in items])
             compiler.add_lookups(ids_subset, type_name=type_name)
 
@@ -229,7 +246,7 @@ class NonIdOperator(Operator):
     Hence, having this base class as Python type simplifies parsing.
     """
 
-    _source = None
+    _source = None  # often declared as non-comparing in dataclasses below.
     allow_geometries = False
 
     def build_compare(
@@ -248,7 +265,7 @@ class NonIdOperator(Operator):
         if isinstance(lhs, Literal) and isinstance(rhs, ValueReference):
             lhs, rhs = rhs, lhs
 
-        if compiler.feature_type is not None:
+        if compiler.feature_types:
             lookup = self.validate_comparison(compiler, lhs, lookup, rhs)
 
         # Build Django Q-object
@@ -265,7 +282,7 @@ class NonIdOperator(Operator):
         compiler: CompiledQuery,
         lhs: Expression,
         lookup: str,
-        rhs: Expression | RhsTypes,
+        rhs: Expression | gml.GM_Object | RhsTypes,
     ):
         """Validate whether a given comparison is even possible.
 
@@ -281,7 +298,7 @@ class NonIdOperator(Operator):
         :param rhs: The right-hand-side of the comparison (e.g. the value).
         """
         if isinstance(lhs, ValueReference):
-            xsd_element = compiler.feature_type.resolve_element(lhs.xpath).child
+            xsd_element = lhs.parse_xpath(compiler.feature_types).child
             tag = self._source if self._source is not None else None
 
             # e.g. deny <PropertyIsLessThanOrEqualTo> against <gml:boundedBy>
@@ -323,10 +340,10 @@ class NonIdOperator(Operator):
         compiler: CompiledQuery,
         lhs: Expression,
         lookup: str,
-        rhs: tuple[HasBuildRhs, HasBuildRhs],
+        rhs: tuple[Expression | ValueReference | gml.GM_Object, Expression | Measure],
     ) -> Q:
         """Use the value in comparison with 2 other values (e.g. between query)"""
-        if compiler.feature_type is not None:
+        if compiler.feature_types:
             self.validate_comparison(compiler, lhs, lookup, rhs[0])
             self.validate_comparison(compiler, lhs, lookup, rhs[1])
 
@@ -445,7 +462,8 @@ class BinarySpatialOperator(SpatialOperator):
     def build_query(self, compiler: CompiledQuery) -> Q:
         operant1 = self.operand1
         if operant1 is None:
-            operant1 = ValueReference(xpath=compiler.feature_type.main_geometry_element.orm_path)
+            # BBOX element points to the existing geometry element by default.
+            operant1 = _ResolvedValueReference(compiler.feature_types[0].main_geometry_element)
 
         return self.build_compare(
             compiler,
@@ -453,6 +471,26 @@ class BinarySpatialOperator(SpatialOperator):
             lookup=self.operatorType.value,
             rhs=self.operand2,
         )
+
+
+class _ResolvedValueReference(ValueReference):
+    """Internal ValueReference subclass that already knows which element it resolve to.
+    This avoids translating back and forth between an XPath path and the desired node.
+    """
+
+    def __init__(self, gml_element: GmlElement):
+        self.xpath = f"(mocked {gml_element.orm_path})"  # keep __str__ and __repr__ happy.
+        self.xpath_ns_aliases = {}
+        self.gml_element = gml_element
+        self.orm_path = gml_element.orm_path
+
+    def parse_xpath(
+        self, feature_types: list, ns_aliases: dict[str, str] | None = None
+    ) -> XPathMatch:
+        return XPathMatch(feature_types[0], [self.gml_element], query="")
+
+    def build_lhs(self, compiler: CompiledQuery):
+        return self.orm_path
 
 
 @dataclass
@@ -647,9 +685,9 @@ class LikeOperator(ComparisonOperator):
                 Expression.child_from_xml(element[1]),
             ),
             # These attributes are required by the WFS spec:
-            wildCard=element.get_attribute("wildCard"),
-            singleChar=element.get_attribute("singleChar"),
-            escapeChar=element.get_attribute("escapeChar"),
+            wildCard=element.get_str_attribute("wildCard"),
+            singleChar=element.get_str_attribute("singleChar"),
+            escapeChar=element.get_str_attribute("escapeChar"),
             _source=element.tag,
         )
 
@@ -668,7 +706,9 @@ class LikeOperator(ComparisonOperator):
 
             rhs = Literal(raw_value=value)
         else:
-            raise ExternalParsingError(f"Expected a literal value for the {self.tag} operator.")
+            raise ExternalParsingError(
+                f"Expected a literal value for the {self.xml_tags[0]} operator."
+            )
 
         # Use the FesLike lookup
         return self.build_compare(compiler, lhs=lhs, lookup="fes_like", rhs=rhs)

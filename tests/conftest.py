@@ -19,6 +19,7 @@ from django.http.response import HttpResponseBase
 from psycopg2 import Binary
 
 from gisserver import conf
+from gisserver.parsers import ows
 from gisserver.parsers.xml import xmlns
 from tests.requests import Request
 from tests.test_gisserver import models
@@ -327,3 +328,31 @@ def response(client, request) -> HttpResponseBase | Callable[..., HttpResponseBa
     if req.expect:
         response.expect = req.expect
     return response
+
+
+@pytest.fixture()
+def ows_request(request) -> ows.BaseOwsRequest:
+    """This fixture can be used to abstract over different types of requests (GET/POST) with
+    different kinds of urls expecting similar outcomes.
+
+    Delaying the call (in which case it returns a function returning a response instead of a
+    response) and adding expect attributes are both possible.
+
+    Usage::
+
+        @parametrize_ows_request(
+            Get("?query=test"),
+            Get(lambda id: f"?query=test{id}"),
+            Post("<xml></xml>"),
+            Post("<xml></xml>", expect=AssertionError),
+        )
+        def test_function(ows_request):
+            ...
+    """
+    req: Request = request.param
+    ows_req = req.get_ows_request()
+
+    ows_req.method = req.__class__.__name__.upper()
+    if req.expect:
+        ows_req.expect = req.expect
+    return ows_req

@@ -19,6 +19,7 @@ from gisserver.types import (
     GmlElement,
     XPathMatch,
     XsdElement,
+    XsdNode,
     XsdTypes,
     _XsdElement_WithComplexType,
 )
@@ -28,7 +29,8 @@ if typing.TYPE_CHECKING:
     from django.db import models
 
     from gisserver.features import FeatureType
-    from gisserver.parsers import fes20
+    from gisserver.geometries import CRS
+    from gisserver.parsers import fes20, wfs20
 
 __all__ = (
     "FeatureProjection",
@@ -50,9 +52,28 @@ class FeatureProjection:
     xsd_root_elements: list[XsdElement]
     xsd_child_nodes: dict[XsdElement | None, list[XsdElement]]
 
-    def __init__(self, feature_type: FeatureType, property_names: list[fes20.ValueReference]):
-        self.feature_type = feature_type
+    def __init__(
+        self,
+        feature_types: list[FeatureType],
+        property_names: list[wfs20.PropertyName] | None = None,
+        value_reference: fes20.ValueReference | None = None,
+        output_crs: CRS | None = None,
+        output_standalone: bool = False,
+    ):
+        """
+
+        :param feature_types: The feature types used by this query. Typically one, unless there is a JOIN.
+        :param property_names: Limited list of fields to render only.
+        :param value_reference: Single element to display fo GetPropertyValue
+        :param output_crs: Which coordinate reference system to use for geometry data.
+        :param output_standalone: Whether the ``<wfs:
+        """
+        self.feature_types = feature_types
+        self.feature_type = feature_types[0]  # JOIN still not supported.
         self.property_names = property_names
+        self.value_reference = value_reference
+        self.output_crs: CRS = output_crs or self.feature_type.crs
+        self.output_standalone = output_standalone  # for GetFeatureById
 
         if property_names:
             # Only a selection of the tree will be rendered.
@@ -62,8 +83,8 @@ class FeatureProjection:
             self.xsd_child_nodes = child_nodes
         else:
             # All elements of the tree will be rendered, retrieve all elements.
-            self.xsd_root_elements = feature_type.xsd_type.elements_including_base
-            self.xsd_child_nodes = feature_type.xsd_type.elements_with_children
+            self.xsd_root_elements = self.feature_type.xsd_type.elements_including_base
+            self.xsd_child_nodes = self.feature_type.xsd_type.elements_with_children
 
     def _get_child_nodes_subset(self) -> dict[XsdElement | None, list[XsdElement]]:
         """Translate the PROPERTYNAME into a dictionary of nodes to render."""
@@ -143,7 +164,7 @@ class FeatureProjection:
             raise RuntimeError("This method is only useful for propertyname projections.")
 
         return [
-            self.feature_type.resolve_element(property_name.xpath)
+            self.feature_type.resolve_element(property_name.xpath, property_name.xpath_ns_aliases)
             for property_name in self.property_names
         ]
 
@@ -196,6 +217,17 @@ class FeatureProjection:
             for e in self.xsd_root_elements
             if e.type.is_geometry and e.type is not XsdTypes.gmlBoundingShapeType
         ]
+
+    @cached_property
+    def property_value_node(self) -> XsdNode:
+        """For GetPropertyValue, resolve the element that is rendered."""
+        if self.value_reference is None:
+            raise RuntimeError("This method is only useful for GetPropertyValue calls.")
+        return (
+            self.feature_types[0]
+            .resolve_element(self.value_reference.xpath, self.value_reference.xpath_ns_aliases)
+            .child
+        )
 
     @cached_property
     def orm_relations(self) -> list[FeatureRelation]:

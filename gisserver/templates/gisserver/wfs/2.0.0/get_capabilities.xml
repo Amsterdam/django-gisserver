@@ -11,8 +11,8 @@
     xmlns:xlink="http://www.w3.org/1999/xlink"
     xmlns:xs="http://www.w3.org/2001/XMLSchema"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-    xmlns:fes="http://www.opengis.net/fes/2.0"
-    xmlns:app="{{ app_xml_namespace }}"
+    xmlns:fes="http://www.opengis.net/fes/2.0"{% for xml_namespace, prefix in xml_namespaces.items %}
+    xmlns:{{ prefix }}="{{ xml_namespace }}"{% endfor %}
     xsi:schemaLocation="http://www.opengis.net/wfs/2.0 http://schemas.opengis.net/wfs/2.0/wfs.xsd">
 
   <ows:ServiceIdentification>
@@ -59,7 +59,7 @@
   </ows:ServiceProvider>
 
   <ows:OperationsMetadata>
-    {% for name, operation in accept_operations.items %}
+    {% for name, parameters in accept_operations.items %}
     <ows:Operation name="{{ name }}">
       <ows:DCP>
         <ows:HTTP>
@@ -67,14 +67,14 @@
           <ows:Post xlink:type="simple" xlink:href="{{ server_url }}"/>
         </ows:HTTP>
       </ows:DCP>
-      {% for parameter in operation.get_parameters %}{% if parameter.in_capabilities and parameter.allowed_values %}
+      {% for parameter in parameters %}
       <ows:Parameter name="{{ parameter.name }}">
         <ows:AllowedValues>
           {% for output in parameter.allowed_values %}
             <ows:Value>{{ output }}</ows:Value>
           {% endfor %}
         </ows:AllowedValues>
-      </ows:Parameter>{% endif %}{% endfor %}
+      </ows:Parameter>{% endfor %}
     </ows:Operation>
     {% endfor %}
     {% for name, value in service_constraints.items %}
@@ -87,9 +87,9 @@
   </ows:OperationsMetadata>
 
   <FeatureTypeList>
-    {% for feature_type in feature_types %}
+    {% for feature_type, qname in feature_types.items %}
     <FeatureType>
-      <Name>{{ feature_type.xml_name }}</Name>
+      <Name>{{ qname }}</Name>
       <Title>{{ feature_type.title }}</Title>{% if feature_type.abstract %}
       <Abstract>{{ feature_type.abstract }}</Abstract>{% endif %}
       {% if feature_type.keywords %}<ows:Keywords>{% for keyword in feature_type.keywords %}
@@ -177,10 +177,10 @@
     {% endcomment %}{% if function_registry %}
     <fes:Functions>{% for function in function_registry %}
       <fes:Function name="{{ function.name }}">
-        <fes:Returns>{{ function.returns.with_prefix }}</fes:Returns>{% if function.arguments %}
+        <fes:Returns>{{ function.returns|to_qname }}</fes:Returns>{% if function.arguments %}
         <fes:Arguments>{% for name, xs_type in function.arguments.items %}
           <fes:Argument name="{{ name }}">
-            <fes:Type>{{ xs_type.with_prefix }}</fes:Type>
+            <fes:Type>{{ xs_type|to_qname }}</fes:Type>
           </fes:Argument>{% endfor %}
         </fes:Arguments>{% endif %}
       </fes:Function>{% endfor %}

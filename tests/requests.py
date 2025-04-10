@@ -7,6 +7,9 @@ from typing import Any, Callable
 import pytest
 from django.test import Client
 
+from gisserver.parsers import ows
+from tests.utils import WFS_20_AND_GML_XSD, validate_xsd
+
 
 class Url(Enum):
     NORMAL = "/v1/wfs/"
@@ -38,6 +41,9 @@ class Request:
         else:
             return prefix
 
+    def get_ows_request(self) -> ows.BaseOwsRequest:
+        raise NotImplementedError()
+
     def get_response(self, client: Client):
         raise NotImplementedError()
 
@@ -49,6 +55,18 @@ class Get(Request):
     def __init__(self, query, **kwargs):
         super().__init__(**kwargs)
         self.query = query
+
+    def get_ows_request(self) -> ows.BaseOwsRequest:
+        return ows.parse_get_request(
+            self.query,
+            ns_aliases={
+                # For now, have similar namespaces as the XML_NS constant.
+                # Should allow to resolve both unprefixed QName and app: prefixes.
+                # To test the KVP parser namespace handling, write a test specifically for that.
+                "": "http://example.org/gisserver",
+                "app": "http://example.org/gisserver",
+            },
+        )
 
     def get_response(self, client: Client):
         if isinstance(self.query, str):
@@ -65,19 +83,30 @@ class Get(Request):
 @dataclass
 class Post(Request):
     body: str | Callable
+    validate_xml: bool
 
-    def __init__(self, body, **kwargs):
+    def __init__(self, body, validate_xml: bool = True, **kwargs):
         super().__init__(**kwargs)
         self.body = body
+        self.validate_xml = validate_xml
+
+    def get_ows_request(self) -> ows.BaseOwsRequest:
+        if self.validate_xml:
+            validate_xsd(self.body, WFS_20_AND_GML_XSD)
+        return ows.parse_post_request(self.body)
 
     def get_response(self, client: Client):
         if isinstance(self.body, str):
-            return client.post(self.url, data=self.body, content_type="application/xml")
+            if self.validate_xml:
+                validate_xsd(self.body, WFS_20_AND_GML_XSD)
+            return client.post(self.url.value, data=self.body, content_type="application/xml")
         else:
             # a function is being passed in.
             def func(*args):
                 b = self.body(*args)
-                return client.post(self.url, data=b, content_type="application/xml")
+                if self.validate_xml:
+                    validate_xsd(b, WFS_20_AND_GML_XSD)
+                return client.post(self.url.value, data=b, content_type="application/xml")
 
             return func
 
@@ -120,4 +149,28 @@ def parametrize_response(*param_values: Request, url: Url | None = None):
         param_values,
         indirect=True,
         ids=[val.test_id() for val in param_values],
+    )
+
+
+def parametrize_ows_request(*requests: Request):
+    """A decorator for parametrizing the "ows_request".
+    This allows testing whether GET and POST requests have the same parsing.
+
+    Usage::
+
+        @parametrize_ows_request(
+            Get("?query=test"),
+            Get(lambda id: f"?query=test{id}"),
+            Post("<xml></xml>"),
+            Post("<xml></xml>", expect=AssertionError),
+        )
+        def test_function(ows_request):
+            ...
+    """
+    # Return the decorator which will be called with the original function that has a 'response' fixture.
+    return pytest.mark.parametrize(
+        "ows_request",
+        requests,
+        indirect=True,
+        ids=[val.test_id() for val in requests],
     )

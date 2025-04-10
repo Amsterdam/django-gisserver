@@ -1,7 +1,7 @@
 import pytest
 
 from gisserver.exceptions import ExternalParsingError
-from gisserver.parsers.xml import NSElement, parse_qname, parse_xml_from_string, split_ns
+from gisserver.parsers.xml import NSElement, parse_qname, parse_xml_from_string, split_ns, xmlns
 
 
 class TestParseQName:
@@ -33,6 +33,29 @@ def test_split_ns():
     ns, localname = split_ns("{http://www.opengis.net/gml/3.2}Point")
     assert ns == "http://www.opengis.net/gml/3.2"
     assert localname == "Point"
+
+
+class TestXmlNS:
+    """Prove that the 'xmlns' enum works as advertised."""
+
+    def test_as_namespaces(self):
+        """Test that the common aliases work."""
+        namespaces = xmlns.as_namespaces()
+        assert namespaces["http://www.opengis.net/gml/3.2"] == "gml"
+        assert namespaces["http://www.opengis.net/wfs/2.0"] == "wfs"
+        assert namespaces["http://www.opengis.net/ows/1.1"] == "ows"
+
+    def test_as_ns_aliases(self):
+        ns_aliases = xmlns.as_ns_aliases()
+        assert ns_aliases["gml"] == "http://www.opengis.net/gml/3.2"
+        assert ns_aliases["ows"] == "http://www.opengis.net/ows/1.1"
+        assert ns_aliases["gml"] == "http://www.opengis.net/gml/3.2"
+
+    def test_qname(self):
+        assert xmlns.gml32.qname("Point") == "{http://www.opengis.net/gml/3.2}Point"
+
+    def test_contains(self):
+        assert "{http://www.opengis.net/gml/3.2}Point" in xmlns.gml32
 
 
 class TestParser:

@@ -19,12 +19,14 @@ from django.utils.timezone import now
 from gisserver import conf
 from gisserver.features import FeatureType
 from gisserver.geometries import BoundingBox
-from gisserver.projection import FeatureProjection
 
 from .iters import ChunkedQuerySetIterator, CountingIterator
 
 if typing.TYPE_CHECKING:
-    from gisserver.queries import QueryExpression
+    from gisserver.projection import FeatureProjection, QueryExpression
+
+
+CALCULATE = -9999999
 
 
 class SimpleFeatureCollection:
@@ -37,16 +39,18 @@ class SimpleFeatureCollection:
     def __init__(
         self,
         source_query: QueryExpression,
-        feature_type: FeatureType,
+        feature_types: list[FeatureType],
         queryset: models.QuerySet,
         start: int,
         stop: int,
+        number_matched: int | None = CALCULATE,
     ):
         self.source_query = source_query
-        self.feature_type = feature_type
+        self.feature_types = feature_types
         self.queryset = queryset
         self.start = start
         self.stop = stop
+        self._number_matched = number_matched
 
         self._result_cache = None
         self._result_iterator = None
@@ -184,9 +188,12 @@ class SimpleFeatureCollection:
             self.fetch_results()
             return len(self._result_cache)
 
-    @cached_property
+    @property
     def number_matched(self) -> int:
         """Return the total number of matches across all pages."""
+        if self._number_matched != CALCULATE:
+            return self._number_matched
+
         if self._is_surely_last_page:
             # For resulttype=results, an expensive COUNT query can be avoided
             # when this is the first and only page or the last page.
@@ -198,13 +205,14 @@ class SimpleFeatureCollection:
             # Otherwise, it becomes SELECT COUNT(*) FROM (SELECT AsGML(..), ...)
             key: value
             for key, value in qs.query.annotations.items()
-            if not key.startswith("_as_")
+            if not key.startswith("_as_") and not key.startswith("_As")  # AsGML / AsEWKT
         }
         if clean_annotations != qs.query.annotations:
             qs = self.queryset.all()  # make a clone to allow editing
             qs.query.annotations = clean_annotations
 
-        return qs.count()
+        self._number_matched = qs.count()
+        return self._number_matched
 
     @property
     def _is_surely_last_page(self):
@@ -232,7 +240,7 @@ class SimpleFeatureCollection:
 
     @property
     def has_next(self):
-        if self.stop == math.inf:
+        if self.stop == math.inf or (self.start == self.stop == 0):
             return False
         elif self._has_more is not None:
             return self._has_more  # did page+1 record check, answer is known.
@@ -246,8 +254,8 @@ class SimpleFeatureCollection:
     def projection(self) -> FeatureProjection:
         """Provide the projection to render these results with."""
         # Note this attribute would technically be part of the 'query' object,
-        # but since the projection needs to be mapped per feature type, it's stored here for convenience.
-        return self.source_query.get_projection(self.feature_type)
+        # but since the projection needs to be calculated once, it's stored here for convenience.
+        return self.source_query.get_projection()
 
     def get_bounding_box(self) -> BoundingBox:
         """Determine bounding box of all items."""
@@ -266,9 +274,6 @@ class SimpleFeatureCollection:
             bbox.extend_to_geometry(geometry_value)
 
         return bbox
-
-
-CALCULATE = -9999999
 
 
 class FeatureCollection:

@@ -7,135 +7,62 @@ This introspection data is also parsed by the GetCapabilities call.
 
 from __future__ import annotations
 
+import logging
 import math
 import re
-from collections.abc import Callable
-from dataclasses import dataclass, field
-from typing import Any
+import typing
+from dataclasses import dataclass
+from functools import cached_property
 
-from django.core.exceptions import ImproperlyConfigured, SuspiciousOperation
+from django.core.exceptions import SuspiciousOperation
 from django.http import HttpResponse
 from django.template.loader import render_to_string
 
-from gisserver.exceptions import (
-    ExternalParsingError,
-    InvalidParameterValue,
-    MissingParameterValue,
-    OperationParsingFailed,
-)
+from gisserver.exceptions import InvalidParameterValue
 from gisserver.features import FeatureType
+from gisserver.output.base import OutputRenderer
+from gisserver.parsers import ows
+from gisserver.parsers.values import fix_type_name
 
+if typing.TYPE_CHECKING:
+    from gisserver.views import WFSView
+
+logger = logging.getLogger(__name__)
 NoneType = type(None)
+R = typing.TypeVar("R", bound=OutputRenderer)
 
 RE_SAFE_FILENAME = re.compile(r"\A[A-Za-z0-9]+[A-Za-z0-9.]*")  # no dot at the start.
+
+__all__ = (
+    "Parameter",
+    "OutputFormat",
+    "WFSMethod",
+    "OutputFormatMixin",
+    "XmlTemplateMixin",
+)
 
 
 @dataclass(frozen=True)
 class Parameter:
-    """The definition of a parameter for an WFS method.
+    """The ``<ows:Parameter>`` tag to output in ``GetCapabilities``."""
 
-    These parameters should be defined in the
-    WFSMethod parameters attribute / get_parameters().
-
-    These fields are used to parse the incoming request.
-    The GetCapabilities method also reads the metadata of this value.
-    """
-
-    #: Name of the parameter (using the XML casing style)
     name: str
-
-    #: Alias name (e.g. typenames/typename)
-    alias: str | None = None
-
-    #: Whether the parameter is required
-    required: bool = False
-
-    #: Optional parser callback to convert the parameter into a Python type
-    parser: Callable[[str], Any] = None
-
-    #: Whether to list this parameter in GetCapabilities
-    in_capabilities: bool = False
-
-    #: List of allowed values (also shown in GetCapabilities)
-    allowed_values: list | tuple | set | NoneType = None
-
-    #: Default value if it's not given
-    default: Any = None
-
-    #: Overridable dict for error messages
-    error_messages: dict = field(default_factory=dict)
-
-    def value_from_query(self, KVP: dict):  # noqa: C901
-        """Parse a request variable using the type definition.
-
-        This uses the dataclass settings to parse the incoming request value.
-        """
-        # URL-based key-value-pair parameters use uppercase.
-        kvp_name = self.name.upper()
-        value = KVP.get(kvp_name)
-        if not value and self.alias:
-            value = KVP.get(self.alias.upper())
-
-        # Check required field settings, both empty and missing value are treated the same.
-        if not value:
-            if not self.required:
-                return self.default
-            elif value is None:
-                raise MissingParameterValue(f"Missing {kvp_name} parameter", locator=self.name)
-            else:
-                raise InvalidParameterValue(f"Empty {kvp_name} parameter", locator=self.name)
-
-        # Allow conversion into a python object
-        if self.parser is not None:
-            try:
-                value = self.parser(value)
-            except ExternalParsingError as e:
-                raise OperationParsingFailed(
-                    f"Unable to parse {kvp_name} argument: {e}",
-                    locator=self.name,
-                ) from None
-            except (TypeError, ValueError, NotImplementedError) as e:
-                # TypeError/ValueError are raised by most handlers for unexpected data
-                # The NotImplementedError can be raised by fes parsing.
-                raise InvalidParameterValue(
-                    f"Invalid {kvp_name} argument: {e}",
-                    locator=self.name,
-                ) from None
-
-        # Validate against value choices
-        self.validate_value(value)
-
-        return value
-
-    def validate_value(self, value):
-        """Validate the parsed value.
-        This method can be overwritten by a subclass if needed.
-        """
-        if self.allowed_values is not None and value not in self.allowed_values:
-            msg = self.error_messages.get("invalid", "Invalid value for {name}: {value}")
-            raise InvalidParameterValue(msg.format(name=self.name, value=value), locator=self.name)
+    allowed_values: list[str]
 
 
-class UnsupportedParameter(Parameter):
-    def value_from_query(self, KVP: dict):
-        kvp_name = self.name.upper()
-        if kvp_name in KVP:
-            raise InvalidParameterValue(
-                f"Support for {self.name} is not implemented!", locator=self.name
-            )
-        return None
-
-
-class OutputFormat:
+class OutputFormat(typing.Generic[R]):
     """Declare an output format for the method.
 
-    These formats should be used in the ``output_formats`` section of the WFSMethod.
+    These formats are used in the :meth:`get_output_formats` for
+    any WFSMethod that implements :class:`OutputFormatMixin`.
+    This also connects the output format with a :attr:`renderer_class`.
     """
 
     def __init__(
         self,
         content_type,
-        renderer_class=None,
+        *,
+        renderer_class: type[R] | None = None,
         max_page_size=None,
         title=None,
         in_capabilities=True,
@@ -202,13 +129,63 @@ class WFSMethod:
     also exposes all requires metadata for the GetCapabilities request.
     """
 
-    do_not_call_in_templates = True  # avoid __call__ execution in Django templates
+    #: Optionally, mention explicitly what the parser class should be used.
+    #: Otherwise, it's automatically resolved from the registered types.
+    parser_class: type[ows.BaseOwsRequest] = None
 
-    #: List the supported parameters for this method, extended by get_parameters()
-    parameters: list[Parameter] = []
+    def __init__(self, view: WFSView, ows_request: ows.BaseOwsRequest):
+        self.view = view
+        self.ows_request = ows_request
 
-    #: List the supported output formats for this method.
-    output_formats: list[OutputFormat] = []
+    def get_parameters(self) -> list[Parameter]:
+        """Parameters to advertise in the capabilities for this method."""
+        return [
+            # Always advertise SERVICE and VERSION as required parameters:
+            Parameter("service", allowed_values=list(self.view.accept_operations.keys())),
+            Parameter("version", allowed_values=self.view.accept_versions),
+        ]
+
+    def validate_request(self, ows_request: ows.BaseOwsRequest):
+        """Validate the request."""
+
+    def process_request(self, ows_request: ows.BaseOwsRequest):
+        """Default call implementation: render an XML template."""
+        raise NotImplementedError()
+
+    @cached_property
+    def all_feature_types_by_name(self) -> dict[str, FeatureType]:
+        """Create a lookup for feature types by name.
+        This can be cached as the WFSMethod is instantiated with each request
+        """
+        return {ft.xml_name: ft for ft in self.view.get_bound_feature_types()}
+
+    def resolve_feature_type(self, type_name: str, locator: str = "typeNames") -> FeatureType:
+        """Find the FeatureType defined in the application that corresponds with the XML type name."""
+        alt_type_name = fix_type_name(type_name, self.view.xml_namespace)
+        try:
+            return self.all_feature_types_by_name[alt_type_name]
+        except KeyError:
+            if alt_type_name:
+                logger.debug(
+                    "Unable to locate '%s' (nor %s) in the server, options are: %r",
+                    type_name,
+                    alt_type_name,
+                    list(self.all_feature_types_by_name),
+                )
+            else:
+                logger.debug(
+                    "Unable to locate '%s' in the server, options are: %r",
+                    type_name,
+                    list(self.all_feature_types_by_name),
+                )
+            raise InvalidParameterValue(
+                f"Typename '{type_name}' doesn't exist in this server.",
+                locator=locator or "typeNames",
+            ) from None
+
+
+class XmlTemplateMixin:
+    """Mixin to support methods that render using a template."""
 
     #: Default template to use for rendering
     xml_template_name = None
@@ -216,147 +193,22 @@ class WFSMethod:
     #: Default content-type for render_xml()
     xml_content_type = "text/xml; charset=utf-8"
 
-    def __init__(self, view):
-        self.view = view  # an gisserver.views.GISView
-        self.namespaces = {
-            # Default namespaces for the incoming request:
-            "http://www.w3.org/XML/1998/namespace": "xml",
-            "http://www.opengis.net/wfs/2.0": "wfs",
-            "http://www.opengis.net/gml/3.2": "gml",
-            self.view.xml_namespace: "app",
-        }
+    def process_request(self, ows_request: ows.BaseOwsRequest):
+        context = self.get_context_data()
+        return self.render_xml(context, ows_request)
 
-    def get_parameters(self):
-        """Dynamically return the supported parameters for this method."""
-        parameters = [
-            # Always add SERVICE and VERSION as required parameters
-            # Part of BaseRequest:
-            Parameter(
-                "service",
-                required=not bool(self.view.default_service),
-                in_capabilities=True,
-                allowed_values=list(self.view.accept_operations.keys()),
-                default=self.view.default_service,  # can be None or e.g. "WFS"
-                error_messages={"invalid": "Unsupported service type: {value}."},
-            ),
-            Parameter(
-                "version",
-                required=True,  # Mandatory except for GetCapabilities
-                allowed_values=self.view.accept_versions,
-                error_messages={
-                    "invalid": "WFS Server does not support VERSION {value}.",
-                },
-            ),
-        ] + self.parameters
-
-        if self.output_formats:
-            parameters += [
-                # Part of StandardPresentationParameters:
-                Parameter(
-                    "outputFormat",
-                    in_capabilities=True,
-                    allowed_values=self.output_formats,
-                    parser=self._parse_output_format,
-                    default=self.output_formats[0],
-                )
-            ]
-
-        return parameters
-
-    def _parse_output_format(self, value) -> OutputFormat:
-        """Select the proper OutputFormat object based on the input value"""
-        # When using ?OUTPUTFORMAT=application/gml+xml", it is actually a URL-encoded space
-        # character. Hence, spaces are replaced back to a '+' character to allow such notation
-        # instead of forcing it to be ?OUTPUTFORMAT=application/gml%2bxml".
-        for v in {value, value.replace(" ", "+")}:
-            for o in self.output_formats:
-                if o.matches(v):
-                    return o
-        raise InvalidParameterValue(
-            f"'{value}' is not a permitted output format for this operation.",
-            locator="outputformat",
-        ) from None
-
-    def _parse_namespaces(self, value) -> dict[str, str]:
-        """Parse the 'namespaces' definition.
-
-        The NAMESPACES parameter defines which namespaces are used in the KVP request.
-        When this parameter is not given, the default namespaces are assumed.
-        """
-        if not value:
-            return {}
-
-        # example single value: xmlns(http://example.org)
-        # or: namespaces=xmlns(xml,http://www.w3.org/...),xmlns(wfs,http://www.opengis.net/...)
-        tokens = value.split(",")
-
-        namespaces = {}
-        tokens = iter(tokens)
-        for prefix in tokens:
-            if not prefix.startswith("xmlns("):
-                raise InvalidParameterValue(
-                    f"Expected xmlns(...) format: {value}", locator="namespaces"
-                )
-            if prefix.endswith(")"):
-                # xmlns(http://...)
-                prefix = ""
-                uri = prefix[6:-1]
-            else:
-                uri = next(tokens, "")
-                if not uri.endswith(")"):
-                    raise InvalidParameterValue(
-                        f"Expected xmlns(prefix,uri) format: {value}",
-                        locator="namespaces",
-                    )
-                prefix = prefix[6:]
-                uri = uri[:-1]
-
-            namespaces[uri] = prefix
-
-        return namespaces
-
-    def parse_request(self, KVP: dict) -> dict[str, Any]:
-        """Parse the parameters of the request"""
-        self.namespaces.update(self._parse_namespaces(KVP.get("NAMESPACES")))
-        param_values = {param.name: param.value_from_query(KVP) for param in self.get_parameters()}
-        param_values["NAMESPACES"] = self.namespaces
-
-        # Update version if requested.
-        # This is stored on the view, so exceptions also use it.
-        if param_values.get("version"):
-            self.view.set_version(param_values["version"])
-
-        self.validate(**param_values)
-        return param_values
-
-    def validate(self, **params):
-        """Perform final request parameter validation before the method is called"""
-
-    def __call__(self, **params):
-        """Default call implementation: render an XML template."""
-        context = self.get_context_data(**params)
-        if "outputFormat" in params:
-            output_format: OutputFormat = params["outputFormat"]
-
-            if output_format.renderer_class is not None:
-                # Streaming HTTP responses, e.g. GML32/GeoJSON output:
-                renderer = output_format.renderer_class(self, **context)
-                return renderer.get_response()
-
-        return self.render_xml(context, **params)
-
-    def get_context_data(self, **params):
+    def get_context_data(self):
         """Collect all arguments to use for rendering the XML template"""
         return {}
 
-    def render_xml(self, context, **params):
+    def render_xml(self, context, ows_request: ows.BaseOwsRequest):
         """Shortcut to render XML.
 
         This is the default method when the OutputFormat class doesn't have a renderer_class
         """
         return HttpResponse(
             render_to_string(
-                self._get_xml_template_name(),
+                self._get_xml_template_name(ows_request),
                 context={
                     "view": self.view,
                     "app_xml_namespace": self.view.xml_namespace,
@@ -367,9 +219,9 @@ class WFSMethod:
             content_type=self.xml_content_type,
         )
 
-    def _get_xml_template_name(self):
+    def _get_xml_template_name(self, ows_request: ows.BaseOwsRequest) -> str:
         """Generate the XML template name for this operation, and check its file pattern"""
-        service = self.view.KVP["SERVICE"].lower()
+        service = ows_request.service.lower()
         template_name = f"gisserver/{service}/{self.view.version}/{self.xml_template_name}"
 
         # Since 'service' and 'version' are based on external input,
@@ -380,66 +232,28 @@ class WFSMethod:
         return template_name
 
 
-class WFSTypeNamesMethod(WFSMethod):
-    """A base method that also resolved the TYPENAMES parameter."""
+class OutputFormatMixin:
+    """Mixin to support methods that handle different output formats."""
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    #: List the supported output formats for this method.
+    output_formats: list[OutputFormat] = []
 
-        # Retrieve the feature types directly, as these are needed during parsing.
-        # This is not delayed until _parse_type_names() as that wraps any TypeError
-        # from view.get_feature_types() as an InvalidParameterValue exception.
-        self.all_feature_types = self.view.get_feature_types()
-        self.all_feature_types_by_name = _get_feature_types_by_name(self.all_feature_types)
+    def get_output_formats(self) -> list[OutputFormat]:
+        """List all output formats. This is exposed in GetCapabilities,
+        and used for internal rendering.
+        """
+        return self.output_formats
 
-    def get_parameters(self):
-        return super().get_parameters() + [
-            # QGis sends both TYPENAME (wfs 1.x) and TYPENAMES (wfs 2.0) for DescribeFeatureType
-            # typeNames is not required when a ResourceID / GetFeatureById is specified.
-            Parameter(
-                "typeNames",
-                alias="typeName",  # WFS 1.0 name, but still needed for CITE tests
-                required=False,  # sometimes required, depends on other parameters
-                parser=self._parse_type_names,
-            ),
-        ]
-
-    def _parse_type_names(self, type_names) -> list[FeatureType]:
-        """Find the requested feature types by name"""
-        if "(" in type_names:
-            # This allows to perform multiple queries in a single request:
-            # TYPENAMES=(A)(B)&FILTER=(filter for A)(filter for B)
-            raise OperationParsingFailed(
-                "Parameter lists to perform multiple queries are not supported yet.",
-                locator="typenames",
-            )
-
-        return [self._parse_type_name(name, locator="typenames") for name in type_names.split(",")]
-
-    def _parse_type_name(self, name, locator="typename") -> FeatureType:
-        """Find the requested feature type for a type name"""
-        app_prefix = self.namespaces[self.view.xml_namespace]
-        # strip our XML prefix
-        local_name = name[len(app_prefix) + 1 :] if name.startswith(f"{app_prefix}:") else name
-
-        try:
-            return self.all_feature_types_by_name[local_name]
-        except KeyError:
-            raise InvalidParameterValue(
-                f"Typename '{name}' doesn't exist in this server. "
-                f"Please check the capabilities and reformulate your request.",
-                locator=locator,
-            ) from None
-
-
-def _get_feature_types_by_name(feature_types) -> dict[str, FeatureType]:
-    """Create a lookup for feature types by name."""
-    features_by_name = {ft.name: ft for ft in feature_types}
-
-    # Check against bad configuration
-    if len(features_by_name) != len(feature_types):
-        all_names = [ft.name for ft in feature_types]
-        duplicates = ", ".join(sorted({n for n in all_names if all_names.count(n) > 1}))
-        raise ImproperlyConfigured(f"FeatureType names should be unique: {duplicates}")
-
-    return features_by_name
+    def resolve_output_format(self, value, locator="outputFormat") -> OutputFormat:
+        """Select the proper OutputFormat object based on the input value"""
+        # When using ?OUTPUTFORMAT=application/gml+xml", it is actually a URL-encoded space
+        # character. Hence, spaces are replaced back to a '+' character to allow such notation
+        # instead of forcing it to be ?OUTPUTFORMAT=application/gml%2bxml".
+        for v in {value, value.replace(" ", "+")}:
+            for o in self.get_output_formats():
+                if o.matches(v):
+                    return o
+        raise InvalidParameterValue(
+            f"'{value}' is not a permitted output format for this operation.",
+            locator=locator or "outputFormat",
+        ) from None

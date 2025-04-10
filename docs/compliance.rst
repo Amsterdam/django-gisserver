@@ -15,18 +15,14 @@ Some remaining parts for the "WFS simple" conformance level are not implemented 
 
 * KVP filters: ``aliases``.
 * Remote resolving: ``resolveDepth``, ``resolveTimeout``.
-* Multiple queries in a single GET call.
 * Some ``GetCapabilities`` features: ``acceptFormats`` and ``sections``.
-* Temporal filtering (high on todo)
+* Temporal filtering.
 * Tests on axis orientation.
-
-Planned
--------
-
-* WFS-T (Transactional) support, which also needs HTTP POST requests.
 
 Hopefully
 ---------
+
+WFS-T support could be implemented on top of the existing POST parsing code.
 
 While WMS and WMTS are not on the roadmap, they could be implemented based on
 `Mapnik <https://github.com/mapnik>`_.

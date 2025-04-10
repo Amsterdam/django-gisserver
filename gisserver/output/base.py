@@ -3,45 +3,67 @@ from __future__ import annotations
 import logging
 import math
 import typing
+from io import BytesIO, StringIO
 
 from django.conf import settings
 from django.db import models
 from django.http import HttpResponse, StreamingHttpResponse
-from django.utils.html import escape
+from django.http.response import HttpResponseBase  # Django 3.2 import location
 
-from gisserver import conf
-from gisserver.exceptions import InvalidParameterValue
+from gisserver.types import XsdAnyType, XsdNode
+
+from .utils import to_qname
 
 logger = logging.getLogger(__name__)
 
 if typing.TYPE_CHECKING:
-    from gisserver.features import FeatureType
-    from gisserver.geometries import CRS
     from gisserver.operations.base import WFSMethod
     from gisserver.projection import FeatureProjection, FeatureRelation
-    from gisserver.queries import QueryExpression
 
     from .results import FeatureCollection
 
 
 class OutputRenderer:
-    """Base class for rendering content."""
+    """Base class for rendering content.
+    This also provides logic to translate XML elements into aliases named,
+    as nearly all responses include writing XML.
+    """
 
     #: Default content type for the HTTP response
     content_type = "text/xml; charset=utf-8"
 
+    #: Default extra namespaces to include in the xmlns="..." attributes, and use for to_qname().
+    xml_namespaces = {}
+
     def __init__(self, method: WFSMethod):
         """Base method for all output rendering."""
         self.method = method
-
-        # Common elements for output rendering:
         self.server_url = method.view.server_url
-        self.app_xml_namespace = method.view.xml_namespace
+        self.app_namespaces = {
+            **self.xml_namespaces,
+            **method.view.get_xml_namespaces_to_prefixes(),
+        }
 
-    def get_response(self):
-        """Render the output as streaming response."""
+    @property
+    def xmlns_attributes(self):
+        """Render XML Namespace declaration attributes"""
+        return self.render_xmlns_attributes(self.app_namespaces)
+
+    def render_xmlns_attributes(self, app_namespaces: dict[str, str]) -> str:
+        """Render XML Namespace declaration attributes"""
+        return " ".join(
+            f'xmlns:{prefix}="{xml_namespace}"' if prefix else f'xmlns="{xml_namespace}"'
+            for xml_namespace, prefix in app_namespaces.items()
+        )
+
+    def to_qname(self, xsd_type: XsdNode | XsdAnyType, namespaces=None) -> str:
+        """Generate the aliased name for the element."""
+        return to_qname(xsd_type.namespace, xsd_type.name, namespaces or self.app_namespaces)
+
+    def get_response(self) -> HttpResponseBase:
+        """Render the output as regular or streaming response."""
         stream = self.render_stream()
-        if isinstance(stream, (str, bytes)):
+        if isinstance(stream, (str, bytes, StringIO, BytesIO)):
             # Not a real stream, output anyway as regular HTTP response.
             response = HttpResponse(content=stream, content_type=self.content_type)
         else:
@@ -105,66 +127,33 @@ class CollectionOutputRenderer(OutputRenderer):
     #: An optional content-disposition header to output
     content_disposition = None
 
-    def __init__(
-        self,
-        method: WFSMethod,
-        source_query: QueryExpression,
-        collection: FeatureCollection,
-        output_crs: CRS,
-    ):
+    def __init__(self, method: WFSMethod, collection: FeatureCollection):
         """
         Receive the collected data to render.
-        These parameters are received from the ``get_context_data()`` method of the view.
 
         :param method: The calling WFS Method (e.g. GetFeature class)
-        :param source_query: The query that generated this output.
         :param collection: The collected data for rendering.
-        :param output_crs: The requested output projection.
         """
         super().__init__(method)
-        self.method = method
-        self.source_query = source_query
         self.collection = collection
-        self.output_crs = output_crs
-        self.xml_srs_name = escape(str(self.output_crs))
+        self.apply_projection()
 
-    @classmethod
-    def decorate_collection(cls, collection: FeatureCollection, output_crs: CRS, **params):
+    def apply_projection(self):
         """Perform presentation-layer logic enhancements on the queryset."""
-        for sub_collection in collection.results:
-            # Validate the presentation-level parameters for this feature:
-            cls.validate(sub_collection.feature_type, **params)
-
-            queryset = cls.decorate_queryset(
-                sub_collection.projection,
-                sub_collection.queryset,
-                output_crs,
-                **params,
+        for sub_collection in self.collection.results:
+            queryset = self.decorate_queryset(
+                projection=sub_collection.projection,
+                queryset=sub_collection.queryset,
             )
+            if sub_collection._result_cache is not None:
+                raise RuntimeError(
+                    "SimpleFeatureCollection QuerySet was already processed in output rendering."
+                )
             if queryset is not None:
                 sub_collection.queryset = queryset
 
-    @classmethod
-    def validate(cls, feature_type: FeatureType, **params):
-        """Validate the presentation parameters"""
-        crs = params["srsName"]
-        if (
-            conf.GISSERVER_SUPPORTED_CRS_ONLY
-            and crs is not None
-            and crs not in feature_type.supported_crs
-        ):
-            raise InvalidParameterValue(
-                f"Feature '{feature_type.name}' does not support SRID {crs.srid}.",
-                locator="srsName",
-            )
-
-    @classmethod
     def decorate_queryset(
-        cls,
-        projection: FeatureProjection,
-        queryset: models.QuerySet,
-        output_crs: CRS,
-        **params,
+        self, projection: FeatureProjection, queryset: models.QuerySet
     ) -> models.QuerySet:
         """Apply presentation layer logic to the queryset.
 
@@ -173,10 +162,14 @@ class CollectionOutputRenderer(OutputRenderer):
         :param feature_type: The feature that is being queried.
         :param queryset: The constructed queryset so far.
         :param output_crs: The projected output
-        :param params: All remaining request parameters (e.g. KVP parameters).
         """
+        if queryset._result_cache is not None:
+            raise RuntimeError(
+                "QuerySet was already processed before passing to the output rendering."
+            )
+
         # Avoid fetching relations, fetch these within the same query,
-        prefetches = cls._get_prefetch_related(projection, output_crs)
+        prefetches = self._get_prefetch_related(projection)
         if prefetches:
             logger.debug(
                 "QuerySet for %s prefetches: %r",
@@ -192,12 +185,7 @@ class CollectionOutputRenderer(OutputRenderer):
         )
         return queryset.only("pk", *projection.only_fields)
 
-    @classmethod
-    def _get_prefetch_related(
-        cls,
-        projection: FeatureProjection,
-        output_crs: CRS,
-    ) -> list[models.Prefetch]:
+    def _get_prefetch_related(self, projection: FeatureProjection) -> list[models.Prefetch]:
         """Summarize which fields read data from relations.
 
         This combines the input from flattened and complex fields,
@@ -209,17 +197,13 @@ class CollectionOutputRenderer(OutputRenderer):
         return [
             models.Prefetch(
                 orm_relation.orm_path,
-                queryset=cls.get_prefetch_queryset(projection, orm_relation, output_crs),
+                queryset=self.get_prefetch_queryset(projection, orm_relation),
             )
             for orm_relation in projection.orm_relations
         ]
 
-    @classmethod
     def get_prefetch_queryset(
-        cls,
-        projection: FeatureProjection,
-        feature_relation: FeatureRelation,
-        output_crs: CRS,
+        self, projection: FeatureProjection, feature_relation: FeatureRelation
     ) -> models.QuerySet | None:
         """Generate a custom queryset that's used to prefetch a relation."""
         # Multiple elements could be referencing the same model, just take first that is filled in.
@@ -243,7 +227,11 @@ class CollectionOutputRenderer(OutputRenderer):
 
             return {
                 "Content-Disposition": self.content_disposition.format(
-                    typenames="+".join(sub.feature_type.name for sub in self.collection.results),
+                    typenames="+".join(
+                        feature_type.name
+                        for sub in self.collection.results
+                        for feature_type in sub.feature_types
+                    ),
                     page=page,
                     date=self.collection.date.strftime("%Y-%m-%d %H.%M.%S%z"),
                     timestamp=self.collection.timestamp,

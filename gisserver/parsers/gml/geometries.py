@@ -3,15 +3,13 @@
 Overview of GML 3.2 changes: https://mapserver.org/el/development/rfc/ms-rfc-105.html#rfc105
 """
 
-from __future__ import annotations
-
 from dataclasses import dataclass
 from xml.etree.ElementTree import tostring
 
-from django.contrib.gis.geos import GEOSGeometry
+from django.contrib.gis.geos import GEOSGeometry, Polygon
 
 from gisserver import conf
-from gisserver.exceptions import InvalidParameterValue
+from gisserver.exceptions import ExternalParsingError, InvalidParameterValue
 from gisserver.geometries import CRS
 from gisserver.parsers.ast import tag_registry
 from gisserver.parsers.query import CompiledQuery
@@ -53,6 +51,30 @@ class GEOSGMLGeometry(AbstractGeometry):
     geos_data: GEOSGeometry
 
     @classmethod
+    def from_bbox(cls, bbox_value: str):
+        """Parse the bounding box from an input string.
+
+        It can either be 4 coordinates, or 4 coordinates with a special reference system.
+        """
+        bbox = bbox_value.split(",")
+        if not (4 <= len(bbox) <= 5):
+            raise ExternalParsingError(
+                f"Input does not contain bounding box, expected 4 or 5 values, not {bbox}."
+            )
+
+        polygon = Polygon.from_bbox(
+            (float(bbox[0]), float(bbox[1]), float(bbox[2]), float(bbox[3]))
+        )
+        if len(bbox) == 5:
+            crs = CRS.from_string(bbox[4])
+            polygon.srid = crs.srid
+        else:
+            crs = None  # will be resolved
+
+        # Wrap in an element that the filter can use.
+        return GEOSGMLGeometry(srs=crs, geos_data=polygon)
+
+    @classmethod
     def from_xml(cls, element: NSElement):
         """Push the whole <gml:...> element into the GEOS parser.
         This avoids having to support the whole GEOS logic.
@@ -60,7 +82,7 @@ class GEOSGMLGeometry(AbstractGeometry):
         GML is a complex beast with many different forms for the same thing:
         http://erouault.blogspot.com/2014/04/gml-madness.html
         """
-        srs = CRS.from_string(element.get_attribute("srsName"))
+        srs = CRS.from_string(element.get_str_attribute("srsName"))
 
         # Push the whole <gml:...> element into the GEOS parser.
         # This avoids having to support the whole GEOS logic.
@@ -83,13 +105,19 @@ class GEOSGMLGeometry(AbstractGeometry):
 
     def build_rhs(self, compiler: CompiledQuery):
         # Perform final validation during the construction of the query.
-        if (
+        if self.srs is None:
+            # When the feature type is known, apply its default CRS.
+            # This is not possible in XML parsing, but may happen for BBOX parsing.
+            self.srs = compiler.feature_types[0].crs
+            self.geos_data.srid = self.srs.srid  # assign default CRS to geometry
+        elif (
             conf.GISSERVER_SUPPORTED_CRS_ONLY
-            and compiler.feature_type  # for unit tests
-            and self.srs not in compiler.feature_type.supported_crs
+            and compiler.feature_types  # for unit tests
+            and self.srs not in compiler.feature_types[0].supported_crs
         ):
             raise InvalidParameterValue(
-                f"Feature '{compiler.feature_type.name}' does not support SRID {self.srs.srid}."
+                f"Feature '{compiler.feature_types[0].name}' does not support SRID {self.srs.srid}.",
+                locator="bbox",
             )
 
         return self.geos_data

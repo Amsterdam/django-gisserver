@@ -4,6 +4,8 @@ See "Table D.2" in the GML 3.2.1 spec, showing how the UML names
 map to the GML implementations. These names are referenced by the FES spec.
 """
 
+from __future__ import annotations
+
 from gisserver.parsers.ast import BaseNode
 from gisserver.parsers.query import CompiledQuery
 

@@ -47,9 +47,9 @@ from gisserver.compat import ArrayField, GeneratedField
 from gisserver.exceptions import ExternalParsingError, OperationProcessingFailed
 from gisserver.geometries import CRS, BoundingBox
 from gisserver.parsers import values
+from gisserver.parsers.xml import parse_qname, split_ns, xmlns
 
 _unbounded = Literal["unbounded"]
-
 
 __all__ = [
     "GmlElement",
@@ -63,30 +63,32 @@ __all__ = [
     "XsdElement",
     "XsdNode",
     "XsdTypes",
-    "split_xml_name",
 ]
 
 RE_XPATH_ATTR = re.compile(r"\[[^\]]+\]$")  # match [@attr=..]
 
 
 class XsdAnyType:
-    """Base class for all types used in the XML definition"""
+    """Base class for all types used in the XML definition.
+    This includes the enum values (:class:`XsdTypes`) for well-known types,
+    adn the :class:`XsdComplexType` that represents a while class definition.
+    """
 
+    #: Local name of the XML element
     name: str
-    prefix = None
+
+    #: Namespace of the XML element
+    namespace = None
+
+    #: Whether this is a complex type
     is_complex_type = False
+
+    #: Whether this is a geometry
     is_geometry = False  # Overwritten for some gml types.
 
     def __str__(self):
-        """Return the type name"""
+        """Return the type name (in full XML format)"""
         raise NotImplementedError()
-
-    def with_prefix(self, prefix="xs"):
-        xml_name = str(self)
-        if ":" in xml_name:
-            return xml_name
-        else:
-            return f"{prefix}:{xml_name}"
 
     def to_python(self, raw_value):
         """Convert a raw string value to this type representation"""
@@ -103,68 +105,74 @@ class XsdTypes(XsdAnyType, Enum):
     Based on https://www.w3.org/TR/xmlschema-2/#built-in-datatypes
     """
 
-    anyType = "anyType"  # Needs to be anyType, as "xsd:any" is an element, not a type.
-    string = "string"
-    boolean = "boolean"
-    decimal = "decimal"  # the base type for all numbers too.
-    integer = "integer"  # integer value
-    float = "float"
-    double = "double"
-    time = "time"
-    date = "date"
-    dateTime = "dateTime"
-    anyURI = "anyURI"
+    anyType = xmlns.xs.qname("anyType")  # not "xsd:any", that is an element.
+    string = xmlns.xs.qname("string")
+    boolean = xmlns.xs.qname("boolean")
+    decimal = xmlns.xs.qname("decimal")  # the base type for all numbers too.
+    integer = xmlns.xs.qname("integer")  # integer value
+    float = xmlns.xs.qname("float")
+    double = xmlns.xs.qname("double")
+    time = xmlns.xs.qname("time")
+    date = xmlns.xs.qname("date")
+    dateTime = xmlns.xs.qname("dateTime")
+    anyURI = xmlns.xs.qname("anyURI")
 
     # Number variations
-    byte = "byte"  # signed 8-bit integer
-    short = "short"  # signed 16-bit integer
-    int = "int"  # signed 32-bit integer
-    long = "long"  # signed 64-bit integer
-    unsignedByte = "unsignedByte"  # unsigned 8-bit integer
-    unsignedShort = "unsignedShort"  # unsigned 16-bit integer
-    unsignedInt = "unsignedInt"  # unsigned 32-bit integer
-    unsignedLong = "unsignedLong"  # unsigned 64-bit integer
+    byte = xmlns.xs.qname("byte")  # signed 8-bit integer
+    short = xmlns.xs.qname("short")  # signed 16-bit integer
+    int = xmlns.xs.qname("int")  # signed 32-bit integer
+    long = xmlns.xs.qname("long")  # signed 64-bit integer
+    unsignedByte = xmlns.xs.qname("unsignedByte")  # unsigned 8-bit integer
+    unsignedShort = xmlns.xs.qname("unsignedShort")  # unsigned 16-bit integer
+    unsignedInt = xmlns.xs.qname("unsignedInt")  # unsigned 32-bit integer
+    unsignedLong = xmlns.xs.qname("unsignedLong")  # unsigned 64-bit integer
 
     # Less common, but useful nonetheless:
-    duration = "duration"
-    nonNegativeInteger = "nonNegativeInteger"
-    gYear = "gYear"
-    hexBinary = "hexBinary"
-    base64Binary = "base64Binary"
-    token = "token"  # noqa: S105
-    language = "language"
+    duration = xmlns.xs.qname("duration")
+    nonNegativeInteger = xmlns.xs.qname("nonNegativeInteger")
+    gYear = xmlns.xs.qname("gYear")
+    hexBinary = xmlns.xs.qname("hexBinary")
+    base64Binary = xmlns.xs.qname("base64Binary")
+    token = xmlns.xs.qname("token")  # noqa: S105
+    language = xmlns.xs.qname("language")
 
     # Types that contain a GML value as member:
     # Note these receive the "is_geometry = True" value below.
-    gmlGeometryPropertyType = "gml:GeometryPropertyType"
-    gmlPointPropertyType = "gml:PointPropertyType"
-    gmlCurvePropertyType = "gml:CurvePropertyType"  # curve is base for LineString
-    gmlSurfacePropertyType = "gml:SurfacePropertyType"  # GML2 had PolygonPropertyType
-    gmlMultiSurfacePropertyType = "gml:MultiSurfacePropertyType"
-    gmlMultiPointPropertyType = "gml:MultiPointPropertyType"
-    gmlMultiCurvePropertyType = "gml:MultiCurvePropertyType"
-    gmlMultiGeometryPropertyType = "gml:MultiGeometryPropertyType"
+    gmlGeometryPropertyType = xmlns.gml.qname("GeometryPropertyType")
+    gmlPointPropertyType = xmlns.gml.qname("PointPropertyType")
+    gmlCurvePropertyType = xmlns.gml.qname("CurvePropertyType")  # curve is base for LineString
+    gmlSurfacePropertyType = xmlns.gml.qname("SurfacePropertyType")  # GML2 had PolygonPropertyType
+    gmlMultiSurfacePropertyType = xmlns.gml.qname("MultiSurfacePropertyType")
+    gmlMultiPointPropertyType = xmlns.gml.qname("MultiPointPropertyType")
+    gmlMultiCurvePropertyType = xmlns.gml.qname("MultiCurvePropertyType")
+    gmlMultiGeometryPropertyType = xmlns.gml.qname("MultiGeometryPropertyType")
 
     # Other typical GML values
-    gmlCodeType = "gml:CodeType"  # for <gml:name>
-    gmlBoundingShapeType = "gml:BoundingShapeType"  # for <gml:boundedBy>
+    gmlCodeType = xmlns.gml.qname("CodeType")  # for <gml:name>
+    gmlBoundingShapeType = xmlns.gml.qname("BoundingShapeType")  # for <gml:boundedBy>
 
     #: A direct geometry value (used as function argument type)
-    gmlAbstractGeometryType = "gml:AbstractGeometryType"
+    gmlAbstractGeometryType = xmlns.gml.qname("AbstractGeometryType")
 
     #: A feature that has a gml:name and gml:boundedBy as possible child element.
-    gmlAbstractFeatureType = "gml:AbstractFeatureType"
-    gmlAbstractGMLType = "gml:AbstractGMLType"  # base class of gml:AbstractFeatureType
+    gmlAbstractFeatureType = xmlns.gml.qname("AbstractFeatureType")
+    gmlAbstractGMLType = xmlns.gml.qname("AbstractGMLType")  # base of gml:AbstractFeatureType
 
     def __str__(self):
         return self.value
 
-    @property
-    def prefix(self) -> str | None:
-        """Extrapolate the prefix from the type name"""
-        xml_name = str(self)
-        colon = xml_name.find(":")
-        return xml_name[:colon] if colon else None
+    def __init__(self, value):
+        # Parse XML namespace data once, which to_qname() uses.
+        # Can't set enum.name, so will use a property for that.
+        self.namespace, self._localname = split_ns(value)
+        self.is_geometry = False  # redefined below
+
+    @cached_property
+    def name(self) -> str:
+        """Overwrites enum.name to return the XML local name.
+        This is used for to_qname().
+        """
+        return self._localname
 
     @cached_property
     def _to_python_func(self):
@@ -185,7 +193,8 @@ class XsdTypes(XsdAnyType, Enum):
             raise  # subclass of ValueError so explicitly caught and reraised
         except (TypeError, ValueError, ArithmeticError) as e:
             # ArithmeticError is base of DecimalException
-            raise ExternalParsingError(f"Can't cast '{raw_value}' to {self}.") from e
+            name = self.name if self.namespace == xmlns.xsd.value else self.value
+            raise ExternalParsingError(f"Can't cast '{raw_value}' to {name}.") from e
 
 
 for _type in (
@@ -246,7 +255,9 @@ class XsdNode:
 
     name: str
     type: XsdAnyType  # Both XsdComplexType and XsdType are allowed
-    prefix: str | None
+
+    #: XML Namespace of the element
+    namespace: xmlns | str | None
 
     #: Which field to read from the model to get the value
     #: This supports dot notation to access related attributes.
@@ -264,26 +275,41 @@ class XsdNode:
         self,
         name: str,
         type: XsdAnyType,
+        namespace: xmlns | str | None,
         *,
-        prefix: str | None = "app",
         source: models.Field | ForeignObjectRel | None = None,
         model_attribute: str | None = None,
         absolute_model_attribute: str | None = None,
         feature_type: FeatureType | None = None,
     ):
+        """
+        :param name: The local name of the element.
+        :param type: The XML Schema type of the element, can also be a XsdComplexType.
+        :param namespace: XML namespace URI.
+        :param source: Original Model field, which can provide more metadata/parsing.
+        :param model_attribute: The Django model path that this element accesses.
+        :param absolute_model_attribute: The full path, including parent elements.
+        :param feature_type: Typically assigned in :meth:`bind`, needed by some :meth:`get_value` functions.
+        """
+        if ":" in name:
+            raise ValueError(
+                "XsdNode should receive the localname, not the QName in ns:localname format."
+            )
+        elif "}" in name:
+            raise ValueError(
+                "XsdNode should receive the localname, not the full name in {uri}name format."
+            )
+
         # Using plain assignment instead of dataclass turns out to be needed
         # for flexibility and easier subclassing.
         self.name = name
         self.type = type
-        self.prefix = prefix
+        self.namespace = str(namespace) if namespace is not None else None  # cast enum members.
         self.source = source
         self.model_attribute = model_attribute or self.name
         self.absolute_model_attribute = absolute_model_attribute or self.model_attribute
         # link back to top-level parent, some get_value() functions need it.
         self.feature_type = feature_type
-
-        if ":" in self.name:
-            raise ValueError("Use 'prefix' argument for namespaces")
 
         if (
             self.model_attribute
@@ -354,7 +380,7 @@ class XsdNode:
     @cached_property
     def xml_name(self):
         """The XML element/attribute name."""
-        return f"{self.prefix}:{self.name}" if self.prefix else self.name
+        return f"{{{self.namespace}}}{self.name}" if self.namespace else self.name
 
     def relative_orm_path(self, parent: XsdElement | None = None) -> str:
         """The ORM field lookup to perform, relative to the parent element."""
@@ -511,8 +537,8 @@ class XsdElement(XsdNode):
         self,
         name: str,
         type: XsdAnyType,
+        namespace: xmlns | str | None,
         *,
-        prefix: str | None = "app",
         nillable: bool | None = None,
         min_occurs: int | None = None,
         max_occurs: int | _unbounded | None = None,
@@ -524,7 +550,7 @@ class XsdElement(XsdNode):
         super().__init__(
             name,
             type,
-            prefix=prefix,
+            namespace=namespace,
             source=source,
             model_attribute=model_attribute,
             absolute_model_attribute=absolute_model_attribute,
@@ -533,22 +559,6 @@ class XsdElement(XsdNode):
         self.nillable = nillable
         self.min_occurs = min_occurs
         self.max_occurs = max_occurs
-
-    @cached_property
-    def as_xml(self):
-        attributes = [f'name="{self.name}" type="{self.type}"']
-        if self.min_occurs is not None:
-            attributes.append(f'minOccurs="{self.min_occurs}"')
-        if self.max_occurs is not None:
-            attributes.append(f'maxOccurs="{self.max_occurs}"')
-        if self.nillable:
-            str_bool = "true" if self.nillable else "false"
-            attributes.append(f'nillable="{str_bool}"')
-
-        return "<element {} />".format(" ".join(attributes))
-
-    def __str__(self):
-        return self.as_xml
 
     @cached_property
     def is_many(self) -> bool:
@@ -589,7 +599,7 @@ class XsdAttribute(XsdNode):
         name: str,
         type: XsdAnyType = XsdTypes.string,  # added default
         *,
-        prefix: str | None = "app",
+        namespace: xmlns | str | None = None,
         use: str = "optional",
         source: models.Field | ForeignObjectRel | None = None,
         model_attribute: str | None = None,
@@ -599,7 +609,7 @@ class XsdAttribute(XsdNode):
         super().__init__(
             name,
             type,
-            prefix=prefix,
+            namespace=namespace,
             source=source,
             model_attribute=model_attribute,
             absolute_model_attribute=absolute_model_attribute,
@@ -610,6 +620,15 @@ class XsdAttribute(XsdNode):
 
 class GmlElement(XsdElement):
     """A subtype for the :class:`XsdElement` that provides access to geometry data.
+
+    This declares an element such as::
+
+        <app:geometry>
+            <gml:Point>...</gml:Point>
+        </app:geometry>
+
+    Hence, the :attr:`namespace` of this element isn't the GML namespace,
+    only the type it points to is geometry data.
 
     The :attr:`source` is guaranteed to point to a :class:`~django.contrib.gis.models.GeometryField`,
     and can be a :class:`~django.db.models.GeneratedField` in Django 5
@@ -648,8 +667,8 @@ class GmlIdAttribute(XsdAttribute):
         feature_type: FeatureType | None = None,
     ):
         super().__init__(
-            prefix="gml",
             name="id",
+            namespace=xmlns.gml,
             source=source,
             model_attribute=model_attribute,
             absolute_model_attribute=absolute_model_attribute,
@@ -683,9 +702,9 @@ class GmlNameElement(XsdElement):
     ):
         # Prefill most known fields
         super().__init__(
-            prefix="gml",
             name="name",
             type=XsdTypes.gmlCodeType,
+            namespace=xmlns.gml,
             min_occurs=0,
             source=source,
             model_attribute=model_attribute,
@@ -713,9 +732,9 @@ class GmlBoundedByElement(XsdElement):
     def __init__(self, feature_type):
         # Prefill most known fields
         super().__init__(
-            prefix="gml",
             name="boundedBy",
             type=XsdTypes.gmlBoundingShapeType,
+            namespace=xmlns.gml,
             min_occurs=0,
             feature_type=feature_type,
         )
@@ -786,11 +805,14 @@ class XsdComplexType(XsdAnyType):
     which allows child elements like <gml:name> and <gml:boundedBy>.
     """
 
-    #: Internal class name (without XML prefix)
+    #: Internal class name (without XML namespace/prefix)
     name: str
 
+    #: The XML namespace
+    namespace: str | None
+
     #: All local elements in this class
-    elements: list[XsdElement]
+    elements: list[XsdElement] = field(default_factory=list)
 
     #: All attributes in this class
     attributes: list[XsdAttribute] = field(default_factory=list)
@@ -798,9 +820,6 @@ class XsdComplexType(XsdAnyType):
     #: The base class of this type. Typically gml:AbstractFeatureType,
     #: which provides the <gml:name> and <gml:boundedBy> elements.
     base: XsdAnyType | None = None
-
-    #: The prefix alias to use for the namespace.
-    prefix: str = "app"
 
     #: The Django model class that this type was based on.
     source: type[models.Model] | None = None
@@ -820,8 +839,8 @@ class XsdComplexType(XsdAnyType):
 
     @cached_property
     def xml_name(self):
-        """Name in the XMLSchema (e.g. app:SomeClass)."""
-        return f"{self.prefix}:{self.name}"
+        """Name in the XMLSchema (e.g. {http://example.org/namespace}:SomeClass)."""
+        return f"{{{self.namespace}}}{self.name}" if self.namespace else self.name
 
     @property
     def is_complex_type(self):
@@ -865,7 +884,7 @@ class XsdComplexType(XsdAnyType):
             child_nodes.update(xsd_element.type.elements_with_children)
         return child_nodes
 
-    def resolve_element_path(self, xpath: str) -> list[XsdNode] | None:
+    def resolve_element_path(self, xpath: str, ns_aliases: dict[str, str]) -> list[XsdNode] | None:
         """Resolve a xpath reference to the actual node.
         This returns the whole path, including in-between relations, if a match was found.
 
@@ -873,7 +892,7 @@ class XsdComplexType(XsdAnyType):
         to convert a request XPath element into the ORM attributes for database queries.
         """
         try:
-            pos = xpath.rindex("/")
+            pos = xpath.index("/")
             node_name = xpath[:pos]
         except ValueError:
             node_name = xpath
@@ -887,12 +906,11 @@ class XsdComplexType(XsdAnyType):
             if pos:
                 return None  # invalid attribute
 
-            # Remove app: prefixes, or any alias of it (see explanation below)
             xml_name = node_name[1:]
-            attribute = self._find_attribute(xml_name=xml_name)
+            attribute = self._find_attribute(xml_name=parse_qname(xml_name, ns_aliases))
             return [attribute] if attribute is not None else None
         else:
-            element = self._find_element(node_name)
+            element = self._find_element(xml_name=parse_qname(node_name, ns_aliases))
             if element is None:
                 return None
 
@@ -901,60 +919,32 @@ class XsdComplexType(XsdAnyType):
                     return None
                 else:
                     # Recurse into the child node to find the next part
-                    child_path = element.type.resolve_element_path(xpath[pos + 1 :])
+                    child_path = element.type.resolve_element_path(xpath[pos + 1 :], ns_aliases)
                     return [element] + child_path if child_path is not None else None
             else:
                 return [element]
 
-    def _find_element(self, xml_name) -> XsdElement | None:
+    def _find_element(self, xml_name: str) -> XsdElement | None:
         """Locate an element by name"""
         for element in self.elements:
             if element.xml_name == xml_name:
                 return element
-
-        prefix, name = split_xml_name(xml_name)
-        if prefix != "gml" and prefix != self.prefix:
-            # Ignore current app namespace. Note this should actually compare the
-            # xmlns URI's, but this will suffice for now. The ElementTree parser
-            # doesn't provide access to 'xmlns' definitions on the element (or it's
-            # parents), so a tag like this is essentially not parsable for us:
-            # <ValueReference xmlns:tns="http://...">tns:fieldname</ValueReference>
-            for element in self.elements:
-                if element.name == name:
-                    return element
 
         # When there is a base class, resolve elements there too.
         if self.base is not None and self.base.is_complex_type:
             return self.base._find_element(xml_name)
         return None
 
-    def _find_attribute(self, xml_name) -> XsdAttribute | None:
+    def _find_attribute(self, xml_name: str) -> XsdAttribute | None:
         """Locate an attribute by name"""
         for attribute in self.attributes:
             if attribute.xml_name == xml_name:
                 return attribute
 
-        prefix, name = split_xml_name(xml_name)
-        if prefix != "gml" and prefix != self.prefix:
-            # Allow any namespace to match, since the stdlib ElementTree parser
-            # can't resolve namespaces at all.
-            for attribute in self.attributes:
-                if attribute.name == name:
-                    return attribute
-
         # When there is a base class, resolve attributes there too.
         if self.base is not None and self.base.is_complex_type:
             return self.base._find_attribute(xml_name)
         return None
-
-
-def split_xml_name(xml_name: str) -> tuple[str | None, str]:
-    """Remove the namespace prefix from an element."""
-    try:
-        prefix, name = xml_name.split(":", 1)
-        return prefix, name
-    except ValueError:
-        return None, xml_name
 
 
 class ORMPath:
@@ -1023,7 +1013,7 @@ class XPathMatch(ORMPath):
             # the build_...() logic should return a Q() object.
             raise NotImplementedError(f"Complex XPath queries are not supported yet: {self.query}")
 
-    @cached_property
+    @property
     def orm_path(self) -> str:
         """Give the Django ORM path (field__relation__relation2) to the result."""
         return self.nodes[-1].orm_path
