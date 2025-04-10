@@ -3,7 +3,7 @@ Development
 
 .. contents:: :local:
 
-When you follow the source of the ``WFSView``, ``WFSMethod`` and ``Parameter`` classes,
+When you follow the source of the ``WFSView``, ``WFSMethod`` and ``BaseOwsRequest`` classes,
 you'll find that it's written with extensibility in mind. Extra parameters and operations
 can easily be added there. You could even do that within your own projects and implementations.
 
@@ -167,7 +167,7 @@ The query is executed:
         get_results [shape=none, label="query.get_results() / query.get_hits()", fontcolor="#1ba345"]
         get_type_names [shape=none, label=".get_type_names()", fontcolor="#1ba345"]
         get_queryset [shape=none, label=".get_queryset(feature_type)", fontcolor="#1ba345"]
-        compile_query [shape=none, label=".compile_query()", fontcolor="#1ba345"]
+        build_query [shape=none, label=".build_query()", fontcolor="#1ba345"]
         filter_queryset [shape=none, label="compiler.filter_queryset()"]
 
         get_query -> get_results [style=invis]
@@ -178,10 +178,10 @@ The query is executed:
 
         get_results -> get_type_names
         get_results -> get_queryset
-        get_queryset -> compile_query
+        get_queryset -> build_query
         get_queryset -> filter_queryset
 
-        compile_query -> CompiledQuery
+        build_query -> CompiledQuery
     }
 
 The ``CompiledQuery`` collects all intermediate data needed

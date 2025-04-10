@@ -5,17 +5,20 @@ The class names are identical to those in the FES spec.
 from __future__ import annotations
 
 import operator
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, datetime
 from decimal import Decimal as D
 from functools import cached_property
 from typing import Union
 
+from django.contrib.gis import geos
+from django.contrib.gis.db import models as gis_models
 from django.db import models
 from django.db.models import Q, Value
 from django.db.models.expressions import Combinable
 
 from gisserver.exceptions import ExternalParsingError
+from gisserver.extensions.functions import function_registry
 from gisserver.parsers.ast import (
     BaseNode,
     TagNameEnum,
@@ -23,7 +26,6 @@ from gisserver.parsers.ast import (
     expect_tag,
     tag_registry,
 )
-from gisserver.parsers.fes20.functions import function_registry
 from gisserver.parsers.gml import (
     GM_Envelope,
     GM_Object,
@@ -33,8 +35,8 @@ from gisserver.parsers.gml import (
 )
 from gisserver.parsers.query import RhsTypes
 from gisserver.parsers.values import auto_cast
-from gisserver.parsers.xml import NSElement, xmlns
-from gisserver.types import ORMPath, XsdTypes, split_xml_name
+from gisserver.parsers.xml import NSElement, parse_qname, xmlns
+from gisserver.types import ORMPath, XsdTypes
 
 NoneType = type(None)
 ParsedValue = Union[int, str, date, D, datetime, GM_Object, GM_Envelope, TM_Object, NoneType]
@@ -47,6 +49,15 @@ OUTPUT_FIELDS = {
     datetime: models.DateTimeField(),
     float: models.FloatField(),
     D: models.DecimalField(),
+    geos.GEOSGeometry: gis_models.GeometryField(),
+    geos.Point: gis_models.PointField(),
+    geos.LineString: gis_models.LineStringField(),
+    geos.LinearRing: gis_models.LineStringField(),
+    geos.Polygon: gis_models.PolygonField(),
+    geos.MultiPoint: gis_models.MultiPointField(),
+    geos.MultiPolygon: gis_models.MultiPolygonField(),
+    geos.MultiLineString: gis_models.MultiLineStringField(),
+    geos.GeometryCollection: gis_models.GeometryCollectionField(),
 }
 
 
@@ -145,12 +156,10 @@ class Literal(Expression):
         if not self.raw_type:
             return None
 
-        xmlns, localname = split_xml_name(self.raw_type)
-        if xmlns == "gml":
-            return XsdTypes(self.raw_type)
-        else:
-            # No idea what XMLSchema was prefixed as (could be ns0 instead of xs:)
-            return XsdTypes(localname)
+        # The raw type is already translated into a fully qualified XML name,
+        # which also allows defining types as "ns0:string", "xs:string" or "xsd:string".
+        # These are directly matched to the XsdTypes enum value.
+        return XsdTypes(self.raw_type)
 
     @classmethod
     @expect_tag(xmlns.fes20, "Literal")
@@ -167,7 +176,10 @@ class Literal(Expression):
                 f"Unsupported child element for <Literal> element: {element[0].tag}."
             )
 
-        return cls(raw_value=raw_value, raw_type=element.get("type"))
+        return cls(
+            raw_value=raw_value,
+            raw_type=parse_qname(element.attrib.get("type"), element.ns_aliases),
+        )
 
     def build_lhs(self, compiler) -> str:
         """Alias the value when it's used in the left-hand-side.
@@ -204,6 +216,7 @@ class ValueReference(Expression):
     """
 
     xpath: str
+    xpath_ns_aliases: dict[str, str] | None = field(compare=False, default=None)
 
     def __str__(self):
         return self.xpath
@@ -215,23 +228,23 @@ class ValueReference(Expression):
     @expect_tag(xmlns.fes20, "ValueReference", "PropertyName")
     @expect_no_children
     def from_xml(cls, element: NSElement):
-        return cls(xpath=element.text)
+        return cls(xpath=element.text, xpath_ns_aliases=element.ns_aliases)
 
     def build_lhs(self, compiler) -> str:
         """Optimized LHS: there is no need to alias a field lookup through an annotation."""
-        match = self.parse_xpath(compiler.feature_type)
+        match = self.parse_xpath(compiler.feature_types)
         return match.build_lhs(compiler)
 
     def build_rhs(self, compiler) -> RhsTypes:
         """Return the value as F-expression"""
-        match = self.parse_xpath(compiler.feature_type)
+        match = self.parse_xpath(compiler.feature_types)
         return match.build_rhs(compiler)
 
-    def parse_xpath(self, feature_type=None) -> ORMPath:
+    def parse_xpath(self, feature_types: list) -> ORMPath:
         """Convert the XPath into the required ORM query elements."""
-        if feature_type is not None:
+        if feature_types:
             # Can resolve against XSD paths, find the correct DB field name
-            return feature_type.resolve_element(self.xpath)
+            return feature_types[0].resolve_element(self.xpath, self.xpath_ns_aliases)
         else:
             # Only used by unit testing (when feature_type is not given).
             parts = [word.strip() for word in self.xpath.split("/")]
@@ -255,11 +268,11 @@ class Function(Expression):
     @expect_tag(xmlns.fes20, "Function")
     def from_xml(cls, element: NSElement):
         return cls(
-            name=element.get_attribute("name"),
+            name=element.get_str_attribute("name"),
             arguments=[Expression.child_from_xml(child) for child in element],
         )
 
-    def build_rhs(self, compiler) -> RhsTypes:
+    def build_rhs(self, compiler) -> models.Func:
         """Build the SQL function object"""
         db_function = function_registry.resolve_function(self.name)
         args = [arg.build_rhs(compiler) for arg in self.arguments]

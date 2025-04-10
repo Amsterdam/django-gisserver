@@ -20,7 +20,11 @@ class TestGetCapabilities:
 
     @parametrize_response(
         Get(f"?SERVICE=WFS&REQUEST=GetCapabilities&ACCEPTVERSIONS=2.0.0&OUTPUTFORMAT={gml32}"),
-        Post(f'<GetCapabilities service="WFS" acceptversions="2.0.0" {XML_NS}></GetCapabilities>'),
+        Post(
+            f"""<GetCapabilities service="WFS" {XML_NS}>
+            <ows:AcceptVersions><ows:Version>2.0.0</ows:Version></ows:AcceptVersions>
+        </GetCapabilities>"""
+        ),
     )
     def test_get(self, restaurant, coordinates, response):
         """Prove that the happy flow works"""
@@ -63,7 +67,7 @@ class TestGetCapabilities:
 
         assert_xml_equal(
             etree.tostring(feature_type_list, inclusive_ns_prefixes=True).decode(),
-            f"""<FeatureTypeList xmlns="{xmlns.wfs}" xmlns:ows="{xmlns.ows}" xmlns:xlink="{xmlns.xlink}">
+            f"""<FeatureTypeList xmlns="{xmlns.wfs}" xmlns:ows="{xmlns.ows11}" xmlns:xlink="{xmlns.xlink}">
       <FeatureType>
         <Name>app:restaurant</Name>
         <Title>restaurant</Title>
@@ -150,7 +154,14 @@ class TestGetCapabilities:
 
     @parametrize_response(
         Get("?SERVICE=WFS&REQUEST=GetCapabilities&ACCEPTVERSIONS=1.0.0,2.0.0"),
-        Post('<GetCapabilities service="WFS" acceptVersions="1.0.0,2.0.0"></GetCapabilities>'),
+        Post(
+            f"""<GetCapabilities service="WFS" {XML_NS}>
+              <ows:AcceptVersions>
+                <ows:Version>1.0.0</ows:Version>
+                <ows:Version>2.0.0</ows:Version>
+              </ows:AcceptVersions>
+            </GetCapabilities>"""
+        ),
     )
     def test_version_negotiation(self, response):
         """Prove that version negotiation still returns 2.0.0"""
@@ -163,7 +174,13 @@ class TestGetCapabilities:
 
     @parametrize_response(
         Get("?SERVICE=WFS&REQUEST=GetCapabilities&ACCEPTVERSIONS=1.5.0"),
-        Post('<GetCapabilities service="WFS" acceptVersions="1.5.0"></GetCapabilities>'),
+        Post(
+            f'<GetCapabilities service="WFS" {XML_NS}>'
+            "  <ows:AcceptVersions>"
+            "    <ows:Version>1.5.0</ows:Version>"
+            "  </ows:AcceptVersions>"
+            "</GetCapabilities>"
+        ),
     )
     def test_get_invalid_version(self, response):
         """Prove that version negotiation works"""
@@ -180,7 +197,9 @@ class TestGetCapabilities:
             f"?SERVICE=WFS&REQUEST=GetCapabilities&ACCEPTVERSIONS=2.0.0&OUTPUTFORMAT={gml32}",
         ),
         Post(
-            '<GetCapabilities service="WFS" acceptVersions="2.0.0"></GetCapabilities>',
+            f"""<GetCapabilities service="WFS" {XML_NS}>
+              <ows:AcceptVersions><ows:Version>2.0.0</ows:Version></ows:AcceptVersions>
+            </GetCapabilities>""",
         ),
         url=Url.FLAT,
     )

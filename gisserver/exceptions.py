@@ -8,9 +8,28 @@ https://docs.opengeospatial.org/is/09-025r2/09-025r2.html#35
 https://docs.opengeospatial.org/is/09-025r2/09-025r2.html#411
 """
 
+from contextlib import contextmanager
+
 from django.conf import settings
 from django.http import HttpResponse
 from django.utils.html import format_html
+
+
+@contextmanager
+def wrap_parser_errors(name: str, locator: str):
+    """Convert the value into a Python format.
+    This catches any typical exceptions and transforms them into an OWSException.
+    """
+    try:
+        yield
+    except ExternalParsingError as e:
+        raise OperationParsingFailed(
+            f"Unable to parse {name} argument: {e}", locator=locator
+        ) from None
+    except (TypeError, ValueError, NotImplementedError) as e:
+        # TypeError/ValueError are raised by most handlers for unexpected data
+        # The NotImplementedError can be raised by fes parsing.
+        raise InvalidParameterValue(f"Invalid {name} argument: {e}", locator=locator) from None
 
 
 class ExternalValueError(ValueError):

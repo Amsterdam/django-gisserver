@@ -33,6 +33,7 @@ from gisserver.compat import ArrayField, GeneratedField
 from gisserver.db import get_db_geometry_target
 from gisserver.exceptions import ExternalValueError
 from gisserver.geometries import CRS, WGS84, BoundingBox
+from gisserver.parsers.xml import parse_qname, xmlns
 from gisserver.types import (
     GmlBoundedByElement,
     GmlElement,
@@ -334,6 +335,7 @@ class FeatureField:
         return xsd_element_class(
             name=self.name,
             type=xsd_type,
+            namespace=self.feature_type.xml_namespace,  # keep all types in the same namespace for now.
             nillable=(
                 self.model_field.null or self._nillable_relation or self._nillable_output_field
             ),
@@ -402,6 +404,7 @@ class ComplexFeatureField(FeatureField):
 
         return XsdComplexType(
             name=f"{self.target_model._meta.object_name}Type",
+            namespace=self.feature_type.xml_namespace,  # keep all types in the same namespace for now.
             elements=[field.xsd_element for field in self.fields],
             attributes=[
                 # Add gml:id attribute definition, so it can be resolved in xpath
@@ -499,7 +502,7 @@ class FeatureType:
         metadata_url: str | None = None,
         # Settings
         show_name_field: bool = True,
-        xml_prefix: str = "app",
+        xml_namespace: str | None = None,
     ):
         """
         :param queryset: The queryset to retrieve the data.
@@ -516,7 +519,7 @@ class FeatureType:
         :param metadata_url: Used in WFS metadata.
         :param show_name_field: Whether to show the ``gml:name`` or the GeoJSON ``geometry_name``
             field. Default is to show a field when ``name_field`` is given.
-        :param xml_prefix: The XML namespace prefix to use.
+        :param xml_namespace: The XML namespace to use, will be set by :meth:`bind_namespace` otherwise.
         """
         if isinstance(queryset, models.QuerySet):
             self.queryset = queryset
@@ -541,13 +544,18 @@ class FeatureType:
 
         # Settings
         self.show_name_field = show_name_field
-        self.xml_prefix = xml_prefix
+        self.xml_namespace = xml_namespace
 
         # Validate that the name doesn't require XML escaping.
         if html.escape(self.name) != self.name or " " in self.name or ":" in self.name:
             raise ValueError(f"Invalid feature name for XML: <{self.xml_name}>")
 
-        self._cached_resolver = lru_cache(100)(self._inner_resolve_element)
+        self._cached_resolver = lru_cache(200)(self._inner_resolve_element)
+
+    def bind_namespace(self, default_xml_namespace: str):
+        """Make sure the feature type receives the settings from the parent view."""
+        if not self.xml_namespace:
+            self.xml_namespace = default_xml_namespace
 
     def check_permissions(self, request):
         """Hook that allows subclasses to reject access for datasets.
@@ -555,9 +563,9 @@ class FeatureType:
         """
 
     @cached_property
-    def xml_name(self):
-        """Return the feature name with xml namespace prefix."""
-        return f"{self.xml_prefix}:{self.name}"
+    def xml_name(self) -> str:
+        """Return the feature tag as XML Full Qualified name"""
+        return f"{{{self.xml_namespace}}}{self.name}" if self.xml_namespace else self.name
 
     @cached_property
     def supported_crs(self) -> list[CRS]:
@@ -740,8 +748,8 @@ class FeatureType:
         # Write out the definition of XsdTypes.gmlAbstractFeatureType as actual class definition.
         # By having these base elements, the XPath queries can also resolve these like any other feature field elements.
         return XsdComplexType(
-            prefix="gml",
             name="AbstractFeatureType",
+            namespace=xmlns.gml.value,
             elements=base_elements,
             attributes=[
                 # Add gml:id="..." attribute definition so it can be resolved in xpath
@@ -761,11 +769,12 @@ class FeatureType:
         return self.xsd_type_class(
             name=f"{self.name[0].upper()}{self.name[1:]}Type",
             elements=[field.xsd_element for field in self.fields],
+            namespace=self.xml_namespace,
             base=self.xsd_base_type,
             source=self.model,
         )
 
-    def resolve_element(self, xpath: str) -> XPathMatch:
+    def resolve_element(self, xpath: str, ns_aliases: dict[str, str]) -> XPathMatch:
         """Resolve the element, and the matching object.
 
         This is used to convert XPath references in requests
@@ -773,13 +782,28 @@ class FeatureType:
 
         Internally, this method caches results.
         """
-        nodes = self._cached_resolver(xpath)  # calls _inner_resolve_element
+        # When the XML POST request used xmlns="http://www.opengis.net/wfs/2.0",
+        # this will become the default namespace elements are translated into.
+        # However, the XPath elements should be interpreted within our application namespace instead.
+        # When the default namespace is missing, it should also resolve to our feature.
+        ns_aliases = ns_aliases.copy()
+        ns_aliases[""] = self.xml_namespace
+
+        if len(ns_aliases) > 10:
+            # Avoid filling memory by caching large namespace blobs.
+            nodes = self._inner_resolve_element(xpath, ns_aliases)
+        else:
+            # Go through lru_cache() for faster lookup of the same elements.
+            # Note 1: the cache will be less effective when clients use different namespace aliases.
+            # Note 2: when WFSView overrides get_feature_types() the cache may only exist per request.
+            nodes = self._cached_resolver(xpath, HDict(ns_aliases))
+
         if nodes is None:
             raise ExternalValueError(f"Field '{xpath}' does not exist.")
 
         return XPathMatch(self, nodes, query=xpath)
 
-    def _inner_resolve_element(self, xpath: str):
+    def _inner_resolve_element(self, xpath: str, ns_aliases: dict[str, str]):
         """Inner part of resolve_element() that is cached.
         This performs any additional checks that happen at the root-level only.
         """
@@ -796,16 +820,19 @@ class FeatureType:
         elif "(" in xpath:
             raise NotImplementedError(f"XPath selectors with functions are not supported: {xpath}")
 
-        # Allow /app:ElementName/.. as "absolute" path.
-        # Given our internal resolver logic, simple solution is to strip it.
-        for root_prefix in (
-            f"{self.name}/",
-            f"/{self.name}/",
-            f"{self.xml_name}/",
-            f"/{self.xml_name}/",
-        ):
-            if xpath.startswith(root_prefix):
-                xpath = xpath[len(root_prefix) :]
-                break
+        # Allow /app:ElementName/.. as "absolute" path, simply strip it for now.
+        # This is only actually needed to support join queries, which we don't.
+        xpath = xpath.lstrip("/")
+        root_name, _, _ = xpath.partition("/")
+        root_xml_name = parse_qname(root_name, ns_aliases)
+        if root_xml_name == self.xml_name:
+            xpath = xpath[len(root_name) + 1 :]
 
-        return self.xsd_type.resolve_element_path(xpath)
+        return self.xsd_type.resolve_element_path(xpath, ns_aliases)
+
+
+class HDict(dict):
+    """Dict that can be used in lru_cache()."""
+
+    def __hash__(self):
+        return hash(frozenset(self.items()))

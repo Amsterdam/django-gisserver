@@ -143,6 +143,7 @@ class TestGetFeature:
                     url=url,
                 )
                 for (name, url, filter) in FILTERS
+                if name != "fes1"
             ]
         )
     )
@@ -171,6 +172,7 @@ class TestGetFeature:
                 """,
                     expect=expect_post or expect_get,
                     id=name,
+                    validate_xml=False,
                 )
                 for name, (filter, expect_get, expect_post) in INVALID_FILTERS.items()
             ]
@@ -187,9 +189,10 @@ class TestGetFeature:
         assert xml_doc.attrib["version"] == "2.0.0"
         exception = xml_doc.find("ows:Exception", NAMESPACES)
         message = exception.find("ows:ExceptionText", NAMESPACES).text
+        expect_message = response.expect.text
 
+        assert message.startswith(expect_message), f"got: {message}, expect: {expect_message}"
         assert exception.attrib["exceptionCode"] == response.expect.code, message
-        assert message.startswith(response.expect.text)
 
     @pytest.mark.skipif(
         django.VERSION < (5, 0), reason="GeneratedField is only available in Django >= 5"

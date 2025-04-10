@@ -85,12 +85,12 @@ would be encoded in the following way using the Filter Encoding Specification (F
 These FES functions can be defined in the project,
 by generating a corresponding database function.
 
-Use :attr:`gisserver.parsers.fes_function_registry` to register new functions:
+Use :attr:`gisserver.extensions.functions.function_registry` to register new functions:
 
 .. code-block:: python
 
     from django.db.models import functions
-    from gisserver.parsers import fes_function_registry
+    from gisserver.extensions.functions import function_registry
     from gisserver.types import XsdTypes
 
 
@@ -131,26 +131,32 @@ These stored procedures can be defined like this:
 
 .. code-block:: python
 
-    from gisserver.queries import StoredQuery, stored_query_registry
+    from datetime import date
+    from gisserver.extensions.queries import StoredQueryImplementation, stored_query_registry
+    from gisserver.parsers.query import compiledQuery
     from gisserver.types import XsdTypes
 
 
     @stored_query_registry.register(
+        # Provide the metadata.
         id="GetRecentChanges",
-        title="Get all recent changed features",
-        abstract="All recent changes...",
-        parameters={"date": XsdTypes.date},
+        title="Get recent changes",
+        abstract="All recent changes from the Django admin log",
+        parameters={"startFrom": XsdTypes.date},
     )
-    class GetRecentChanges(StoredQuery):
-        ...
+    class GetRecentChanges(StoredQueryImplementation):
+
+        def __init__(self, startFrom: date):
+            self.start_from = startFrom
+
+        def get_type_names():
+            return ["{http://example.org/gisserver}LogEntry"]
+
+        def build_query(compiler: CompiledQuery) -> Q:
+            return Q(action_time__gte=self.start_from)
+
 
 For a simple implementation, the following methods need to be overwritten:
 
-* :meth:`~gisserver.queries.StoredQuery.get_type_names`  defines which feature types this query applies to.
-* :meth:`~gisserver.queries.StoredQuery.compile_query` defines how to filter the queryset.
-
-For full control, these methods can also be overwritten instead:
-
-* :meth:`~gisserver.queries.StoredQuery.get_queryset` to define the full results.
-* :meth:`~gisserver.queries.StoredQuery.get_hits` to return the collection for ``RESULTTYPE=hits``.
-* :meth:`~gisserver.queries.StoredQuery.get_results` to return the collection for ``RESULTTYPE=results``.
+* :meth:`~gisserver.extensions.queries.StoredQueryImplementation.get_type_names` defines which feature types this query applies to.
+* :meth:`~gisserver.extensions.queries.StoredQueryImplementation.build_query` defines how to filter the queryset.

@@ -73,7 +73,7 @@ def test_fes10_add_sub():
     query = compile_query(result)
     integer_field = models.IntegerField()
     assert query == CompiledQuery(
-        query.feature_type,
+        query.feature_types,
         lookups=[
             Q(
                 SomeProperty__exact=(

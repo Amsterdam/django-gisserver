@@ -516,8 +516,8 @@ class TestGetFeature:
             "&SRSNAME=urn:ogc:def:crs:EPSG::28992"
         ),
         Post(
-            f"""<GetFeature service="WFS" version="2.0.0" srsName="urn:ogc:def:crs:EPSG::28992" {XML_NS}>
-              <Query typeNames="restaurant">
+            f"""<GetFeature service="WFS" version="2.0.0" {XML_NS}>
+              <Query typeNames="restaurant" srsName="urn:ogc:def:crs:EPSG::28992">
               </Query>
               </GetFeature>
               """

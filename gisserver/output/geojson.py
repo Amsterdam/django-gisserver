@@ -11,7 +11,6 @@ from django.utils.functional import Promise
 
 from gisserver import conf
 from gisserver.db import get_db_geometry_target
-from gisserver.geometries import CRS
 from gisserver.projection import FeatureProjection
 from gisserver.types import XsdElement
 
@@ -41,18 +40,15 @@ class GeoJsonRenderer(CollectionOutputRenderer):
     max_page_size = conf.GISSERVER_GEOJSON_MAX_PAGE_SIZE
     chunk_size = 40_000
 
-    @classmethod
     def decorate_queryset(
-        cls,
+        self,
         projection: FeatureProjection,
         queryset: models.QuerySet,
-        output_crs: CRS,
-        **params,
     ):
         """Redefine which fields to query, always include geometry, but remove all others"""
         main_geo_element = projection.feature_type.main_geometry_element
         projection.add_field(main_geo_element)  # make sure geometry is always queried
-        queryset = super().decorate_queryset(projection, queryset, output_crs, **params)
+        queryset = super().decorate_queryset(projection, queryset)
 
         # Other geometries can be excluded as these are not rendered by 'properties'
         other_geometries = [
@@ -117,7 +113,7 @@ class GeoJsonRenderer(CollectionOutputRenderer):
     def render_exception(self, exception: Exception):
         """Render the exception in a format that fits with the output."""
         message = super().render_exception(exception)
-        buffer = self.output.getvalue()
+        buffer = self.output.getvalue().decode()
         return f"{buffer}/* {message} */\n"
 
     def render_feature(self, projection: FeatureProjection, instance: models.Model) -> bytes:
@@ -158,7 +154,7 @@ class GeoJsonRenderer(CollectionOutputRenderer):
         if geometry is None:
             return b"null"
 
-        self.output_crs.apply_to(geometry)
+        projection.output_crs.apply_to(geometry)
         return geometry.json.encode()
 
     def get_header(self) -> dict:
@@ -167,11 +163,12 @@ class GeoJsonRenderer(CollectionOutputRenderer):
         The format is based on the WFS 3.0 DRAFT. The count fields are moved
         to the footer allowing them to be calculated without performing queries.
         """
+        output_crs = self.collection.results[0].projection.output_crs
         return {
             "type": "FeatureCollection",
             "timeStamp": self._format_geojson_value(self.collection.timestamp),
             # "numberReturned": is written at the end for better query performance.
-            "crs": {"type": "name", "properties": {"name": str(self.output_crs)}},
+            "crs": {"type": "name", "properties": {"name": str(output_crs)}},
         }
 
     def get_footer(self) -> dict:
@@ -258,20 +255,19 @@ class DBGeoJsonRenderer(GeoJsonRenderer):
     This is even more efficient than calling the C-API for each feature.
     """
 
-    @classmethod
-    def decorate_queryset(self, projection: FeatureProjection, queryset, output_crs, **params):
+    def decorate_queryset(self, projection: FeatureProjection, queryset):
         """Update the queryset to let the database render the GML output.
         This is far more efficient than GeoDjango's logic, which performs a
         C-API call for every single coordinate of a geometry.
         """
-        queryset = super().decorate_queryset(projection, queryset, output_crs, **params)
+        queryset = super().decorate_queryset(projection, queryset)
         # If desired, the entire FeatureCollection could be rendered
         # in PostgreSQL as well: https://postgis.net/docs/ST_AsGeoJSON.html
         main_geo_element = projection.feature_type.main_geometry_element
         if main_geo_element is not None:
             queryset = queryset.defer(main_geo_element.orm_path).annotate(
                 _as_db_geojson=AsGeoJSON(
-                    get_db_geometry_target(main_geo_element, output_crs),
+                    get_db_geometry_target(main_geo_element, projection.output_crs),
                     precision=conf.GISSERVER_DB_PRECISION,
                 )
             )
