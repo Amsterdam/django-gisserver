@@ -191,6 +191,7 @@ FILTERS = [
         <fes:Filter
              xmlns:fes="http://www.opengis.net/fes/2.0"
              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xmlns:gml="http://www.opengis.net/gml/3.2"
              xsi:schemaLocation="http://www.opengis.net/fes/2.0
              http://schemas.opengis.net/filter/2.0/filterAll.xsd">
             <fes:PropertyIsEqualTo>
@@ -315,7 +316,7 @@ FILTERS = [
     ),
 ]
 
-# Invalid Filters with their repective GET and POST request exceptions.
+# Invalid Filters with their respective GET and POST request exceptions.
 INVALID_FILTERS = {
     "syntax": (
         """<fes:Filter xmlns:fes="http://www.opengis.net/fes/2.0">FDFDS</fes:Filter""",
@@ -468,13 +469,10 @@ INVALID_FILTERS = {
     </Filter>""",
         OperationProcessingFailed(
             "Operator '{http://www.opengis.net/fes/2.0}PropertyIsLessThanOrEqualTo'"
-            " does not support comparing geometry properties: 'gml:boundedBy'.",
+            " does not support comparing geometry properties: '{http://www.opengis.net/gml/3.2}boundedBy'.",
             locator="filter",
         ),
-        OperationParsingFailed(
-            "Unable to parse FILTER argument: not well-formed (invalid token):",
-            locator="filter",
-        ),
+        None,
     ),
 }
 

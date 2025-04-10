@@ -186,18 +186,23 @@ class TagRegistry:
         hidden: bool = False,
     ):
         """Register a Python (data) class as parser for an XML node."""
+        if not issubclass(node_class, BaseNode):
+            raise TypeError(f"{node_class} must be a subclass of BaseNode")
+
         if namespace is None and node_class.xml_ns is None:
             raise RuntimeError(
                 f"{node_class.__name__}.xml_ns should be set, or namespace should be given."
             )
 
-        qname = QName((namespace or node_class.xml_ns), tag=tag)
-        if qname.text in self.parsers:
-            raise RuntimeError(f"Another class is already registered to parse the <{qname}> tag.")
+        xml_name = QName((namespace or node_class.xml_ns), tag=tag).text
+        if xml_name in self.parsers:
+            raise RuntimeError(
+                f"Another class is already registered to parse the <{xml_name}> tag."
+            )
 
-        self.parsers[qname.text] = node_class  # Track this parser to resolve the tag.
+        self.parsers[xml_name] = node_class  # Track this parser to resolve the tag.
         if not hidden:
-            node_class.xml_tags.append(tag)  # Allow fetching all names later
+            node_class.xml_tags.append(xml_name)  # Allow fetching all names later
 
     def node_from_xml(
         self, element: NSElement, allowed_types: tuple[type[BN]] | None = None
@@ -216,9 +221,11 @@ class TagRegistry:
             node_class = self.parsers[element.tag]
         except KeyError:
             msg = f"Unsupported tag: <{element.tag}>"
+            if "{" not in element.tag:
+                msg = f"{msg} without an XML namespace"
             if allowed_types:
                 # Show better exception message
-                types = ", ".join(c.__name__ for c in allowed_types)
+                types = ", ".join(chain.from_iterable(c.get_tag_names() for c in allowed_types))
                 msg = f"{msg}, expected one of: {types}"
 
             raise ExternalParsingError(msg) from None
@@ -232,6 +239,18 @@ class TagRegistry:
             )
 
         return node_class
+
+    def get_parser_class(self, xml_qname) -> type[BaseNode]:
+        """Provide the parser class for a given XML Qualified name."""
+        return self.parsers[xml_qname]
+
+    def find_subclasses(self, node_type: type[BN]) -> list[type[BN]]:
+        """Find all registered parsers for a given node."""
+        return {
+            tag: node_class
+            for tag, node_class in self.parsers.items()
+            if issubclass(node_class, node_type)
+        }
 
 
 def expect_tag(namespace: xmlns | str, *tag_names: str):

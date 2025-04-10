@@ -36,9 +36,9 @@ class TestListStoredQueries:
     xsi:schemaLocation="http://www.opengis.net/wfs/2.0 http://schemas.opengis.net/wfs/2.0/wfs.xsd">
   <StoredQuery id="urn:ogc:def:query:OGC-WFS::GetFeatureById">
     <Title>Get feature by identifier</Title>
-    <ReturnFeatureType>restaurant</ReturnFeatureType>
-    <ReturnFeatureType>mini-restaurant</ReturnFeatureType>
-    <ReturnFeatureType>denied-feature</ReturnFeatureType>
+    <ReturnFeatureType>app:restaurant</ReturnFeatureType>
+    <ReturnFeatureType>app:mini-restaurant</ReturnFeatureType>
+    <ReturnFeatureType>app:denied-feature</ReturnFeatureType>
   </StoredQuery>
 </wfs:ListStoredQueriesResponse>""",  # noqa: E501
         )

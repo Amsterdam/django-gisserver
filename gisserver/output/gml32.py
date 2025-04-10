@@ -11,6 +11,7 @@ much extra method calls per field. Some bits are non-DRY inlined for this reason
 from __future__ import annotations
 
 import itertools
+from collections import defaultdict
 from datetime import date, datetime, time, timezone
 from decimal import Decimal as D
 from io import StringIO
@@ -18,6 +19,7 @@ from operator import itemgetter
 from typing import cast
 
 from django.contrib.gis import geos
+from django.core.exceptions import ImproperlyConfigured
 from django.db import models
 from django.http import HttpResponse
 
@@ -29,16 +31,23 @@ from gisserver.db import (
     replace_queryset_geometries,
 )
 from gisserver.exceptions import NotFound, WFSException
-from gisserver.geometries import CRS, BoundingBox
-from gisserver.parsers.fes20 import ValueReference
+from gisserver.geometries import BoundingBox
 from gisserver.projection import FeatureProjection, FeatureRelation
 from gisserver.types import GmlBoundedByElement, GmlElement, XsdElement, XsdNode, XsdTypes
 
 from .base import CollectionOutputRenderer
 from .results import SimpleFeatureCollection
+from .utils import (
+    attr_escape,
+    build_feature_prefixes,
+    build_feature_qnames,
+    tag_escape,
+    to_qname,
+    value_to_text,
+    value_to_xml_string,
+)
 
 GML_RENDER_FUNCTIONS = {}
-AUTO_STR = (int, float, D, date, time)
 
 
 def register_geos_type(geos_type):
@@ -47,42 +56,6 @@ def register_geos_type(geos_type):
         return func
 
     return _inc
-
-
-def _tag_escape(s: str):
-    return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-
-
-def _attr_escape(s: str):
-    # Slightly faster then html.escape() as it doesn't replace single quotes.
-    # Having tried all possible variants, this code still outperforms other forms of escaping.
-    return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
-
-
-def _value_to_xml_string(value):
-    # Simple scalar value
-    if isinstance(value, str):  # most cases
-        return _tag_escape(value)
-    elif isinstance(value, datetime):
-        return value.astimezone(timezone.utc).isoformat()
-    elif isinstance(value, bool):
-        return "true" if value else "false"
-    elif isinstance(value, AUTO_STR):
-        return value  # no need for _tag_escape(), and f"{value}" works faster.
-    else:
-        return _tag_escape(str(value))
-
-
-def _value_to_text(value):
-    # Simple scalar value, no XML escapes
-    if isinstance(value, str):  # most cases
-        return value
-    elif isinstance(value, datetime):
-        return value.astimezone(timezone.utc).isoformat()
-    elif isinstance(value, bool):
-        return "true" if value else "false"
-    else:
-        return value  # f"{value} works faster and produces the right format.
 
 
 class GML32Renderer(CollectionOutputRenderer):
@@ -94,11 +67,49 @@ class GML32Renderer(CollectionOutputRenderer):
     chunk_size = 40_000
     gml_seq = 0
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.app_namespaces = self.method.view.get_xml_namespaces_to_prefixes()
+        self.build_namespace_map()
+
+    def build_namespace_map(
+        self,
+    ):
+        """Collect all namespaces which namespaces are used by features."""
+        feature_types = [
+            feature_type
+            for sub_collection in self.collection.results
+            for feature_type in sub_collection.feature_types
+        ]
+
+        # Make aliases for the feature type elements.
+        try:
+            self.feature_qnames = build_feature_qnames(feature_types, self.app_namespaces)
+            self.feature_prefixes = build_feature_prefixes(feature_types, self.app_namespaces)
+            self.xml_qnames = self._build_xml_qnames()
+        except KeyError as e:
+            raise ImproperlyConfigured(f"No XML namespace alias defined in WFSView for {e}") from e
+
+    def _build_xml_qnames(self) -> dict[XsdNode, str]:
+        """Collect aliases for all rendered elements.
+        This uses a defaultdict so optional attributes (e.g. by GetPropertyValue) can also be resolved.
+        """
+        return defaultdict(
+            self._get_prefixed_name,
+            {
+                xsd_element: self._get_prefixed_name(xsd_element)
+                for sub_collection in self.collection.results
+                for xsd_element in sub_collection.projection.all_elements
+            },
+        )
+
+    def _get_prefixed_name(self, xsd_node: XsdNode) -> str:
+        """Generate the proper prefixed name for an XML element/attribute."""
+        return to_qname(xsd_node.namespace, xsd_node.name, self.app_namespaces)
+
     def get_response(self):
         """Render the output as streaming response."""
-        from gisserver.queries import GetFeatureById
-
-        if isinstance(self.source_query, GetFeatureById):
+        if self.collection.results and self.collection.results[0].projection.output_standalone:
             # WFS spec requires that GetFeatureById output only returns the contents.
             # The streaming response is avoided here, to allow returning a 404.
             return self.get_by_id_response()
@@ -109,7 +120,9 @@ class GML32Renderer(CollectionOutputRenderer):
     def get_by_id_response(self):
         """Render a standalone item, for GetFeatureById"""
         sub_collection = self.collection.results[0]
+        sub_collection.source_query.finalize_results(sub_collection)  # Allow 404
         self.start_collection(sub_collection)
+
         instance = sub_collection.first()
         if instance is None:
             raise NotFound("Feature not found.")
@@ -133,31 +146,45 @@ class GML32Renderer(CollectionOutputRenderer):
 
     def render_xmlns(self):
         """Generate the xmlns block that the document needs"""
-        xsd_typenames = ",".join(
-            sub_collection.feature_type.name for sub_collection in self.collection.results
-        )
-        schema_location = [
-            f"{self.app_xml_namespace} {self.server_url}?SERVICE=WFS&VERSION=2.0.0&REQUEST=DescribeFeatureType&TYPENAMES={xsd_typenames}",  # noqa: E501
+        attributes = [
+            'xmlns:wfs="http://www.opengis.net/wfs/2.0"',
+            'xmlns:gml="http://www.opengis.net/gml/3.2"',
+            'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"',
+        ]
+
+        # Collect which namespaces contain which types.
+        type_names_by_ns = {}
+        for feature_type, prefix in self.feature_prefixes.items():
+            type_names = type_names_by_ns.setdefault(feature_type.xml_namespace, [])
+            # Include namespace if not seen before
+            if not type_names:
+                attributes.append(f'xmlns:{prefix}="{attr_escape(feature_type.xml_namespace)}"')
+
+            type_names.append(feature_type.name)  # or use xml_qname?
+
+        # Schema location are pairs of "{namespace-uri} {schema-url} {namespace-uri} {schema-url}"
+        # WFS server types refer to the endpoint that generates the XML Schema for the given feature.
+        schema_locations = [
+            (
+                f"{xml_namespace} {self.server_url}?SERVICE=WFS&VERSION=2.0.0"
+                f"&REQUEST=DescribeFeatureType&TYPENAMES={','.join(type_names)}"
+            )
+            for xml_namespace, type_names in type_names_by_ns.items()
+        ] + [
             "http://www.opengis.net/wfs/2.0 http://schemas.opengis.net/wfs/2.0/wfs.xsd",
             "http://www.opengis.net/gml/3.2 http://schemas.opengis.net/gml/3.2.1/gml.xsd",
         ]
+        attributes.append(f"xsi:schemaLocation=\"{attr_escape(' '.join(schema_locations))}\"")
 
-        return (
-            'xmlns:wfs="http://www.opengis.net/wfs/2.0" '
-            'xmlns:gml="http://www.opengis.net/gml/3.2" '
-            'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" '
-            'xmlns:app="{app_xml_namespace}" '
-            'xsi:schemaLocation="{schema_location}"'
-        ).format(
-            app_xml_namespace=_attr_escape(self.app_xml_namespace),
-            schema_location=_attr_escape(" ".join(schema_location)),
-        )
+        return " ".join(attributes)
 
     def render_xmlns_standalone(self):
         """Generate the xmlns block that the document needs"""
         # xsi is needed for "xsi:nil="true"' attributes.
+        feature_type = self.collection.results[0].feature_types[0]
+        prefix = self.app_namespaces[feature_type.xml_namespace]
         return (
-            f' xmlns:app="{_attr_escape(self.app_xml_namespace)}"'
+            f' xmlns:{prefix}="{attr_escape(feature_type.xml_namespace)}"'
             ' xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"'
             ' xmlns:gml="http://www.opengis.net/gml/3.2"'
         )
@@ -205,9 +232,9 @@ class GML32Renderer(CollectionOutputRenderer):
         number_returned = collection.number_returned
         next = previous = ""
         if collection.next:
-            next = f' next="{_attr_escape(collection.next)}"'
+            next = f' next="{attr_escape(collection.next)}"'
         if collection.previous:
-            previous = f' previous="{_attr_escape(collection.previous)}"'
+            previous = f' previous="{attr_escape(collection.previous)}"'
 
         self._write(
             f"""<?xml version='1.0' encoding="UTF-8" ?>\n"""
@@ -265,10 +292,11 @@ class GML32Renderer(CollectionOutputRenderer):
         unless it's used for a GetPropertyById response.
         """
         feature_type = projection.feature_type
+        feature_xml_qname = self.feature_qnames[feature_type]
 
         # Write <app:FeatureTypeName> start node
-        pk = _tag_escape(str(instance.pk))
-        self._write(f'<{feature_type.xml_name} gml:id="{feature_type.name}.{pk}"{extra_xmlns}>\n')
+        pk = tag_escape(str(instance.pk))
+        self._write(f'<{feature_xml_qname} gml:id="{feature_type.name}.{pk}"{extra_xmlns}>\n')
         # Write all fields, both base class and local elements.
         for xsd_element in projection.xsd_root_elements:
             # Note that writing 5000 features with 30 tags means this code make 150.000 method calls.
@@ -286,7 +314,7 @@ class GML32Renderer(CollectionOutputRenderer):
                     # e.g. <gml:name>, or all other <app:...> nodes.
                     self.write_xml_field(projection, xsd_element, value)
 
-        self._write(f"</{feature_type.xml_name}>\n")
+        self._write(f"</{feature_xml_qname}>\n")
 
     def write_many(self, projection: FeatureProjection, xsd_element: XsdElement, value) -> None:
         """Write a node that has multiple values (e.g. array or queryset)."""
@@ -294,7 +322,8 @@ class GML32Renderer(CollectionOutputRenderer):
         if value is None:
             # No tag for optional element (see PropertyIsNull), otherwise xsi:nil node.
             if xsd_element.min_occurs:
-                self._write(f'<{xsd_element.xml_name} xsi:nil="true"/>\n')
+                xml_qname = self.xml_qnames[xsd_element]
+                self._write(f'<{xml_qname} xsi:nil="true"/>\n')
         else:
             for item in value:
                 self.write_xml_field(projection, xsd_element, value=item)
@@ -303,18 +332,18 @@ class GML32Renderer(CollectionOutputRenderer):
         self, projection: FeatureProjection, xsd_element: XsdElement, value, extra_xmlns=""
     ):
         """Write the value of a single field."""
-        xml_name = xsd_element.xml_name
+        xml_qname = self.xml_qnames[xsd_element]
         if value is None:
-            self._write(f'<{xml_name} xsi:nil="true"{extra_xmlns}/>\n')
+            self._write(f'<{xml_qname} xsi:nil="true"{extra_xmlns}/>\n')
         elif xsd_element.type.is_complex_type:
             # Expanded foreign relation / dictionary
             self.write_xml_complex_type(projection, xsd_element, value, extra_xmlns=extra_xmlns)
         else:
             # As this is likely called 150.000 times during a request, this is optimized.
-            # Avoided a separate call to _value_to_xml_string() and avoided isinstance() here.
+            # Avoided a separate call to value_to_xml_string() and avoided isinstance() here.
             value_cls = value.__class__
             if value_cls is str:  # most cases
-                value = _tag_escape(value)
+                value = tag_escape(value)
             elif value_cls is datetime:
                 value = value.astimezone(timezone.utc).isoformat()
             elif value_cls is bool:
@@ -328,15 +357,16 @@ class GML32Renderer(CollectionOutputRenderer):
             ):
                 # Non-string or custom field that extended a scalar.
                 # Any of the other types have a faster f"{value}" translation that produces the correct text.
-                value = _value_to_xml_string(value)
+                value = value_to_xml_string(value)
 
-            self._write(f"<{xml_name}{extra_xmlns}>{value}</{xml_name}>\n")
+            self._write(f"<{xml_qname}{extra_xmlns}>{value}</{xml_qname}>\n")
 
     def write_xml_complex_type(
         self, projection: FeatureProjection, xsd_element: XsdElement, value, extra_xmlns=""
     ) -> None:
         """Write a single field, that consists of sub elements"""
-        self._write(f"<{xsd_element.xml_name}{extra_xmlns}>\n")
+        xml_qname = self.xml_qnames[xsd_element]
+        self._write(f"<{xml_qname}{extra_xmlns}>\n")
         for sub_element in projection.xsd_child_nodes[xsd_element]:
             if sub_element.type.is_geometry:
                 # Separate call which can be optimized (no need to overload write_xml_field() for all calls).
@@ -347,7 +377,7 @@ class GML32Renderer(CollectionOutputRenderer):
                     self.write_many(projection, sub_element, sub_value)
                 else:
                     self.write_xml_field(projection, sub_element, sub_value)
-        self._write(f"</{xsd_element.xml_name}>\n")
+        self._write(f"</{xml_qname}>\n")
 
     def write_gml_field(
         self,
@@ -360,26 +390,28 @@ class GML32Renderer(CollectionOutputRenderer):
         if gml_element.type is XsdTypes.gmlBoundingShapeType:
             # Special case for <gml:boundedBy>, which doesn't need xsd:nil values, nor a gml:id.
             # The value is not a GEOSGeometry either, as that is not exposed by django.contrib.gis.
-            value = cast(GmlBoundedByElement, gml_element).get_value(instance, crs=self.output_crs)
+            value = cast(GmlBoundedByElement, gml_element).get_value(
+                instance, crs=projection.output_crs
+            )
             if value is not None:
                 self._write(self.render_gml_bounds(value))
         else:
             # Regular geometry elements.
-            xml_name = gml_element.xml_name
+            xml_qname = self.xml_qnames[gml_element]
             value = gml_element.get_value(instance)
             if value is None:
                 # Avoid incrementing gml_seq
-                self._write(f'<{xml_name} xsi:nil="true"{extra_xmlns}/>\n')
+                self._write(f'<{xml_qname} xsi:nil="true"{extra_xmlns}/>\n')
             else:
                 gml_id = self.get_gml_id(instance._meta.object_name, instance.pk)
 
                 # the following is somewhat faster, but will render GML 2, not GML 3.2:
                 # gml = value.ogr.gml
                 # pos = gml.find(">")  # Will inject the gml:id="..." tag.
-                # gml = f"{gml[:pos]} gml:id="{_attr_escape(gml_id)}"{gml[pos:]}"
+                # gml = f"{gml[:pos]} gml:id="{attr_escape(gml_id)}"{gml[pos:]}"
 
-                gml = self.render_gml_value(gml_id, value)
-                self._write(f"<{xml_name}{extra_xmlns}>{gml}</{xml_name}>\n")
+                gml = self.render_gml_value(projection, gml_id, value)
+                self._write(f"<{xml_qname}{extra_xmlns}>{gml}</{xml_qname}>\n")
 
     def get_gml_id(self, prefix: str, object_id) -> str:
         """Generate the gml:id value, which is required for GML 3.2 objects."""
@@ -391,16 +423,22 @@ class GML32Renderer(CollectionOutputRenderer):
         Note this uses an internal object type,
         as :mod:`django.contrib.gis.geos` only provides a Point/Polygon or 4-tuple envelope.
         """
-        return f"""<gml:boundedBy><gml:Envelope srsDimension="2" srsName="{self.xml_srs_name}">
+        return f"""<gml:boundedBy><gml:Envelope srsDimension="2" srsName="{attr_escape(envelope.crs.urn)}">
             <gml:lowerCorner>{envelope.south} {envelope.west}</gml:lowerCorner>
             <gml:upperCorner>{envelope.north} {envelope.east}</gml:upperCorner>
           </gml:Envelope></gml:boundedBy>\n"""
 
-    def render_gml_value(self, gml_id, value: geos.GEOSGeometry | None, extra_xmlns="") -> str:
+    def render_gml_value(
+        self,
+        projection: FeatureProjection,
+        gml_id,
+        value: geos.GEOSGeometry | None,
+        extra_xmlns="",
+    ) -> str:
         """Normal case: 'value' is raw geometry data.."""
         # In case this is a standalone response, this will be the top-level element, hence includes the xmlns.
-        base_attrs = f' gml:id="{_attr_escape(gml_id)}" srsName="{self.xml_srs_name}"{extra_xmlns}'
-        self.output_crs.apply_to(value)
+        base_attrs = f' gml:id="{attr_escape(gml_id)}" srsName="{attr_escape(projection.output_crs.urn)}"{extra_xmlns}'
+        projection.output_crs.apply_to(value)
         return self._render_gml_type(value, base_attrs=base_attrs)
 
     def _render_gml_type(self, value: geos.GEOSGeometry, base_attrs=""):
@@ -488,7 +526,7 @@ class GML32Renderer(CollectionOutputRenderer):
 
 class DBGMLRenderingMixin:
 
-    def render_gml_value(self, gml_id, value: str, extra_xmlns=""):
+    def render_gml_value(self, projection, gml_id, value: str, extra_xmlns=""):
         """DB optimized: 'value' is pre-rendered GML XML string."""
         # Write the gml:id inside the first tag
         end_pos = value.find(">")
@@ -496,13 +534,13 @@ class DBGMLRenderingMixin:
         id_pos = gml_tag.find("gml:id=")
         if id_pos == -1:
             # Inject
-            return f'{gml_tag} gml:id="{_attr_escape(gml_id)}"{extra_xmlns}{value[end_pos:]}'
+            return f'{gml_tag} gml:id="{attr_escape(gml_id)}"{extra_xmlns}{value[end_pos:]}'
         else:
             # Replace
             end_pos1 = gml_tag.find('"', id_pos + 8)
             return (
                 f"{gml_tag[:id_pos]}"
-                f'gml:id="{_attr_escape(gml_id)}'
+                f'gml:id="{attr_escape(gml_id)}'
                 f"{value[end_pos1:end_pos]}"  # from " right until >
                 f"{extra_xmlns}"  # extra namespaces?
                 f"{value[end_pos:]}"  # from > and beyond
@@ -512,66 +550,55 @@ class DBGMLRenderingMixin:
 class DBGML32Renderer(DBGMLRenderingMixin, GML32Renderer):
     """Faster GetFeature renderer that uses the database to render GML 3.2"""
 
-    @classmethod
-    def decorate_queryset(
-        cls,
-        projection: FeatureProjection,
-        queryset: models.QuerySet,
-        output_crs: CRS,
-        **params,
-    ):
+    def decorate_queryset(self, projection: FeatureProjection, queryset: models.QuerySet):
         """Update the queryset to let the database render the GML output.
         This is far more efficient than GeoDjango's logic, which performs a
         C-API call for every single coordinate of a geometry.
         """
-        queryset = super().decorate_queryset(projection, queryset, output_crs, **params)
+        queryset = super().decorate_queryset(projection, queryset)
 
         # Retrieve gml:boundedBy in pre-rendered format.
         if projection.has_bounded_by:
             queryset = queryset.annotate(
-                _as_envelope_gml=cls.get_db_envelope_as_gml(projection, queryset, output_crs),
+                _as_envelope_gml=self.get_db_envelope_as_gml(projection, queryset),
             )
 
         # Retrieve geometries as pre-rendered instead.
         # Only take the geometries of the current level.
         # The annotations for relations will be handled by prefetches and get_prefetch_queryset()
         return replace_queryset_geometries(
-            queryset, projection.geometry_elements, output_crs, AsGML
+            queryset, projection.geometry_elements, projection.output_crs, AsGML
         )
 
-    @classmethod
     def get_prefetch_queryset(
-        cls,
+        self,
         projection: FeatureProjection,
         feature_relation: FeatureRelation,
-        output_crs: CRS,
     ) -> models.QuerySet | None:
         """Perform DB annotations for prefetched relations too."""
-        queryset = super().get_prefetch_queryset(projection, feature_relation, output_crs)
+        queryset = super().get_prefetch_queryset(projection, feature_relation)
         if queryset is None:
             return None
 
         # Find which fields are GML elements
         return replace_queryset_geometries(
-            queryset, feature_relation.geometry_elements, output_crs, AsGML
+            queryset, feature_relation.geometry_elements, projection.output_crs, AsGML
         )
 
-    @classmethod
-    def get_db_envelope_as_gml(cls, projection: FeatureProjection, queryset, output_crs) -> AsGML:
+    def get_db_envelope_as_gml(self, projection: FeatureProjection, queryset) -> AsGML:
         """Offload the GML rendering of the envelope to the database.
 
         This also avoids offloads the geometry union calculation to the DB.
         """
-        geo_fields_union = cls._get_geometries_union(projection, queryset, output_crs)
+        geo_fields_union = self._get_geometries_union(projection, queryset)
         return AsGML(geo_fields_union, envelope=True)
 
-    @classmethod
-    def _get_geometries_union(cls, projection: FeatureProjection, queryset, output_crs):
+    def _get_geometries_union(self, projection: FeatureProjection, queryset):
         """Combine all geometries of the model in a single SQL function."""
         # Apply transforms where needed, in case some geometries use a different SRID.
         return get_geometries_union(
             [
-                get_db_geometry_target(gml_element, output_crs=output_crs)
+                get_db_geometry_target(gml_element, output_crs=projection.output_crs)
                 for gml_element in projection.all_geometry_elements
                 if gml_element.source is not None  # excludes GmlBoundedByElement
             ],
@@ -589,7 +616,7 @@ class DBGML32Renderer(DBGMLRenderingMixin, GML32Renderer):
 
         This optimized version takes a pre-rendered XML from the database query.
         """
-        xml_name = gml_element.xml_name
+        xml_qname = self.xml_qnames[gml_element]
         if gml_element.type is XsdTypes.gmlBoundingShapeType:
             gml = instance._as_envelope_gml
             if gml is None:
@@ -598,14 +625,14 @@ class DBGML32Renderer(DBGMLRenderingMixin, GML32Renderer):
             value = get_db_rendered_geometry(instance, gml_element, AsGML)
             if value is None:
                 # Avoid incrementing gml_seq, make nil tag.
-                self._write(f'<{xml_name} xsi:nil="true"{extra_xmlns}/>\n')
+                self._write(f'<{xml_qname} xsi:nil="true"{extra_xmlns}/>\n')
                 return
 
             # Get gml tag to write as value.
             gml_id = self.get_gml_id(instance._meta.object_name, instance.pk)
-            gml = self.render_gml_value(gml_id, value, extra_xmlns=extra_xmlns)
+            gml = self.render_gml_value(projection, gml_id, value, extra_xmlns=extra_xmlns)
 
-        self._write(f"<{xml_name}{extra_xmlns}>{gml}</{xml_name}>\n")
+        self._write(f"<{xml_qname}{extra_xmlns}>{gml}</{xml_qname}>\n")
 
 
 class GML32ValueRenderer(GML32Renderer):
@@ -620,39 +647,22 @@ class GML32ValueRenderer(GML32Renderer):
     content_type_plain = "text/plain; charset=utf-8"
     xml_collection_tag = "ValueCollection"
     xml_sub_collection_tag = "ValueCollection"
-    _escape_value = staticmethod(_value_to_xml_string)
+    _escape_value = staticmethod(value_to_xml_string)
     gml_value_getter = itemgetter("member")
 
-    def __init__(self, *args, value_reference: ValueReference, **kwargs):
-        self.value_reference = value_reference
-        super().__init__(*args, **kwargs)
-        self.xsd_node: XsdNode | None = None
-
-    @classmethod
-    def decorate_queryset(
-        cls,
-        projection: FeatureProjection,
-        queryset: models.QuerySet,
-        output_crs: CRS,
-        **params,
-    ):
+    def decorate_queryset(self, projection: FeatureProjection, queryset: models.QuerySet):
         # Don't optimize queryset, it only retrieves one value
         # The data is already limited to a ``queryset.values()`` in ``QueryExpression.get_queryset()``.
         return queryset
-
-    def start_collection(self, sub_collection: SimpleFeatureCollection):
-        # Resolve which XsdNode is being rendered
-        match = sub_collection.feature_type.resolve_element(self.value_reference.xpath)
-        self.xsd_node = match.child
 
     def write_by_id_response(
         self, sub_collection: SimpleFeatureCollection, instance: dict, extra_xmlns
     ):
         """The value rendering only renders the value. not a complete feature"""
-        if self.xsd_node.is_attribute:
+        if sub_collection.projection.property_value_node.is_attribute:
             # Output as plain text
             self.content_type = self.content_type_plain  # change for this instance!
-            self._escape_value = _value_to_text  # avoid XML escaping
+            self._escape_value = value_to_text  # avoid XML escaping
         else:
             self._write('<?xml version="1.0" encoding="UTF-8"?>\n')
 
@@ -663,23 +673,24 @@ class GML32ValueRenderer(GML32Renderer):
         """Write the XML for a single object.
         In this case, it's only a single XML tag.
         """
-        if self.xsd_node.type.is_geometry:
+        xsd_node = projection.property_value_node
+        if xsd_node.type.is_geometry:
             self.write_gml_field(
                 projection,
-                cast(XsdElement, self.xsd_node),
+                cast(GmlElement, xsd_node),
                 instance,
                 extra_xmlns=extra_xmlns,
             )
-        elif self.xsd_node.is_attribute:
+        elif xsd_node.is_attribute:
             value = instance["member"]
             if value is not None:
-                value = self.xsd_node.format_raw_value(instance["member"])  # for gml:id
+                value = xsd_node.format_raw_value(instance["member"])  # for gml:id
                 value = self._escape_value(value)
                 self._write(value)
-        elif self.xsd_node.is_array:
+        elif xsd_node.is_array:
             if (value := instance["member"]) is not None:
                 # <wfs:member> doesn't allow multiple items as children, for new render as separate members.
-                xml_name = self.xsd_node.xml_name
+                xml_qname = self.xml_qnames[xsd_node]
                 first = True
                 for item in value:
                     if item is not None:
@@ -687,15 +698,15 @@ class GML32ValueRenderer(GML32Renderer):
                             self._write("</wfs:member>\n<wfs:member>")
 
                         item = self._escape_value(item)
-                        self._write(f"<{xml_name}>{item}</{xml_name}>\n")
+                        self._write(f"<{xml_qname}>{item}</{xml_qname}>\n")
                         first = False
-        elif self.xsd_node.type.is_complex_type:
+        elif xsd_node.type.is_complex_type:
             raise NotImplementedError("GetPropertyValue with complex types is not implemented")
             # self.write_xml_complex_type(projection, self.xsd_node, instance['member'])
         else:
             self.write_xml_field(
                 projection,
-                cast(XsdElement, self.xsd_node),
+                cast(XsdElement, xsd_node),
                 value=instance["member"],
                 extra_xmlns=extra_xmlns,
             )
@@ -714,15 +725,15 @@ class GML32ValueRenderer(GML32Renderer):
             )
 
         value = self.gml_value_getter(instance)  # "member" or "gml_member"
-        xml_name = gml_element.xml_name
+        xml_qname = self.xml_qnames[gml_element]
         if value is None:
             # Avoid incrementing gml_seq
-            self._write(f'<{xml_name} xsi:nil="true"{extra_xmlns}/>\n')
+            self._write(f'<{xml_qname} xsi:nil="true"{extra_xmlns}/>\n')
             return
 
         gml_id = self.get_gml_id(gml_element.source.model._meta.object_name, instance["pk"])
-        gml = self.render_gml_value(gml_id, value, extra_xmlns=extra_xmlns)
-        self._write(f"<{xml_name}{extra_xmlns}>{gml}</{xml_name}>\n")
+        gml = self.render_gml_value(projection, gml_id, value, extra_xmlns=extra_xmlns)
+        self._write(f"<{xml_qname}{extra_xmlns}>{gml}</{xml_qname}>\n")
 
 
 class DBGML32ValueRenderer(DBGMLRenderingMixin, GML32ValueRenderer):
@@ -730,16 +741,15 @@ class DBGML32ValueRenderer(DBGMLRenderingMixin, GML32ValueRenderer):
 
     gml_value_getter = itemgetter("gml_member")
 
-    @classmethod
-    def decorate_queryset(cls, projection: FeatureProjection, queryset, output_crs, **params):
+    def decorate_queryset(self, projection: FeatureProjection, queryset):
         """Update the queryset to let the database render the GML output."""
-        value_reference = params["valueReference"]
-        match = projection.feature_type.resolve_element(value_reference.xpath)
-        if match.child.type.is_geometry:
+        # As this is a classmethod, self.value_reference is not available yet.
+        element = projection.property_value_node
+        if element.type.is_geometry:
             # Add 'gml_member' to point to the pre-rendered GML version.
-            gml_element = cast(GmlElement, match.child)
+            gml_element = cast(GmlElement, element)
             return queryset.values(
-                "pk", gml_member=AsGML(get_db_geometry_target(gml_element, output_crs))
+                "pk", gml_member=AsGML(get_db_geometry_target(gml_element, projection.output_crs))
             )
         else:
             return queryset

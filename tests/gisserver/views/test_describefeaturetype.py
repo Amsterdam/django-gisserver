@@ -19,7 +19,7 @@ class TestDescribeFeatureType:
         Get("?SERVICE=WFS&REQUEST=DescribeFeatureType&VERSION=2.0.0&TYPENAMES=restaurant"),
         Post(
             f"""<DescribeFeatureType version="2.0.0" service="WFS" {XML_NS}>
-              <Query typeNames="restaurant"></Query>
+              <TypeName>restaurant</TypeName>
               </DescribeFeatureType>
               """
         ),
@@ -150,7 +150,7 @@ class TestDescribeFeatureType:
         Get("?SERVICE=WFS&REQUEST=DescribeFeatureType&VERSION=2.0.0&TYPENAMES=restaurant"),
         Post(
             f"""<DescribeFeatureType version="2.0.0" service="WFS" {XML_NS}>
-              <Query typeNames="restaurant"></Query>
+                <TypeName>restaurant</TypeName>
               </DescribeFeatureType>
               """
         ),
@@ -226,7 +226,7 @@ class TestDescribeFeatureType:
         Get("?SERVICE=WFS&REQUEST=DescribeFeatureType&VERSION=2.0.0&TYPENAMES=restaurant"),
         Post(
             f"""<DescribeFeatureType version="2.0.0" service="WFS" {XML_NS}>
-              <Query typeNames="restaurant"></Query>
+                <TypeName>restaurant</TypeName>
               </DescribeFeatureType>
               """
         ),
@@ -365,7 +365,7 @@ class TestDescribeFeatureType:
         ),
         Post(
             f"""<DescribeFeatureType version="2.0.0" service="WFS" outputFormat="application/gml+xml; version=3.2" {XML_NS}>
-              <Query typeNames="restaurant"></Query>
+                <TypeName>restaurant</TypeName>
               </DescribeFeatureType>
               """
         ),
@@ -379,16 +379,17 @@ class TestDescribeFeatureType:
         Get("?SERVICE=WFS&REQUEST=DescribeFeatureType&VERSION=2.0.0&TYPENAMES="),
         Post(
             f"""<DescribeFeatureType version="2.0.0" service="WFS" {XML_NS}>
-              <Query typeNames=""></Query>
+              <TypeName></TypeName>
               </DescribeFeatureType>
-              """
+              """,
+            validate_xml=False,
         ),
     )
     def test_empty_typenames(self, response):
         """Prove that missing arguments are handled"""
         content = response.content.decode()
-        assert response["content-type"] == "text/xml; charset=utf-8", content
         assert response.status_code == 400, content
+        assert response["content-type"] == "text/xml; charset=utf-8", content
         assert "</ows:Exception>" in content
 
         xml_doc = validate_xsd(response.content, WFS_20_XSD)

@@ -9,12 +9,12 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 from decimal import Decimal
-from functools import lru_cache
+from functools import cached_property, lru_cache
 
 from django.contrib.gis.gdal import CoordTransform, SpatialReference
-from django.contrib.gis.geos import GEOSGeometry, Polygon
+from django.contrib.gis.geos import GEOSGeometry
 
-from gisserver.exceptions import ExternalParsingError, ExternalValueError
+from gisserver.exceptions import ExternalValueError
 
 CRS_URN_REGEX = re.compile(
     r"^urn:(?P<domain>[a-z]+)"
@@ -216,7 +216,7 @@ class CRS:
         """Return a legacy string in the format "EPSG:<srid>"""
         return f"EPSG:{self.srid:d}"
 
-    @property
+    @cached_property
     def urn(self):
         """Return The OGC URN corresponding to this CRS."""
         return f"urn:{self.domain}:def:crs:{self.authority}:{self.version or ''}:{self.crsid}"
@@ -281,25 +281,6 @@ class BoundingBox:
     crs: CRS | None = None
 
     @classmethod
-    def from_string(cls, bbox):
-        """Parse the bounding box from an input string.
-
-        It can either be 4 coordinates, or 4 coordinates with a special reference system.
-        """
-        bbox = bbox.split(",")
-        if not (4 <= len(bbox) <= 5):
-            raise ExternalParsingError(
-                f"Input does not contain bounding box, expected 4 or 5 values, not {bbox}."
-            )
-        return cls(
-            Decimal(bbox[0]),
-            Decimal(bbox[1]),
-            Decimal(bbox[2]),
-            Decimal(bbox[3]),
-            CRS.from_string(bbox[4]) if len(bbox) == 5 else None,
-        )
-
-    @classmethod
     def from_geometry(cls, geometry: GEOSGeometry, crs: CRS | None = None):
         """Construct the bounding box for a geometry"""
         if crs is None:
@@ -349,10 +330,3 @@ class BoundingBox:
             )
         else:
             return NotImplemented
-
-    def as_polygon(self) -> Polygon:
-        """Convert the value into a GEOS polygon."""
-        polygon = Polygon.from_bbox((self.south, self.west, self.north, self.east))
-        if self.crs is not None:
-            polygon.srid = self.crs.srid
-        return polygon

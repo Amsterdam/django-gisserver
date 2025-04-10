@@ -2,10 +2,6 @@
 
 from .results import FeatureCollection, SimpleFeatureCollection  # isort: skip (fixes import loops)
 
-from django.utils.functional import classproperty
-
-from gisserver import conf
-
 from .base import CollectionOutputRenderer, OutputRenderer
 from .csv import CSVRenderer, DBCSVRenderer
 from .geojson import DBGeoJsonRenderer, GeoJsonRenderer
@@ -15,6 +11,8 @@ from .gml32 import (
     GML32Renderer,
     GML32ValueRenderer,
 )
+from .stored import DescribeStoredQueriesRenderer, ListStoredQueriesRenderer
+from .utils import build_feature_qnames
 from .xmlschema import XMLSchemaRenderer
 
 __all__ = [
@@ -31,45 +29,7 @@ __all__ = [
     "GML32Renderer",
     "GML32ValueRenderer",
     "XMLSchemaRenderer",
-    "geojson_renderer",
-    "gml32_renderer",
-    "gml32_value_renderer",
+    "ListStoredQueriesRenderer",
+    "DescribeStoredQueriesRenderer",
+    "build_feature_qnames",
 ]
-
-
-def select_renderer(native_renderer_class, db_renderer_class):
-    """Dynamically select the preferred renderer.
-    This allows changing the settings within the app.
-    """
-
-    class SelectRenderer:
-        """A proxy to the actual rendering class.
-        Its structure still allows accessing class-properties of the actual class.
-        """
-
-        @classproperty
-        def real_class(self):
-            if conf.GISSERVER_USE_DB_RENDERING:
-                return db_renderer_class
-            else:
-                return native_renderer_class
-
-        def __new__(cls, *args, **kwargs):
-            # Return the actual class instead
-            return cls.real_class(*args, **kwargs)
-
-        @classmethod
-        def decorate_collection(cls, *args, **kwargs):
-            return cls.real_class.decorate_collection(*args, **kwargs)
-
-        @classproperty
-        def max_page_size(cls):
-            return cls.real_class.max_page_size
-
-    return SelectRenderer
-
-
-csv_renderer = select_renderer(CSVRenderer, DBCSVRenderer)
-gml32_renderer = select_renderer(GML32Renderer, DBGML32Renderer)
-gml32_value_renderer = select_renderer(GML32ValueRenderer, DBGML32ValueRenderer)
-geojson_renderer = select_renderer(GeoJsonRenderer, DBGeoJsonRenderer)

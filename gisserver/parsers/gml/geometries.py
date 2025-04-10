@@ -8,9 +8,12 @@ from xml.etree.ElementTree import tostring
 
 from django.contrib.gis.geos import GEOSGeometry
 
+from gisserver import conf
+from gisserver.exceptions import InvalidParameterValue
 from gisserver.geometries import CRS
 from gisserver.parsers.ast import tag_registry
-from gisserver.parsers.xml import NSElement, get_attribute, xmlns
+from gisserver.parsers.query import CompiledQuery
+from gisserver.parsers.xml import NSElement, xmlns
 
 from .base import AbstractGeometry, TM_Object
 
@@ -55,7 +58,7 @@ class GEOSGMLGeometry(AbstractGeometry):
         GML is a complex beast with many different forms for the same thing:
         http://erouault.blogspot.com/2014/04/gml-madness.html
         """
-        srs = CRS.from_string(element.get_attribute("srsName"))
+        srs = CRS.from_string(element.get_str_attribute("srsName"))
 
         # Push the whole <gml:...> element into the GEOS parser.
         # This avoids having to support the whole GEOS logic.
@@ -76,7 +79,18 @@ class GEOSGMLGeometry(AbstractGeometry):
     def json(self):
         return self.geos_data.json
 
-    def build_rhs(self, compiler):
+    def build_rhs(self, compiler: CompiledQuery):
+        # Perform final validation during the construction of the query.
+        if (
+            conf.GISSERVER_SUPPORTED_CRS_ONLY
+            and compiler.feature_types  # for unit tests
+            and self.srs not in compiler.feature_types[0].supported_crs
+        ):
+            raise InvalidParameterValue(
+                f"Feature '{compiler.feature_types[0].name}' does not support SRID {self.srs.srid}.",
+                locator="bbox",
+            )
+
         return self.geos_data
 
 

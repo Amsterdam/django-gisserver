@@ -272,6 +272,7 @@ class TestGetPropertyValue:
                     url=url,
                 )
                 for (name, url, filter) in FILTERS
+                if name != "fes1"
             ]
         )
     )
@@ -300,6 +301,7 @@ class TestGetPropertyValue:
                 """,
                     expect=expect_post or expect_get,
                     id=name,
+                    validate_xml=False,
                 )
                 for name, (filter, expect_get, expect_post) in INVALID_FILTERS.items()
             ]
@@ -316,9 +318,10 @@ class TestGetPropertyValue:
         assert xml_doc.attrib["version"] == "2.0.0"
         exception = xml_doc.find("ows:Exception", NAMESPACES)
         message = exception.find("ows:ExceptionText", NAMESPACES).text
+        expect_message = response.expect.text
 
+        assert message.startswith(expect_message), f"got: {message}, expect: {expect_message}"
         assert exception.attrib["exceptionCode"] == response.expect.code, message
-        assert message.startswith(response.expect.text)
 
     @parametrize_response(
         Get(
@@ -448,8 +451,12 @@ class TestGetPropertyValue:
             f"&RESOURCEID=restaurant.{id}&VALUEREFERENCE=name",
         ),
         Post(
-            lambda id: f"""<GetPropertyValue service="WFS" version="2.0.0" valueReference="name"
-                resourceId="restaurant.{id}" {XML_NS}>
+            lambda id: f"""<GetPropertyValue service="WFS" version="2.0.0" valueReference="name" {XML_NS}>
+                  <Query typeNames="restaurant">
+                    <fes:Filter>
+                      <fes:ResourceId rid="restaurant.{id}" />
+                    </fes:Filter>
+                  </Query>
                 </GetPropertyValue>
                 """,
         ),
@@ -478,8 +485,12 @@ class TestGetPropertyValue:
             "&RESOURCEID=restaurant.0&VALUEREFERENCE=name"
         ),
         Post(
-            f"""<GetPropertyValue service="WFS" version="2.0.0" valueReference="name" resourceId="restaurant.0" {XML_NS}>
-                <Query typeNames="restaurant"></Query>
+            f"""<GetPropertyValue service="WFS" version="2.0.0" valueReference="name" {XML_NS}>
+                  <Query typeNames="restaurant">
+                    <fes:Filter>
+                      <fes:ResourceId rid="restaurant.0" />
+                    </fes:Filter>
+                  </Query>
                 </GetPropertyValue>
                 """
         ),
@@ -507,8 +518,12 @@ class TestGetPropertyValue:
             f"&RESOURCEID=restaurant.{id}&VALUEREFERENCE=location",
         ),
         Post(
-            lambda id: f"""<GetPropertyValue service="WFS" version="2.0.0" valueReference="location" resourceId="restaurant.{id}" {XML_NS}>
-                <Query typeNames="mini-restaurant"></Query>
+            lambda id: f"""<GetPropertyValue service="WFS" version="2.0.0" valueReference="location" {XML_NS}>
+                  <Query typeNames="mini-restaurant">
+                    <fes:Filter>
+                      <fes:ResourceId rid="restaurant.{id}" />
+                    </fes:Filter>
+                  </Query>
                 </GetPropertyValue>
                 """,
         ),
@@ -538,7 +553,12 @@ class TestGetPropertyValue:
             "&RESOURCEID=restaurant.ABC&VALUEREFERENCE=name"
         ),
         Post(
-            f"""<GetPropertyValue service="WFS" version="2.0.0" valueReference="name" resourceId="restaurant.ABC" {XML_NS}>
+            f"""<GetPropertyValue service="WFS" version="2.0.0" valueReference="name" {XML_NS}>
+                  <Query typeNames="restaurant">
+                    <fes:Filter>
+                      <fes:ResourceId rid="restaurant.ABC" />
+                    </fes:Filter>
+                  </Query>
                 </GetPropertyValue>
                 """
         ),
@@ -565,8 +585,10 @@ class TestGetPropertyValue:
             f"&ID=restaurant.{id}&VALUEREFERENCE=name"
         ),
         Post(
-            lambda id: f"""<GetPropertyValue service="WFS" version="2.0.0" valueReference="name"
-                storedQueryId="urn:ogc:def:query:OGC-WFS::GetFeatureById" id="restaurant.{id}" {XML_NS}>
+            lambda id: f"""<GetPropertyValue service="WFS" version="2.0.0" valueReference="name" {XML_NS}>
+                  <StoredQuery id="urn:ogc:def:query:OGC-WFS::GetFeatureById">
+                    <Parameter name="ID">restaurant.{id}</Parameter>
+                  </StoredQuery>
                 </GetPropertyValue>
             """,
         ),
@@ -595,8 +617,10 @@ class TestGetPropertyValue:
             "&ID=restaurant.ABC&VALUEREFERENCE=name"
         ),
         Post(
-            f"""<GetPropertyValue service="WFS" version="2.0.0" valueReference="name"
-                storedQueryId="urn:ogc:def:query:OGC-WFS::GetFeatureById" id="restaurant.ABC" {XML_NS}>
+            f"""<GetPropertyValue service="WFS" version="2.0.0" valueReference="name" {XML_NS}>
+                  <StoredQuery id="urn:ogc:def:query:OGC-WFS::GetFeatureById">
+                    <Parameter name="ID">restaurant.ABC</Parameter>
+                  </StoredQuery>
                 </GetPropertyValue>"""
         ),
     )
@@ -621,8 +645,10 @@ class TestGetPropertyValue:
             "&ID=restaurant.0&VALUEREFERENCE=name"
         ),
         Post(
-            f"""<GetPropertyValue service="WFS" version="2.0.0" valueReference="name"
-                storedQueryId="urn:ogc:def:query:OGC-WFS::GetFeatureById" id="restaurant.0" {XML_NS}>
+            f"""<GetPropertyValue service="WFS" version="2.0.0" valueReference="name" {XML_NS}>
+                  <StoredQuery id="urn:ogc:def:query:OGC-WFS::GetFeatureById">
+                    <Parameter name="ID">restaurant.0</Parameter>
+                  </StoredQuery>
                 </GetPropertyValue>
             """
         ),

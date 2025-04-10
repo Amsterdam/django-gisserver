@@ -2,8 +2,21 @@ import django
 import pytest
 
 from gisserver.features import FeatureField, FeatureType
+from gisserver.output import XMLSchemaRenderer
 from gisserver.types import GmlElement, XsdElement, XsdTypes
 from tests.test_gisserver import models
+
+
+class _MockXMLSchemaRenderer(XMLSchemaRenderer):
+    def __init__(self):
+        self.app_namespaces = {}
+        self.type_namespaces = {
+            "http://www.w3.org/2001/XMLSchema": "",  # no xs:string, but "string"
+        }
+
+
+def _render_element(xsd_element):
+    return _MockXMLSchemaRenderer().render_element(xsd_element)
 
 
 class TestFeatureField:
@@ -27,8 +40,12 @@ class TestFeatureField:
         ],
     )
     def test_as_xml(self, field_name, cls_type, xsd_type, xml):
-        ff = FeatureField(field_name, model_attribute=field_name, model=models.Restaurant)
-        assert ff.xsd_element.as_xml == xml
+        ft = FeatureType(models.Restaurant.objects.none(), xml_namespace=None)
+        ff = FeatureField(
+            field_name, model_attribute=field_name, model=models.Restaurant, feature_type=ft
+        )
+        element_xml = _render_element(ff.xsd_element)
+        assert element_xml == xml
         assert ff.xsd_element.type == xsd_type
         assert isinstance(ff.xsd_element, cls_type)
 
@@ -55,10 +72,15 @@ class TestGeneratedFields:
         ],
     )
     def test_generated_field_is_resolved_correctly(self, field_name, type, xml):
+        ft = FeatureType(models.Restaurant.objects.none(), xml_namespace=None)
         ff = FeatureField(
-            field_name, model_attribute=field_name, model=models.ModelWithGeneratedFields
+            field_name,
+            model_attribute=field_name,
+            model=models.ModelWithGeneratedFields,
+            feature_type=ft,
         )
-        assert ff.xsd_element.as_xml == xml
+        element_xml = _render_element(ff.xsd_element)
+        assert element_xml == xml
         assert ff.xsd_element.type == type
 
     def test_generated_geometry_field(self):
