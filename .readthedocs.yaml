@@ -1,0 +1,20 @@
+# Read the Docs configuration file
+# See https://docs.readthedocs.io/en/stable/config-file/v2.html for details
+version: 2
+sphinx:
+   configuration: docs/source/conf.py
+formats: []
+
+build:
+  os: ubuntu-24.04
+  apt_packages:
+    - libgdal34t64
+    - libproj25
+  tools:
+    python: "3.12"
+
+python:
+   install:
+    - requirements: docs/_ext/djangodummy/requirements.txt
+    - method: setuptools
+      path: .

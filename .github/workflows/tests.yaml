@@ -10,13 +10,14 @@ on:
 jobs:
   run_tests:
     name: "Django ${{ matrix.django }} on Python ${{ matrix.python }}"
-    runs-on: ubuntu-20.04  # focal
+    runs-on: ubuntu-24.04  # Noble LTS
 
     services:
       postgres:
-        image: postgis/postgis:13-3.2
+        image: postgis/postgis:17-3.5
         env:
           POSTGRES_PASSWORD: password
+          POSTGRES_USER: postgres
           POSTGRES_DB: test_gisserver
         ports:
           - 5432:5432
@@ -51,15 +52,15 @@ jobs:
 
     steps:
       - name: Install GeoDjango dependencies
-        run: sudo apt-get install -y gettext libgdal26 libgeos-c1v5
+        run: sudo apt-get install -y gettext libgdal34t64
 
       - name: Install Python ${{ matrix.python }}
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
 
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Install Python Packages
         run: |
@@ -67,7 +68,7 @@ jobs:
           python -m pip install "Django~=${{ matrix.django }}" codecov -e .[tests]
 
       - name: Cache schemas.opengis.net
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           key: "schemas.opengis.net"
           path: "tests/files/xsd/"
