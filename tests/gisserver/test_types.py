@@ -1,7 +1,7 @@
 import pytest
 
 from gisserver.exceptions import ExternalParsingError
-from gisserver.types import GmlElement, XsdComplexType, XsdElement, XsdTypes
+from gisserver.types import GeometryXsdElement, XsdComplexType, XsdElement, XsdTypes
 
 
 class TestXsdElements:
@@ -12,7 +12,7 @@ class TestXsdElements:
         assert element.xml_name == "age"
 
     def test_gml_default(self):
-        element = GmlElement("age", type=XsdTypes.integer, namespace=None)
+        element = GeometryXsdElement("age", type=XsdTypes.integer, namespace=None)
         assert element.xml_name == "age"
 
     def test_default_alias(self):

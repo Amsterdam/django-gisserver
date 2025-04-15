@@ -33,7 +33,7 @@ from gisserver.db import (
 from gisserver.exceptions import NotFound, WFSException
 from gisserver.geometries import BoundingBox
 from gisserver.projection import FeatureProjection, FeatureRelation
-from gisserver.types import GmlBoundedByElement, GmlElement, XsdElement, XsdNode, XsdTypes
+from gisserver.types import GeometryXsdElement, GmlBoundedByElement, XsdElement, XsdNode, XsdTypes
 
 from .base import CollectionOutputRenderer
 from .results import SimpleFeatureCollection
@@ -382,23 +382,23 @@ class GML32Renderer(CollectionOutputRenderer):
     def write_gml_field(
         self,
         projection: FeatureProjection,
-        gml_element: GmlElement,
+        geo_element: GeometryXsdElement,
         instance: models.Model,
         extra_xmlns="",
     ) -> None:
         """Separate method to allow overriding this for db-performance optimizations."""
-        if gml_element.type is XsdTypes.gmlBoundingShapeType:
+        if geo_element.type is XsdTypes.gmlBoundingShapeType:
             # Special case for <gml:boundedBy>, which doesn't need xsd:nil values, nor a gml:id.
             # The value is not a GEOSGeometry either, as that is not exposed by django.contrib.gis.
-            value = cast(GmlBoundedByElement, gml_element).get_value(
+            value = cast(GmlBoundedByElement, geo_element).get_value(
                 instance, crs=projection.output_crs
             )
             if value is not None:
                 self._write(self.render_gml_bounds(value))
         else:
             # Regular geometry elements.
-            xml_qname = self.xml_qnames[gml_element]
-            value = gml_element.get_value(instance)
+            xml_qname = self.xml_qnames[geo_element]
+            value = geo_element.get_value(instance)
             if value is None:
                 # Avoid incrementing gml_seq
                 self._write(f'<{xml_qname} xsi:nil="true"{extra_xmlns}/>\n')
@@ -598,9 +598,9 @@ class DBGML32Renderer(DBGMLRenderingMixin, GML32Renderer):
         # Apply transforms where needed, in case some geometries use a different SRID.
         return get_geometries_union(
             [
-                get_db_geometry_target(gml_element, output_crs=projection.output_crs)
-                for gml_element in projection.all_geometry_elements
-                if gml_element.source is not None  # excludes GmlBoundedByElement
+                get_db_geometry_target(geo_element, output_crs=projection.output_crs)
+                for geo_element in projection.all_geometry_elements
+                if geo_element.source is not None  # excludes GmlBoundedByElement
             ],
             using=queryset.db,
         )
@@ -608,7 +608,7 @@ class DBGML32Renderer(DBGMLRenderingMixin, GML32Renderer):
     def write_gml_field(
         self,
         projection: FeatureProjection,
-        gml_element: GmlElement,
+        geo_element: GeometryXsdElement,
         instance: models.Model,
         extra_xmlns="",
     ) -> None:
@@ -616,13 +616,13 @@ class DBGML32Renderer(DBGMLRenderingMixin, GML32Renderer):
 
         This optimized version takes a pre-rendered XML from the database query.
         """
-        xml_qname = self.xml_qnames[gml_element]
-        if gml_element.type is XsdTypes.gmlBoundingShapeType:
+        xml_qname = self.xml_qnames[geo_element]
+        if geo_element.type is XsdTypes.gmlBoundingShapeType:
             gml = instance._as_envelope_gml
             if gml is None:
                 return
         else:
-            value = get_db_rendered_geometry(instance, gml_element, AsGML)
+            value = get_db_rendered_geometry(instance, geo_element, AsGML)
             if value is None:
                 # Avoid incrementing gml_seq, make nil tag.
                 self._write(f'<{xml_qname} xsi:nil="true"{extra_xmlns}/>\n')
@@ -677,7 +677,7 @@ class GML32ValueRenderer(GML32Renderer):
         if xsd_node.type.is_geometry:
             self.write_gml_field(
                 projection,
-                cast(GmlElement, xsd_node),
+                cast(GeometryXsdElement, xsd_node),
                 instance,
                 extra_xmlns=extra_xmlns,
             )
@@ -714,24 +714,24 @@ class GML32ValueRenderer(GML32Renderer):
     def write_gml_field(
         self,
         projection: FeatureProjection,
-        gml_element: GmlElement,
+        geo_element: GeometryXsdElement,
         instance: dict,
         extra_xmlns="",
     ) -> None:
         """Overwritten to allow dict access instead of model access."""
-        if gml_element.type is XsdTypes.gmlBoundingShapeType:
+        if geo_element.type is XsdTypes.gmlBoundingShapeType:
             raise NotImplementedError(
                 "rendering <gml:boundedBy> in GetPropertyValue is not implemented."
             )
 
         value = self.gml_value_getter(instance)  # "member" or "gml_member"
-        xml_qname = self.xml_qnames[gml_element]
+        xml_qname = self.xml_qnames[geo_element]
         if value is None:
             # Avoid incrementing gml_seq
             self._write(f'<{xml_qname} xsi:nil="true"{extra_xmlns}/>\n')
             return
 
-        gml_id = self.get_gml_id(gml_element.source.model._meta.object_name, instance["pk"])
+        gml_id = self.get_gml_id(geo_element.source.model._meta.object_name, instance["pk"])
         gml = self.render_gml_value(projection, gml_id, value, extra_xmlns=extra_xmlns)
         self._write(f"<{xml_qname}{extra_xmlns}>{gml}</{xml_qname}>\n")
 
@@ -747,9 +747,9 @@ class DBGML32ValueRenderer(DBGMLRenderingMixin, GML32ValueRenderer):
         element = projection.property_value_node
         if element.type.is_geometry:
             # Add 'gml_member' to point to the pre-rendered GML version.
-            gml_element = cast(GmlElement, element)
+            geo_element = cast(GeometryXsdElement, element)
             return queryset.values(
-                "pk", gml_member=AsGML(get_db_geometry_target(gml_element, projection.output_crs))
+                "pk", gml_member=AsGML(get_db_geometry_target(geo_element, projection.output_crs))
             )
         else:
             return queryset

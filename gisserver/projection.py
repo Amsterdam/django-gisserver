@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from functools import cached_property
 
 from gisserver.types import (
-    GmlElement,
+    GeometryXsdElement,
     XPathMatch,
     XsdElement,
     XsdNode,
@@ -176,7 +176,7 @@ class FeatureProjection:
         )
 
     @cached_property
-    def all_geometry_elements(self) -> list[GmlElement]:
+    def all_geometry_elements(self) -> list[GeometryXsdElement]:
         """Tell which GML elements will be hit."""
         return [e for e in self.all_elements if e.type.is_geometry]
 
@@ -199,18 +199,18 @@ class FeatureProjection:
         return any(e.type is XsdTypes.gmlBoundingShapeType for e in self.xsd_root_elements)
 
     @cached_property
-    def main_geometry_element(self) -> GmlElement | None:
+    def main_geometry_element(self) -> GeometryXsdElement | None:
         """Return the field used to describe the geometry of the feature.
         When the projection excludes the geometry, ``None`` is returned.
         """
-        gml_element = self.feature_type.main_geometry_element
-        if self.property_names and gml_element not in self.all_elements:
+        geo_element = self.feature_type.main_geometry_element
+        if self.property_names and geo_element not in self.all_elements:
             return None
 
-        return gml_element
+        return geo_element
 
     @cached_property
-    def geometry_elements(self) -> list[GmlElement]:
+    def geometry_elements(self) -> list[GeometryXsdElement]:
         """Tell which GML elements will be hit at the root-level."""
         return [
             e
@@ -335,7 +335,7 @@ class FeatureRelation:
         ]
 
     @property
-    def geometry_elements(self) -> list[GmlElement]:
+    def geometry_elements(self) -> list[GeometryXsdElement]:
         """Tell which geometry elements this relation will access."""
         return [f for f in self.sub_fields if f.type.is_geometry]
 

@@ -52,9 +52,9 @@ class GeoJsonRenderer(CollectionOutputRenderer):
 
         # Other geometries can be excluded as these are not rendered by 'properties'
         other_geometries = [
-            gml_element.orm_path
-            for gml_element in projection.geometry_elements
-            if gml_element is not main_geo_element
+            geo_element.orm_path
+            for geo_element in projection.geometry_elements
+            if geo_element is not main_geo_element
         ]
         if other_geometries:
             queryset = queryset.defer(*other_geometries)
