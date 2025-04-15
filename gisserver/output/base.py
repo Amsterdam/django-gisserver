@@ -17,7 +17,7 @@ from .utils import to_qname
 logger = logging.getLogger(__name__)
 
 if typing.TYPE_CHECKING:
-    from gisserver.operations.base import WFSMethod
+    from gisserver.operations.base import WFSOperation
     from gisserver.projection import FeatureProjection, FeatureRelation
 
     from .results import FeatureCollection
@@ -35,13 +35,13 @@ class OutputRenderer:
     #: Default extra namespaces to include in the xmlns="..." attributes, and use for to_qname().
     xml_namespaces = {}
 
-    def __init__(self, method: WFSMethod):
+    def __init__(self, operation: WFSOperation):
         """Base method for all output rendering."""
-        self.method = method
-        self.server_url = method.view.server_url
+        self.operation = operation
+        self.server_url = operation.view.server_url
         self.app_namespaces = {
             **self.xml_namespaces,
-            **method.view.get_xml_namespaces_to_prefixes(),
+            **operation.view.get_xml_namespaces_to_prefixes(),
         }
 
     @property
@@ -127,14 +127,14 @@ class CollectionOutputRenderer(OutputRenderer):
     #: An optional content-disposition header to output
     content_disposition = None
 
-    def __init__(self, method: WFSMethod, collection: FeatureCollection):
+    def __init__(self, operation: WFSOperation, collection: FeatureCollection):
         """
         Receive the collected data to render.
 
-        :param method: The calling WFS Method (e.g. GetFeature class)
+        :param operation: The calling WFS Method (e.g. GetFeature class)
         :param collection: The collected data for rendering.
         """
-        super().__init__(method)
+        super().__init__(operation)
         self.collection = collection
         self.apply_projection()
 

@@ -14,7 +14,7 @@ from .base import OutputRenderer
 from .utils import to_qname
 
 if typing.TYPE_CHECKING:
-    from gisserver.operations.base import WFSMethod
+    from gisserver.operations.base import WFSOperation
 
 
 class XMLSchemaRenderer(OutputRenderer):
@@ -30,9 +30,9 @@ class XMLSchemaRenderer(OutputRenderer):
         "http://www.opengis.net/gml/3.2": "gml",
     }
 
-    def __init__(self, method: WFSMethod, feature_types: list[FeatureType]):
+    def __init__(self, operation: WFSOperation, feature_types: list[FeatureType]):
         """Overwritten method to handle the DescribeFeatureType context."""
-        super().__init__(method)
+        super().__init__(operation)
         self.feature_types = feature_types
 
         # For rendering type="..." fields, avoid xs: prefix.
