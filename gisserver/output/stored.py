@@ -23,10 +23,10 @@ class StoredQueriesRenderer(OutputRenderer):
         xmlns.xsi: "xsi",
     }
 
-    def __init__(self, method, query_descriptions: list[StoredQueryDescription]):
+    def __init__(self, operation, query_descriptions: list[StoredQueryDescription]):
         """Take the list of stored queries to render."""
-        super().__init__(method)
-        self.all_feature_types = method.view.get_bound_feature_types()
+        super().__init__(operation)
+        self.all_feature_types = operation.view.get_bound_feature_types()
         self.query_descriptions = query_descriptions
 
     def to_feature_qname(self, return_type: str | FeatureType) -> str:
@@ -34,7 +34,7 @@ class StoredQueriesRenderer(OutputRenderer):
         if isinstance(return_type, FeatureType):
             return to_qname(return_type.xml_namespace, return_type.name, self.app_namespaces)
         else:
-            type_name = fix_type_name(return_type, self.method.view.xml_namespace)
+            type_name = fix_type_name(return_type, self.operation.view.xml_namespace)
             ns, localname = split_ns(type_name)
             return to_qname(ns, localname, self.app_namespaces)
 

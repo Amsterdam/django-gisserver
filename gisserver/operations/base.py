@@ -36,7 +36,7 @@ RE_SAFE_FILENAME = re.compile(r"\A[A-Za-z0-9]+[A-Za-z0-9.]*")  # no dot at the s
 __all__ = (
     "Parameter",
     "OutputFormat",
-    "WFSMethod",
+    "WFSOperation",
     "OutputFormatMixin",
     "XmlTemplateMixin",
 )
@@ -122,7 +122,7 @@ class OutputFormat(typing.Generic[R]):
         return f"<OutputFormat: {self}>"
 
 
-class WFSMethod:
+class WFSOperation:
     """Basic interface to implement an WFS method.
 
     Each operation in this GIS-server extends from this base class. This class

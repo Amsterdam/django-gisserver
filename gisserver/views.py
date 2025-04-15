@@ -127,14 +127,14 @@ class GISView(View):
 
         # Find the registered operation that handles the request
         operation = kvp.get_str("request")
-        wfs_method_cls = self.get_operation_class(service, operation)
+        wfs_operation_cls = self.get_operation_class(service, operation)
 
         # Parse the request syntax
-        request_cls = wfs_method_cls.parser_class or resolve_kvp_parser_class(kvp)
+        request_cls = wfs_operation_cls.parser_class or resolve_kvp_parser_class(kvp)
         self.ows_request = request_cls.from_kvp_request(kvp)
 
         # Process the request!
-        return self.call_operation(wfs_method_cls)
+        return self.call_operation(wfs_operation_cls)
 
     def post(self, request, *args, **kwargs):
         """Entry point to handle HTTP POST requests.
@@ -157,15 +157,15 @@ class GISView(View):
             else root.get_str_attribute("service")
         )
         operation = split_ns(root.tag)[1]
-        wfs_method_cls = self.get_operation_class(service, operation)
+        wfs_operation_cls = self.get_operation_class(service, operation)
 
         # Parse the request syntax
-        request_cls = wfs_method_cls.parser_class or resolve_xml_parser_class(root)
+        request_cls = wfs_operation_cls.parser_class or resolve_xml_parser_class(root)
         self.ows_request = request_cls.from_xml(root)
         self.set_version(service, self.ows_request.version)
 
         # Process the request!
-        return self.call_operation(wfs_method_cls)
+        return self.call_operation(wfs_operation_cls)
 
     def is_index_request(self):
         """Tell whether to index page should be shown."""
@@ -231,7 +231,7 @@ class GISView(View):
                 "gisserver/index.html",
             ]
 
-    def get_operation_class(self, service: str, request: str) -> type[base.WFSMethod]:
+    def get_operation_class(self, service: str, request: str) -> type[base.WFSOperation]:
         """Resolve the method that the client wants to call."""
         if not self.accept_operations:
             raise ImproperlyConfigured("View has no operations")
@@ -257,11 +257,11 @@ class GISView(View):
                 locator="request",
             ) from None
 
-    def call_operation(self, wfs_method_cls: type[base.WFSMethod]):
+    def call_operation(self, wfs_operation_cls: type[base.WFSOperation]):
         """Call the resolved method."""
-        wfs_method = wfs_method_cls(self, self.ows_request)
-        wfs_method.validate_request(self.ows_request)
-        return wfs_method.process_request(self.ows_request)
+        wfs_operation = wfs_operation_cls(self, self.ows_request)
+        wfs_operation.validate_request(self.ows_request)
+        return wfs_operation.process_request(self.ows_request)
 
     def get_service_description(self, service: str | None = None) -> ServiceDescription:
         """Provide the (dynamically generated) service description."""

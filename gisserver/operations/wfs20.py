@@ -34,7 +34,7 @@ from gisserver.features import FeatureType
 from gisserver.output import CollectionOutputRenderer, build_feature_qnames
 from gisserver.parsers import ows, wfs20
 
-from .base import OutputFormat, OutputFormatMixin, Parameter, WFSMethod, XmlTemplateMixin
+from .base import OutputFormat, OutputFormatMixin, Parameter, WFSOperation, XmlTemplateMixin
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +42,7 @@ SAFE_VERSION = re.compile(r"\A[0-9.]+\Z")
 RE_SAFE_FILENAME = re.compile(r"\A[A-Za-z0-9]+[A-Za-z0-9.]*")  # no dot at the start.
 
 
-class GetCapabilities(XmlTemplateMixin, OutputFormatMixin, WFSMethod):
+class GetCapabilities(XmlTemplateMixin, OutputFormatMixin, WFSOperation):
     """This operation returns map features, and available operations this WFS server supports."""
 
     ows_request: wfs20.GetCapabilities
@@ -125,7 +125,7 @@ class GetCapabilities(XmlTemplateMixin, OutputFormatMixin, WFSMethod):
         }
 
 
-class DescribeFeatureType(OutputFormatMixin, WFSMethod):
+class DescribeFeatureType(OutputFormatMixin, WFSOperation):
     """This returns an XML Schema for the provided objects.
     Each feature is exposed as an XSD definition with its fields.
     """
@@ -162,7 +162,7 @@ class DescribeFeatureType(OutputFormatMixin, WFSMethod):
         return renderer.get_response()
 
 
-class ListStoredQueries(WFSMethod):
+class ListStoredQueries(WFSOperation):
     """This describes the available queries"""
 
     ows_request: wfs20.ListStoredQueries
@@ -175,7 +175,7 @@ class ListStoredQueries(WFSMethod):
         return renderer.get_response()
 
 
-class DescribeStoredQueries(WFSMethod):
+class DescribeStoredQueries(WFSOperation):
     """This describes the available queries"""
 
     ows_request: wfs20.DescribeStoredQueries
@@ -194,7 +194,7 @@ class DescribeStoredQueries(WFSMethod):
         return renderer.get_response()
 
 
-class BaseWFSGetDataMethod(OutputFormatMixin, WFSMethod):
+class BaseWFSGetDataOperation(OutputFormatMixin, WFSOperation):
     """Base class for GetFeature / GetPropertyValue"""
 
     ows_request: wfs20.GetFeature | wfs20.GetPropertyValue
@@ -251,7 +251,7 @@ class BaseWFSGetDataMethod(OutputFormatMixin, WFSMethod):
         # Initialize the renderer.
         # This can also decorate the querysets with projection information,
         # such as converting geometries to the correct CRS or add prefetch_related logic.
-        renderer = self.output_format.renderer_class(method=self, collection=collection)
+        renderer = self.output_format.renderer_class(operation=self, collection=collection)
 
         # Fixing pagination will invoke the query,
         # hence this is done at the end
@@ -435,7 +435,7 @@ class BaseWFSGetDataMethod(OutputFormatMixin, WFSMethod):
             )
 
 
-class GetFeature(BaseWFSGetDataMethod):
+class GetFeature(BaseWFSGetDataOperation):
     """This returns all properties of the feature.
 
     Various query parameters allow limiting the data.
@@ -495,7 +495,7 @@ class GetFeature(BaseWFSGetDataMethod):
         ] + self.output_formats
 
 
-class GetPropertyValue(BaseWFSGetDataMethod):
+class GetPropertyValue(BaseWFSGetDataOperation):
     """This returns a limited set of properties of the feature.
     It works almost identical to GetFeature, except that it returns a single field.
     """
