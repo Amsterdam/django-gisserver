@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-from collections import defaultdict
 from collections.abc import Iterable
 from itertools import islice
 from typing import TypeVar
@@ -55,6 +54,20 @@ class CountingIterator(Iterable[M]):
         return self._has_more
 
 
+class lru_dict(dict):
+    """A 'defaultdict' with LRU items for each value."""
+
+    def __init__(self, max_size):
+        super().__init__()
+        self.max_size = max_size
+
+    def __missing__(self, key):
+        logger.debug("Creating cache for prefetches of '%s'", key)
+        value = LRU(self.max_size)
+        self[key] = value
+        return value
+
+
 class ChunkedQuerySetIterator(Iterable[M]):
     """An optimal strategy to perform ``prefetch_related()`` on large datasets.
 
@@ -83,7 +96,7 @@ class ChunkedQuerySetIterator(Iterable[M]):
         self.queryset = queryset
         self.sql_chunk_size = sql_chunk_size or DEFAULT_SQL_CHUNK_SIZE
         self.chunk_size = chunk_size or self.sql_chunk_size
-        self._fk_caches = defaultdict(lambda: LRU(self.chunk_size // 2))
+        self._fk_caches = lru_dict(self.chunk_size // 2)
         self._number_returned = 0
         self._in_iterator = False
 
@@ -140,7 +153,7 @@ class ChunkedQuerySetIterator(Iterable[M]):
             # to fetch items again that infrequently changes.
             all_restored = self._restore_caches(instances)
             if all_restored:
-                logger.debug("Restore all prefetches from cache")
+                logger.debug("Restored all prefetches from cache")
                 return
 
         # Reuse the Django machinery for retrieving missing sub objects.
@@ -170,6 +183,16 @@ class ChunkedQuerySetIterator(Iterable[M]):
 
         for lookup, cache in self._fk_caches.items():
             field = instances[0]._meta.get_field(lookup)
+            if not hasattr(field, "attname"):
+                logger.debug(
+                    "Unable to restore prefetches for '%s' (%s)", lookup, field.__class__.__name__
+                )
+                # Retrieving prefetches from ForeignObjectRel wouldn't work here.
+                # Let standard prefetch_related() take over.
+                all_restored = False
+                continue
+
+            logger.debug("Restoring prefetches for '%s'", lookup)
             for instance in instances:
                 id_value = getattr(instance, field.attname)
                 if id_value is None:
