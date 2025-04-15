@@ -3,7 +3,7 @@ import pytest
 
 from gisserver.features import FeatureField, FeatureType
 from gisserver.output import XMLSchemaRenderer
-from gisserver.types import GmlElement, XsdElement, XsdTypes
+from gisserver.types import GeometryXsdElement, XsdElement, XsdTypes
 from tests.test_gisserver import models
 
 
@@ -33,7 +33,7 @@ class TestFeatureField:
             ),
             (
                 "location",
-                GmlElement,
+                GeometryXsdElement,
                 XsdTypes.gmlPointPropertyType,
                 '<element name="location" type="gml:PointPropertyType" minOccurs="0" maxOccurs="1" nillable="true" />',
             ),

@@ -10,7 +10,7 @@ from django.db import connection, connections, models
 
 from gisserver import conf
 from gisserver.geometries import CRS
-from gisserver.types import GmlElement
+from gisserver.types import GeometryXsdElement
 
 logger = logging.getLogger(__name__)
 
@@ -83,7 +83,7 @@ def get_geometries_union(
 
 def replace_queryset_geometries(
     queryset: models.QuerySet,
-    gml_elements: list[GmlElement],
+    geo_elements: list[GeometryXsdElement],
     output_crs: CRS,
     wrapper_func: type[functions.GeoFunc],
 ) -> models.QuerySet:
@@ -93,12 +93,12 @@ def replace_queryset_geometries(
     """
     defer_names = []
     as_geo_map = {}
-    for gml_element in gml_elements:
-        if gml_element.source is not None:  # excludes GmlBoundedByElement
-            defer_names.append(gml_element.local_orm_path)
-            annotation_name = _as_annotation_name(gml_element.local_orm_path, wrapper_func)
+    for geo_element in geo_elements:
+        if geo_element.source is not None:  # excludes GmlBoundedByElement
+            defer_names.append(geo_element.local_orm_path)
+            annotation_name = _as_annotation_name(geo_element.local_orm_path, wrapper_func)
             as_geo_map[annotation_name] = wrapper_func(
-                get_db_geometry_target(gml_element, output_crs, use_relative_path=True)
+                get_db_geometry_target(geo_element, output_crs, use_relative_path=True)
             )
 
     if not defer_names:
@@ -114,12 +114,12 @@ def replace_queryset_geometries(
 
 
 def get_db_rendered_geometry(
-    instance: models.Model, gml_element: GmlElement, replacement: type[functions.GeoFunc]
+    instance: models.Model, geo_element: GeometryXsdElement, replacement: type[functions.GeoFunc]
 ) -> str:
     """Retrieve the database-rendered geometry.
     This includes formatted EWKT or GML output, rendered by the database.
     """
-    annotation_name = _as_annotation_name(gml_element.local_orm_path, replacement)
+    annotation_name = _as_annotation_name(geo_element.local_orm_path, replacement)
     try:
         return getattr(instance, annotation_name)
     except AttributeError as e:
@@ -137,13 +137,13 @@ def _as_annotation_name(name: str, func: type[functions.GeoFunc]) -> str:
 
 
 def get_db_geometry_target(
-    gml_element: GmlElement, output_crs: CRS, use_relative_path: bool = False
+    geo_element: GeometryXsdElement, output_crs: CRS, use_relative_path: bool = False
 ) -> str | functions.Transform:
     """Translate a GML geometry field into the proper expression for retrieving it from the database.
     The path will be wrapped into a CRS Transform function if needed.
     """
-    orm_path = gml_element.local_orm_path if use_relative_path else gml_element.orm_path
-    if gml_element.source_srid != output_crs.srid:
+    orm_path = geo_element.local_orm_path if use_relative_path else geo_element.orm_path
+    if geo_element.source_srid != output_crs.srid:
         return functions.Transform(orm_path, srid=output_crs.srid)
     else:
         return orm_path

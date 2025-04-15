@@ -52,7 +52,7 @@ from gisserver.parsers.xml import parse_qname, split_ns, xmlns
 _unbounded = Literal["unbounded"]
 
 __all__ = [
-    "GmlElement",
+    "GeometryXsdElement",
     "GmlIdAttribute",
     "GmlNameElement",
     "ORMPath",
@@ -618,7 +618,7 @@ class XsdAttribute(XsdNode):
         self.use = use
 
 
-class GmlElement(XsdElement):
+class GeometryXsdElement(XsdElement):
     """A subtype for the :class:`XsdElement` that provides access to geometry data.
 
     This declares an element such as::
@@ -763,8 +763,8 @@ class GmlBoundedByElement(XsdElement):
                 None,
                 [
                     # support dotted paths here for geometries in a foreign key relation.
-                    operator.attrgetter(gml_element.absolute_model_attribute)(instance)
-                    for gml_element in self.feature_type.all_geometry_elements
+                    operator.attrgetter(geo_element.absolute_model_attribute)(instance)
+                    for geo_element in self.feature_type.all_geometry_elements
                 ],
             )
         )
@@ -858,7 +858,7 @@ class XsdComplexType(XsdAnyType):
             return self.elements
 
     @cached_property
-    def geometry_elements(self) -> list[GmlElement]:
+    def geometry_elements(self) -> list[GeometryXsdElement]:
         """Shortcut to get all geometry elements"""
         return [e for e in self.elements if e.type.is_geometry]
 
