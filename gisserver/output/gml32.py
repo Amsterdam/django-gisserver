@@ -69,7 +69,7 @@ class GML32Renderer(CollectionOutputRenderer):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.app_namespaces = self.method.view.get_xml_namespaces_to_prefixes()
+        self.app_namespaces = self.operation.view.get_xml_namespaces_to_prefixes()
         self.build_namespace_map()
 
     def build_namespace_map(

@@ -3,7 +3,7 @@ Development
 
 .. contents:: :local:
 
-When you follow the source of the ``WFSView``, ``WFSMethod`` and ``BaseOwsRequest`` classes,
+When you follow the source of the ``WFSView``, ``WFSOperation`` and ``BaseOwsRequest`` classes,
 you'll find that it's written with extensibility in mind. Extra parameters and operations
 can easily be added there. You could even do that within your own projects and implementations.
 
@@ -208,7 +208,7 @@ unless it would cause multiple queries (such as needing the ``number_matched`` d
 Output Rendering
 ~~~~~~~~~~~~~~~~
 
-Each ``WFSMethod`` has a list of ``OutputFormat`` objects:
+Each ``WFSOperation`` has a list of ``OutputFormat`` objects:
 
 .. code-block:: python
 
@@ -229,7 +229,7 @@ The ``OutputFormat`` class may reference an ``renderer_class`` which points to a
     digraph foo {
         node [shape=box]
 
-        WFSMethod -> OutputFormat [label=".output_formats"]
+        WFSOperation -> OutputFormat [label=".output_formats"]
         OutputFormat -> OutputRenderer [label=".renderer_class"]
 
         OutputRenderer -> CSVRenderer [dir=back arrowtail=empty]
@@ -244,7 +244,7 @@ Various output formats have an DB-optimized version where the heavy rendering
 of the EWKT, JSON or GML fragments is done by the database server.
 Most output formats return a streaming response for performance.
 
-Alternatively, the ``WFSMethod`` may render an XML template using Django templates.
+Alternatively, the ``WFSOperation`` may render an XML template using Django templates.
 
 
 WFS Specification
