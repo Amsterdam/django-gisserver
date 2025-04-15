@@ -35,8 +35,8 @@ from gisserver.exceptions import ExternalValueError
 from gisserver.geometries import CRS, WGS84, BoundingBox
 from gisserver.parsers.xml import parse_qname, xmlns
 from gisserver.types import (
+    GeometryXsdElement,
     GmlBoundedByElement,
-    GmlElement,
     GmlIdAttribute,
     GmlNameElement,
     XPathMatch,
@@ -329,7 +329,7 @@ class FeatureField:
 
         # Determine which subclass to use for the element.
         xsd_element_class = self.xsd_element_class or (
-            GmlElement if xsd_type.is_geometry else XsdElement
+            GeometryXsdElement if xsd_type.is_geometry else XsdElement
         )
 
         return xsd_element_class(
@@ -573,7 +573,7 @@ class FeatureType:
         return [self.crs] + self.other_crs
 
     @cached_property
-    def all_geometry_elements(self) -> list[GmlElement]:
+    def all_geometry_elements(self) -> list[GeometryXsdElement]:
         """Provide access to all geometry elements from *all* nested levels."""
         return self.xsd_type.geometry_elements + list(
             itertools.chain.from_iterable(
@@ -636,7 +636,7 @@ class FeatureType:
             return self.model._meta.get_field(self.display_field_name)
 
     @cached_property
-    def main_geometry_element(self) -> GmlElement:
+    def main_geometry_element(self) -> GeometryXsdElement:
         """Give access to the main geometry element."""
         if not self._geometry_field_name:
             try:

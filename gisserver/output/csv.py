@@ -11,7 +11,7 @@ from django.db import models
 from gisserver import conf
 from gisserver.db import AsEWKT, get_db_rendered_geometry, replace_queryset_geometries
 from gisserver.projection import FeatureProjection, FeatureRelation
-from gisserver.types import GmlElement, XsdElement, XsdTypes
+from gisserver.types import GeometryXsdElement, XsdElement, XsdTypes
 
 from .base import CollectionOutputRenderer
 
@@ -134,9 +134,9 @@ class CSVRenderer(CollectionOutputRenderer):
                 append(value)
         return values
 
-    def render_geometry(self, instance: models.Model, gml_element: GmlElement):
+    def render_geometry(self, instance: models.Model, geo_element: GeometryXsdElement):
         """Render the contents of a geometry value."""
-        return gml_element.get_value(instance)
+        return geo_element.get_value(instance)
 
 
 class DBCSVRenderer(CSVRenderer):
@@ -167,6 +167,6 @@ class DBCSVRenderer(CSVRenderer):
             queryset, feature_relation.geometry_elements, projection.output_crs, AsEWKT
         )
 
-    def render_geometry(self, instance: models.Model, gml_element: GmlElement):
+    def render_geometry(self, instance: models.Model, geo_element: GeometryXsdElement):
         """Render the geometry using a database-rendered version."""
-        return get_db_rendered_geometry(instance, gml_element, AsEWKT)
+        return get_db_rendered_geometry(instance, geo_element, AsEWKT)

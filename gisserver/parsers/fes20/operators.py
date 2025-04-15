@@ -31,7 +31,7 @@ from gisserver.parsers.ast import (
 from gisserver.parsers.query import CompiledQuery, RhsTypes
 from gisserver.parsers.values import fix_type_name
 from gisserver.parsers.xml import NSElement, xmlns
-from gisserver.types import GmlElement, XPathMatch
+from gisserver.types import GeometryXsdElement, XPathMatch
 
 from .expressions import Expression, Literal, ValueReference
 from .identifiers import Id
@@ -478,16 +478,16 @@ class _ResolvedValueReference(ValueReference):
     This avoids translating back and forth between an XPath path and the desired node.
     """
 
-    def __init__(self, gml_element: GmlElement):
-        self.xpath = f"(mocked {gml_element.orm_path})"  # keep __str__ and __repr__ happy.
+    def __init__(self, geo_element: GeometryXsdElement):
+        self.xpath = f"(mocked {geo_element.orm_path})"  # keep __str__ and __repr__ happy.
         self.xpath_ns_aliases = {}
-        self.gml_element = gml_element
-        self.orm_path = gml_element.orm_path
+        self.geo_element = geo_element
+        self.orm_path = geo_element.orm_path
 
     def parse_xpath(
         self, feature_types: list, ns_aliases: dict[str, str] | None = None
     ) -> XPathMatch:
-        return XPathMatch(feature_types[0], [self.gml_element], query="")
+        return XPathMatch(feature_types[0], [self.geo_element], query="")
 
     def build_lhs(self, compiler: CompiledQuery):
         return self.orm_path
