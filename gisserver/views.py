@@ -27,7 +27,7 @@ from gisserver.parsers.xml import parse_xml_from_string, split_ns
 SAFE_VERSION = re.compile(r"\A[0-9.]+\Z")
 
 
-class GISView(View):
+class OWSView(View):
     """The base logic to implement OGC view like WFS.
 
     Each subclass defines 'accept_operations' with the desired RPC operations.
@@ -290,7 +290,7 @@ class GISView(View):
         return self.request.build_absolute_uri(self.request.path)
 
 
-class WFSView(GISView):
+class WFSView(OWSView):
     """A view for a single WFS server.
 
     This view exposes multiple dataset,
