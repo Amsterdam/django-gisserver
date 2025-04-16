@@ -1,3 +1,71 @@
+# 2024-04-24 (2.0)
+
+* Added support for XML POST requests.
+* Added support for geometry elements on child nodes.
+* Added support for Django 5 `GeneratedField` fields as geometry field.
+* Added `WFSView.check_permissions()` API to simplify permission checking.
+* Added `WFSView.xml_namespace_aliases` attribute to configure custom namespace prefixes.
+* Added example app and docker-compose setup for testing.
+* Added `GISSERVER_EXTRA_OUTPUT_FORMATS` setting to define additional output formats.
+* Added `GISSERVER_GET_FEATURE_OUTPUT_FORMATS` setting to override the default output formats.
+* Improved debugging by adding debug-level logging and better error messages.
+* Improved font styling somewhat for browsable HTML pages.
+* Fixed XML namespace support (e.g. handling `<ValueReference>ns0:tagname</ValueReference>`).
+* Fixed bugs found by CITE compliance testing:
+  * Support `<fes:PropertyIsLike>` for array elements.
+  * Support `<fes:PropertyIsNil>` for geometry elements.
+  * Support `resulttype=hits` with `count` arguments.
+* Fixed `ArrayField` detection when `django.contrib.postgres` is not in `INSTALLED_APPS`.
+* Fixed `main_geometry_element` detection.
+* Fixed swapped X/Y coordinates for systems that use a different axis-ordering (e.g. EPSG:3879 for Finland).
+* Fixed applying the `CRS.backend` when the client requests a custom coordinate system using `srsName`.
+* Fixed rendering JSON exceptions during streaming errors.
+* Fixed internal XML Schema; use proper model CamelCasing for class names (doesn't affect requests).
+* Fixed internal XML schema; remove unneeded inheritance from `gml:AbstractFeatureType` for nested elements.
+* Fixed CI testing.
+* Confirmed support for Python 3.13.
+
+This release has a lot of API changes, renamed and moved classes,
+which was needed to implement POST support and XML namespace handling.
+
+This won't affect most projects as they use the basic `FeatureType` functionality.
+For implementations that have taken full advantage of our architecture,
+the notable API changes are:
+
+* Configuration:
+  * `WFSOperation.output_formats` still works, but `get_output_formats()` is preferred.
+  * `WFSOperation.parameters` is replaced by ``get_parameters()`` and only lists parameters that need to be mentioned in `GetCapabilities`.
+  * The `Parameter` class only exposes choices, parsing happens in `gisserver.parsers.wfs20` now.
+  * `FeatureType.xml_namespace` now defines which namespace the feature exists in (defaults to `WFSView.xml_namespace`).
+* Overiding and extending queries:
+  * `FeatureType.get_extent()` was replaced with ``GmlBoundedByElement.get_value()``.
+  * `gisserver.operations`: renamed `WFSMethod` -> `WFSOperation`.
+  * `gisserver.extensions.functions` now tracks filter function registration.
+  * `gisserver.extensions.queries` now tracks stored query registration.
+  * The `StoredQuery` base class is now `StoredQueryImplementation` providing a `build_query()` method.
+  * The internal `CompiledQuery` moved to `gisserver.parsers.query` and receives a `feature_types` array now with a single element.
+   (This change reflects the WFS spec and allowing to potentially implement JOIN queries later).
+* Request parsing:
+  * `WFSView.ows_request` and `request.ows_request` both provide access to the parsed WFS request.
+  * `WFSOperation.parser_class` allows to define a custom parser for a additional WFS operations.
+  * The WFS request parsing moved to `gisserver.parsers.wfs20`, which builds an Abstract Syntax Tree (AST) of the XML request.
+  * The GET request (KVP format) parsing is now a special-case of the XML-based parsing classes.
+* Output formats:
+  * `gisserver.output` no longer exposes the auto-switching DB/non-DB rendering aliases, as `get_output_formats()` can do that easier.
+  * `OutputRenderer` only provides the basic XML aliasing, a new `CollectionOutputRenderer` base class provides the collection logic.
+  * `OutputRenderer.xml_namespaces` allows defining XML namespace aliases that construct default `xmlns` attributes.
+  * All rendering parameters (e.g. output CRS) moved to the `FeatureProjection` logic.
+  * The `decorate_queryset()` logic is no longer a classmethod.
+* Internal XSD schema elements:
+  * XML tag parsing is reworked for simplicity and namespace handling.
+  * Namespace aliases/prefixes are removed entirely, and resolved during rendering.
+  * `FeatureType.xml_name` now returns the full XML name, not the QName.
+  * `XsdTypes` use fully qualified XML names, not the QName.
+  * `XsdElement.xml_name` now returns the full XML name, not the QName.
+  * `XsdElement.is_geometry` was unneeded, use `XsdElement.type.is_geometry` now.
+  * `XsdElement.orm_path` points to the absolute path, and `XsdElement.local_orm_path` to the relative path.
+
+
 # 2024-11-25 (1.5.0)
 
 * Added `PROPERTYNAME` support
