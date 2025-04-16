@@ -28,6 +28,7 @@ from django.contrib.gis.db.models import Extent, GeometryField
 from django.core.exceptions import FieldDoesNotExist, ImproperlyConfigured
 from django.db import models
 from django.db.models.fields.related import ForeignObjectRel  # Django 2.2 import
+from django.http import HttpRequest
 
 from gisserver.compat import ArrayField, GeneratedField
 from gisserver.db import get_db_geometry_target
@@ -557,9 +558,15 @@ class FeatureType:
         if not self.xml_namespace:
             self.xml_namespace = default_xml_namespace
 
-    def check_permissions(self, request):
+    def check_permissions(self, request: HttpRequest):
         """Hook that allows subclasses to reject access for datasets.
         It may raise a Django PermissionDenied error.
+
+        This can check for example whether ``request.user`` may access this feature.
+
+        The parsed WFS request is available as ``request.ows_request``.
+        Currently, this can be a :class:`~gisserver.parsers.wfs20.GetFeature`
+        or :class:`~gisserver.parsers.wfs20.GetPropertyValue` instance.
         """
 
     @cached_property

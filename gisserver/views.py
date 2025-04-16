@@ -268,6 +268,8 @@ class OWSView(View):
 
     def call_operation(self, wfs_operation_cls: type[base.WFSOperation]):
         """Call the resolved method."""
+        self.request.ows_request = self.ows_request  # for check_permissions()
+
         wfs_operation = wfs_operation_cls(self, self.ows_request)
         wfs_operation.validate_request(self.ows_request)
         return wfs_operation.process_request(self.ows_request)
@@ -413,3 +415,14 @@ class WFSView(OWSView):
             }
         )
         return context
+
+    def check_permissions(self, feature_type: FeatureType):
+        """Hook that allows subclasses to reject access for datasets.
+        It may raise a Django PermissionDenied error.
+
+        This can access: ``self.request`` (the Django HTTPRequest) and ``self.ows_request``.
+        The latter contains a parsed request object
+        from the :mod:`gisserver.parsers.wfs20` package,
+        such as the parsed :class:`~gisserver.parsers.wfs20.GetFeature`
+        or :class:`~gisserver.parsers.wfs20.GetPropertyValue` request.
+        """
