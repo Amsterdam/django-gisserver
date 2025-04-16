@@ -65,21 +65,20 @@ class OutputRenderer:
         stream = self.render_stream()
         if isinstance(stream, (str, bytes, StringIO, BytesIO)):
             # Not a real stream, output anyway as regular HTTP response.
-            response = HttpResponse(content=stream, content_type=self.content_type)
+            return HttpResponse(
+                content=stream,
+                content_type=self.content_type,
+                headers=self.get_headers(),
+            )
         else:
             # An actual generator.
+            # Handover to WSGI server (starts streaming when reading the contents)
             stream = self._trap_exceptions(stream)
-            response = StreamingHttpResponse(
+            return StreamingHttpResponse(
                 streaming_content=stream,
                 content_type=self.content_type,
+                headers=self.get_headers(),
             )
-
-        # Add HTTP headers
-        for name, value in self.get_headers().items():
-            response[name] = value
-
-        # Handover to WSGI server (starts streaming when reading the contents)
-        return response
 
     def get_headers(self):
         return {}
@@ -107,7 +106,12 @@ class OutputRenderer:
             return f"{exception.__class__.__name__} during rendering!"
 
     def render_stream(self):
-        """Implement this in subclasses to implement a custom output format."""
+        """Implement this in subclasses to implement a custom output format.
+
+        The implementation may return a ``str``/``bytes`` object, which becomes
+        a normal ``HttpResponse`` object **OR** return a generator
+        that emits chunks. Such generator is wrapped in a ``StreamingHttpResponse``.
+        """
         raise NotImplementedError()
 
 

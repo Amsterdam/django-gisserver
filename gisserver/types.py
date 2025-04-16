@@ -40,7 +40,7 @@ from django.contrib.gis.geos import GEOSGeometry
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db import models
 from django.db.models import Q
-from django.db.models.fields.related import ForeignObjectRel, RelatedField
+from django.db.models.fields.related import RelatedField
 from django.utils import dateparse
 
 from gisserver.compat import ArrayField, GeneratedField
@@ -261,7 +261,7 @@ class XsdNode:
 
     #: Which field to read from the model to get the value
     #: This supports dot notation to access related attributes.
-    source: models.Field | ForeignObjectRel | None
+    source: models.Field | models.ForeignObjectRel | None
 
     #: Which field to read from the model to get the value
     #: This supports dot notation to access related attributes.
@@ -277,7 +277,7 @@ class XsdNode:
         type: XsdAnyType,
         namespace: xmlns | str | None,
         *,
-        source: models.Field | ForeignObjectRel | None = None,
+        source: models.Field | models.ForeignObjectRel | None = None,
         model_attribute: str | None = None,
         absolute_model_attribute: str | None = None,
         feature_type: FeatureType | None = None,
@@ -330,7 +330,7 @@ class XsdNode:
     @staticmethod
     def _build_valuegetter(
         model_attribute: str,
-        field: models.Field | ForeignObjectRel | None,
+        field: models.Field | models.ForeignObjectRel | None,
     ):
         """Select the most efficient read function to retrieves the value.
 
@@ -340,7 +340,7 @@ class XsdNode:
         since this will be much faster than using ``getattr()``.
         The custom ``value_from_object()`` is fully supported too.
         """
-        if field is None or isinstance(field, ForeignObjectRel):
+        if field is None or isinstance(field, models.ForeignObjectRel):
             # No model field, can only use getattr(). The attrgetter() function is both faster,
             # and has built-in support for traversing model attributes with dots.
             return operator.attrgetter(model_attribute)
@@ -542,7 +542,7 @@ class XsdElement(XsdNode):
         nillable: bool | None = None,
         min_occurs: int | None = None,
         max_occurs: int | _unbounded | None = None,
-        source: models.Field | ForeignObjectRel | None = None,
+        source: models.Field | models.ForeignObjectRel | None = None,
         model_attribute: str | None = None,
         absolute_model_attribute: str | None = None,
         feature_type: FeatureType | None = None,
@@ -601,7 +601,7 @@ class XsdAttribute(XsdNode):
         *,
         namespace: xmlns | str | None = None,
         use: str = "optional",
-        source: models.Field | ForeignObjectRel | None = None,
+        source: models.Field | models.ForeignObjectRel | None = None,
         model_attribute: str | None = None,
         absolute_model_attribute: str | None = None,
         feature_type: FeatureType | None = None,
@@ -661,7 +661,7 @@ class GmlIdAttribute(XsdAttribute):
     def __init__(
         self,
         type_name: str,
-        source: models.Field | ForeignObjectRel | None = None,
+        source: models.Field | models.ForeignObjectRel | None = None,
         model_attribute="pk",
         absolute_model_attribute=None,
         feature_type: FeatureType | None = None,
@@ -697,7 +697,7 @@ class GmlNameElement(XsdElement):
     def __init__(
         self,
         model_attribute: str,
-        source: models.Field | ForeignObjectRel | None = None,
+        source: models.Field | models.ForeignObjectRel | None = None,
         feature_type=None,
     ):
         # Prefill most known fields
