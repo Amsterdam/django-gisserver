@@ -228,9 +228,14 @@ class BaseWFSGetDataOperation(OutputFormatMixin, WFSOperation):
                 )
                 for type_name in type_names
             ]
-            for feature_type in feature_types:
-                feature_type.check_permissions(self.view.request)
             self.bind_query(query, feature_types)
+
+            # Allow both the view and feature-type to check for access.
+            # Before 2.0 only FeatureType classes offered this, which required subclassing
+            # FeatureType to access view.request.user. The direct view check avoids that need.
+            for feature_type in feature_types:
+                self.view.check_permissions(feature_type)
+                feature_type.check_permissions(self.view.request)
 
     def bind_query(self, query: wfs20.QueryExpression, feature_types: list[FeatureType]):
         """Allow to be overwritten in GetFeatureValue"""
