@@ -60,6 +60,7 @@ class GML32Renderer(CollectionOutputRenderer, XmlOutputRenderer):
     """Render the GetFeature XML output in GML 3.2 format"""
 
     content_type = "text/xml; charset=utf-8"
+    content_disposition = 'inline; filename="{typenames} {page} {date}.xml"'
     xml_collection_tag = "FeatureCollection"
     xml_sub_collection_tag = "FeatureCollection"  # Mapserver does not use SimpleFeatureCollection
     chunk_size = 40_000
@@ -627,6 +628,8 @@ class GML32ValueRenderer(GML32Renderer):
 
     content_type = "text/xml; charset=utf-8"
     content_type_plain = "text/plain; charset=utf-8"
+    content_disposition = 'inline; filename="{typenames} {page} {date}-value.xml"'
+    content_disposition_plain = 'inline; filename="{typenames} {page} {date}-value.txt"'
     xml_collection_tag = "ValueCollection"
     xml_sub_collection_tag = "ValueCollection"
     _escape_value = staticmethod(value_to_xml_string)
@@ -644,6 +647,7 @@ class GML32ValueRenderer(GML32Renderer):
         if sub_collection.projection.property_value_node.is_attribute:
             # Output as plain text
             self.content_type = self.content_type_plain  # change for this instance!
+            self.content_disposition = self.content_disposition_plain
             self._escape_value = value_to_text  # avoid XML escaping
         else:
             self._write('<?xml version="1.0" encoding="UTF-8"?>\n')

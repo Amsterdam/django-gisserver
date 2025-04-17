@@ -238,25 +238,31 @@ class CollectionOutputRenderer(OutputRenderer):
         """Return the response headers"""
         if self.content_disposition:
             # Offer a common quick content-disposition logic that works for all possible queries.
-            sub_collection = self.collection.results[0]
-            if sub_collection.stop == math.inf:
-                page = f"{sub_collection.start}-end" if sub_collection.start else "all"
-            elif sub_collection.stop:
-                page = f"{sub_collection.start}-{sub_collection.stop - 1}"
-            else:
-                page = "results"
-
             return {
                 "Content-Disposition": self.content_disposition.format(
-                    typenames="+".join(
-                        feature_type.name
-                        for sub in self.collection.results
-                        for feature_type in sub.feature_types
-                    ),
-                    page=page,
-                    date=self.collection.date.strftime("%Y-%m-%d %H.%M.%S%z"),
-                    timestamp=self.collection.timestamp,
+                    **self.get_content_disposition_kwargs()
                 )
             }
 
         return {}
+
+    def get_content_disposition_kwargs(self) -> dict:
+        """Offer a common quick content-disposition logic that works for all possible queries."""
+        sub_collection = self.collection.results[0]
+        if sub_collection.stop == math.inf:
+            page = f"{sub_collection.start}-end" if sub_collection.start else "all"
+        elif sub_collection.stop:
+            page = f"{sub_collection.start}-{sub_collection.stop - 1}"
+        else:
+            page = "results"
+
+        return {
+            "typenames": "+".join(
+                feature_type.name
+                for sub in self.collection.results
+                for feature_type in sub.feature_types
+            ),
+            "page": page,
+            "date": self.collection.date.strftime("%Y-%m-%d %H.%M.%S%z"),
+            "timestamp": self.collection.timestamp,
+        }
