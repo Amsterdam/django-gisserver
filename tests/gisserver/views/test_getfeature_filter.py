@@ -9,11 +9,14 @@ from tests.gisserver.views.input import (
     GENERATED_FIELD_FILTER,
     INVALID_FILTERS,
 )
-from tests.requests import Get, Post, parametrize_response
+from tests.requests import Get, Post, Url, parametrize_response
 from tests.utils import (
     NAMESPACES,
+    WFS_20_AND_GML_XSD,
     WFS_20_XSD,
     XML_NS,
+    XML_NS_WFS,
+    assert_xml_equal,
     clean_filter_for_xml,
     read_response,
     validate_xsd,
@@ -193,6 +196,40 @@ class TestGetFeature:
 
         assert message.startswith(expect_message), f"got: {message}, expect: {expect_message}"
         assert exception.attrib["exceptionCode"] == response.expect.code, message
+
+    def test_post_exception_handle(self, client):
+        """Prove that the 'handle' is set."""
+        xml = f"""
+            <wfs:GetFeature service="WFS" version="2.0.0" {XML_NS_WFS} handle="foobar">
+                <wfs:Query typeNames="restaurant">
+                    <fes:Filter>
+                        <fes:PropertyIsGreaterThanOrEqualTo>
+                            <fes:ValueReference>created</fes:ValueReference>
+                            <fes:Literal>abc</fes:Literal>
+                        </fes:PropertyIsGreaterThanOrEqualTo>
+                    </fes:Filter>
+                </wfs:Query>
+            </wfs:GetFeature>
+        """
+        validate_xsd(xml, WFS_20_AND_GML_XSD)
+        response = client.post(Url.NORMAL, data=xml, content_type="application/xml")
+        content = read_response(response)
+
+        # Note locator == handle
+        assert_xml_equal(
+            content,
+            """<ows:ExceptionReport version="2.0.0"
+ xmlns:ows="http://www.opengis.net/ows/1.1"
+ xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+ xml:lang="en-US"
+ xsi:schemaLocation="http://www.opengis.net/ows/1.1 http://schemas.opengis.net/ows/1.1.0/owsExceptionReport.xsd">
+  <ows:Exception exceptionCode="OperationParsingFailed" locator="foobar">
+
+    <ows:ExceptionText>Invalid data for the &#x27;created&#x27; property: Date must be in YYYY-MM-DD HH:MM[:ss[.uuuuuu]][TZ] format.</ows:ExceptionText>
+
+  </ows:Exception>
+</ows:ExceptionReport>""",
+        )
 
     @pytest.mark.skipif(
         django.VERSION < (5, 0), reason="GeneratedField is only available in Django >= 5"
