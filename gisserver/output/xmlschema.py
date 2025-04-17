@@ -39,6 +39,11 @@ class XmlSchemaRenderer(XmlOutputRenderer):
         self.type_namespaces = self.app_namespaces.copy()
         self.type_namespaces[xmlns.xs.value] = ""  # no "xs:string" but "string"
 
+    def get_headers(self):
+        """Make wget output slightly nicer."""
+        typenames = "+".join(feature_type.name for feature_type in self.feature_types)
+        return {"Content-Disposition": f'inline; filename="{typenames}.xsd"'}
+
     def render_stream(self):
         # Render first with original app_namespaces
         xmlns_attrib = self.render_xmlns_attributes()
