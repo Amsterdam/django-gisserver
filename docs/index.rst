@@ -37,6 +37,7 @@ Features
    user/filters
    compliance
    development
+   architecture
 
 
 Why this code is shared

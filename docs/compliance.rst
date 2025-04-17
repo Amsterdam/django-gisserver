@@ -1,28 +1,40 @@
 Standards Compliance
 ====================
 
-Some facts about this project:
+Implemented Standards
+---------------------
+
+This project implements WFS 2.0 Simple, Basic and POST conformance classes.
 
 * All operations for the WFS Basic conformance class are implemented.
-* The `CITE Test Suite <https://cite.opengeospatial.org/teamengine/>`_  only reveals a few bits left to implement.
+* The `CITE Test Suite <https://cite.opengeospatial.org/teamengine/>`_ passes.
 * You should be able to view the WFS server `QGis <https://qgis.org/>`_.
 * The unit tests validate the output against WFS 2.0 XSD schema.
 
-Unimplemented Bits
-------------------
+Unimplemented Classes
+---------------------
 
-Some remaining parts for the "WFS simple" conformance level are not implemented yet:
+The following additional conformance classes are not implemented:
 
-* KVP filters: ``aliases``.
-* Remote resolving: ``resolveDepth``, ``resolveTimeout``.
-* Some ``GetCapabilities`` features: ``acceptFormats`` and ``sections``.
+* WFS-Transactional support (``<wfs:Transaction>``).
+* Locking on updates: ``LockFeature``, ``GetFeatureWithLock``.
+* Managing stored queries (``<wfs:CreateStoredQuery>`` / ``DropStoredQuery``).
+* Standard, spatial and temporal JOIN queries, which involves queries with multiple feature types.
+* Feature/resource versioning.
 * Temporal filtering.
-* Tests on axis orientation.
+* SOAP requests.
+* Transactional-safe pagination.
+
+Any missing request types can be implemented on top of the existing POST parsing
+code (see :doc:`overriding`).
+
+Finally, these optional bits are not implemented, nor really needed:
+
+* The ``GetCapabilities`` parameters ``acceptFormats`` and ``sections``.
+* Remote resolving using ``resolveDepth`` and ``resolveTimeout``.
 
 Hopefully
 ---------
-
-WFS-T support could be implemented on top of the existing POST parsing code.
 
 While WMS and WMTS are not on the roadmap, they could be implemented based on
 `Mapnik <https://github.com/mapnik>`_.

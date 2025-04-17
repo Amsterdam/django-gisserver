@@ -115,10 +115,7 @@ class CompiledQuery:
         self.is_empty = True
 
     def get_queryset(self) -> QuerySet:
-        """Apply the filters and lookups to the queryset.
-
-        :param feature_type: The feature type that the queryset originated from.
-        """
+        """Apply the filters and lookups to the queryset."""
         queryset = self.feature_types[0].get_queryset()
         if self.is_empty:
             return queryset.none()

@@ -95,9 +95,12 @@ It will perform requests such as:
 * http://localhost:8000/wfs/places/?SERVICE=WFS&REQUEST=DescribeFeatureType&VERSION=2.0.0&TYPENAMES=restaurant
 * http://localhost:8000/wfs/places/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant&STARTINDEX=0&COUNT=1000&SRSNAME=urn:ogc:def:crs:EPSG::28992
 
-Specifying the Output Format
-----------------------------
-
 By adding ``&OUTPUTFORMAT=geojson`` or ``&OUTPUTFORMAT=csv`` to the ``GetFeature`` request,
 the GeoJSON and CSV outputs are returned.
 These formats have an unlimited page size by default, as they're quite efficient.
+
+Advanced Usage
+--------------
+
+It's possible to override various aspects of the logic.
+See :doc:`overriding` for more details.

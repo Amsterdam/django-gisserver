@@ -873,12 +873,14 @@ class XsdComplexType(XsdAnyType):
 
     @cached_property
     def complex_elements(self) -> list[_XsdElement_WithComplexType]:
-        """Shortcut to get all elements with a complex type"""
+        """Shortcut to get all elements with a complex type.
+        To get all complex elements recursively, read :attr:`elements_with_children`.
+        """
         return [e for e in self.elements if e.type.is_complex_type]
 
     @cached_property
     def flattened_elements(self) -> list[XsdElement]:
-        """Shortcut to get all elements with a flattened model attribite"""
+        """Shortcut to get all elements with a flattened model attribute"""
         return [e for e in self.elements if e.is_flattened]
 
     @cached_property
