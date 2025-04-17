@@ -22,7 +22,8 @@ Some remaining parts for the "WFS simple" conformance level are not implemented 
 Hopefully
 ---------
 
-WFS-T support could be implemented on top of the existing POST parsing code.
+WFS-T support could be implemented on top of the existing POST parsing code
+(see :doc:`overriding`).
 
 While WMS and WMTS are not on the roadmap, they could be implemented based on
 `Mapnik <https://github.com/mapnik>`_.

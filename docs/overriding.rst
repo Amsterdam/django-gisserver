@@ -13,6 +13,11 @@ The following methods of the :class:`~gisserver.views.WFSView` can be overwritte
 * :meth:`~gisserver.views.WFSView.get_feature_types` to dynamically generate all exposed features.
 * :meth:`~gisserver.views.WFSView.get_service_description` to dynamically generate the description.
 * :meth:`~gisserver.views.WFSView.dispatch` to implement basic auth.
+* :meth:`~gisserver.views.WFSView.check_permissions` to check for permissions
+* :attr:`~gisserver.views.WFSView.xml_namespaces` can define aliases for namespaces. (default is ``{"app": self.xml_namespace}``).
+
+The permission checks can access the `self.request.user` object in Django,
+and inspect the fully parsed WFS request in `self.request.ows_request`.
 
 Feature Layer
 -------------
@@ -57,6 +62,19 @@ The elements and attributes have the following fields:
 * :meth:`~gisserver.types.XsdNode.validate_comparison` - checks a field supports a certain data type.
 * :meth:`~gisserver.types.XsdNode.build_lhs_part` - how to generate the ORM left-hand-side.
 * :meth:`~gisserver.types.XsdNode.build_rhs_part` - how to generate the ORM right-hand-side.
+
+Request Parsing
+---------------
+
+The classes in :mod:`gisserver.parsers.wfs20` translate the XML POST request into an internal
+representation of the request. Each class closely mirrors the definitions in the WFS 2.0 specification.
+The GET request parsing (KVP format) is a special case of these classes.
+
+New parser classes may be added for operations that are not implemented yet (such as WFS-T or creating stored queries).
+Subsequently, a :class:`~gisserver.operations.base.WFSOperation` needs to be implemented that handles this request.
+That operation needs to be registered in :class:`~gisserver.view.WFSView`'s ``accept_operations`` attribute.
+The :class:`~gisserver.operations.base.WFSOperation` may also define a ``parser_class`` to
+override which parser handles the request.
 
 Custom Filter Functions
 -----------------------
