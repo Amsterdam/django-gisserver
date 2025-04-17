@@ -17,6 +17,7 @@ from gisserver.exceptions import (
     InvalidParameterValue,
     OperationNotSupported,
     OperationParsingFailed,
+    OperationProcessingFailed,
     OWSException,
     PermissionDenied,
 )
@@ -163,11 +164,19 @@ class OWSView(View):
 
         # Parse the request syntax
         request_cls = wfs_operation_cls.parser_class or resolve_xml_parser_class(root)
-        self.ows_request = request_cls.from_xml(root)
-        self.set_version(service, self.ows_request.version)
+        try:
+            self.ows_request = request_cls.from_xml(root)
+            self.set_version(service, self.ows_request.version)
 
-        # Process the request!
-        return self.call_operation(wfs_operation_cls)
+            # Process the request!
+            return self.call_operation(wfs_operation_cls)
+        except (OperationParsingFailed, OperationProcessingFailed) as e:
+            # The WFS spec dictates that these exceptions
+            # (and ResponseCacheExpired, CannotLockAllFeatures, FeaturesNotLocked which we don't raise)
+            # should report the 'handle' in the 'locator' argument of the exception when it was provided.
+            if self.ows_request.handle:
+                e.locator = self.ows_request.handle
+            raise
 
     def is_index_request(self):
         """Tell whether to index page should be shown."""
