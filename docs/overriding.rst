@@ -13,6 +13,11 @@ The following methods of the :class:`~gisserver.views.WFSView` can be overwritte
 * :meth:`~gisserver.views.WFSView.get_feature_types` to dynamically generate all exposed features.
 * :meth:`~gisserver.views.WFSView.get_service_description` to dynamically generate the description.
 * :meth:`~gisserver.views.WFSView.dispatch` to implement basic auth.
+* :meth:`~gisserver.views.WFSView.check_permissions` to check for permissions
+* :attr:`~gisserver.views.WFSView.xml_namespace_aliases` can define aliases for namespaces. (default is ``{"app": self.xml_namespace}``).
+
+The permission checks can access the `self.request.user` object in Django,
+and inspect the fully parsed WFS request in `self.request.ows_request`.
 
 Feature Layer
 -------------
@@ -57,6 +62,86 @@ The elements and attributes have the following fields:
 * :meth:`~gisserver.types.XsdNode.validate_comparison` - checks a field supports a certain data type.
 * :meth:`~gisserver.types.XsdNode.build_lhs_part` - how to generate the ORM left-hand-side.
 * :meth:`~gisserver.types.XsdNode.build_rhs_part` - how to generate the ORM right-hand-side.
+
+Request Parsing
+---------------
+
+The classes in :mod:`gisserver.parsers.wfs20` translate the XML POST request into an internal
+representation of the request. Each class closely mirrors the definitions in the WFS 2.0 specification.
+The GET request parsing (KVP format) is a special case of these classes.
+
+New parser classes may be added for operations that are not implemented yet (such as WFS-T or creating stored queries).
+Subsequently, a :class:`~gisserver.operations.base.WFSOperation` needs to be implemented that handles this request.
+That operation needs to be registered in :class:`~gisserver.view.WFSView`'s ``accept_operations`` attribute.
+The :class:`~gisserver.operations.base.WFSOperation` may also define a ``parser_class`` to
+override which parser handles the request.
+
+Custom Output Formats
+---------------------
+
+Each WFS operation supports various output formats.
+These can be extended, for example:
+
+.. code-block:: python
+
+    from gisserver.output.base import CollectionOutputRenderer
+
+
+    class ShapeZipRenderer(CollectionOutputRenderer):
+        content_type = "application/zip"
+        content_disposition = 'attachment; filename="{typenames} {page} {date}.zip"'
+        max_page_size = None  # allow to override the default, can also be pass math.inf.
+
+        def render_stream(self):
+            for sub_collection in self.collection.results:
+                projection = sub_collection.projection
+
+                for instance in sub_collection:
+                    yield ...
+
+The ``render_stream()`` method may return the whole content as
+a single ``str``/``bytes``/``StringIO``/``BytesIO`` block,
+or provide chunks of ``str``/``byte`` objects using ``yield``.
+
+The "projection" tells which properties are selected for rendering,
+and which SRS to use for the output.
+
+These need to be registered in the settings:
+
+.. code-block:: python
+
+    GISSERVER_EXTRA_OUTPUT_FORMATS = {
+        "content-type": {
+            "renderer_class": "dotted.path.to.CustomRenderer"
+            "title": "HTML title",
+        },
+    }
+
+The output format is chosen when either the *content-type*
+or ``subtype`` is used in the ``OUTPUTFORMAT`` parameter.
+
+Allowed fields are:
+
+* ``renderer_class`` (required): dotted path, or reference to a :class:`~gisserver.output.CollectionOutputRenderer` subclass.
+* ``subtype``: optional alias for the content-type.
+* ``max_page_size``: optionally max page size, ``math.inf`` gives infinite paging.
+* ``title``: optional title for the HTML page.
+* any other field is used as content-type directive (e.g. ``charset`` or ``version``).
+
+Methods that can be defined include:
+
+* :meth:`~gisserver.output.OutputRenderer.get_headers` to add extra HTTP headers
+* :meth:`~gisserver.output.OutputRenderer.render_exception` tells how to render an exception mid-stream.
+* :meth:`~gisserver.output.CollectionOutputRenderer.decorate_queryset` allows to optimize the QuerySet for the output format.
+* :meth:`~gisserver.output.CollectionOutputRenderer.get_prefetch_queryset` allows to optimize the QuerySet for prefetched relations.
+
+For XML-based rendering, by including :class:`~gisserver.output.XmlOutputRenderer`:
+
+* :attr:`~gisserver.output.XmlOutputRenderer.xml_namespaces` defines extra XML namespaces,
+  which are combined with :attr:`~gisserver.views.WFSView.xml_namespace_aliases`.
+* The methods :meth:`~gisserver.output.XmlOutputRenderer.render_xmlns_attributes`,
+  :meth:`~gisserver.output.XmlOutputRenderer.to_qname` and :meth:`~gisserver.output.XmlOutputRenderer.feature_to_qname`
+  help with creating the proper abbreviated XML tag notations.
 
 Custom Filter Functions
 -----------------------

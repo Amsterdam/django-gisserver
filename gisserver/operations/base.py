@@ -1,8 +1,12 @@
 """The base protocol to implement an operation.
 
-All operations extend from an WFSMethod class.
-This defines the parameters and output formats of the method.
-This introspection data is also parsed by the GetCapabilities call.
+The request itself is parsed by :mod:`gisserver.parsers.wfs20`, and handled here.
+It can be seen as the "controller" that handles the actual request type.
+
+All operations extend from an WFSOperation class.
+This defines the metadata for the ``GetCapabilities`` call and possible output formats.
+
+Each :class:`WFSOperation` can define a :attr:`~WFSOperation.parser_class`, or let it autodetect.
 """
 
 from __future__ import annotations

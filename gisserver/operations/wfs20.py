@@ -213,7 +213,7 @@ class BaseWFSGetDataOperation(OutputFormatMixin, WFSOperation):
     def get_parameters(self) -> list[Parameter]:
         """Parameters to advertise in the capabilities for this method."""
         return [
-            # Ådvertise parameters in GetCapabilities
+            # Advertise parameters in GetCapabilities
             Parameter("resultType", allowed_values=["RESULTS", "HITS"]),
             Parameter("resolve", allowed_values=["local"]),
         ]
