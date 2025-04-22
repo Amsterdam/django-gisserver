@@ -94,20 +94,30 @@ class XmlSchemaRenderer(XmlOutputRenderer):
     def write_complex_type(self, complex_type: XsdComplexType):
         """Write the definition of a single class."""
         complex_qname = self.to_qname(complex_type)
-        self.output.write(f'  <complexType name="{complex_qname}">\n    <complexContent>\n')
+        self.output.write(f'  <complexType name="{complex_qname}">\n')
+
         if complex_type.base is not None:
             base_qname = self.to_qname(complex_type.base)
-            self.output.write(f'      <extension base="{base_qname}">\n')
+            self.output.write(
+                f"    <complexContent>\n"  # extend base class
+                f'      <extension base="{base_qname}">\n'
+            )
+            indent = "   "
+        else:
+            indent = ""
 
-        self.output.write("        <sequence>\n")
+        self.output.write(f"    {indent}<sequence>\n")
 
         for xsd_element in complex_type.elements:
-            self.output.write(f"          {self.render_element(xsd_element)}\n")
+            self.output.write(f"      {indent}{self.render_element(xsd_element)}\n")
 
-        self.output.write("        </sequence>\n")
+        self.output.write(f"    {indent}</sequence>\n")
         if complex_type.base is not None:
-            self.output.write("      </extension>\n")
-        self.output.write("    </complexContent>\n  </complexType>\n\n")
+            self.output.write(
+                "      </extension>\n"  # end extension
+                "    </complexContent>\n"
+            )
+        self.output.write("  </complexType>\n\n")
 
     def render_element(self, xsd_element: XsdElement):
         """Staticmethod for unit testing."""

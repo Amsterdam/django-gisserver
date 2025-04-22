@@ -37,6 +37,7 @@ def pytest_configure():
     print(f"Using GISSERVER_USE_DB_RENDERING={conf.GISSERVER_USE_DB_RENDERING}")
 
     for url in (
+        "https://www.w3.org/2012/04/XMLSchema.xsd",
         "http://schemas.opengis.net/wfs/2.0/wfs.xsd",
         "http://schemas.opengis.net/gml/3.2.1/gml.xsd",
     ):
