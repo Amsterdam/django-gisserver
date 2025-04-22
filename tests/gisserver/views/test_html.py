@@ -1,5 +1,7 @@
 import pytest
 
+from gisserver.parsers.xml import xmlns
+
 # enable for all tests in this file
 pytestmark = [pytest.mark.urls("tests.test_gisserver.urls")]
 
@@ -17,3 +19,4 @@ class TestHTMLTemplates:
         assert "<h2>WFS Feature Types</h2>" in content
         assert "OUTPUTFORMAT=csv" in content
         assert "OUTPUTFORMAT=geojson" in content
+        assert xmlns.xsd.value not in content

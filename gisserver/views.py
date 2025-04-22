@@ -216,6 +216,7 @@ class OWSView(View):
 
         return {
             "view": self,
+            "xml_namespaces": self.get_xml_namespaces_to_prefixes(),
             "service": service,
             "root_url": root_url,
             "base_query": base_query,
