@@ -9,6 +9,7 @@ from django.core.exceptions import ImproperlyConfigured, SuspiciousOperation
 from django.core.exceptions import PermissionDenied as Django_PermissionDenied
 from django.shortcuts import render
 from django.views import View
+from django.views.decorators.csrf import csrf_exempt
 
 from gisserver import conf
 from gisserver.exceptions import (
@@ -60,6 +61,7 @@ class OWSView(View):
     #: Whether to render GET HTML pages
     use_html_templates = True
 
+    @csrf_exempt
     def dispatch(self, request, *args, **kwargs):
         """Render proper XML errors for exceptions on all request types."""
         try:
