@@ -20,7 +20,9 @@ env = Env()
 BASE_DIR = Path(__file__).resolve().parent
 
 DEBUG = env.bool("DJANGO_DEBUG", default=True)
-ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=[])
+ALLOWED_HOSTS = env.list(
+    "ALLOWED_HOSTS", default=[".localhost", "127.0.0.1", "[::1]", ".internal"]
+)
 
 STATIC_URL = "static/"
 
@@ -134,3 +136,6 @@ DATABASES = {
 GISSERVER_USE_DB_RENDERING = env.bool("GISSERVER_USE_DB_RENDERING", default=True)
 GISSERVER_CAPABILITIES_BOUNDING_BOX = env.bool("GISSERVER_CAPABILITIES_BOUNDING_BOX", default=True)
 GISSERVER_COUNT_NUMBER_MATCHED = env.int("GISSERVER_COUNT_NUMBER_MATCHED", default=1)
+
+# For CITE testing:
+GISSERVER_WFS_STRICT_STANDARD = env.bool("GISSERVER_WFS_STRICT_STANDARD", default=False)

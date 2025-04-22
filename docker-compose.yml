@@ -30,6 +30,7 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: "${DATABASE_URL:-postgresql://postgres:insecure@database/gisserver_example}"
+      GISSERVER_WFS_STRICT_STANDARD: "${GISSERVER_WFS_STRICT_STANDARD:-false}"
     volumes:
       - .:/code/
     working_dir: /code/example/

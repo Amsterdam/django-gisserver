@@ -28,7 +28,7 @@ different PROJ.4 versions being installed.
 Accessing the CITE tests
 ------------------------
 
-To perform CITE conformance testing against a server,
+To perform CITE conformance testing against an online server,
 use `<https://cite.opengeospatial.org/teamengine/>`_.
 
 * At the bottom of the page, there is a **Create an account** button.
@@ -37,38 +37,61 @@ use `<https://cite.opengeospatial.org/teamengine/>`_.
 
 ``http://example.org/v1/wfs/?VERSION=2.0.0&REQUEST=GetCapabilities``
 
+This can't be used for local testing with NGrok, as it exceeds the rate limiting.
+You'll have to run the code on a public URL, or use a temporary port-forward at your router/modem.
 
 Local testing
 ~~~~~~~~~~~~~
-Local testing can't be done with NGrok, as it exceeds the rate limiting.
-Instead, consider opening a temporary port-forward at your router/modem and
-using the online test suite.
-Alternatively, you can build a local test suite runner from source.
 
-In either case, you need to create a local server that serves at least one
-model with some geofield on it. One can copy over the code from the test/
-test_gisserver folder into a new django project, and removing what you don't
-need. If you built new functionality that may affect the outcome of the tests,
-ensure that this is also available in this app.
+Local testing is possible against the example app.
+Make sure it uses a PostgreSQL+Postgis database, and uses::
 
-NB:
-- It is easiest if you disable CSRF here, as the POST requests would otherwise
-encounter 403's.
-- Ensure you use a postgres DB rather than the default SQLite.
-- Run your migrations
-- This app is also suitable to test everything in QGIS/ArcGIS.
+    export GISSERVER_WFS_STRICT_STANDARD=false
 
-The local test suite runner can be built from this repo:
+Start either::
 
-``https://github.com/opengeospatial/ets-wfs20``
+    ./example/manage.py runserver 0.0.0.0:8000
+
+or::
+
+    docker compose up
+
+Start the docker version of the CITE test suite::
+
+    docker run  --rm -it -p 8081:8080 ogccite/ets-wfs20
+
+* Open: http://localhost:8081/teamengine/
+* Login using username: ``ogctest``  password: ``ogctest``
+* Click on `View sessions <http://localhost:8081/teamengine/viewSessions.jsp>`_
+* Click on `Create a new session <http://localhost:8081/teamengine/createSession.jsp>`_
+* Enter the fields:
+
+  * Organization: **OGC**
+  * Specification: **Web Feature Service (WFS) - 2.0 [ 1.43 ]**
+  * Description: can stay empty.
+
+* In the next screen, for *Location of WFS capabilities document:*, enter the URL:
+  ``http://host.docker.internal:8000/wfs/?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetCapabilities``
+
+In the future we may use the docker image for testing on CI.
+Right now, some edge-cases are still not implemented yet, so these tests would fail.
+
+Building the Cite Test Suite
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The local test suite runner can be built from: https://github.com/opengeospatial/ets-wfs20.
 
 You need java and maven (mvn) for this. For the rest you can follow the
 instructions in the readme of said repo, where you put the url of your
-local server in the `test-run-props.xml` file.
+local server in the `test-run-props.xml` file which contains::
 
-In the future we may build a docker image for the test suite and can
-perform them on CI. Right now, some edge-cases are still not implemented by
-choice, so these tests would fail.
+    <?xml version="1.0" encoding="UTF-8"?>
+    <!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">
+    <properties version="1.0">
+        <comment>Test run arguments for ets-wfs20</comment>
+        <entry key="wfs">http://localhost:8000/wfs/?SERVICE=WFS&amp;REQUEST=GetCapabilities</entry>
+    </properties>
+
 
 
 Internal logic
