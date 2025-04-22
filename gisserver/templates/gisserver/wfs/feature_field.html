@@ -1,6 +1,6 @@
-<tr{% if level %} class="complex-field-member complex-level-{{ level }}"{% endif %}>
+{% load gisserver_tags %}<tr{% if level %} class="complex-field-member complex-level-{{ level }}"{% endif %}>
   <th><code>{{ field.name }}</code></th>
-  <td>{{ field.xsd_element.type }}{% if field.xsd_element.is_many %} <em>(maxOccurs={{ field.xsd_element.max_occurs }})</em>{% endif %}</td>
+  <td>{{ field.xsd_element.type|to_qname:xml_namespaces }}{% if field.xsd_element.is_many %} <em>(maxOccurs={{ field.xsd_element.max_occurs }})</em>{% endif %}</td>
   <td>{{ field.abstract|default:'' }}</td>
 </tr>
 {% if field.xsd_element.type.is_complex_type and field.fields %}
