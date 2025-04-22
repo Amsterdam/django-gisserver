@@ -1,3 +1,5 @@
+from django.contrib.gis.geos import Point
+
 from gisserver.geometries import CRS, WGS84
 
 
@@ -23,3 +25,11 @@ class TestCRS:
             CRS.from_string("http://www.opengis.net/def/crs/epsg/0/4326").urn
             == "urn:ogc:def:crs:EPSG::4326"
         )
+
+    def test_xy_swap(self):
+        # https://epsg.io/3879
+        finland_crs = CRS.from_string("urn:ogc:def:crs:EPSG::3879")
+        wgs84_point = Point(58.84, 19.08, srid=WGS84.srid)
+        finland_point = finland_crs.apply_to(wgs84_point, clone=True)
+        assert round(int(finland_point.x), -2) == 6540000  # 65... first
+        assert round(int(finland_point.y), -2) == 25158500
