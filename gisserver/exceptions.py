@@ -8,11 +8,14 @@ https://docs.opengeospatial.org/is/09-025r2/09-025r2.html#35
 https://docs.opengeospatial.org/is/09-025r2/09-025r2.html#411
 """
 
+import logging
 from contextlib import contextmanager
 
 from django.conf import settings
 from django.http import HttpResponse
 from django.utils.html import format_html
+
+logger = logging.getLogger(__name__)
 
 
 @contextmanager
@@ -66,8 +69,10 @@ class OWSException(Exception):
         self.status_code = status_code or self.status_code
 
     def as_response(self):
+        logger.debug("Returning HTTP %d for %s: %s", self.status_code, self.code, self.text)
+        xml_body = self.as_xml()
         return HttpResponse(
-            b'<?xml version="1.0" encoding="UTF-8"?>\n%b' % self.as_xml().encode("utf-8"),
+            b'<?xml version="1.0" encoding="UTF-8"?>\n%b' % xml_body.encode("utf-8"),
             content_type="text/xml; charset=utf-8",
             status=self.status_code,
             reason=self.reason,
