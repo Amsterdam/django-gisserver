@@ -2,10 +2,16 @@ import urllib.parse
 
 import django
 import pytest
-from lxml import etree
 
 from tests.requests import Get, Post, Url, parametrize_response
-from tests.utils import NAMESPACES, WFS_20_XSD, XML_NS, assert_xml_equal, validate_xsd
+from tests.utils import (
+    NAMESPACES,
+    WFS_20_XSD,
+    XML_NS,
+    XMLSCHEMA_XSD,
+    assert_xml_equal,
+    validate_xsd,
+)
 
 # enable for all tests in this file
 pytestmark = [pytest.mark.urls("tests.test_gisserver.urls")]
@@ -31,9 +37,8 @@ class TestDescribeFeatureType:
         assert response.status_code == 200, content
         assert "PropertyType" in content  # for element holding a GML field
 
-        # The response is an XSD itself.
-        # Only validate its XML structure
-        xml_doc: etree._Element = etree.fromstring(response.content)
+        # The response is an XSD itself, this too can be validated against its own XSD.
+        xml_doc = validate_xsd(response.content, XMLSCHEMA_XSD)
         assert xml_doc.tag == "{http://www.w3.org/2001/XMLSchema}schema"
         elements = xml_doc.findall(
             "xsd:complexType/xsd:complexContent/xsd:extension/xsd:sequence/xsd:element",
@@ -98,9 +103,8 @@ class TestDescribeFeatureType:
         assert response.status_code == 200, content
         assert "PropertyType" in content  # for element holding a GML field
 
-        # The response is an XSD itself.
-        # Only validate its XML structure
-        xml_doc: etree._Element = etree.fromstring(response.content)
+        # The response is an XSD itself, this too can be validated against its own XSD.
+        xml_doc = validate_xsd(response.content, XMLSCHEMA_XSD)
         assert xml_doc.tag == "{http://www.w3.org/2001/XMLSchema}schema"
         elements = xml_doc.findall(
             "xsd:complexType/xsd:complexContent/xsd:extension/xsd:sequence/xsd:element",
@@ -163,9 +167,8 @@ class TestDescribeFeatureType:
         assert response.status_code == 200, content
         assert "PropertyType" in content  # for element holding a GML field
 
-        # The response is an XSD itself.
-        # Only validate its XML structure
-        xml_doc: etree._Element = etree.fromstring(response.content)
+        # The response is an XSD itself, this too can be validated against its own XSD.
+        xml_doc = validate_xsd(response.content, XMLSCHEMA_XSD)
         assert xml_doc.tag == "{http://www.w3.org/2001/XMLSchema}schema"
 
         assert_xml_equal(
@@ -200,22 +203,18 @@ class TestDescribeFeatureType:
   </complexType>
 
   <complexType name="CityType">
-    <complexContent>
-      <sequence>
-        <element name="id" type="integer" minOccurs="0" />
-        <element name="name" type="string" minOccurs="0" />
-      </sequence>
-    </complexContent>
+    <sequence>
+      <element name="id" type="integer" minOccurs="0" />
+      <element name="name" type="string" minOccurs="0" />
+    </sequence>
   </complexType>
 
   <complexType name="OpeningHourType">
-    <complexContent>
-      <sequence>
-        <element name="weekday" type="integer" minOccurs="0" />
-        <element name="start_time" type="time" minOccurs="0" />
-        <element name="end_time" type="time" minOccurs="0" />
-      </sequence>
-    </complexContent>
+    <sequence>
+      <element name="weekday" type="integer" minOccurs="0" />
+      <element name="start_time" type="time" minOccurs="0" />
+      <element name="end_time" type="time" minOccurs="0" />
+    </sequence>
   </complexType>
 
 </schema>
@@ -239,9 +238,8 @@ class TestDescribeFeatureType:
         assert response.status_code == 200, content
         assert "PropertyType" in content  # for element holding a GML field
 
-        # The response is an XSD itself.
-        # Only validate its XML structure
-        xml_doc: etree._Element = etree.fromstring(response.content)
+        # The response is an XSD itself, this too can be validated against its own XSD.
+        xml_doc = validate_xsd(response.content, XMLSCHEMA_XSD)
         assert xml_doc.tag == "{http://www.w3.org/2001/XMLSchema}schema"
 
         assert_xml_equal(
@@ -290,9 +288,8 @@ class TestDescribeFeatureType:
         assert response.status_code == 200, content
         assert "PropertyType" in content  # for element holding a GML field
 
-        # The response is an XSD itself.
-        # Only validate its XML structure
-        xml_doc: etree._Element = etree.fromstring(response.content)
+        # The response is an XSD itself, this too can be validated against its own XSD.
+        xml_doc = validate_xsd(response.content, XMLSCHEMA_XSD)
         assert xml_doc.tag == "{http://www.w3.org/2001/XMLSchema}schema"
         assert_xml_equal(
             response.content,
@@ -338,22 +335,18 @@ class TestDescribeFeatureType:
   </complexType>
 
   <complexType name="CityType">
-    <complexContent>
-      <sequence>
-        <element name="id" type="integer" minOccurs="0" />
-        <element name="name" type="string" minOccurs="0" />
-      </sequence>
-    </complexContent>
+    <sequence>
+      <element name="id" type="integer" minOccurs="0" />
+      <element name="name" type="string" minOccurs="0" />
+    </sequence>
   </complexType>
 
   <complexType name="OpeningHourType">
-    <complexContent>
-      <sequence>
-        <element name="weekday" type="integer" minOccurs="0" />
-        <element name="start_time" type="time" minOccurs="0" />
-        <element name="end_time" type="time" minOccurs="0" />
-      </sequence>
-    </complexContent>
+    <sequence>
+      <element name="weekday" type="integer" minOccurs="0" />
+      <element name="start_time" type="time" minOccurs="0" />
+      <element name="end_time" type="time" minOccurs="0" />
+    </sequence>
   </complexType>
 
 </schema>""",  # noqa: E501
@@ -412,7 +405,6 @@ class TestDescribeFeatureType:
         assert response.status_code == 200, content
         assert "PropertyType" in content  # for element holding a GML field
 
-        # The response is an XSD itself.
-        # Only validate its XML structure
-        xml_doc: etree._Element = etree.fromstring(response.content)
+        # The response is an XSD itself, this too can be validated against its own XSD.
+        xml_doc = validate_xsd(response.content, XMLSCHEMA_XSD)
         assert xml_doc.tag == "{http://www.w3.org/2001/XMLSchema}schema"

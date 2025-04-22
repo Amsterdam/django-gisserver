@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 XSD_ROOT = Path(__file__).parent.joinpath("files/xsd")
 GML321_XSD = str(XSD_ROOT.joinpath("schemas.opengis.net/gml/3.2.1/gml.xsd"))
 WFS_20_XSD = str(XSD_ROOT.joinpath("schemas.opengis.net/wfs/2.0/wfs.xsd"))
+XMLSCHEMA_XSD = str(XSD_ROOT.joinpath("www.w3.org/2012/04/XMLSchema.xsd"))
 WFS_20_AND_GML_XSD = str(XSD_ROOT.joinpath("wfs_and_gml.xsd"))
 
 # Namespaces for tag retrieval
