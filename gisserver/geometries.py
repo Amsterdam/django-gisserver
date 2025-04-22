@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 from decimal import Decimal
 from functools import cached_property, lru_cache
 
-from django.contrib.gis.gdal import CoordTransform, SpatialReference
+from django.contrib.gis.gdal import AxisOrder, CoordTransform, SpatialReference
 from django.contrib.gis.geos import GEOSGeometry
 
 from gisserver.exceptions import ExternalValueError
@@ -35,6 +35,9 @@ __all__ = [
 @lru_cache(maxsize=200)
 def _get_spatial_reference(srs_input, srs_type="user", axis_order=None):
     """Construct an GDAL object reference"""
+    if axis_order is None:
+        # WFS 1.1 used x/y coordinates, WFS 2.0 uses the ordering from the CRS authority.
+        axis_order = AxisOrder.AUTHORITY
     # Using lru-cache to avoid repeated GDAL c-object construction
     return SpatialReference(srs_input, srs_type=srs_type, axis_order=axis_order)
 
