@@ -4,6 +4,7 @@ The class names and attributes are identical to those in the FES spec.
 
 from __future__ import annotations
 
+import logging
 import operator
 from dataclasses import dataclass, field
 from decimal import Decimal
@@ -36,6 +37,8 @@ from gisserver.types import GeometryXsdElement, XPathMatch
 from .expressions import Expression, Literal, ValueReference
 from .identifiers import Id
 from .lookups import ARRAY_LOOKUPS  # also registers the lookups.
+
+logger = logging.getLogger(__name__)
 
 SpatialDescription = Union[gml.GM_Object, gml.GM_Envelope, ValueReference]
 TemporalOperand = Union[gml.TM_Object, ValueReference]
@@ -317,6 +320,7 @@ class NonIdOperator(Operator):
                 try:
                     lookup = ARRAY_LOOKUPS[lookup]
                 except KeyError:
+                    logger.debug("No array lookup known for %s", lookup)
                     raise OperationProcessingFailed(
                         f"Operator '{tag}' is not supported for "
                         f"the '{xsd_element.name}' property.",

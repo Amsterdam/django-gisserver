@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+import logging
 import re
-from urllib.parse import urlencode
+from urllib.parse import unquote_plus, urlencode
 
 from django.core.exceptions import ImproperlyConfigured, SuspiciousOperation
 from django.core.exceptions import PermissionDenied as Django_PermissionDenied
@@ -25,6 +26,8 @@ from gisserver.features import FeatureType, ServiceDescription
 from gisserver.operations import base, wfs20
 from gisserver.parsers.ows import KVPRequest, resolve_kvp_parser_class, resolve_xml_parser_class
 from gisserver.parsers.xml import parse_xml_from_string, split_ns
+
+logger = logging.getLogger(__name__)
 
 SAFE_VERSION = re.compile(r"\A[0-9.]+\Z")
 
@@ -113,6 +116,11 @@ class OWSView(View):
         All query parameters are handled as case-insensitive.
         """
         # Parse GET parameters in Key-Value-Pair syntax format.
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug(
+                "Parsing GET parameters:\n%s",
+                unquote_plus(request.META["QUERY_STRING"].replace("&", "\n")),
+            )
         self.kvp = kvp = KVPRequest(request.GET, ns_aliases=self.get_xml_namespace_aliases())
 
         # Get service (only raises error when value is missing and "default" parameter is not given)
@@ -146,6 +154,8 @@ class OWSView(View):
         to call the proper WFSMethod.
         """
         # Parse the XML body
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug("Parsing POST:\n%s", request.body.decode().rstrip())
         try:
             root = parse_xml_from_string(
                 request.body, extra_ns_aliases=self.get_xml_namespace_aliases()

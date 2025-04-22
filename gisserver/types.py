@@ -26,6 +26,7 @@ Custom field types could also generate these field types.
 
 from __future__ import annotations
 
+import logging
 import operator
 import re
 from dataclasses import dataclass, field
@@ -49,6 +50,7 @@ from gisserver.geometries import CRS, BoundingBox
 from gisserver.parsers import values
 from gisserver.parsers.xml import parse_qname, split_ns, xmlns
 
+logger = logging.getLogger(__name__)
 _unbounded = Literal["unbounded"]
 
 __all__ = [
@@ -503,6 +505,13 @@ class XsdNode:
                 isinstance(self.source, RelatedField)
                 and self.source.target_field.get_lookup(lookup) is None
             ):
+                logger.debug(
+                    "Model field '%s.%s' does not support ORM lookup '%s' used by '%s'.",
+                    self.feature_type.model._meta.model_name,
+                    self.absolute_model_attribute,
+                    lookup,
+                    tag,
+                )
                 raise OperationProcessingFailed(
                     f"Operator '{tag}' is not supported for the '{self.name}' property.",
                     locator="filter",
