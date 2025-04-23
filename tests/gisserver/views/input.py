@@ -117,6 +117,18 @@ FILTERS = [
         </fes:Filter>""",
     ),
     (
+        "like_array",
+        Url.NORMAL,
+        """
+        <?xml version="1.0"?>
+        <fes:Filter xmlns:fes="http://www.opengis.net/fes/2.0">
+            <fes:PropertyIsLike wildCard="*" singleChar="?" escapeChar="!">
+                <fes:ValueReference>tags</fes:ValueReference>
+                <fes:Literal>blac*</fes:Literal>
+            </fes:PropertyIsLike>
+        </fes:Filter>""",
+    ),
+    (
         "bbox",
         Url.NORMAL,
         """

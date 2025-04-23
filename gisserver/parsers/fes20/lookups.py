@@ -76,6 +76,7 @@ else:
     ARRAY_LOOKUPS = {
         "exact": "fes_anyexact",
         "fes_notequal": "fes_anynotequal",
+        "fes_like": "fes_anylike",
         "lt": "fes_anylt",
         "lte": "fes_anylte",
         "gt": "fes_anygt",
@@ -116,7 +117,7 @@ else:
     _register_any_lookup(lookups.LessThanOrEqual)
 
     @ArrayField.register_lookup
-    class FesArrayAnyNotEqual(FesNotEqual):
+    class FesArrayAnyNotEqual(lookups.Lookup):
         """Inequality test for a single item in the array"""
 
         lookup_name = "fes_anynotequal"
@@ -126,3 +127,18 @@ else:
             lhs, lhs_params = self.process_lhs(compiler, connection)
             rhs, rhs_params = self.process_rhs(compiler, connection)
             return f"{rhs} != ANY({lhs})", (rhs_params + lhs_params)
+
+    @ArrayField.register_lookup
+    class FesArrayLike(FesLike):
+        """Allow fieldname__fes_like=... lookups in querysets."""
+
+        lookup_name = "fes_anylike"
+
+        def as_sql(self, compiler, connection):
+            """Generate the required SQL."""
+            lhs, lhs_params = self.process_lhs(compiler, connection)  # = (table.field, %s)
+            rhs, rhs_params = self.process_rhs(compiler, connection)  # = ("prep-value", [])
+            return (
+                f"EXISTS(SELECT 1 FROM unnest({lhs}) AS item WHERE item LIKE {rhs})",  # noqa: S608
+                (lhs_params + rhs_params),
+            )
