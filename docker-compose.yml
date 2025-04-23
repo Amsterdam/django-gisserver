@@ -37,6 +37,7 @@ services:
     working_dir: /code/example/
     post_start:
       - command: ./manage.py migrate
+      - command: sh -c './manage.py loadgeojson -f statnaam=name -m places.Province /tmp/provinces.geojson || echo "Ignoring these loadgeojson errors."'
       - command: ./manage.py loaddata testdata.json
     # No effect:
     #pre_stop:
