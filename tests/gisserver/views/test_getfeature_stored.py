@@ -31,7 +31,7 @@ class TestGetFeature:
         Post(
             lambda id: f"""<GetFeature service="WFS" version="2.0.0" {XML_NS}>
                   <StoredQuery id="urn:ogc:def:query:OGC-WFS::GetFeatureById">
-                    <Parameter name="ID">restaurant.{id}</Parameter>
+                    <Parameter name="id">restaurant.{id}</Parameter>
                   </StoredQuery>
                 </GetFeature>"""
         ),
@@ -97,7 +97,7 @@ class TestGetFeature:
         Post(
             f"""<GetFeature service="WFS" version="2.0.0" {XML_NS}>
                   <StoredQuery id="urn:ogc:def:query:OGC-WFS::GetFeatureById">
-                    <Parameter name="ID">restaurant.ABC</Parameter>
+                    <Parameter name="id">restaurant.ABC</Parameter>
                   </StoredQuery>
                 </GetFeature>"""
         ),
@@ -125,7 +125,7 @@ class TestGetFeature:
         Post(
             f"""<GetFeature service="WFS" version="2.0.0" {XML_NS}>
                   <StoredQuery id="urn:ogc:def:query:OGC-WFS::GetFeatureById">
-                    <Parameter name="ID">restaurant.0</Parameter>
+                    <Parameter name="id">restaurant.0</Parameter>
                   </StoredQuery>
                 </GetFeature>"""
         ),

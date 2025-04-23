@@ -179,7 +179,7 @@ class TestGetFeature:
             f"""
             <wfs:GetFeature service="WFS" version="2.0.0" {XML_NS_WFS}>
               <wfs:StoredQuery id="urn:ogc:def:query:OGC-WFS::GetFeatureById">
-                <wfs:Parameter name="ID">restaurant.0</wfs:Parameter>
+                <wfs:Parameter name="id">restaurant.0</wfs:Parameter>
               </wfs:StoredQuery>
             </wfs:GetFeature>"""
         ),
@@ -198,7 +198,7 @@ class TestGetFeature:
             queries=[
                 wfs20.StoredQuery(
                     id="urn:ogc:def:query:OGC-WFS::GetFeatureById",
-                    parameters={"ID": "place.2"},
+                    parameters={"id": "place.2"},
                 )
             ],
         )

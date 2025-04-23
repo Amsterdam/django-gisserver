@@ -41,7 +41,7 @@ class TestDescribeStoredQueries:
   <StoredQueryDescription id="urn:ogc:def:query:OGC-WFS::GetFeatureById">
     <Title>Get feature by identifier</Title>
     <Abstract>Returns the single feature that corresponds with the ID argument</Abstract>
-    <Parameter name="ID" type="xs:string"/>
+    <Parameter name="id" type="xs:string"/>
     <QueryExpressionText isPrivate="true" language="urn:ogc:def:queryLanguage:OGC-WFS::WFS_QueryExpression" returnFeatureTypes="app:restaurant app:mini-restaurant app:denied-feature"/>
   </StoredQueryDescription>
 </wfs:DescribeStoredQueriesResponse>""",  # noqa: E501
