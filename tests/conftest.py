@@ -325,9 +325,7 @@ def response(client, request) -> HttpResponseBase | Callable[..., HttpResponseBa
     """
     req: Request = request.param
     response = req.get_response(client)
-
-    if req.expect:
-        response.expect = req.expect
+    response.expect = req.expect
     return response
 
 

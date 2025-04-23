@@ -213,6 +213,42 @@ FILTERS = [
         </fes:Filter>""",
     ),
     (
+        "not_nil_geometry",
+        Url.NORMAL,
+        """
+        <?xml version="1.0"?>
+        <fes:Filter
+             xmlns:fes="http://www.opengis.net/fes/2.0"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xsi:schemaLocation="http://www.opengis.net/fes/2.0
+             http://schemas.opengis.net/filter/2.0/filterAll.xsd">
+            <fes:Not>
+                <fes:PropertyIsNil>
+                    <fes:ValueReference>location</fes:ValueReference>
+                </fes:PropertyIsNil>
+            </fes:Not>
+        </fes:Filter>""",
+        2,
+    ),
+    (
+        "not_null_geometry",
+        Url.NORMAL,
+        """
+        <?xml version="1.0"?>
+        <fes:Filter
+             xmlns:fes="http://www.opengis.net/fes/2.0"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xsi:schemaLocation="http://www.opengis.net/fes/2.0
+             http://schemas.opengis.net/filter/2.0/filterAll.xsd">
+            <fes:Not>
+                <fes:PropertyIsNull>
+                    <fes:ValueReference>location</fes:ValueReference>
+                </fes:PropertyIsNull>
+            </fes:Not>
+        </fes:Filter>""",
+        2,
+    ),
+    (
         "equal",
         Url.COMPLEX,
         """
@@ -245,7 +281,7 @@ FILTERS = [
         </fes:Filter>""",
     ),
     (
-        "not_nil",
+        "not_nil_child",
         Url.COMPLEX,
         """
         <?xml version="1.0"?>
@@ -310,7 +346,7 @@ FILTERS = [
         </fes:Filter>""",
     ),
     (
-        "not_nil",
+        "not_nil_flat",
         Url.FLAT,
         """
         <?xml version="1.0"?>

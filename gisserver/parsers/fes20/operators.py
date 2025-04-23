@@ -10,7 +10,7 @@ from decimal import Decimal
 from enum import Enum
 from functools import cached_property, reduce
 from itertools import groupby
-from typing import Protocol, Union
+from typing import ClassVar, Protocol, Union
 
 from django.contrib.gis import measure
 from django.db.models import Q
@@ -734,6 +734,9 @@ class NilOperator(ComparisonOperator):
     nilReason: str
     _source: str | None = field(compare=False, default=None)
 
+    # Allow checking whether the geometry is null
+    allow_geometries: ClassVar[bool] = True
+
     @classmethod
     @expect_children(1, Expression)
     def from_xml(cls, element: NSElement):
@@ -765,6 +768,9 @@ class NullOperator(ComparisonOperator):
 
     expression: Expression
     _source: str | None = field(compare=False, default=None)
+
+    # Allow checking whether the geometry is null
+    allow_geometries: ClassVar[bool] = True
 
     @classmethod
     @expect_children(1, Expression)

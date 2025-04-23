@@ -131,8 +131,9 @@ class TestGetFeature:
                     "&FILTER=" + quote_plus(filter.strip()),
                     id=name,
                     url=url,
+                    expect=expect,
                 )
-                for (name, url, filter) in FILTERS
+                for (name, url, filter, *expect) in FILTERS
             ]
             + [
                 Post(
@@ -144,15 +145,16 @@ class TestGetFeature:
                 """,
                     id=name,
                     url=url,
+                    expect=expect,
                 )
-                for (name, url, filter) in FILTERS
+                for (name, url, filter, *expect) in FILTERS
                 if name != "fes1"
             ]
         )
     )
     def test_get_filter(self, restaurant, restaurant_m2m, bad_restaurant, response):
         """Prove that that parsing FILTER=<fes:Filter>... works"""
-        _assert_filter(response, expect_name="Café Noir")
+        _assert_filter(response, "Café Noir", *response.expect)
 
     @parametrize_response(
         *(
@@ -260,7 +262,7 @@ class TestGetFeature:
         assert name == generated_field.name
 
 
-def _assert_filter(response, expect_name):
+def _assert_filter(response, expect_name, expect_number_matched=1):
     """Common part of filter logic"""
     content = read_response(response)
     assert response["content-type"] == "text/xml; charset=utf-8", content
@@ -269,8 +271,8 @@ def _assert_filter(response, expect_name):
 
     # Validate against the WFS 2.0 XSD
     xml_doc = validate_xsd(content, WFS_20_XSD)
-    assert xml_doc.attrib["numberMatched"] == "1"
-    assert xml_doc.attrib["numberReturned"] == "1"
+    assert xml_doc.attrib["numberMatched"] == str(expect_number_matched)
+    assert xml_doc.attrib["numberReturned"] == str(expect_number_matched)
 
     # Prove that the output is still rendered in WGS84
     feature = xml_doc.find("wfs:member/app:restaurant", namespaces=NAMESPACES)
