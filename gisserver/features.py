@@ -28,9 +28,10 @@ from django.contrib.gis.db.models import Extent, GeometryField
 from django.core.exceptions import FieldDoesNotExist, ImproperlyConfigured
 from django.db import models
 
+from gisserver import conf
 from gisserver.compat import ArrayField, GeneratedField
 from gisserver.db import get_db_geometry_target
-from gisserver.exceptions import ExternalValueError
+from gisserver.exceptions import ExternalValueError, InvalidParameterValue
 from gisserver.geometries import CRS, WGS84, BoundingBox
 from gisserver.parsers.xml import parse_qname, xmlns
 from gisserver.types import (
@@ -828,6 +829,21 @@ class FeatureType:
             xpath = xpath[len(root_name) + 1 :]
 
         return self.xsd_type.resolve_element_path(xpath, ns_aliases)
+
+    def resolve_crs(self, crs: CRS, locator="") -> CRS:
+        """Check a parsed CRS against the list of supported types."""
+        pos = self.supported_crs.index(crs)
+        if pos != -1:
+            # Replace the parsed CRS with the declared one, which may have a 'backend' configured.
+            return self.supported_crs[pos]
+
+        if conf.GISSERVER_SUPPORTED_CRS_ONLY:
+            raise InvalidParameterValue(
+                f"Feature '{self.name}' does not support SRID {crs.srid}.",
+                locator=locator,
+            )
+        else:
+            return crs
 
 
 class HDict(dict):

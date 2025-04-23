@@ -8,8 +8,7 @@ from xml.etree.ElementTree import tostring
 
 from django.contrib.gis.geos import GEOSGeometry, Polygon
 
-from gisserver import conf
-from gisserver.exceptions import ExternalParsingError, InvalidParameterValue
+from gisserver.exceptions import ExternalParsingError
 from gisserver.geometries import CRS
 from gisserver.parsers.ast import tag_registry
 from gisserver.parsers.query import CompiledQuery
@@ -72,7 +71,7 @@ class GEOSGMLGeometry(AbstractGeometry):
             crs = None  # will be resolved
 
         # Wrap in an element that the filter can use.
-        return GEOSGMLGeometry(srs=crs, geos_data=polygon)
+        return cls(srs=crs, geos_data=polygon)
 
     @classmethod
     def from_xml(cls, element: NSElement):
@@ -110,15 +109,8 @@ class GEOSGMLGeometry(AbstractGeometry):
             # This is not possible in XML parsing, but may happen for BBOX parsing.
             self.srs = compiler.feature_types[0].crs
             self.geos_data.srid = self.srs.srid  # assign default CRS to geometry
-        elif (
-            conf.GISSERVER_SUPPORTED_CRS_ONLY
-            and compiler.feature_types  # for unit tests
-            and self.srs not in compiler.feature_types[0].supported_crs
-        ):
-            raise InvalidParameterValue(
-                f"Feature '{compiler.feature_types[0].name}' does not support SRID {self.srs.srid}.",
-                locator="bbox",
-            )
+        elif compiler.feature_types:  # for unit tests
+            self.srs = compiler.feature_types[0].resolve_crs(self.srs, locator="bbox")
 
         return self.geos_data
 
