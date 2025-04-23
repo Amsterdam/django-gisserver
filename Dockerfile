@@ -24,7 +24,8 @@ RUN mkdir gisserver \
  && pip wheel --no-cache-dir --wheel-dir=/wheelhouse/ .[tests] \
  && rm -vf /wheelhouse/django_gisserver* \
  && pip install --no-cache-dir /wheelhouse/* \
- && rm -rf /wheelhouse/
+ && rm -rf /wheelhouse/ \
+ && curl -o /tmp/provinces.geojson 'https://cartomap.github.io/nl/wgs84/provincie_2025.geojson'
 
 # Install app, allow to be overwritten with a volume.
 VOLUME /code/
