@@ -450,10 +450,15 @@ class GML32Renderer(CollectionOutputRenderer, XmlOutputRenderer):
         buf.write("</gml:Polygon>")
         return buf.getvalue()
 
-    @register_geos_type(geos.MultiPolygon)
+    @register_geos_type(geos.GeometryCollection)
     def render_gml_multi_geometry(self, value: geos.GeometryCollection, base_attrs):
         children = "".join(self._render_gml_type(child) for child in value)
         return f"<gml:MultiGeometry{base_attrs}>{children}</gml:MultiGeometry>"
+
+    @register_geos_type(geos.MultiPolygon)
+    def render_gml_multi_polygon(self, value: geos.GeometryCollection, base_attrs):
+        children = "".join(self._render_gml_type(child) for child in value)
+        return f"<gml:MultiPolygon{base_attrs}>{children}</gml:MultiPolygon>"
 
     @register_geos_type(geos.MultiLineString)
     def render_gml_multi_line_string(self, value: geos.MultiPoint, base_attrs):
