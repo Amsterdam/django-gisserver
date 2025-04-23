@@ -31,7 +31,11 @@ class Migration(migrations.Migration):
                 ),
                 ("name", models.CharField(max_length=200)),
             ],
-            options={"verbose_name": "Category", "verbose_name_plural": "Categories"},
+            options={
+                "ordering": ["name"],
+                "verbose_name": "Category",
+                "verbose_name_plural": "Categories",
+            },
         ),
         migrations.CreateModel(
             name="Place",
