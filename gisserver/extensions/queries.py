@@ -193,7 +193,7 @@ stored_query_registry = StoredQueryRegistry()
     id="urn:ogc:def:query:OGC-WFS::GetFeatureById",
     title="Get feature by identifier",
     abstract="Returns the single feature that corresponds with the ID argument",
-    parameters={"ID": XsdTypes.string},
+    parameters={"id": XsdTypes.string},
     expressions=[QueryExpressionText(language=WFS_LANGUAGE)],
 )
 class GetFeatureById(StoredQueryImplementation):
@@ -232,14 +232,14 @@ class GetFeatureById(StoredQueryImplementation):
     # Projection of GetFeatureById only returns the document nodes, not a <wfs:FeatureCollection> wrapper
     has_standalone_output = True
 
-    def __init__(self, ID: str, ns_aliases: dict[str, str]):
+    def __init__(self, id: str, ns_aliases: dict[str, str]):
         """Initialize the query with the request parameters."""
-        if "." not in ID:
+        if "." not in id:
             # Always report this as 404
             raise NotFound("Expected typeName.id for ID parameter", locator="ID") from None
 
         # GetFeatureById is essentially a ResourceId lookup, reuse that logic here.
-        self.resource_id = fes20.ResourceId.from_string(ID, ns_aliases)
+        self.resource_id = fes20.ResourceId.from_string(id, ns_aliases)
 
     def get_type_names(self) -> list[str]:
         """Tell which type names this query applies to."""

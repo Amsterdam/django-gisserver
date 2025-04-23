@@ -587,7 +587,7 @@ class TestGetPropertyValue:
         Post(
             lambda id: f"""<GetPropertyValue service="WFS" version="2.0.0" valueReference="name" {XML_NS}>
                   <StoredQuery id="urn:ogc:def:query:OGC-WFS::GetFeatureById">
-                    <Parameter name="ID">restaurant.{id}</Parameter>
+                    <Parameter name="id">restaurant.{id}</Parameter>
                   </StoredQuery>
                 </GetPropertyValue>
             """,
@@ -619,7 +619,7 @@ class TestGetPropertyValue:
         Post(
             f"""<GetPropertyValue service="WFS" version="2.0.0" valueReference="name" {XML_NS}>
                   <StoredQuery id="urn:ogc:def:query:OGC-WFS::GetFeatureById">
-                    <Parameter name="ID">restaurant.ABC</Parameter>
+                    <Parameter name="id">restaurant.ABC</Parameter>
                   </StoredQuery>
                 </GetPropertyValue>"""
         ),
@@ -647,7 +647,7 @@ class TestGetPropertyValue:
         Post(
             f"""<GetPropertyValue service="WFS" version="2.0.0" valueReference="name" {XML_NS}>
                   <StoredQuery id="urn:ogc:def:query:OGC-WFS::GetFeatureById">
-                    <Parameter name="ID">restaurant.0</Parameter>
+                    <Parameter name="id">restaurant.0</Parameter>
                   </StoredQuery>
                 </GetPropertyValue>
             """
