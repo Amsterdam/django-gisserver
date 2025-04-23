@@ -262,6 +262,7 @@ class BaseWFSGetDataOperation(OutputFormatMixin, WFSOperation):
         """Handle the resultType=hits query.
         This creates the QuerySet and counts the number of results.
         """
+        start, count = self.get_pagination()
         results = []
         for query in self.ows_request.queries:
             queryset = self._get_queryset(query)
@@ -270,8 +271,8 @@ class BaseWFSGetDataOperation(OutputFormatMixin, WFSOperation):
                     source_query=query,
                     feature_types=query.feature_types,
                     queryset=queryset.none(),
-                    start=0,
-                    stop=0,  # also signifies resultType=hits
+                    start=start,
+                    stop=start + count,  # yes, count can be passed for hits
                     number_matched=queryset.count(),
                 )
             )
@@ -307,18 +308,22 @@ class BaseWFSGetDataOperation(OutputFormatMixin, WFSOperation):
 
     def get_pagination(self) -> tuple[int, int]:
         """Tell what the requested page size is."""
+        start = max(0, self.ows_request.startIndex)
+
         # outputFormat.max_page_size can be math.inf to enable endless scrolling.
         # this only works when the COUNT parameter is not given.
-        start = max(0, self.ows_request.startIndex)
         max_page_size = self.output_format.max_page_size or self.view.max_page_size
-        count = min(max_page_size, self.ows_request.count or max_page_size)
+        default_page_size = (
+            0 if self.ows_request.resultType == wfs20.ResultType.hits else max_page_size
+        )
+        count = min(max_page_size, self.ows_request.count or default_page_size)
         return start, count
 
     def set_pagination_links(self, collection: output.FeatureCollection):
         """Assign the pagination links to the collection.
         This happens within the operation logic, as it can access the original GET request.
         """
-        if self.ows_request.resultType == wfs20.ResultType.hits:
+        if self.ows_request.resultType == wfs20.ResultType.hits and not self.ows_request.count:
             return
 
         start, count = self.get_pagination()
@@ -338,22 +343,27 @@ class BaseWFSGetDataOperation(OutputFormatMixin, WFSOperation):
                     COUNT=count,
                 )
 
-    def _replace_url_params(self, **updates) -> str:
+    def _replace_url_params(self, **updates) -> str | None:
         """Replace a query parameter in the URL"""
-        if self.view.request.method == "GET":
-            new_params = self.view.request.GET.copy()  # preserve lowercase fields too
+        new_params = self.view.request.GET.copy()  # preserve lowercase fields too
+        if self.view.request.method != "GET":
+            # CITE compliance testing wants to see a 'next' link for POST requests too.
+            try:
+                new_params.update(self.ows_request.as_kvp())
+            except NotImplementedError:
+                # Various POST requests can't be translated back to KVP
+                # mapserver omits the 'next' link in these cases too.
+                return None
 
-            # Replace any lower/mixed case variants of the previous names:
-            for name in self.view.request.GET:
-                upper = name.upper()
-                if upper in updates:
-                    new_params[name] = updates.pop(upper)
+        # Replace any lower/mixed case variants of the previous names:
+        for name in new_params:
+            upper = name.upper()
+            if upper in updates:
+                new_params[name] = updates.pop(upper)
 
-            # Override/replace with new remaining uppercase variants
-            new_params.update(updates)
-            return f"{self.view.server_url}?{urlencode(new_params)}"
-        # Only a GET request has url_params
-        return self.view.server_url
+        # Override/replace with new remaining uppercase variants
+        new_params.update(updates)
+        return f"{self.view.server_url}?{urlencode(new_params)}"
 
     def _get_queryset(self, query: wfs20.QueryExpression) -> QuerySet:  # noqa:C901
         """Generate the queryset, and trap many parser errors in the making of it."""

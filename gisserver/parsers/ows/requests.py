@@ -75,6 +75,14 @@ class BaseOwsRequest(BaseNode):
             handle=None,
         )
 
+    def as_kvp(self) -> dict:
+        """Translate the POST request into KVP GET parameters. This is needed for pagination."""
+        return {
+            "SERVICE": self.service,
+            "VERSION": str(self.version),
+            "REQUEST": split_ns(self.xml_tags[0])[1],
+        }
+
 
 @lru_cache
 def _get_kvp_parsers() -> dict[str, dict[str, type[BaseOwsRequest]]]:
