@@ -20,6 +20,7 @@ env = Env()
 BASE_DIR = Path(__file__).resolve().parent
 
 DEBUG = env.bool("DJANGO_DEBUG", default=True)
+SQL_DEBUG = env.bool("SQL_DEBUG", default=DEBUG)
 ALLOWED_HOSTS = env.list(
     "ALLOWED_HOSTS", default=[".localhost", "127.0.0.1", "[::1]", ".internal"]
 )
@@ -103,7 +104,7 @@ LOGGING = {
     "loggers": {
         "django.db": {
             "handlers": ["console"],
-            "level": "DEBUG" if DEBUG else "INFO",
+            "level": "DEBUG" if SQL_DEBUG else "INFO",
             "propagate": False,
         },
         "django.utils.autoreload": {"handlers": ["console"], "level": "INFO", "propagate": False},
@@ -125,7 +126,7 @@ USE_TZ = True
 DATABASES = {
     "default": env.db_url(
         "DATABASE_URL",
-        default="postgres://localhost/gisserver_example",  # default homebrew user is superuser
+        default="postgres://127.0.0.1/gisserver_example",  # default homebrew user is superuser
         engine="django.contrib.gis.db.backends.postgis",
     )
 }
