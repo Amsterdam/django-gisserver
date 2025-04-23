@@ -11,7 +11,8 @@ RUN apt-get update \
        libgdal32 \
        libpq-dev \
        cargo \
-       make
+       make \
+       postgresql-client
 
 # Install dependencies first (so layer is cached for fast rebuilds)
 # Need to create some stubs for setup.py to run.
