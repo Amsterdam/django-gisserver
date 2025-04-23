@@ -23,7 +23,7 @@ class PlacesWFSView(WFSView):
     )
 
     feature_types = [
-        # The feature types in the GetCapabilities call.
+        # The feature types are exposed in the GetCapabilities call.
         # This also provides the field structure out of which the XMLSchema
         # for the DescribeFeatureType call is generated, and which fields to output.
         #
@@ -34,6 +34,16 @@ class PlacesWFSView(WFSView):
         # Note that multiple models can be exposed in this single view,
         # by adding more FeatureType entries.
         FeatureType(
+            # First example for a more minimal usage:
+            models.Province.objects.all(),
+            fields=[
+                "id",
+                "name",
+                "geometry",
+            ],
+        ),
+        FeatureType(
+            # Second example for a more extended usage:
             models.Place.objects.all(),
             fields=[
                 field("id", abstract="Identifer"),

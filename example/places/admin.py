@@ -3,6 +3,14 @@ from django.contrib import admin
 from . import models
 
 
+@admin.register(models.Province)
+class ProvinceAdmin(admin.ModelAdmin):
+    """Admin for provinces"""
+
+    list_display = ("name",)
+    list_filter = ("name",)
+
+
 @admin.register(models.Category)
 class CategoryAdmin(admin.ModelAdmin):
     """Admin for categories"""

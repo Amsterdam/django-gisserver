@@ -2,10 +2,25 @@ import calendar
 from datetime import time
 
 from django.contrib.auth.models import User
-from django.contrib.gis.db.models import PointField
+from django.contrib.gis.db.models import GeometryField, PointField
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
 from django.utils.translation import gettext_lazy as _
+
+
+class Province(models.Model):
+    """A model holding a geometry"""
+
+    name = models.CharField(max_length=255)
+    geometry = GeometryField()  # MultiPolygon or Polygon
+
+    class Meta:
+        ordering = ["name"]
+        verbose_name = _("Province")
+        verbose_name_plural = _("Provinces")
+
+    def __str__(self):
+        return self.name
 
 
 class Category(models.Model):
