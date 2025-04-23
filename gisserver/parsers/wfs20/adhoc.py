@@ -14,7 +14,6 @@ from functools import cached_property
 
 from django.db.models import Q
 
-from gisserver import conf
 from gisserver.exceptions import (
     InvalidParameterValue,
     MissingParameterValue,
@@ -215,15 +214,8 @@ class AdhocQuery(QueryExpression):
             raise
 
         # Validate the srsName too
-        if (
-            conf.GISSERVER_SUPPORTED_CRS_ONLY
-            and self.srsName is not None
-            and self.srsName not in self.feature_types[0].supported_crs
-        ):
-            raise InvalidParameterValue(
-                f"Feature '{self.feature_types[0].name}' does not support SRID {self.srsName.srid}.",
-                locator="srsName",
-            )
+        if self.srsName is not None:
+            self.srsName = self.feature_types[0].resolve_crs(self.srsName, locator="srsName")
 
     def build_query(self, compiler: CompiledQuery) -> Q | None:
         """Apply our collected filter data to the compiler."""
