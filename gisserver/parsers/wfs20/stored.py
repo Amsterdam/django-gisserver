@@ -10,7 +10,11 @@ from dataclasses import dataclass, field
 from functools import cached_property
 from typing import Any, ClassVar
 
-from gisserver.exceptions import ExternalParsingError, InvalidParameterValue, MissingParameterValue
+from gisserver.exceptions import (
+    ExternalParsingError,
+    InvalidParameterValue,
+    MissingParameterValue,
+)
 from gisserver.extensions.queries import (
     StoredQueryDescription,
     StoredQueryImplementation,
@@ -160,6 +164,14 @@ class StoredQuery(QueryExpression):
     def build_query(self, compiler: CompiledQuery):
         """Forward queryset creation to the implementation class."""
         return self.implementation.build_query(compiler)
+
+    def as_kvp(self):
+        # As this is such edge case, only support the minimal for CITE tests.
+        params = super().as_kvp()
+        params["STOREDQUERY_ID"] = self.id
+        for name, value in self.parameters.items():
+            params[name] = str(value)  # should be raw value, but good enough for now.
+        return params
 
     def get_type_names(self) -> list[str]:
         """Tell which features are touched by the query."""

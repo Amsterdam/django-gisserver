@@ -152,10 +152,10 @@ class TestGetFeatureGeoJson:
         Get(
             "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
             "&vendor-arg=foobar&outputformat=geojson&COUNT=1000",
-            expect="http://testserver/v1/wfs/"
-            "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
-            "&vendor-arg=foobar"
-            "&outputformat=geojson&COUNT=1000&STARTINDEX=1000",
+            expect=(
+                "http://testserver/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
+                "&TYPENAMES=restaurant&vendor-arg=foobar&outputformat=geojson&COUNT=1000&STARTINDEX=1000"
+            ),
         ),
         Post(
             f"""
@@ -163,7 +163,12 @@ class TestGetFeatureGeoJson:
                 <Query typeNames="restaurant"></Query>
                 </GetFeature>
                 """,
-            expect="http://testserver/v1/wfs/",
+            query="?vendor-arg=foobar",
+            expect=(
+                "http://testserver/v1/wfs/?vendor-arg=foobar"
+                "&SERVICE=WFS&VERSION=2.0.0&REQUEST=GetFeature"
+                "&TYPENAMES=restaurant&OUTPUTFORMAT=geojson&COUNT=1000&STARTINDEX=1000"
+            ),
         ),
     )
     @pytest.mark.parametrize("use_count", [1, 0])
@@ -178,9 +183,8 @@ class TestGetFeatureGeoJson:
         monkeypatch.setattr(conf, "GISSERVER_COUNT_NUMBER_MATCHED", use_count)
 
         with django_assert_max_num_queries(1 + use_count):
-            assert (
-                response["content-type"] == "application/geo+json; charset=utf-8"
-            )  # before stream starts
+            # before stream starts
+            assert response["content-type"] == "application/geo+json; charset=utf-8"
             content = read_response(response)
 
         # If the response is invalid json, there was likely

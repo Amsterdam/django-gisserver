@@ -229,3 +229,17 @@ class AdhocQuery(QueryExpression):
             return self.filter.build_query(compiler)
         else:
             return None
+
+    def as_kvp(self):
+        """Translate the POST request into KVP GET parameters. This is needed for pagination."""
+        params = super().as_kvp()
+        params["TYPENAMES"] = ",".join(self.typeNames)
+        if self.srsName is not None:
+            params["SRSNAME"] = str(self.srsName)
+
+        if self.filter is not None:
+            raise NotImplementedError()  # not going to parse that, nor does mapserver
+        if self.sortBy is not None:
+            params["SORTBY"] = self.sortBy.as_kvp()
+
+        return params

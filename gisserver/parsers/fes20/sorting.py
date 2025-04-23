@@ -80,6 +80,13 @@ class SortProperty(BaseNode):
             sort_order=SortOrder.from_string(direction) if direction else SortOrder.ASC,
         )
 
+    def as_kvp(self):
+        """Translate the POST request into KVP GET parameters. This is needed for pagination."""
+        if self.sort_order == SortOrder.ASC:
+            return self.value_reference.xpath
+        else:
+            return f"{self.value_reference.xpath} {self.sort_order.name}"
+
 
 @dataclass
 @tag_registry.register("SortBy", xmlns.fes20)
@@ -124,6 +131,10 @@ class SortBy(BaseNode):
                 SortProperty.from_string(field, kvp.ns_aliases) for field in value.split(",")
             ]
         )
+
+    def as_kvp(self) -> str:
+        """Translate the POST request into KVP GET parameters. This is needed for pagination."""
+        return ",".join(sort_property.as_kvp() for sort_property in self.sort_properties)
 
     def build_ordering(self, compiler: CompiledQuery):
         """Build the ordering for the Django ORM call."""

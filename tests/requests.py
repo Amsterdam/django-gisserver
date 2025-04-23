@@ -83,11 +83,13 @@ class Get(Request):
 @dataclass
 class Post(Request):
     body: str | Callable
+    query: str | Callable | None
     validate_xml: bool
 
-    def __init__(self, body, validate_xml: bool = True, **kwargs):
+    def __init__(self, body, query=None, validate_xml: bool = True, **kwargs):
         super().__init__(**kwargs)
         self.body = body
+        self.query = query
         self.validate_xml = validate_xml
 
     def get_ows_request(self) -> ows.BaseOwsRequest:
@@ -99,14 +101,19 @@ class Post(Request):
         if isinstance(self.body, str):
             if self.validate_xml:
                 validate_xsd(self.body, WFS_20_AND_GML_XSD)
-            return client.post(self.url.value, data=self.body, content_type="application/xml")
+            return client.post(
+                f"{self.url}{self.query}" if self.query else self.url.value,
+                data=self.body,
+                content_type="application/xml",
+            )
         else:
             # a function is being passed in.
             def func(*args):
                 b = self.body(*args)
+                q = self.query(*args) if self.query else ""
                 if self.validate_xml:
                     validate_xsd(b, WFS_20_AND_GML_XSD)
-                return client.post(self.url.value, data=b, content_type="application/xml")
+                return client.post(f"{self.url}{q}", data=b, content_type="application/xml")
 
             return func
 

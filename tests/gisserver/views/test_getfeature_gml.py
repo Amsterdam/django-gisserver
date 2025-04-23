@@ -689,14 +689,18 @@ class TestGetFeature:
             lambda start_index: "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
             f"&SORTBY=name&vendor-arg=foobar&COUNT=1&STARTINDEX={start_index}",
             expect={
-                "next": "http://testserver/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
-                "&TYPENAMES=restaurant&SORTBY=name"
-                "&vendor-arg=foobar"
-                "&COUNT=1&STARTINDEX=1",
-                "previous": "http://testserver/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
-                "&TYPENAMES=restaurant&SORTBY=name"
-                "&vendor-arg=foobar"
-                "&COUNT=1&STARTINDEX=0",
+                "next": (
+                    "http://testserver/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
+                    "&TYPENAMES=restaurant&SORTBY=name"
+                    "&vendor-arg=foobar"
+                    "&COUNT=1&STARTINDEX=1"
+                ),
+                "previous": (
+                    "http://testserver/v1/wfs/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
+                    "&TYPENAMES=restaurant&SORTBY=name"
+                    "&vendor-arg=foobar"
+                    "&COUNT=1&STARTINDEX=0"
+                ),
             },
         ),
         Post(
@@ -711,9 +715,18 @@ class TestGetFeature:
                     </Query>
                     </GetFeature>
                     """,
+            query=lambda start_index: "?vendor-arg=foobar",
             expect={
-                "next": "http://testserver/v1/wfs/",
-                "previous": "http://testserver/v1/wfs/",
+                "next": (
+                    "http://testserver/v1/wfs/?vendor-arg=foobar"
+                    "&SERVICE=WFS&VERSION=2.0.0&REQUEST=GetFeature"
+                    "&TYPENAMES=restaurant&SORTBY=name&COUNT=1&STARTINDEX=1"
+                ),
+                "previous": (
+                    "http://testserver/v1/wfs/?vendor-arg=foobar"
+                    "&SERVICE=WFS&VERSION=2.0.0&REQUEST=GetFeature"
+                    "&TYPENAMES=restaurant&SORTBY=name&STARTINDEX=0&COUNT=1"
+                ),
             },
         ),
     )

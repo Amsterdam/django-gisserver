@@ -222,6 +222,19 @@ class StandardPresentationParameters(BaseOwsRequest):
             startIndex=kvp.get_int("startIndex", default=0),
         )
 
+    def as_kvp(self) -> dict:
+        """Translate the POST request into KVP GET parameters. This is needed for pagination."""
+        params = super().as_kvp()
+        if self.outputFormat != "application/gml+xml; version=3.2":
+            params["OUTPUTFORMAT"] = self.outputFormat
+        if self.resultType != ResultType.results:
+            params["RESULTTYPE"] = self.resultType.value
+        if self.startIndex:
+            params["STARTINDEX"] = self.startIndex
+        if self.count is not None:
+            params["COUNT"] = self.count
+        return params
+
 
 @dataclass
 class StandardResolveParameters(BaseOwsRequest):
@@ -292,6 +305,15 @@ class CommonQueryParameters(BaseOwsRequest):
             **super().base_kvp_init_parameters(kvp),
             queries=queries,
         )
+
+    def as_kvp(self) -> dict:
+        """Translate the POST request into KVP GET parameters. This is needed for pagination."""
+        if len(self.queries) > 1:
+            raise NotImplementedError()
+        return {
+            **super().as_kvp(),
+            **self.queries[0].as_kvp(),
+        }
 
 
 @dataclass
@@ -384,6 +406,13 @@ class GetPropertyValue(
                 xpath_ns_aliases=kvp.ns_aliases,
             ),
         )
+
+    def as_kvp(self) -> dict:
+        """Translate the POST request into KVP GET parameters. This is needed for pagination."""
+        return {
+            **super().as_kvp(),
+            "VALUEREFERENCE": self.valueReference.xpath,
+        }
 
 
 @tag_registry.register("ListStoredQueries", xmlns.wfs20)

@@ -134,3 +134,10 @@ class QueryExpression(BaseNode):
     def build_query(self, compiler: CompiledQuery) -> Q | None:
         """Define the compiled query that filters the queryset."""
         raise NotImplementedError()
+
+    def as_kvp(self):
+        """Translate the POST request into KVP GET parameters. This is needed for pagination."""
+        params = {}
+        if self.property_names:
+            params["PROPERTYNAME"] = ",".join(p.xpath for p in self.property_names)
+        return params

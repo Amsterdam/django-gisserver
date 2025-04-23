@@ -56,6 +56,12 @@ class SimpleFeatureCollection:
         self._result_iterator = None
         self._has_more = None
 
+        # Tell that is a resultType=hits request.
+        # Typically, start and stop are 0. However, for resultType=hits with count,
+        # that does not apply. Instead, it detects whether the known amount is already provided.
+        # Detecting that queryset.none() is provided won't work, as that can be used by IdOperator too.
+        self._is_hits_request = number_matched is not None and number_matched != CALCULATE
+
     def __iter__(self) -> Iterable[models.Model]:
         """Iterate through all results.
 
@@ -63,7 +69,7 @@ class SimpleFeatureCollection:
         the results can either be cached first, or be streamed without caching.
         This picks the best-performance scenario in most cases.
         """
-        if self.start == self.stop == 0:
+        if self._is_hits_request:
             self._result_cache = []
 
         if self._result_cache is not None:
@@ -88,7 +94,7 @@ class SimpleFeatureCollection:
         if self._result_cache is not None:
             # In case the results were read already, reuse that.
             return iter(self._result_cache)
-        elif self.start == self.stop == 0:
+        elif self._is_hits_request:
             # resulttype=hits
             return iter([])
         else:
@@ -134,8 +140,7 @@ class SimpleFeatureCollection:
         if self._result_iterator is not None:
             raise RuntimeError("Results for feature collection are read twice.")
 
-        if self.start == self.stop == 0:
-            # resulttype=hits
+        if self._is_hits_request:
             self._result_cache = []
         else:
             # This still allows prefetch_related() to work,
@@ -176,8 +181,8 @@ class SimpleFeatureCollection:
     @cached_property
     def number_returned(self) -> int:
         """Return the number of results for this page."""
-        if self.start == self.stop == 0:
-            return 0  # resulttype=hits
+        if self._is_hits_request:
+            return 0
         elif self._result_iterator is not None:
             # When requesting the data after the fact, results are counted.
             return self._result_iterator.number_returned
@@ -191,7 +196,14 @@ class SimpleFeatureCollection:
     @property
     def number_matched(self) -> int:
         """Return the total number of matches across all pages."""
-        if self._number_matched != CALCULATE:
+        if self._is_hits_request:
+            if self.stop:
+                # resulttype=hits&COUNT=n should minimize how many are "matched".
+                return min(self._number_matched, self.stop - self.start)
+            else:
+                return self._number_matched
+        elif self._number_matched != CALCULATE:
+            # Return previously cached result
             return self._number_matched
 
         if self._is_surely_last_page:
@@ -211,12 +223,18 @@ class SimpleFeatureCollection:
             qs = self.queryset.all()  # make a clone to allow editing
             qs.query.annotations = clean_annotations
 
+        # Calculate, cache and return
         self._number_matched = qs.count()
         return self._number_matched
 
     @property
     def _is_surely_last_page(self):
         """Return true when it's totally clear this is the last page."""
+        if self.start == self.stop == 0:
+            return True  # hits request without count
+        elif self._is_hits_request:
+            return False
+
         # Optimization to avoid making COUNT() queries when we can already know the answer.
         if self.stop == math.inf:
             return True  # Infinite page requested
@@ -235,7 +253,7 @@ class SimpleFeatureCollection:
         # For GeoJSON output, the iterator was read first, and `number_returned` is already filled in.
         # For GML output, the pagination details are requested first, and will fetch all data.
         # Hence, reading `number_returned` here can be quite an intensive operation.
-        page_size = self.stop - self.start  # is 0 for resulttype=hits
+        page_size = self.stop - self.start
         return page_size and (self.number_returned < page_size or self._has_more is False)
 
     @property
@@ -247,8 +265,11 @@ class SimpleFeatureCollection:
         elif self._is_surely_last_page:
             return False  # Fewer results than expected, answer is known.
 
-        # This will perform an slow COUNT() query...
-        return self.stop < self.number_matched
+        if self._is_hits_request:
+            return self.stop <= self._number_matched
+        else:
+            # This will perform an slow COUNT() query...
+            return self.stop < self.number_matched
 
     @cached_property
     def projection(self) -> FeatureProjection:
