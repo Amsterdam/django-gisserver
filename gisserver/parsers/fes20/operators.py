@@ -294,7 +294,7 @@ class NonIdOperator(Operator):
 
         :param compiler: The object that holds the intermediate state
         :param lhs: The left-hand-side of the comparison (e.g. the element).
-        :param lookup: The ORM lookup expression being used (e.g. ``equals``).
+        :param lookup: The ORM lookup expression being used (e.g. ``equals`` or ``fes_like``).
         :param rhs: The right-hand-side of the comparison (e.g. the value).
         """
         if isinstance(lhs, ValueReference):
@@ -310,6 +310,20 @@ class NonIdOperator(Operator):
                     status_code=400,  # not HTTP 500 here. Spec allows both.
                 )
 
+            # Checking scalar values against array fields will fail.
+            # However, to make the queries consistent with other unbounded types (i.e. M2M fields),
+            # it makes sense to return an object when *one* entry in the array matches.
+            if xsd_element.is_array:
+                try:
+                    lookup = ARRAY_LOOKUPS[lookup]
+                except KeyError:
+                    raise OperationProcessingFailed(
+                        f"Operator '{tag}' is not supported for "
+                        f"the '{xsd_element.name}' property.",
+                        locator="filter",
+                        status_code=400,  # not HTTP 500 here. Spec allows both.
+                    ) from None
+
             if isinstance(rhs, Literal):
                 # Since the element is resolved, inform the Literal how to parse the value.
                 # This avoids various validation errors along the path.
@@ -318,20 +332,6 @@ class NonIdOperator(Operator):
                 # When a common case of value comparison is done, the inputs
                 # can be validated before the ORM query is constructed.
                 xsd_element.validate_comparison(rhs.raw_value, lookup=lookup, tag=tag)
-
-            # Checking scalar values against array fields will fail.
-            # However, to make the queries consistent with other unbounded types (i.e. M2M fields),
-            # it makes sense to return an object when *one* entry in the array matches.
-            if xsd_element.is_array:
-                try:
-                    return ARRAY_LOOKUPS[lookup]
-                except KeyError:
-                    raise OperationProcessingFailed(
-                        f"Operator '{tag}' is not supported for "
-                        f"the '{xsd_element.name}' property.",
-                        locator="filter",
-                        status_code=400,  # not HTTP 500 here. Spec allows both.
-                    ) from None
 
         return lookup
 

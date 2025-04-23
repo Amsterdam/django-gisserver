@@ -487,7 +487,7 @@ class XsdNode:
         raise an TypeError due to being unsupported by the validation.
 
         :param raw_value: The string value taken from the XML node.
-        :param lookup: The ORM lookup (e.g. ``equals``).
+        :param lookup: The ORM lookup (e.g. ``equals`` or ``fes_like``).
         :param tag: The filter operator tag name, e.g. ``PropertyIsEqualTo``.
         :returns: The parsed Python value.
         """
