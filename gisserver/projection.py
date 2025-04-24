@@ -84,7 +84,10 @@ class FeatureProjection:
         else:
             # All elements of the tree will be rendered, retrieve all elements.
             self.xsd_root_elements = self.feature_type.xsd_type.elements_including_base
-            self.xsd_child_nodes = self.feature_type.xsd_type.elements_with_children
+            self.xsd_child_nodes = {
+                node: node.type.elements
+                for node in self.feature_type.xsd_type.all_complex_elements
+            }
 
     def _get_child_nodes_subset(self) -> dict[XsdElement | None, list[XsdElement]]:
         """Translate the PROPERTYNAME into a dictionary of nodes to render."""

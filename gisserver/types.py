@@ -874,7 +874,7 @@ class XsdComplexType(XsdAnyType):
     @cached_property
     def complex_elements(self) -> list[_XsdElement_WithComplexType]:
         """Shortcut to get all elements with a complex type.
-        To get all complex elements recursively, read :attr:`elements_with_children`.
+        To get all complex elements recursively, read :attr:`all_complex_elements`.
         """
         return [e for e in self.elements if e.type.is_complex_type]
 
@@ -884,15 +884,15 @@ class XsdComplexType(XsdAnyType):
         return [e for e in self.elements if e.is_flattened]
 
     @cached_property
-    def elements_with_children(self) -> dict[_XsdElement_WithComplexType, list[XsdElement]]:
+    def all_complex_elements(self) -> list[_XsdElement_WithComplexType]:
         """Shortcut to get all elements with children.
         This mainly exists to provide a structure to mimic what's used
         when PROPERTYNAME is part of the request.
         """
-        child_nodes = {}
+        child_nodes = []
         for xsd_element in self.complex_elements:
-            child_nodes[xsd_element] = xsd_element.type.elements
-            child_nodes.update(xsd_element.type.elements_with_children)
+            child_nodes.append(xsd_element)
+            child_nodes.extend(xsd_element.type.all_complex_elements)
         return child_nodes
 
     def resolve_element_path(self, xpath: str, ns_aliases: dict[str, str]) -> list[XsdNode] | None:
