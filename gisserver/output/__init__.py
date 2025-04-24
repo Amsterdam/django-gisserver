@@ -12,7 +12,7 @@ from .gml32 import (
     GML32ValueRenderer,
 )
 from .stored import DescribeStoredQueriesRenderer, ListStoredQueriesRenderer
-from .utils import build_feature_qnames
+from .utils import to_qname
 from .xmlschema import XmlSchemaRenderer
 
 __all__ = [
@@ -31,5 +31,5 @@ __all__ = [
     "XmlSchemaRenderer",
     "ListStoredQueriesRenderer",
     "DescribeStoredQueriesRenderer",
-    "build_feature_qnames",
+    "to_qname",
 ]

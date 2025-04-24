@@ -406,3 +406,13 @@ class WFSView(OWSView):
             }
         )
         return context
+
+    def get_xml_schema_url(self, feature_types: list[FeatureType]) -> str:
+        """Return the XML schema URL for the given feature types.
+        This is used in the GML output rendering.
+        """
+        type_names = ",".join(ft.name for ft in feature_types)
+        return (
+            f"{self.server_url}?SERVICE=WFS&VERSION=2.0.0"
+            f"&REQUEST=DescribeFeatureType&TYPENAMES={type_names}"
+        )

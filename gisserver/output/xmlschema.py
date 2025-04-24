@@ -10,14 +10,14 @@ from gisserver.features import FeatureType
 from gisserver.parsers.xml import xmlns
 from gisserver.types import XsdComplexType, XsdElement
 
-from .base import OutputRenderer
+from .base import XmlOutputRenderer
 from .utils import to_qname
 
 if typing.TYPE_CHECKING:
     from gisserver.operations.base import WFSOperation
 
 
-class XmlSchemaRenderer(OutputRenderer):
+class XmlSchemaRenderer(XmlOutputRenderer):
     """Output rendering for DescribeFeatureType.
 
     This renders a valid XSD schema that describes the data type of the feature.
@@ -40,9 +40,10 @@ class XmlSchemaRenderer(OutputRenderer):
         self.type_namespaces[xmlns.xs.value] = ""  # no "xs:string" but "string"
 
     def render_stream(self):
-        xmlns_attrib = self.render_xmlns_attributes(self.app_namespaces)
+        # Render first with original app_namespaces
+        xmlns_attrib = self.render_xmlns_attributes()
 
-        # Allow targetNamespace to be unprefixed by self.to_qname().
+        # Allow targetNamespace to be unprefixed by self.node_to_qname().
         target_namespace = self.feature_types[0].xml_namespace
         self.app_namespaces[target_namespace] = ""  # no "app:element" but "element"
 

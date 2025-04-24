@@ -6,15 +6,14 @@ from io import StringIO
 from xml.etree.ElementTree import Element, tostring
 
 from gisserver.extensions.queries import QueryExpressionText, StoredQueryDescription
-from gisserver.features import FeatureType
-from gisserver.output.utils import attr_escape, tag_escape, to_qname
-from gisserver.parsers.values import fix_type_name
-from gisserver.parsers.xml import split_ns, xmlns
+from gisserver.output.utils import attr_escape, tag_escape
+from gisserver.parsers.xml import xmlns
 
-from .base import OutputRenderer
+from .base import XmlOutputRenderer
 
 
-class StoredQueriesRenderer(OutputRenderer):
+class ListStoredQueriesRenderer(XmlOutputRenderer):
+    """Rendering for the ``<wfs:ListStoredQueriesResponse>``."""
 
     # XML Namespaces to include by default
     xml_namespaces = {
@@ -29,32 +28,12 @@ class StoredQueriesRenderer(OutputRenderer):
         self.all_feature_types = operation.view.get_bound_feature_types()
         self.query_descriptions = query_descriptions
 
-    def to_feature_qname(self, return_type: str | FeatureType) -> str:
-        """Generate the QName for a return type."""
-        if isinstance(return_type, FeatureType):
-            return to_qname(return_type.xml_namespace, return_type.name, self.app_namespaces)
-        else:
-            type_name = fix_type_name(return_type, self.operation.view.xml_namespace)
-            ns, localname = split_ns(type_name)
-            return to_qname(ns, localname, self.app_namespaces)
-
-
-class ListStoredQueriesRenderer(StoredQueriesRenderer):
-    """Rendering for the ``<wfs:ListStoredQueriesResponse>``."""
-
-    # XML Namespaces to include by default
-    xml_namespaces = {
-        xmlns.wfs20: "",
-        xmlns.xs: "xs",
-        xmlns.xsi: "xsi",
-    }
-
     def render_stream(self):
         self.output = StringIO()
         self.output.write(
             '<?xml version="1.0" encoding="UTF-8"?>\n'
             f"<ListStoredQueriesResponse"
-            f" {self.xmlns_attributes}"
+            f" {self.render_xmlns_attributes()}"
             f' xsi:schemaLocation="http://www.opengis.net/wfs/2.0 http://schemas.opengis.net/wfs/2.0/wfs.xsd">\n'
         )
         for query_description in self.query_descriptions:
@@ -72,7 +51,7 @@ class ListStoredQueriesRenderer(StoredQueriesRenderer):
         for expression in query_description.expressions:
             return_types = expression.return_feature_types or self.all_feature_types
             for return_type in return_types:
-                feature_qname = self.to_feature_qname(return_type)
+                feature_qname = self.feature_to_qname(return_type)
                 self.output.write(
                     f"    <ReturnFeatureType>{tag_escape(feature_qname)}</ReturnFeatureType>\n"
                 )
@@ -80,15 +59,28 @@ class ListStoredQueriesRenderer(StoredQueriesRenderer):
         self.output.write("  </StoredQuery>\n")
 
 
-class DescribeStoredQueriesRenderer(StoredQueriesRenderer):
+class DescribeStoredQueriesRenderer(XmlOutputRenderer):
     """Rendering for the ``<wfs:DescribeStoredQueriesResponse>``."""
+
+    # XML Namespaces to include by default
+    xml_namespaces = {
+        xmlns.wfs20: "",
+        xmlns.xs: "xs",
+        xmlns.xsi: "xsi",
+    }
+
+    def __init__(self, operation, query_descriptions: list[StoredQueryDescription]):
+        """Take the list of stored queries to render."""
+        super().__init__(operation)
+        self.all_feature_types = operation.view.get_bound_feature_types()
+        self.query_descriptions = query_descriptions
 
     def render_stream(self):
         self.output = StringIO()
         self.output.write(
             '<?xml version="1.0" encoding="UTF-8"?>\n'
             f"<DescribeStoredQueriesResponse"
-            f" {self.xmlns_attributes}"
+            f" {self.render_xmlns_attributes()}"
             f' xsi:schemaLocation="http://www.opengis.net/wfs/2.0 http://schemas.opengis.net/wfs/2.0/wfs.xsd">\n'
         )
 
@@ -122,10 +114,10 @@ class DescribeStoredQueriesRenderer(StoredQueriesRenderer):
         is_private = "true" if expression.is_private else "false"
         if expression.return_feature_types is None:
             # for GetFeatureById
-            types = " ".join(self.to_feature_qname(ft) for ft in self.all_feature_types)
+            types = " ".join(self.feature_to_qname(ft) for ft in self.all_feature_types)
         else:
             types = " ".join(
-                self.to_feature_qname(return_type)
+                self.feature_to_qname(return_type)
                 for return_type in expression.return_feature_types
             )
 

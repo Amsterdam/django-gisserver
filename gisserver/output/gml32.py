@@ -32,17 +32,15 @@ from gisserver.db import (
 )
 from gisserver.exceptions import NotFound, WFSException
 from gisserver.geometries import BoundingBox
+from gisserver.parsers.xml import xmlns
 from gisserver.projection import FeatureProjection, FeatureRelation
 from gisserver.types import GeometryXsdElement, GmlBoundedByElement, XsdElement, XsdNode, XsdTypes
 
-from .base import CollectionOutputRenderer
+from .base import CollectionOutputRenderer, XmlOutputRenderer
 from .results import SimpleFeatureCollection
 from .utils import (
     attr_escape,
-    build_feature_prefixes,
-    build_feature_qnames,
     tag_escape,
-    to_qname,
     value_to_text,
     value_to_xml_string,
 )
@@ -58,7 +56,7 @@ def register_geos_type(geos_type):
     return _inc
 
 
-class GML32Renderer(CollectionOutputRenderer):
+class GML32Renderer(CollectionOutputRenderer, XmlOutputRenderer):
     """Render the GetFeature XML output in GML 3.2 format"""
 
     content_type = "text/xml; charset=utf-8"
@@ -67,25 +65,33 @@ class GML32Renderer(CollectionOutputRenderer):
     chunk_size = 40_000
     gml_seq = 0
 
+    # Aliases to use for XML namespaces
+    xml_namespaces = {
+        "http://www.opengis.net/wfs/2.0": "wfs",
+        "http://www.opengis.net/gml/3.2": "gml",
+        "http://www.w3.org/2001/XMLSchema-instance": "xsi",  # for xsi:nil="true" and xsi:schemaLocation.
+    }
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.app_namespaces = self.operation.view.get_xml_namespaces_to_prefixes()
+        self.feature_types = [
+            feature_type
+            for sub_collection in self.collection.results
+            for feature_type in sub_collection.feature_types
+        ]
+
         self.build_namespace_map()
 
     def build_namespace_map(
         self,
     ):
         """Collect all namespaces which namespaces are used by features."""
-        feature_types = [
-            feature_type
-            for sub_collection in self.collection.results
-            for feature_type in sub_collection.feature_types
-        ]
-
-        # Make aliases for the feature type elements.
         try:
-            self.feature_qnames = build_feature_qnames(feature_types, self.app_namespaces)
-            self.feature_prefixes = build_feature_prefixes(feature_types, self.app_namespaces)
+            # Make aliases for the feature type elements.
+            self.feature_qnames = {
+                feature_type: self.feature_to_qname(feature_type)
+                for feature_type in self.feature_types
+            }
             self.xml_qnames = self._build_xml_qnames()
         except KeyError as e:
             raise ImproperlyConfigured(f"No XML namespace alias defined in WFSView for {e}") from e
@@ -93,19 +99,14 @@ class GML32Renderer(CollectionOutputRenderer):
     def _build_xml_qnames(self) -> dict[XsdNode, str]:
         """Collect aliases for all rendered elements.
         This uses a defaultdict so optional attributes (e.g. by GetPropertyValue) can also be resolved.
+        The dict lookup also speeds up, no need to call ``node_to_qname()`` for each tag.
         """
-        return defaultdict(
-            self._get_prefixed_name,
-            {
-                xsd_element: self._get_prefixed_name(xsd_element)
-                for sub_collection in self.collection.results
-                for xsd_element in sub_collection.projection.all_elements
-            },
-        )
-
-    def _get_prefixed_name(self, xsd_node: XsdNode) -> str:
-        """Generate the proper prefixed name for an XML element/attribute."""
-        return to_qname(xsd_node.namespace, xsd_node.name, self.app_namespaces)
+        known_tags = {
+            xsd_element: self.to_qname(xsd_element)
+            for sub_collection in self.collection.results
+            for xsd_element in sub_collection.projection.all_elements
+        }
+        return defaultdict(self.to_qname, known_tags)
 
     def get_response(self):
         """Render the output as streaming response."""
@@ -127,10 +128,11 @@ class GML32Renderer(CollectionOutputRenderer):
         if instance is None:
             raise NotFound("Feature not found.")
 
+        self.app_namespaces.pop(xmlns.wfs20.value)  # not rendering wfs tags.
         self.output = StringIO()
         self._write = self.output.write
         self.write_by_id_response(
-            sub_collection, instance, extra_xmlns=self.render_xmlns_standalone()
+            sub_collection, instance, extra_xmlns=f" {self.render_xmlns_attributes()}"
         )
         content = self.output.getvalue()
         return HttpResponse(content, content_type=self.content_type)
@@ -144,50 +146,25 @@ class GML32Renderer(CollectionOutputRenderer):
             extra_xmlns=extra_xmlns,
         )
 
-    def render_xmlns(self):
-        """Generate the xmlns block that the document needs"""
-        attributes = [
-            'xmlns:wfs="http://www.opengis.net/wfs/2.0"',
-            'xmlns:gml="http://www.opengis.net/gml/3.2"',
-            'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"',
-        ]
+    def render_xsi_schema_location(self):
+        """Render the value for the xsi:schemaLocation="..." block."""
+        # Find which namespaces are exposed
+        types_by_namespace = defaultdict(list)
+        for feature_type in self.feature_types:
+            types_by_namespace[feature_type.xml_namespace].append(feature_type)
 
-        # Collect which namespaces contain which types.
-        type_names_by_ns = {}
-        for feature_type, prefix in self.feature_prefixes.items():
-            type_names = type_names_by_ns.setdefault(feature_type.xml_namespace, [])
-            # Include namespace if not seen before
-            if not type_names:
-                attributes.append(f'xmlns:{prefix}="{attr_escape(feature_type.xml_namespace)}"')
-
-            type_names.append(feature_type.name)  # or use xml_qname?
-
-        # Schema location are pairs of "{namespace-uri} {schema-url} {namespace-uri} {schema-url}"
+        # Schema location are pairs of "{namespace-uri} {schema-url} {namespace-uri2} {schema-url2}"
         # WFS server types refer to the endpoint that generates the XML Schema for the given feature.
-        schema_locations = [
-            (
-                f"{xml_namespace} {self.server_url}?SERVICE=WFS&VERSION=2.0.0"
-                f"&REQUEST=DescribeFeatureType&TYPENAMES={','.join(type_names)}"
-            )
-            for xml_namespace, type_names in type_names_by_ns.items()
-        ] + [
+        schema_locations = []
+        for xml_namespace, feature_types in types_by_namespace.items():
+            schema_locations.append(xml_namespace)
+            schema_locations.append(self.operation.view.get_xml_schema_url(feature_types))
+
+        schema_locations += [
             "http://www.opengis.net/wfs/2.0 http://schemas.opengis.net/wfs/2.0/wfs.xsd",
             "http://www.opengis.net/gml/3.2 http://schemas.opengis.net/gml/3.2.1/gml.xsd",
         ]
-        attributes.append(f"xsi:schemaLocation=\"{attr_escape(' '.join(schema_locations))}\"")
-
-        return " ".join(attributes)
-
-    def render_xmlns_standalone(self):
-        """Generate the xmlns block that the document needs"""
-        # xsi is needed for "xsi:nil="true"' attributes.
-        feature_type = self.collection.results[0].feature_types[0]
-        prefix = self.app_namespaces[feature_type.xml_namespace]
-        return (
-            f' xmlns:{prefix}="{attr_escape(feature_type.xml_namespace)}"'
-            ' xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"'
-            ' xmlns:gml="http://www.opengis.net/gml/3.2"'
-        )
+        return " ".join(schema_locations)
 
     def render_exception(self, exception: Exception):
         """Render the exception in a format that fits with the output.
@@ -226,7 +203,6 @@ class GML32Renderer(CollectionOutputRenderer):
         collection = self.collection
         self.output = output = StringIO()
         self._write = self.output.write
-        xmlns = self.render_xmlns().strip()
         number_matched = collection.number_matched
         number_matched = int(number_matched) if number_matched is not None else "unknown"
         number_returned = collection.number_returned
@@ -238,7 +214,8 @@ class GML32Renderer(CollectionOutputRenderer):
 
         self._write(
             f"""<?xml version='1.0' encoding="UTF-8" ?>\n"""
-            f"<wfs:{self.xml_collection_tag} {xmlns}"
+            f"<wfs:{self.xml_collection_tag} {self.render_xmlns_attributes()}"
+            f' xsi:schemaLocation="{attr_escape(self.render_xsi_schema_location())}"'
             f' timeStamp="{collection.timestamp}"'
             f' numberMatched="{number_matched}"'
             f' numberReturned="{int(number_returned)}"'

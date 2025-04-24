@@ -10,9 +10,12 @@ from django.db import models
 from django.http import HttpResponse, StreamingHttpResponse
 from django.http.response import HttpResponseBase  # Django 3.2 import location
 
+from gisserver.features import FeatureType
+from gisserver.parsers.values import fix_type_name
+from gisserver.parsers.xml import split_ns
 from gisserver.types import XsdAnyType, XsdNode
 
-from .utils import to_qname
+from .utils import render_xmlns_attributes, to_qname
 
 logger = logging.getLogger(__name__)
 
@@ -25,40 +28,18 @@ if typing.TYPE_CHECKING:
 
 class OutputRenderer:
     """Base class for rendering content.
-    This also provides logic to translate XML elements into aliases named,
-    as nearly all responses include writing XML.
+
+    Note most rendering logic will generally
+    need to use :class:`XmlOutputRenderer` or :class:`ConnectionOutputRenderer`
+    as their base class
     """
 
     #: Default content type for the HTTP response
-    content_type = "text/xml; charset=utf-8"
-
-    #: Default extra namespaces to include in the xmlns="..." attributes, and use for to_qname().
-    xml_namespaces = {}
+    content_type = "application/octet-stream"
 
     def __init__(self, operation: WFSOperation):
         """Base method for all output rendering."""
         self.operation = operation
-        self.server_url = operation.view.server_url
-        self.app_namespaces = {
-            **self.xml_namespaces,
-            **operation.view.get_xml_namespaces_to_prefixes(),
-        }
-
-    @property
-    def xmlns_attributes(self):
-        """Render XML Namespace declaration attributes"""
-        return self.render_xmlns_attributes(self.app_namespaces)
-
-    def render_xmlns_attributes(self, app_namespaces: dict[str, str]) -> str:
-        """Render XML Namespace declaration attributes"""
-        return " ".join(
-            f'xmlns:{prefix}="{xml_namespace}"' if prefix else f'xmlns="{xml_namespace}"'
-            for xml_namespace, prefix in app_namespaces.items()
-        )
-
-    def to_qname(self, xsd_type: XsdNode | XsdAnyType, namespaces=None) -> str:
-        """Generate the aliased name for the element."""
-        return to_qname(xsd_type.namespace, xsd_type.name, namespaces or self.app_namespaces)
 
     def get_response(self) -> HttpResponseBase:
         """Render the output as regular or streaming response."""
@@ -115,6 +96,45 @@ class OutputRenderer:
         raise NotImplementedError()
 
 
+class XmlOutputRenderer(OutputRenderer):
+    """Base class/mixin for XML-based rendering.
+
+    This provides the logic to translate XML elements into QName aliases.
+    """
+
+    #: Default content type for the HTTP response
+    content_type = "text/xml; charset=utf-8"
+
+    #: Default extra namespaces to include in the xmlns="..." attributes, and use for to_qname().
+    xml_namespaces = {}
+
+    def __init__(self, operation: WFSOperation):
+        """Base method for all output rendering."""
+        super().__init__(operation)
+        self.app_namespaces = {
+            **self.xml_namespaces,
+            **operation.view.get_xml_namespaces_to_prefixes(),
+        }
+
+    def render_xmlns_attributes(self):
+        """Render XML Namespace declaration attributes"""
+        return render_xmlns_attributes(self.app_namespaces)
+
+    def to_qname(self, xsd_type: XsdNode | XsdAnyType, namespaces=None) -> str:
+        """Generate the aliased name for the element or type."""
+        return to_qname(xsd_type.namespace, xsd_type.name, namespaces or self.app_namespaces)
+
+    def feature_to_qname(self, feature_type: FeatureType | str) -> str:
+        """Convert the FeatureType name to a QName"""
+        if isinstance(feature_type, FeatureType):
+            return to_qname(feature_type.xml_namespace, feature_type.name, self.app_namespaces)
+        else:
+            # e.g. "return_type" for StoredQueryDescription/QueryExpressionText
+            type_name = fix_type_name(feature_type, self.operation.view.xml_namespace)
+            ns, localname = split_ns(type_name)
+            return to_qname(ns, localname, self.app_namespaces)
+
+
 class CollectionOutputRenderer(OutputRenderer):
     """Base class to create streaming responses.
 
@@ -124,9 +144,6 @@ class CollectionOutputRenderer(OutputRenderer):
     #: Allow to override the maximum page size.
     #: This value can be 'math.inf' to support endless pages by default.
     max_page_size = None
-
-    #: Define the content type for rendering the output
-    content_type = "application/octet-stream"
 
     #: An optional content-disposition header to output
     content_disposition = None

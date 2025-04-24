@@ -5,7 +5,6 @@ from decimal import Decimal as D
 
 from django.core.exceptions import ImproperlyConfigured
 
-from gisserver.features import FeatureType
 from gisserver.parsers.xml import xmlns
 
 AUTO_STR = (int, float, D, date, time)
@@ -15,8 +14,6 @@ COMMON_NAMESPACES = xmlns.as_namespaces()
 
 __all__ = (
     "attr_escape",
-    "build_feature_prefixes",
-    "build_feature_qnames",
     "tag_escape",
     "to_qname",
     "render_xmlns_attributes",
@@ -61,31 +58,12 @@ def value_to_text(value):
         return value  # f"{value} works faster and produces the right format.
 
 
-def render_xmlns_attributes(app_namespaces: dict[str, str]):
+def render_xmlns_attributes(xml_namespaces: dict[str, str]):
     """Render XML Namespace declaration attributes"""
     return " ".join(
         f'xmlns:{prefix}="{xml_namespace}"' if prefix else f'xmlns="{xml_namespace}"'
-        for xml_namespace, prefix in app_namespaces.items()
+        for xml_namespace, prefix in xml_namespaces.items()
     )
-
-
-def build_feature_qnames(
-    feature_types: list[FeatureType], app_namespaces: dict[str, str]
-) -> dict[FeatureType, str]:
-    """Build a list for short XML names."""
-    return {
-        feature_type: to_qname(feature_type.xml_namespace, feature_type.name, app_namespaces)
-        for feature_type in feature_types
-    }
-
-
-def build_feature_prefixes(
-    feature_types: list[FeatureType], app_namespaces: dict[str, str]
-) -> dict[FeatureType, str]:
-    """Make a list of feature types mapped to XML prefixes."""
-    return {
-        feature_type: app_namespaces[feature_type.xml_namespace] for feature_type in feature_types
-    }
 
 
 def to_qname(namespace, localname, namespaces: dict[str, str]) -> str:
