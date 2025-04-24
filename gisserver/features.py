@@ -586,7 +586,7 @@ class FeatureType:
             itertools.chain.from_iterable(
                 # Take the geometry elements at each object level.
                 xsd_element.type.geometry_elements
-                for xsd_element in self.xsd_type.elements_with_children
+                for xsd_element in self.xsd_type.all_complex_elements
                 # The 'None' level is the root node, which is already added before.
                 # For now, don't support geometry fields on an M2M relation.
                 # If that use-case is needed, it would require additional work to implement.
