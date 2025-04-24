@@ -28,6 +28,13 @@ GISSERVER_SUPPORTED_CRS_ONLY = getattr(settings, "GISSERVER_SUPPORTED_CRS_ONLY",
 # 0 = No counting, 1 = all pages, 2 = only for the first page.
 GISSERVER_COUNT_NUMBER_MATCHED = getattr(settings, "GISSERVER_COUNT_NUMBER_MATCHED", 1)
 
+# -- output rendering
+
+GISSERVER_EXTRA_OUTPUT_FORMATS = getattr(settings, "GISSERVER_EXTRA_OUTPUT_FORMATS", {})
+GISSERVER_GET_FEATURE_OUTPUT_FORMATS = getattr(
+    settings, "GISSERVER_GET_FEATURE_OUTPUT_FORMATS", {}
+)
+
 # -- max page size
 
 # Allow tuning the page size without having to override code.

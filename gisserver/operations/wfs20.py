@@ -16,9 +16,10 @@ import re
 import typing
 from urllib.parse import urlencode
 
-from django.core.exceptions import FieldError, ValidationError
+from django.core.exceptions import FieldError, ImproperlyConfigured, ValidationError
 from django.db import InternalError, ProgrammingError
 from django.db.models import QuerySet
+from django.utils.module_loading import import_string
 
 from gisserver import conf, output
 from gisserver.exceptions import (
@@ -48,23 +49,26 @@ class GetCapabilities(XmlTemplateMixin, OutputFormatMixin, WFSOperation):
     ows_request: wfs20.GetCapabilities
 
     xml_template_name = "get_capabilities.xml"
-    output_formats = [
-        OutputFormat("text/xml"),
-        OutputFormat(
-            # for FME (Feature Manipulation Engine)
-            "application/gml+xml",
-            version="3.2",
-            title="GML",
-            in_capabilities=False,
-        ),
-    ]
+
+    def get_output_formats(self):
+        return [
+            OutputFormat("text/xml", renderer_class=None),
+            OutputFormat(
+                # for FME (Feature Manipulation Engine)
+                "application/gml+xml",
+                renderer_class=None,
+                version="3.2",
+                title="GML",
+                in_capabilities=False,
+            ),
+        ]
 
     def get_parameters(self):
         # Not calling super, as this differs slightly (not requiring VERSION)
         return [
             Parameter("service", allowed_values=list(self.view.accept_operations.keys())),
             Parameter("AcceptVersions", allowed_values=self.view.accept_versions),
-            Parameter("AcceptFormats", allowed_values=[str(o) for o in self.output_formats]),
+            Parameter("AcceptFormats", allowed_values=[str(o) for o in self.get_output_formats()]),
         ]
 
     def validate_request(self, ows_request: wfs20.GetCapabilities):
@@ -130,20 +134,21 @@ class DescribeFeatureType(OutputFormatMixin, WFSOperation):
 
     ows_request: wfs20.DescribeFeatureType
 
-    output_formats = [
-        OutputFormat("XMLSCHEMA", renderer_class=output.XmlSchemaRenderer),
-        # At least one version of FME (Feature Manipulation Engine) seems to
-        # send a DescribeFeatureType request with this GML as output format.
-        # Do what mapserver does and just send it XML Schema.
-        # This output format also seems to be used in the WFS 2.0.2 spec!
-        OutputFormat(
-            "application/gml+xml",
-            version="3.2",
-            renderer_class=output.XmlSchemaRenderer,
-            in_capabilities=False,
-        ),
-        # OutputFormat("text/xml", subtype="gml/3.1.1"),
-    ]
+    def get_output_formats(self):
+        return [
+            OutputFormat("XMLSCHEMA", renderer_class=output.XmlSchemaRenderer),
+            # At least one version of FME (Feature Manipulation Engine) seems to
+            # send a DescribeFeatureType request with this GML as output format.
+            # Do what mapserver does and just send it XML Schema.
+            # This output format also seems to be used in the WFS 2.0.2 spec!
+            OutputFormat(
+                "application/gml+xml",
+                version="3.2",
+                renderer_class=output.XmlSchemaRenderer,
+                in_capabilities=False,
+            ),
+            # OutputFormat("text/xml", subtype="gml/3.1.1"),
+        ]
 
     def validate_request(self, ows_request: wfs20.DescribeFeatureType):
         if not ows_request.typeNames:
@@ -458,6 +463,11 @@ class GetFeature(BaseWFSGetDataOperation):
         """Return the default output formats.
         This selects a different rendering depending on the ``GISSERVER_USE_DB_RENDERING`` setting.
         """
+        if conf.GISSERVER_GET_FEATURE_OUTPUT_FORMATS:
+            return self.get_custom_output_formats(
+                conf.GISSERVER_GET_FEATURE_OUTPUT_FORMATS | conf.GISSERVER_EXTRA_OUTPUT_FORMATS
+            )
+
         if conf.GISSERVER_USE_DB_RENDERING:
             csv_renderer = output.DBCSVRenderer
             gml32_renderer = output.DBGML32Renderer
@@ -505,7 +515,25 @@ class GetFeature(BaseWFSGetDataOperation):
             ),
             # OutputFormat("shapezip"),
             # OutputFormat("application/zip"),
-        ] + self.output_formats
+        ] + self.get_custom_output_formats(conf.GISSERVER_EXTRA_OUTPUT_FORMATS)
+
+    def get_custom_output_formats(self, output_formats_setting: dict) -> list[OutputFormat]:
+        """Add custom output formats defined in the settings."""
+        result = []
+        for content_type, format_kwargs in output_formats_setting.items():
+            renderer_class = format_kwargs["renderer_class"]
+            if isinstance(renderer_class, str):
+                format_kwargs["renderer_class"] = import_string(renderer_class)
+
+            if not issubclass(renderer_class, CollectionOutputRenderer):
+                raise ImproperlyConfigured(
+                    f"The 'renderer_class' of output format {content_type!r},"
+                    f" should be a subclass of CollectionOutputRenderer."
+                )
+
+            result.append(OutputFormat(content_type, **format_kwargs))
+
+        return result
 
 
 class GetPropertyValue(BaseWFSGetDataOperation):
@@ -531,7 +559,7 @@ class GetPropertyValue(BaseWFSGetDataOperation):
                 title="GML",
             ),
             OutputFormat("text/xml", subtype="gml/3.2", renderer_class=gml32_value_renderer),
-        ] + self.output_formats
+        ]
 
     def validate_request(self, ows_request: wfs20.GetPropertyValue):
         super().validate_request(ows_request)
