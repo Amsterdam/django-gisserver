@@ -184,12 +184,16 @@ class OWSView(View):
         # (misspelled?) parameters on the query string, this is considered to be an index page.
         # Minimal request has 2 parameters (SERVICE=WFS&REQUEST=GetCapabilities).
         # Some servers also allow a default of SERVICE, thus needing even less.
-        return len(self.request.GET) < 2 and {
-            "REQUEST",
-            "SERVICE",
-            "VERSION",
-            "ACCEPTVERSIONS",
-        }.isdisjoint(key.upper() for key in self.request.GET)
+        return (
+            self.request.method == "GET"
+            and len(self.request.GET) < 2
+            and {
+                "REQUEST",
+                "SERVICE",
+                "VERSION",
+                "ACCEPTVERSIONS",
+            }.isdisjoint(key.upper() for key in self.request.GET)
+        )
 
     def render_index(self, service: str | None = None):
         """Render the index page."""
