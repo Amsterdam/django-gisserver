@@ -421,7 +421,10 @@ class WFSView(OWSView):
         """Return the XML schema URL for the given feature types.
         This is used in the GML output rendering.
         """
-        type_names = ",".join(ft.name for ft in feature_types)
+        app_namespaces = self.get_xml_namespaces_to_prefixes()
+        type_names = ",".join(
+            f"{app_namespaces[ft.xml_namespace]}:{ft.name}" for ft in feature_types
+        )
         return (
             f"{self.server_url}?SERVICE=WFS&VERSION=2.0.0"
             f"&REQUEST=DescribeFeatureType&TYPENAMES={type_names}"
