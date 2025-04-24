@@ -31,7 +31,7 @@ from gisserver.exceptions import (
 from gisserver.extensions.functions import function_registry
 from gisserver.extensions.queries import stored_query_registry
 from gisserver.features import FeatureType
-from gisserver.output import CollectionOutputRenderer, build_feature_qnames
+from gisserver.output import CollectionOutputRenderer
 from gisserver.parsers import ows, wfs20
 
 from .base import OutputFormat, OutputFormatMixin, Parameter, WFSOperation, XmlTemplateMixin
@@ -116,9 +116,7 @@ class GetCapabilities(XmlTemplateMixin, OutputFormatMixin, WFSOperation):
             "filter_capabilities": self.view.wfs_filter_capabilities,
             "function_registry": function_registry,
             "accept_versions": self.view.accept_versions,
-            "feature_types": build_feature_qnames(
-                self.view.get_bound_feature_types(), app_namespaces
-            ),
+            "feature_types": self.view.get_bound_feature_types(),
             "feature_output_formats": feature_output_formats,
             "default_max_features": self.view.max_page_size,
             "BOUNDING_BOX": conf.GISSERVER_CAPABILITIES_BOUNDING_BOX,
