@@ -2,12 +2,12 @@ import django
 import pytest
 
 from gisserver.features import FeatureField, FeatureType
-from gisserver.output import XMLSchemaRenderer
+from gisserver.output import XmlSchemaRenderer
 from gisserver.types import GeometryXsdElement, XsdElement, XsdTypes
 from tests.test_gisserver import models
 
 
-class _MockXMLSchemaRenderer(XMLSchemaRenderer):
+class _MockXmlSchemaRenderer(XmlSchemaRenderer):
     def __init__(self):
         self.app_namespaces = {}
         self.type_namespaces = {
@@ -16,7 +16,7 @@ class _MockXMLSchemaRenderer(XMLSchemaRenderer):
 
 
 def _render_element(xsd_element):
-    return _MockXMLSchemaRenderer().render_element(xsd_element)
+    return _MockXmlSchemaRenderer().render_element(xsd_element)
 
 
 class TestFeatureField:

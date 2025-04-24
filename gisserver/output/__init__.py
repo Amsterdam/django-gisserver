@@ -13,7 +13,7 @@ from .gml32 import (
 )
 from .stored import DescribeStoredQueriesRenderer, ListStoredQueriesRenderer
 from .utils import build_feature_qnames
-from .xmlschema import XMLSchemaRenderer
+from .xmlschema import XmlSchemaRenderer
 
 __all__ = [
     "OutputRenderer",
@@ -28,7 +28,7 @@ __all__ = [
     "GeoJsonRenderer",
     "GML32Renderer",
     "GML32ValueRenderer",
-    "XMLSchemaRenderer",
+    "XmlSchemaRenderer",
     "ListStoredQueriesRenderer",
     "DescribeStoredQueriesRenderer",
     "build_feature_qnames",

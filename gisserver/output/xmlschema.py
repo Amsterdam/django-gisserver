@@ -17,7 +17,7 @@ if typing.TYPE_CHECKING:
     from gisserver.operations.base import WFSOperation
 
 
-class XMLSchemaRenderer(OutputRenderer):
+class XmlSchemaRenderer(OutputRenderer):
     """Output rendering for DescribeFeatureType.
 
     This renders a valid XSD schema that describes the data type of the feature.

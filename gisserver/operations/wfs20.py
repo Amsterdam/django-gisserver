@@ -133,7 +133,7 @@ class DescribeFeatureType(OutputFormatMixin, WFSOperation):
     ows_request: wfs20.DescribeFeatureType
 
     output_formats = [
-        OutputFormat("XMLSCHEMA", renderer_class=output.XMLSchemaRenderer),
+        OutputFormat("XMLSCHEMA", renderer_class=output.XmlSchemaRenderer),
         # At least one version of FME (Feature Manipulation Engine) seems to
         # send a DescribeFeatureType request with this GML as output format.
         # Do what mapserver does and just send it XML Schema.
@@ -141,7 +141,7 @@ class DescribeFeatureType(OutputFormatMixin, WFSOperation):
         OutputFormat(
             "application/gml+xml",
             version="3.2",
-            renderer_class=output.XMLSchemaRenderer,
+            renderer_class=output.XmlSchemaRenderer,
             in_capabilities=False,
         ),
         # OutputFormat("text/xml", subtype="gml/3.1.1"),
@@ -157,7 +157,7 @@ class DescribeFeatureType(OutputFormatMixin, WFSOperation):
         self.output_format = self.resolve_output_format(ows_request.outputFormat)
 
     def process_request(self, ows_request: wfs20.DescribeFeatureType):
-        renderer_class = self.output_format.renderer_class or output.XMLSchemaRenderer
+        renderer_class = self.output_format.renderer_class or output.XmlSchemaRenderer
         renderer = renderer_class(self, self.feature_types)
         return renderer.get_response()
 
