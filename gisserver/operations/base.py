@@ -62,6 +62,7 @@ class OutputFormat(typing.Generic[R]):
         self,
         content_type,
         *,
+        subtype=None,
         renderer_class: type[R] | None = None,
         max_page_size=None,
         title=None,
@@ -70,17 +71,17 @@ class OutputFormat(typing.Generic[R]):
     ):
         """
         :param content_type: The MIME-type used in the request to select this type.
+        :param subtype: Shorter alias for the MIME-type.
         :param renderer_class: The class that performs the output rendering.
             If it's not given, the operation renders it's output using an XML template.
         :param max_page_size: Used to override the ``max_page_size`` of the renderer_class.
         :param title: A human-friendly name for an HTML overview page.
         :param in_capabilities: Whether this format needs to be advertised in GetCapabilities.
         :param extra: Any additional key-value pairs for the definition.
-            Could include ``subtype`` as a shorter alias for the MIME-type.
         """
         self.content_type = content_type
+        self.subtype = subtype
         self.extra = extra
-        self.subtype = self.extra.get("subtype")
         self.renderer_class = renderer_class
         self.title = title
         self.in_capabilities = in_capabilities
@@ -116,6 +117,8 @@ class OutputFormat(typing.Generic[R]):
 
     def __str__(self):
         extra = "".join(f"; {name}={value}" for name, value in self.extra.items())
+        if self.subtype:
+            extra = f"; subtype={self.subtype}{extra}"
         return f"{self.content_type}{extra}"
 
     def __repr__(self):
