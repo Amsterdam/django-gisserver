@@ -24,7 +24,12 @@ from gisserver.exceptions import (
 )
 from gisserver.features import FeatureType, ServiceDescription
 from gisserver.operations import base, wfs20
-from gisserver.parsers.ows import KVPRequest, resolve_kvp_parser_class, resolve_xml_parser_class
+from gisserver.parsers.ows import (
+    BaseOwsRequest,
+    KVPRequest,
+    resolve_kvp_parser_class,
+    resolve_xml_parser_class,
+)
 from gisserver.parsers.xml import parse_xml_from_string, split_ns
 
 logger = logging.getLogger(__name__)
@@ -64,6 +69,9 @@ class OWSView(View):
 
     #: Whether to render GET HTML pages
     use_html_templates = True
+
+    #: The OWS request, which contains the complete parsed request.
+    ows_request: BaseOwsRequest = None
 
     @csrf_exempt
     def dispatch(self, request, *args, **kwargs):
