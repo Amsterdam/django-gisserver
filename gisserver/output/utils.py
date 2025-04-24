@@ -78,7 +78,7 @@ def to_qname(namespace, localname, namespaces: dict[str, str]) -> str:
         except KeyError:
             raise ImproperlyConfigured(
                 f"No XML namespace prefix defined for '{namespace}'.\n"
-                "This can be configured in 'WFSView.xml_namespaces'."
+                "This can be configured in 'WFSView.xml_namespace_aliases'."
             ) from None
 
     return f"{prefix}:{localname}" if prefix else localname
