@@ -63,7 +63,7 @@ class OutputFormat(typing.Generic[R]):
         content_type,
         *,
         subtype=None,
-        renderer_class: type[R] | None = None,
+        renderer_class: type[R] | None = None,  # None is special case for GetCapabilities
         max_page_size=None,
         title=None,
         in_capabilities=True,
@@ -73,7 +73,6 @@ class OutputFormat(typing.Generic[R]):
         :param content_type: The MIME-type used in the request to select this type.
         :param subtype: Shorter alias for the MIME-type.
         :param renderer_class: The class that performs the output rendering.
-            If it's not given, the operation renders it's output using an XML template.
         :param max_page_size: Used to override the ``max_page_size`` of the renderer_class.
         :param title: A human-friendly name for an HTML overview page.
         :param in_capabilities: Whether this format needs to be advertised in GetCapabilities.
@@ -238,14 +237,11 @@ class XmlTemplateMixin:
 class OutputFormatMixin:
     """Mixin to support methods that handle different output formats."""
 
-    #: List the supported output formats for this method.
-    output_formats: list[OutputFormat] = []
-
     def get_output_formats(self) -> list[OutputFormat]:
         """List all output formats. This is exposed in GetCapabilities,
         and used for internal rendering.
         """
-        return self.output_formats
+        raise NotImplementedError()
 
     def resolve_output_format(self, value, locator="outputFormat") -> OutputFormat:
         """Select the proper OutputFormat object based on the input value"""
