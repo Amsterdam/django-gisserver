@@ -46,20 +46,16 @@ class GeoJsonRenderer(CollectionOutputRenderer):
         queryset: models.QuerySet,
     ):
         """Redefine which fields to query, always include geometry, but remove all others"""
-        main_geo_element = projection.feature_type.main_geometry_element
-        projection.add_field(main_geo_element)  # make sure geometry is always queried
-        queryset = super().decorate_queryset(projection, queryset)
-
+        # Make sure geometry is always queried.
         # Other geometries can be excluded as these are not rendered by 'properties'
-        other_geometries = [
-            geo_element.orm_path
-            for geo_element in projection.geometry_elements
-            if geo_element is not main_geo_element
-        ]
-        if other_geometries:
-            queryset = queryset.defer(*other_geometries)
+        main_geo_element = projection.feature_type.main_geometry_element
+        projection.add_field(main_geo_element)
+        projection.remove_fields(
+            lambda element: element.type.is_geometry and element is not main_geo_element
+        )
 
-        return queryset
+        # Apply the normal optimizations with this altered projection
+        return super().decorate_queryset(projection, queryset)
 
     def render_stream(self):
         self.output = output = BytesIO()
