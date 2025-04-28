@@ -8,6 +8,7 @@ to make sure it will provide only the actual fields that are part of the project
 from __future__ import annotations
 
 import itertools
+import logging
 import operator
 import typing
 from collections import defaultdict
@@ -36,6 +37,8 @@ __all__ = (
     "FeatureProjection",
     "FeatureRelation",
 )
+
+logger = logging.getLogger(__name__)
 
 
 class FeatureProjection:
@@ -74,6 +77,7 @@ class FeatureProjection:
         self.value_reference = value_reference
         self.output_crs: CRS = output_crs or self.feature_type.crs
         self.output_standalone = output_standalone  # for GetFeatureById
+        self._extra_matches = []
 
         if property_names:
             # Only a selection of the tree will be rendered.
@@ -83,6 +87,7 @@ class FeatureProjection:
             self.xsd_child_nodes = child_nodes
         else:
             # All elements of the tree will be rendered, retrieve all elements.
+            # Note xsd_child_nodes can be altered below, so don't assign it a cached property.
             self.xsd_root_elements = self.feature_type.xsd_type.elements_including_base
             self.xsd_child_nodes = {
                 node: node.type.elements
@@ -105,23 +110,15 @@ class FeatureProjection:
 
     def add_field(self, xsd_element: XsdElement):
         """Restore the retrieval of a field that was not asked for in the original query."""
-        if not self.property_names:
-            return
         if xsd_element.type.is_complex_type:
             raise NotImplementedError("Can't restore nested elements right now")
+        if not self.property_names or xsd_element in self.xsd_root_elements:
+            return
 
-        # For now, add to all cached properties:
-        # TODO: have a better approach?
+        logger.debug("Projection: added %s", xsd_element)
         self.xsd_root_elements.append(xsd_element)
-        if xsd_element.type.is_geometry:
-            self.geometry_elements.append(xsd_element)
-            self.all_geometry_elements.append(xsd_element)
-
-        if xsd_element.orm_path not in self.only_fields:
-            self.only_fields.append(xsd_element.orm_path)
-
-        if xsd_element.is_flattened:
-            self.all_flattened_elements.append(xsd_element)
+        self._extra_matches.append(XPathMatch(self.feature_type, [xsd_element], ""))
+        _clear_cached_properties(self)
 
     def remove_fields(self, predicate: Callable[[XsdElement], bool]):
         """Remove elements from the projection based on a given rule.
@@ -131,21 +128,22 @@ class FeatureProjection:
         before other logic already read these attributes.
         """
         self.xsd_root_elements, removed_nodes = _partition(predicate, self.xsd_root_elements)
-        self.xsd_child_nodes = self.xsd_child_nodes.copy()  # avoid touching cached property
 
         for xsd_child_root, xsd_child_elements in self.xsd_child_nodes.items():
-            if xsd_child_root.is_many:
-                removed_nodes.add(xsd_child_root)
-            else:
-                self.xsd_child_nodes[xsd_child_root], more_removed = _partition(
-                    predicate, xsd_child_elements
-                )
-                removed_nodes.update(more_removed)
+            if xsd_child_root in removed_nodes:
+                continue  # already removed the top-level, don't bother checking here
+
+            keep_children, remove_children = _partition(predicate, xsd_child_elements)
+            self.xsd_child_nodes[xsd_child_root] = keep_children
+            removed_nodes.update(remove_children)
 
         # Remove complete trees if their parent was removed.
         for xsd_child_root in list(self.xsd_child_nodes):
             if xsd_child_root in removed_nodes:
                 self.xsd_child_nodes.pop(xsd_child_root, None)
+
+        if logger.isEnabledFor(logging.DEBUG) and removed_nodes:
+            logger.debug("Projection: removed %s", removed_nodes)
 
         _clear_cached_properties(self)
 
@@ -169,7 +167,7 @@ class FeatureProjection:
         return [
             self.feature_type.resolve_element(property_name.xpath, property_name.xpath_ns_aliases)
             for property_name in self.property_names
-        ]
+        ] + self._extra_matches
 
     @cached_property
     def all_elements(self) -> list[XsdElement]:
