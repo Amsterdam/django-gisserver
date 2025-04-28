@@ -26,10 +26,48 @@ class TestCRS:
             == "urn:ogc:def:crs:EPSG::4326"
         )
 
-    def test_xy_swap(self):
-        # https://epsg.io/3879
-        finland_crs = CRS.from_string("urn:ogc:def:crs:EPSG::3879")
+    def test_axis_order_crs(self):
+        # Note: testing a WGS84 -> CRS84 point won't work,
+        # as Django only uses stores the srid in the GEOSGeometry internals.
+        # But converting another coordinate to either WGS84 or CRS84 will work.
+        rd_point = Point(121400, 487400, srid=28992)
+
+        # https://epsg.io/4326
+        wgs84_point = CRS.from_string("EPSG:4326").apply_to(rd_point, clone=True)
+        assert round(wgs84_point.x, 6) == 52.373446  # 52 first
+        assert round(wgs84_point.y, 6) == 4.893804
+
+        # For CRS84, which GeoJSON uses
+        crs84_point = CRS.from_string("urn:ogc:def:crs:OGC::CRS84").apply_to(rd_point, clone=True)
+        assert round(crs84_point.x, 6) == 4.893804  # 4 first
+        assert round(crs84_point.y, 6) == 52.373446
+
+    def test_axis_order_finland(self):
         wgs84_point = Point(58.84, 19.08, srid=WGS84.srid)
+        finland_crs = CRS.from_string("urn:ogc:def:crs:EPSG::3879")  # https://epsg.io/3879
         finland_point = finland_crs.apply_to(wgs84_point, clone=True)
         assert round(int(finland_point.x), -2) == 6540000  # 65... first
         assert round(int(finland_point.y), -2) == 25158500
+
+    def test_wgs_to_rd(self):
+        wgs84_point = Point(52.3731716, 4.8936582, srid=WGS84.srid)
+        netherlands_crs = CRS.from_string("urn:ogc:def:crs:EPSG::28992")  # https://epsg.io/28992
+        rd_point = netherlands_crs.apply_to(wgs84_point, clone=True)
+        assert round(int(rd_point.x), -2) == 121400  # 12... first
+        assert round(int(rd_point.y), -2) == 487400
+
+    def test_python_coordinates(self, python_coordinates):
+        # confirm it renders as x/y
+        assert 4 < python_coordinates.point1_geojson[0] < 5
+        assert 52 < python_coordinates.point1_geojson[1] < 53
+
+        assert 6 < python_coordinates.point2_geojson[0] < 7
+        assert 50 < python_coordinates.point2_geojson[1] < 51
+
+    def test_db_coordinates(self, db_coordinates):
+        # confirm it renders as x/y
+        assert 4 < db_coordinates.point1_geojson[0] < 5
+        assert 52 < db_coordinates.point1_geojson[1] < 53
+
+        assert 6 < db_coordinates.point2_geojson[0] < 7
+        assert 50 < db_coordinates.point2_geojson[1] < 51

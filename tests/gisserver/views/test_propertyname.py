@@ -258,7 +258,7 @@ class TestPropertyName:
             "numberReturned": 2,
             "crs": {
                 "type": "name",
-                "properties": {"name": "urn:ogc:def:crs:EPSG::4326"},
+                "properties": {"name": "urn:ogc:def:crs:OGC::CRS84"},
             },
             "features": [
                 {
@@ -342,7 +342,7 @@ class TestPropertyName:
             "numberReturned": 2,
             "crs": {
                 "type": "name",
-                "properties": {"name": "urn:ogc:def:crs:EPSG::4326"},
+                "properties": {"name": "urn:ogc:def:crs:OGC::CRS84"},
             },
             "features": [
                 {

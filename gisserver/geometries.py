@@ -6,6 +6,7 @@ The bounding box can be calculated within Python, or read from a database result
 
 from __future__ import annotations
 
+import logging
 import re
 from dataclasses import dataclass, field
 from decimal import Decimal
@@ -27,18 +28,27 @@ CRS_URN_REGEX = re.compile(
 
 __all__ = [
     "CRS",
+    "WEB_MERCATOR",
     "WGS84",
     "BoundingBox",
 ]
 
+logger = logging.getLogger(__name__)
 
-@lru_cache(maxsize=200)
-def _get_spatial_reference(srs_input, srs_type="user", axis_order=None):
+
+@lru_cache(maxsize=200)  # Using lru-cache to avoid repeated GDAL c-object construction
+def _get_spatial_reference(srs_input: str | int, srs_type="user", axis_order=None):
     """Construct an GDAL object reference"""
     if axis_order is None:
-        # WFS 1.1 used x/y coordinates, WFS 2.0 uses the ordering from the CRS authority.
+        # WFS 1.0 used x/y coordinates, WFS 2.0 uses the ordering from the CRS authority.
         axis_order = AxisOrder.AUTHORITY
-    # Using lru-cache to avoid repeated GDAL c-object construction
+
+    logger.debug(
+        "Constructed GDAL SpatialReference(%r, srs_type=%r, axis_order=%s)",
+        srs_input,
+        srs_type,
+        axis_order,
+    )
     return SpatialReference(srs_input, srs_type=srs_type, axis_order=axis_order)
 
 
@@ -165,6 +175,7 @@ class CRS:
                     f"CRS URI [{urn}] should contain a numeric SRID value."
                 ) from None
         elif authority == "OGC":
+            # urn:ogc:def:crs:OGC::CRS84 has x/y ordering (longitude/latitude)
             crsid = urn_match.group("id").upper()
             if crsid != "CRS84":
                 raise ExternalValueError(f"OGC CRS URI from [{urn}] contains unknown id [{id}]")
@@ -230,7 +241,7 @@ class CRS:
     def __eq__(self, other):
         if isinstance(other, CRS):
             # CRS84 is NOT equivalent to EPSG:4326.
-            # EPSG:4326 specifies coordinates in lat/long order and CRS:84 in long/lat order.
+            # EPSG:4326 specifies coordinates in lat/long order and CRS84 in long/lat order.
             return self.authority == other.authority and self.srid == other.srid
         else:
             return NotImplemented
@@ -270,7 +281,14 @@ class CRS:
             return geometry.transform(transform, clone=clone)
 
 
-WGS84 = CRS.from_srid(4326)  # aka EPSG:4326
+# Worldwide GPS, latitude/longitude (y/x). https://epsg.io/4326
+WGS84 = CRS.from_string("urn:ogc:def:crs:EPSG::4326")
+
+# GeoJSON default. This is like WGS84 but with longitude/latitude (x/y).
+CRS84 = CRS.from_string("urn:ogc:def:crs:OGC::CRS84")
+
+#: Spherical Mercator (Google Maps, Bing Maps, OpenStreetMap, ...), see https://epsg.io/3857
+WEB_MERCATOR = CRS.from_string("urn:ogc:def:crs:EPSG::3857")
 
 
 @dataclass
