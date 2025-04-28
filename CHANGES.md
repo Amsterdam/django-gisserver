@@ -1,4 +1,4 @@
-# 2024-04-24 (2.0)
+# 2024-04-28 (2.0)
 
 * Added support for XML POST requests.
 * Added support for geometry elements on child nodes.
@@ -8,6 +8,7 @@
 * Added example app and docker-compose setup for testing.
 * Added `GISSERVER_EXTRA_OUTPUT_FORMATS` setting to define additional output formats.
 * Added `GISSERVER_GET_FEATURE_OUTPUT_FORMATS` setting to override the default output formats.
+* Added `CRS84` and `WEB_MERCATOR` constants in `gisserver.geometries`.
 * Improved debugging by adding debug-level logging and better error messages.
 * Improved font styling somewhat for browsable HTML pages.
 * Fixed XML namespace support (e.g. handling `<ValueReference>ns0:tagname</ValueReference>`).
@@ -18,6 +19,7 @@
 * Fixed `ArrayField` detection when `django.contrib.postgres` is not in `INSTALLED_APPS`.
 * Fixed `main_geometry_element` detection.
 * Fixed swapped X/Y coordinates for systems that use a different axis-ordering (e.g. EPSG:3879 for Finland).
+* Fixed GeoJSON CRS value to be `CRS84` (urn:ogc:def:crs:OGC::CRS84) instead of WGS84 (urn:ogc:def:crs:EPSG::4326).
 * Fixed applying the `CRS.backend` when the client requests a custom coordinate system using `srsName`.
 * Fixed rendering JSON exceptions during streaming errors.
 * Fixed internal XML Schema; use proper model CamelCasing for class names (doesn't affect requests).

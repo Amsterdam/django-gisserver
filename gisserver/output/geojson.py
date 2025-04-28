@@ -11,6 +11,7 @@ from django.utils.functional import Promise
 
 from gisserver import conf
 from gisserver.db import get_db_geometry_target
+from gisserver.geometries import CRS84, WGS84
 from gisserver.projection import FeatureProjection
 from gisserver.types import XsdElement
 
@@ -46,6 +47,10 @@ class GeoJsonRenderer(CollectionOutputRenderer):
         queryset: models.QuerySet,
     ):
         """Redefine which fields to query, always include geometry, but remove all others"""
+        # make sure output CRS matches the coordinate ordering that GEOSGeometry.json returns
+        if projection.output_crs == WGS84:
+            projection.output_crs = CRS84
+
         # Make sure geometry is always queried.
         # Other geometries can be excluded as these are not rendered by 'properties'
         main_geo_element = projection.feature_type.main_geometry_element
@@ -150,6 +155,8 @@ class GeoJsonRenderer(CollectionOutputRenderer):
         if geometry is None:
             return b"null"
 
+        # The .json property always outputs coordinates as x,y (longitude,latitude),
+        # which the GeoJSON spec requires.
         projection.output_crs.apply_to(geometry)
         return geometry.json.encode()
 
