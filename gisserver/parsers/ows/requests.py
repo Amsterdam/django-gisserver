@@ -80,7 +80,7 @@ class BaseOwsRequest(AstNode):
         return {
             "SERVICE": self.service,
             "VERSION": str(self.version),
-            "REQUEST": split_ns(self.xml_tags[0])[1],
+            "REQUEST": split_ns(self.xml_name)[1],
         }
 
 
@@ -118,7 +118,9 @@ def resolve_kvp_parser_class(kvp: KVPRequest) -> type[BaseOwsRequest]:
     try:
         request_cls = request_classes[request.upper()]
     except KeyError:
-        allowed = ", ".join(node.xml_tags[0] for node in request_classes.values())
+        allowed = ", ".join(
+            xml_tag for node in request_classes.values() for xml_tag in node.get_tag_names()
+        )
         raise OperationNotSupported(
             f"'{request}' is not implemented, supported are: {allowed}.",
             locator="request",
