@@ -157,8 +157,7 @@ class StoredQueryRegistry:
             raise TypeError("Either provide the 'meta' object or 'meta_kwargs'")
 
         if query_expression is not None:
-            self._register(meta, query_expression)
-            return meta
+            return self._register(meta, query_expression)
         else:
             return partial(self._register, meta)  # decorator effect.
 
@@ -174,6 +173,7 @@ class StoredQueryRegistry:
         # for now link both. There is always a single implementation for the metadata.
         meta.implementation_class = implementation_class
         self.stored_queries[meta.id] = meta
+        return implementation_class  # for decorator usage
 
     def resolve_query(self, query_id) -> type[StoredQueryDescription]:
         """Find the stored procedure using the ID."""
