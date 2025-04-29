@@ -15,6 +15,7 @@ build:
 
 python:
    install:
-    - requirements: docs/_ext/djangodummy/requirements.txt
-    - method: setuptools
+    - method: pip
       path: .
+      extra_requirements:
+        - docs
