@@ -60,7 +60,7 @@ class SortProperty(BaseNode):
 
     @classmethod
     @expect_tag(xmlns.fes20, "SortProperty")
-    @expect_children(1, ValueReference, "SortOrder")
+    @expect_children(1, ValueReference, FES_SORT_ORDER)
     def from_xml(cls, element: NSElement) -> SortProperty:
         """Parse the incoming XML"""
         sort_order = element.find(FES_SORT_ORDER)
@@ -108,7 +108,7 @@ class SortBy(BaseNode):
     sort_properties: list[SortProperty]
 
     @classmethod
-    @expect_children(1)
+    @expect_children(1, SortProperty)
     def from_xml(cls, element: NSElement) -> SortBy:
         """Parse the XML tag."""
         return cls(
