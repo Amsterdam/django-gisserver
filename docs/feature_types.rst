@@ -1,5 +1,5 @@
-Feature Type Configuration
-==========================
+Feature Type Setup
+==================
 
 Having completed the :doc:`getting started <quickstart>` page, a server should be running.
 The exposed feature types can be configured further.

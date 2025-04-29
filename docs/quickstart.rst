@@ -103,4 +103,7 @@ Advanced Usage
 --------------
 
 It's possible to override various aspects of the logic.
-See :doc:`overriding` for more details.
+The :doc:`feature_types` will help exposing the model data properly.
+
+Finally, parts of the server can be :doc:`extended <extensions>`
+or :doc:`overwritten <overriding>` by writing Python code.

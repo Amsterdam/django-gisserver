@@ -1,5 +1,5 @@
-WFS User Manual
-===============
+Accessing WFS Data
+==================
 
 This is a brief explanation of using a WFS server.
 

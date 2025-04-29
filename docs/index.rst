@@ -22,6 +22,7 @@ Features
    quickstart
    feature_types
    settings
+   user/filters
    troubleshooting
 
 .. toctree::
@@ -29,15 +30,15 @@ Features
    :caption: Advanced Guide:
 
    overriding
+   extensions
+   architecture
 
 .. toctree::
    :maxdepth: 1
    :caption: Background:
 
-   user/filters
    compliance
    development
-   architecture
 
 
 Why this code is shared
