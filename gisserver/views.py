@@ -417,29 +417,32 @@ class WFSView(OWSView):
             feature_type.bind_namespace(default_xml_namespace=self.xml_namespace)
         return feature_types
 
-    def get_index_context_data(self, **kwargs):
-        """Add WFS specific metadata"""
+    def get_index_context_data(self, **kwargs) -> dict:
+        """Get the context data for the index template"""
+        context = super().get_index_context_data(**kwargs)
+        context.update(
+            {
+                "wfs_features": self.get_bound_feature_types(),
+                "wfs_output_formats": self._get_wfs_output_formats(),
+                "wfs_filter_capabilities": self.wfs_filter_capabilities,
+                "wfs_service_constraints": self.wfs_service_constraints,
+            }
+        )
+        return context
+
+    def _get_wfs_output_formats(self) -> list[base.OutputFormat]:
+        """Find the output formats of the ``GetFeature`` operation for the HTML index."""
         get_feature_operation = self.accept_operations["WFS"]["GetFeature"]
         operation = get_feature_operation(self, ows_request=None)
 
-        # Remove aliases
+        # Get output formats, remove duplicates (e.g. GeoJSON/geojson alias)
         wfs_output_formats = []
         seen = set()
         for output_format in operation.get_output_formats():
             if output_format.identifier not in seen:
                 wfs_output_formats.append(output_format)
             seen.add(output_format.identifier)
-
-        context = super().get_index_context_data(**kwargs)
-        context.update(
-            {
-                "wfs_features": self.get_bound_feature_types(),
-                "wfs_output_formats": wfs_output_formats,
-                "wfs_filter_capabilities": self.wfs_filter_capabilities,
-                "wfs_service_constraints": self.wfs_service_constraints,
-            }
-        )
-        return context
+        return wfs_output_formats
 
     def get_xml_schema_url(self, feature_types: list[FeatureType]) -> str:
         """Return the XML schema URL for the given feature types.
