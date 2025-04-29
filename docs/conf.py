@@ -13,12 +13,8 @@
 import os
 import sys
 
-import django
-
 sys.path.insert(0, os.path.abspath("_ext"))
 sys.path.insert(0, os.path.abspath(".."))
-os.environ["DJANGO_SETTINGS_MODULE"] = "djangodummy.settings"
-django.setup()
 
 
 # -- Project information -----------------------------------------------------
@@ -63,3 +59,16 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["_static"]
+
+
+# -- Plugin Options ----------------------------------------------------------
+
+django_settings = "djangodummy.settings"
+
+intersphinx_mapping = {
+    "python": ("https://docs.python.org/3/", None),
+    "django": (
+        "https://docs.djangoproject.com/en/stable",
+        "https://docs.djangoproject.com/en/stable/_objects/",
+    ),
+}
