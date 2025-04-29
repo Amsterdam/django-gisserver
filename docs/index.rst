@@ -29,6 +29,8 @@ Features
    :caption: Advanced Guide:
 
    overriding
+   extensions
+   architecture
 
 .. toctree::
    :maxdepth: 1
@@ -37,7 +39,6 @@ Features
    user/filters
    compliance
    development
-   architecture
 
 
 Why this code is shared
