@@ -69,6 +69,52 @@ def test_missing_children():
     )
 
 
+def test_missing_children_operator():
+    """See that get_tag_names() walks through the class hierarchy to
+    provide all possible tag names.
+    """
+    xml_text = """
+        <fes:Filter
+            xmlns:fes="http://www.opengis.net/fes/2.0"
+            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+            <fes:And>
+                <fes:PropertyIsLessThan>
+                    <fes:ValueReference>foobar</fes:ValueReference>
+                    <fes:Literal>30</fes:Literal>
+                </fes:PropertyIsLessThan>
+            </fes:And>
+        </fes:Filter>
+    """.strip()
+
+    with pytest.raises(ExternalParsingError) as e:
+        Filter.from_string(xml_text)
+
+    assert str(e.value) == (
+        "<{http://www.opengis.net/fes/2.0}And> should have 2 child nodes, got 1 "
+        "(possible tags: {http://www.opengis.net/fes/2.0}BBOX, "
+        "{http://www.opengis.net/fes/2.0}Beyond, "
+        "{http://www.opengis.net/fes/2.0}Contains, "
+        "{http://www.opengis.net/fes/2.0}Crosses, "
+        "{http://www.opengis.net/fes/2.0}DWithin, "
+        "{http://www.opengis.net/fes/2.0}Disjoint, "
+        "{http://www.opengis.net/fes/2.0}Equals, "
+        "{http://www.opengis.net/fes/2.0}Intersects, "
+        "{http://www.opengis.net/fes/2.0}Overlaps, "
+        "{http://www.opengis.net/fes/2.0}PropertyIsBetween, "
+        "{http://www.opengis.net/fes/2.0}PropertyIsEqualTo, "
+        "{http://www.opengis.net/fes/2.0}PropertyIsGreaterThan, "
+        "{http://www.opengis.net/fes/2.0}PropertyIsGreaterThanOrEqualTo, "
+        "{http://www.opengis.net/fes/2.0}PropertyIsLessThan, "
+        "{http://www.opengis.net/fes/2.0}PropertyIsLessThanOrEqualTo, "
+        "{http://www.opengis.net/fes/2.0}PropertyIsLike, "
+        "{http://www.opengis.net/fes/2.0}PropertyIsNil, "
+        "{http://www.opengis.net/fes/2.0}PropertyIsNotEqualTo, "
+        "{http://www.opengis.net/fes/2.0}PropertyIsNull, "
+        "{http://www.opengis.net/fes/2.0}Touches, "
+        "{http://www.opengis.net/fes/2.0}Within)"
+    )
+
+
 def test_between_fixed_ordering():
     """A simple non-spatial filter comparing a property value to a literal.
     In this case, the DEPTH is checked to find instances where it is less than
