@@ -48,6 +48,7 @@ FES_VALUE_REFERENCE = xmlns.fes20.qname("ValueReference")
 FES_DISTANCE = xmlns.fes20.qname("Distance")
 FES_LOWER_BOUNDARY = xmlns.fes20.qname("LowerBoundary")
 FES_UPPER_BOUNDARY = xmlns.fes20.qname("UpperBoundary")
+FES1_PROPERTY_NAME = xmlns.fes20.qname("PropertyName")  # old tag sometimes used by clients
 
 
 class HasBuildRhs(Protocol):
@@ -154,6 +155,7 @@ class UnaryLogicType(TagNameEnum):
 
 
 @dataclass
+@tag_registry.register("Distance")
 class Measure(BaseNode):
     """A measurement for a distance element.
 
@@ -565,10 +567,6 @@ class ComparisonOperator(NonIdOperator):
     and allows grouping various comparisons together.
     """
 
-    # Start counting fresh here, to collect the capabilities
-    # that are listed in the <fes20:ComparisonOperators> node:
-    xml_tags = []
-
 
 @dataclass
 @tag_registry.register(BinaryComparisonName)  # <PropertyIs...>
@@ -596,7 +594,7 @@ class BinaryComparisonOperator(ComparisonOperator):
     _source: str | None = field(compare=False, default=None)
 
     @classmethod
-    @expect_children(2, Expression, Expression)
+    @expect_children(2, Expression, silent_allowed=(FES1_PROPERTY_NAME,))
     def from_xml(cls, element: NSElement):
         return cls(
             operatorType=BinaryComparisonName.from_xml(element),
@@ -637,7 +635,7 @@ class BetweenComparisonOperator(ComparisonOperator):
     _source: str | None = field(compare=False, default=None)
 
     @classmethod
-    @expect_children(3, Expression, "LowerBoundary", "UpperBoundary")
+    @expect_children(3, Expression, FES_LOWER_BOUNDARY, FES_UPPER_BOUNDARY)
     def from_xml(cls, element: NSElement):
         if (element[1].tag != FES_LOWER_BOUNDARY) or (element[2].tag != FES_UPPER_BOUNDARY):
             raise ExternalParsingError(
@@ -689,7 +687,7 @@ class LikeOperator(ComparisonOperator):
     _source: str | None = field(compare=False, default=None)
 
     @classmethod
-    @expect_children(2, Expression, Expression)
+    @expect_children(2, Expression)
     def from_xml(cls, element: NSElement):
         return cls(
             expression=(
@@ -826,7 +824,7 @@ class BinaryLogicOperator(LogicalOperator):
     _source: str | None = field(compare=False, default=None)
 
     @classmethod
-    @expect_children(2, NonIdOperator, NonIdOperator)
+    @expect_children(2, NonIdOperator)
     def from_xml(cls, element: NSElement):
         return cls(
             operands=[NonIdOperator.child_from_xml(child) for child in element],

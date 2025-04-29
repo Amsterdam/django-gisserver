@@ -59,16 +59,9 @@ def test_missing_children():
         Filter.from_string(xml_text)
 
     assert str(e.value) == (
-        "<{http://www.opengis.net/fes/2.0}PropertyIsLessThan> should have 2 child nodes, got 1 "
-        "(possible tags:"
-        " {http://www.opengis.net/fes/2.0}Add,"
-        " {http://www.opengis.net/fes/2.0}Div,"
-        " {http://www.opengis.net/fes/2.0}Function,"
-        " {http://www.opengis.net/fes/2.0}Literal,"
-        " {http://www.opengis.net/fes/2.0}Mul,"
-        " {http://www.opengis.net/fes/2.0}Sub,"
-        " {http://www.opengis.net/fes/2.0}ValueReference"
-        ")"
+        "<fes:PropertyIsLessThan> should have 2 child nodes, got only 1. "
+        "Allowed types are: <fes:Add>, <fes:Div>, <fes:Function>, <fes:Literal>, <fes:Mul>,"
+        " <fes:Sub>, <fes:ValueReference>."
     )
 
 
@@ -93,28 +86,39 @@ def test_missing_children_operator():
         Filter.from_string(xml_text)
 
     assert str(e.value) == (
-        "<{http://www.opengis.net/fes/2.0}And> should have 2 child nodes, got 1 "
-        "(possible tags: {http://www.opengis.net/fes/2.0}BBOX, "
-        "{http://www.opengis.net/fes/2.0}Beyond, "
-        "{http://www.opengis.net/fes/2.0}Contains, "
-        "{http://www.opengis.net/fes/2.0}Crosses, "
-        "{http://www.opengis.net/fes/2.0}DWithin, "
-        "{http://www.opengis.net/fes/2.0}Disjoint, "
-        "{http://www.opengis.net/fes/2.0}Equals, "
-        "{http://www.opengis.net/fes/2.0}Intersects, "
-        "{http://www.opengis.net/fes/2.0}Overlaps, "
-        "{http://www.opengis.net/fes/2.0}PropertyIsBetween, "
-        "{http://www.opengis.net/fes/2.0}PropertyIsEqualTo, "
-        "{http://www.opengis.net/fes/2.0}PropertyIsGreaterThan, "
-        "{http://www.opengis.net/fes/2.0}PropertyIsGreaterThanOrEqualTo, "
-        "{http://www.opengis.net/fes/2.0}PropertyIsLessThan, "
-        "{http://www.opengis.net/fes/2.0}PropertyIsLessThanOrEqualTo, "
-        "{http://www.opengis.net/fes/2.0}PropertyIsLike, "
-        "{http://www.opengis.net/fes/2.0}PropertyIsNil, "
-        "{http://www.opengis.net/fes/2.0}PropertyIsNotEqualTo, "
-        "{http://www.opengis.net/fes/2.0}PropertyIsNull, "
-        "{http://www.opengis.net/fes/2.0}Touches, "
-        "{http://www.opengis.net/fes/2.0}Within)"
+        "<fes:And> should have 2 child nodes, got only 1. Allowed types are: "
+        "<fes:And>, <fes:BBOX>, <fes:Beyond>, <fes:Contains>, <fes:Crosses>, "
+        "<fes:DWithin>, <fes:Disjoint>, <fes:Equals>, <fes:Intersects>, <fes:Not>, "
+        "<fes:Or>, <fes:Overlaps>, <fes:PropertyIsBetween>, <fes:PropertyIsEqualTo>, "
+        "<fes:PropertyIsGreaterThan>, <fes:PropertyIsGreaterThanOrEqualTo>, "
+        "<fes:PropertyIsLessThan>, <fes:PropertyIsLessThanOrEqualTo>, "
+        "<fes:PropertyIsLike>, <fes:PropertyIsNil>, <fes:PropertyIsNotEqualTo>, "
+        "<fes:PropertyIsNull>, <fes:Touches>, <fes:Within>."
+    )
+
+
+def test_invalid_children():
+    """See that get_tag_names() walks through the class hierarchy to
+    provide all possible tag names.
+    """
+    xml_text = """
+        <fes:Filter
+            xmlns:fes="http://www.opengis.net/fes/2.0"
+            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+            <fes:PropertyIsLessThan>
+                <fes:Filter></fes:Filter>
+                <fes:SortBy></fes:SortBy>
+            </fes:PropertyIsLessThan>
+        </fes:Filter>
+    """.strip()
+
+    with pytest.raises(ExternalParsingError) as e:
+        Filter.from_string(xml_text)
+
+    assert str(e.value) == (
+        "<fes:PropertyIsLessThan> does not support a <fes:Filter> child node. Allowed "
+        "types are: <fes:Add>, <fes:Div>, <fes:Function>, <fes:Literal>, <fes:Mul>, "
+        "<fes:Sub>, <fes:ValueReference>."
     )
 
 
