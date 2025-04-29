@@ -13,6 +13,11 @@ The defaults are:
     GISSERVER_CAPABILITIES_BOUNDING_BOX = True
     GISSERVER_USE_DB_RENDERING = True
     GISSERVER_SUPPORTED_CRS_ONLY = True
+    GISSERVER_COUNT_NUMBER_MATCHED = 1
+
+    # Output rendering
+    GISSERVER_EXTRA_OUTPUT_FORMATS = {}
+    GISSERVER_GET_FEATURE_OUTPUT_FORMATS = {}
 
     # Max page size
     GISSERVER_DEFAULT_MAX_PAGE_SIZE = 5000
@@ -44,7 +49,7 @@ However, if you're not using PostgreSQL+PostGIS, you may want to disable this op
 
 
 GISSERVER_SUPPORTED_CRS_ONLY
---------------------------------
+----------------------------
 
 By default, clients may only request features in one of the supported coordinate reference systems
 that the ``FeatureType`` has listed. Often databases (such as PostGIS) and the GDAL backend support
@@ -53,6 +58,39 @@ used in the ``?SRSNAME=...`` parameter.
 
 For performance reasons, the last 100 GDAL ``CoordTransform`` objects are stored in-memory.
 Allowing clients to change the output format so freely may cause some performance loss there.
+
+
+GISSERVER_COUNT_NUMBER_MATCHED
+------------------------------
+
+By default, the whole page size is calculated. However, performing a ``COUNT`` is expensive in SQL.
+By disabling this, clients just simply need to fetch more pages.
+Possible values:
+
+* 0 = No counting.
+* 1 = Apply counting for all pages (the default).
+* 2 = Apply counting only for the first page.
+
+In the WFS output, ``number_matched="unknown"`` will be found when paging is disabled.
+
+
+GISSERVER\_..._OUTPUT_FORMATS
+-----------------------------
+
+The ``GISSERVER_*_OUTPUT_FORMATS`` settings make it easier to declare additional output formats.
+An example would be:
+
+.. code-block:: python
+
+    GISSERVER_EXTRA_OUTPUT_FORMATS = {
+        "content-type": {
+            "renderer_class": "dotted.path.to.CustomRenderer"
+            "subtype": "type-alias",
+            "title": "HTML title",
+        },
+    }
+
+See :doc:`extensions` for a discussion on the required code.
 
 
 GISSERVER\_..._MAX_PAGE_SIZE
