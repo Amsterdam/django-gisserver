@@ -34,7 +34,7 @@ coverage:      ## Run the tests with coverage
 
 dist:          ## Generate the sdist/wheel (can be uploaded with twine)
 	rm -rf build/ dist/
-	./setup.py sdist bdist_wheel
+	python -m build
 
 format:        ## Fix code formatting using pre-commit hooks
 	pre-commit run -a
