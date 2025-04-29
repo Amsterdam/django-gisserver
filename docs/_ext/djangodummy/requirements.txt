@@ -1,4 +1,0 @@
-# for readthedocs
-# Remaining requirements are picked up from setup.py
-Django ~= 5.0
-sphinxcontrib-django == 2.5

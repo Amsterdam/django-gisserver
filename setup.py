@@ -28,6 +28,11 @@ tests_require = [
     "pytest-cov >= 2.11.1",
 ]
 
+docs_require = [
+    "Django ~= 5.0",
+    "sphinxcontrib-django >= 2.5",
+]
+
 
 setup(
     name="django-gisserver",
@@ -40,9 +45,9 @@ setup(
         "orjson >= 3.9.15",
         "pyproj >= 3.6.1",
     ],
-    tests_require=tests_require,
     extras_require={
         "tests": tests_require,
+        "docs": docs_require,
     },
     requires=["Django (>=3.2)"],
     description="Django speaking WFS 2.0 (exposing GeoDjango model fields)",
