@@ -2,7 +2,7 @@
 
 from .results import FeatureCollection, SimpleFeatureCollection  # isort: skip (fixes import loops)
 
-from .base import CollectionOutputRenderer, OutputRenderer
+from .base import CollectionOutputRenderer, OutputRenderer, XmlOutputRenderer
 from .csv import CSVRenderer, DBCSVRenderer
 from .geojson import DBGeoJsonRenderer, GeoJsonRenderer
 from .gml32 import (
@@ -28,6 +28,7 @@ __all__ = [
     "GeoJsonRenderer",
     "GML32Renderer",
     "GML32ValueRenderer",
+    "XmlOutputRenderer",
     "XmlSchemaRenderer",
     "ListStoredQueriesRenderer",
     "DescribeStoredQueriesRenderer",
