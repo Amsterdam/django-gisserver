@@ -247,11 +247,6 @@ class ValueReference(Expression):
         """Convert the XPath into the required ORM query elements."""
         return feature_types[0].resolve_element(self.xpath, self.xpath_ns_aliases)
 
-    @cached_property
-    def element_name(self):
-        """Tell which element this reference points to."""
-        return self.xpath.rpartition("/")[2]
-
 
 @dataclass
 @tag_registry.register("Function")
