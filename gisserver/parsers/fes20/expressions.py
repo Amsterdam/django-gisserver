@@ -36,7 +36,7 @@ from gisserver.parsers.gml import (
 from gisserver.parsers.query import RhsTypes
 from gisserver.parsers.values import auto_cast
 from gisserver.parsers.xml import NSElement, parse_qname, xmlns
-from gisserver.types import ORMPath, XsdTypes
+from gisserver.types import XPathMatch, XsdTypes
 
 NoneType = type(None)
 ParsedValue = Union[int, str, date, D, datetime, GM_Object, GM_Envelope, TM_Object, NoneType]
@@ -240,15 +240,9 @@ class ValueReference(Expression):
         match = self.parse_xpath(compiler.feature_types)
         return match.build_rhs(compiler)
 
-    def parse_xpath(self, feature_types: list) -> ORMPath:
+    def parse_xpath(self, feature_types: list) -> XPathMatch:
         """Convert the XPath into the required ORM query elements."""
-        if feature_types:
-            # Can resolve against XSD paths, find the correct DB field name
-            return feature_types[0].resolve_element(self.xpath, self.xpath_ns_aliases)
-        else:
-            # Only used by unit testing (when feature_type is not given).
-            parts = [word.strip() for word in self.xpath.split("/")]
-            return ORMPath(orm_path="__".join(parts), orm_filters=None)
+        return feature_types[0].resolve_element(self.xpath, self.xpath_ns_aliases)
 
     @cached_property
     def element_name(self):
