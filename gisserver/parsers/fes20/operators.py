@@ -268,8 +268,7 @@ class NonIdOperator(Operator):
         if isinstance(lhs, Literal) and isinstance(rhs, ValueReference):
             lhs, rhs = rhs, lhs
 
-        if compiler.feature_types:
-            lookup = self.validate_comparison(compiler, lhs, lookup, rhs)
+        lookup = self.validate_comparison(compiler, lhs, lookup, rhs)
 
         # Build Django Q-object
         lhs = lhs.build_lhs(compiler)
@@ -347,9 +346,8 @@ class NonIdOperator(Operator):
         rhs: tuple[Expression | ValueReference | gml.GM_Object, Expression | Measure],
     ) -> Q:
         """Use the value in comparison with 2 other values (e.g. between query)"""
-        if compiler.feature_types:
-            self.validate_comparison(compiler, lhs, lookup, rhs[0])
-            self.validate_comparison(compiler, lhs, lookup, rhs[1])
+        self.validate_comparison(compiler, lhs, lookup, rhs[0])
+        self.validate_comparison(compiler, lhs, lookup, rhs[1])
 
         field_name = lhs.build_lhs(compiler)
         comparison = Q(
