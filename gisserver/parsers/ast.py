@@ -24,9 +24,9 @@ to validate whether a provided XML structure confirms to the supported schema.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from enum import Enum
 from functools import wraps
-from itertools import chain
 from typing import TypeVar
 from xml.etree.ElementTree import QName
 
@@ -231,13 +231,12 @@ class TagRegistry:
         try:
             node_class = self.parsers[element.tag]
         except KeyError:
-            msg = f"Unsupported tag: <{element.tag}>"
+            msg = f"Unsupported tag: <{element.qname}>"
             if "{" not in element.tag:
                 msg = f"{msg} without an XML namespace"
             if allowed_types:
-                # Show better exception message
-                types = ", ".join(chain.from_iterable(c.get_tag_names() for c in allowed_types))
-                msg = f"{msg}, expected one of: {types}"
+                allowed = _tag_names_to_text(_get_allowed_tag_names(*allowed_types), element)
+                msg = f"{msg}, expected one of: {allowed}."
 
             raise ExternalParsingError(msg) from None
 
@@ -245,7 +244,7 @@ class TagRegistry:
         if allowed_types is not None and not issubclass(node_class, allowed_types):
             types = ", ".join(c.__name__ for c in allowed_types)
             raise ExternalParsingError(
-                f"Unexpected {node_class.__name__} for <{element.tag}> node, "
+                f"Unexpected {node_class.__name__} for <{element.qname}> node, "
                 f"expected one of: {types}"
             )
 
@@ -274,7 +273,8 @@ def expect_tag(namespace: xmlns | str, *tag_names: str):
         def _expect_tag_decorator(cls, element: NSElement, *args, **kwargs):
             if element.tag not in valid_tags:
                 raise ExternalParsingError(
-                    f"{cls.__name__} parser expects an <{expect0}> node, got <{element.tag}>"
+                    f"{cls.__name__} parser expects an <{_replace_common_ns(expect0, element)}> node,"
+                    f" got <{element.qname}>"
                 )
             return func(cls, element, *args, **kwargs)
 
@@ -290,7 +290,8 @@ def expect_no_children(from_xml_func):
     def _expect_no_children_decorator(cls, element: NSElement, *args, **kwargs):
         if len(element):
             raise ExternalParsingError(
-                f"Unsupported child element for {element.tag} element: {element[0].tag}."
+                f"Element <{element.qname}> does not support child elements,"
+                f" found <{element[0].qname}>."
             )
 
         return from_xml_func(cls, element, *args, **kwargs)
@@ -298,34 +299,81 @@ def expect_no_children(from_xml_func):
     return _expect_no_children_decorator
 
 
-def expect_children(min_child_nodes, *expect_types: str | type[BaseNode]):
+def expect_children(  # noqa: C901
+    min_child_nodes, *expect_types: str | type[BaseNode], silent_allowed: tuple[str] = ()
+):
     """Validate whether an element has enough children to continue parsing."""
-    known_tag_names = set()
-    for child_type in expect_types:
-        if isinstance(child_type, type) and issubclass(child_type, BaseNode):
-            known_tag_names.update(child_type.get_tag_names())
-        elif isinstance(child_type, str):
-            known_tag_names.add(child_type)
-        else:
+    # Validate arguments early
+    for child_type in expect_types + silent_allowed:
+        if isinstance(child_type, str):
+            if not child_type.startswith("{"):
+                raise ValueError(
+                    f"String arguments to @expect_children() should be"
+                    f" fully qualified XML namespaces, not {child_type!r}"
+                )
+        elif not isinstance(child_type, type) or not issubclass(child_type, BaseNode):
             raise TypeError(f"Unexpected {child_type!r}")
-    known_tag_names = sorted(known_tag_names)
+
+    def _get_allowed(known_tag_names, element):
+        return _tag_names_to_text(sorted(set(known_tag_names) - set(silent_allowed)), element)
 
     def _wrapper(func):
         @wraps(func)
         def _expect_children_decorator(cls, element: NSElement, *args, **kwargs):
+            known_tag_names = _get_allowed_tag_names(*expect_types, *silent_allowed)
+
             if len(element) < min_child_nodes:
-                type_names = ", ".join(known_tag_names)
-                suffix = f" (possible tags: {type_names})" if type_names else ""
+                allowed = _get_allowed(known_tag_names, element)
                 raise ExternalParsingError(
-                    f"<{element.tag}> should have {min_child_nodes} child nodes, "
-                    f"got {len(element)}{suffix}"
+                    f"<{element.qname}> should have {min_child_nodes} child nodes,"
+                    f" got only {len(element)}."
+                    f" Allowed types are: {allowed}."
                 )
+            for child in element:
+                if child.tag not in known_tag_names:
+                    allowed = _get_allowed(known_tag_names, element)
+                    raise ExternalParsingError(
+                        f"<{element.qname}> does not support a <{child.qname}> child node."
+                        f" Allowed types are: {allowed}."
+                    )
 
             return func(cls, element, *args, **kwargs)
 
         return _expect_children_decorator
 
     return _wrapper
+
+
+def _get_allowed_tag_names(*expect_types: type[BaseNode] | str) -> list[str]:
+    # Resolve arguments later, as get_tag_names() depends on __subclasses__()
+    # which may not be completely known at this point.
+    tag_names = []
+    for child_type in expect_types:
+        if isinstance(child_type, type) and issubclass(child_type, BaseNode):
+            tag_names.extend(child_type.get_tag_names())
+        elif isinstance(child_type, str):
+            if not child_type.startswith("{"):
+                raise ValueError(
+                    f"String arguments should be fully qualified XML namespaces, not {child_type!r}"
+                )
+            tag_names.append(child_type)
+        else:
+            raise TypeError(f"Unexpected {child_type!r}")
+    return tag_names
+
+
+def _tag_names_to_text(tag_names: Iterable[str], user_element: NSElement) -> str:
+    body = _replace_common_ns(">, <".join(tag_names), user_element)
+    return f"<{body}>"
+
+
+def _replace_common_ns(text: str, user_element: NSElement):
+    """In error messages, replace the full XML names with QName/prefixed versions.
+    The chosen prefixes reference the tags that the client submitted in their XML body.
+    """
+    for prefix, ns in user_element.ns_aliases.items():
+        text = text.replace(f"{{{ns}}}", f"{prefix}:")
+    return text
 
 
 tag_registry = TagRegistry()

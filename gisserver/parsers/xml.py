@@ -108,6 +108,16 @@ class NSElement(Element):
         """Resolve an aliased QName value to its fully qualified name."""
         return parse_qname(qname, self.ns_aliases)
 
+    @property
+    def qname(self) -> str:
+        """Provde the tag name in its original short format"""
+        ns, localname = split_ns(self.tag)
+        if ns:
+            for prefix, full_ns in self.ns_aliases.items():
+                if full_ns == ns:
+                    return f"{prefix}:{localname}"
+        return localname
+
     def get_str_attribute(self, name: str) -> str:
         """Resolve an attribute, raise an error when it's missing."""
         try:

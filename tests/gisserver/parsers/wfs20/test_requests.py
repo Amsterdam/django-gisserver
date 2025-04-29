@@ -43,11 +43,13 @@ class TestListStoredQueries:
         xml = '<ns0:ListStoredQueries version="2.0.0" service="WFS" xmlns:ns0="http://example.org/gisserver"></ns0:ListStoredQueries>'
         with pytest.raises(ExternalParsingError) as exc_info:
             parse_post_request(xml)
-        assert exc_info.value.args[0].startswith(
-            "Unsupported tag: <{http://example.org/gisserver}ListStoredQueries>,"
-            " expected one of: {http://www.opengis.net/wfs/2.0}GetCapabilities,"
-            " {http://www.opengis.net/wfs/2.0}DescribeFeatureType, "
-        )
+
+        message = exc_info.value.args[0]
+        assert message.startswith(
+            "Unsupported tag: <ns0:ListStoredQueries>,"
+            " expected one of: <{http://www.opengis.net/wfs/2.0}GetCapabilities>,"
+            " <{http://www.opengis.net/wfs/2.0}DescribeFeatureType>, "
+        ), message
 
 
 class TestGetCapabilities:
