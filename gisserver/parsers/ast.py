@@ -30,7 +30,10 @@ from functools import wraps
 from typing import TypeVar
 from xml.etree.ElementTree import QName
 
+from django.utils.functional import classproperty
+
 from gisserver.exceptions import InvalidXmlElement, XmlElementNotSupported
+from gisserver.parsers.xml import NSElement, xmlns
 
 __all__ = (
     "TagNameEnum",
@@ -41,8 +44,6 @@ __all__ = (
     "expect_tag",
     "expect_no_children",
 )
-
-from gisserver.parsers.xml import NSElement, xmlns
 
 
 class TagNameEnum(Enum):
@@ -85,11 +86,17 @@ class AstNode:
     """
 
     xml_ns: xmlns | str | None = None
-    xml_tags = []
+
+    _xml_tags = []
+
+    @classproperty
+    def xml_name(cls) -> str:
+        """Tell the default tag by which this class is registered"""
+        return cls._xml_tags[0]
 
     def __init_subclass__(cls):
         # Each class level has a fresh list of supported child tags.
-        cls.xml_tags = []
+        cls._xml_tags = []
 
     @classmethod
     def from_xml(cls, element: NSElement):
@@ -117,7 +124,7 @@ class AstNode:
             # Because a cached class property is hard to build
             return _KNOWN_TAG_NAMES[cls]
         except KeyError:
-            all_xml_tags = cls.xml_tags.copy()
+            all_xml_tags = cls._xml_tags.copy()
             for sub_cls in cls.__subclasses__():
                 all_xml_tags.extend(sub_cls.get_tag_names())
             _KNOWN_TAG_NAMES[cls] = all_xml_tags
@@ -214,7 +221,7 @@ class TagRegistry:
 
         self.parsers[xml_name] = node_class  # Track this parser to resolve the tag.
         if not hidden:
-            node_class.xml_tags.append(xml_name)  # Allow fetching all names later
+            node_class._xml_tags.append(xml_name)  # Allow fetching all names later
 
     def node_from_xml(self, element: NSElement, allowed_types: tuple[type[A]] | None = None) -> A:
         """Find the ``AstNode`` subclass that corresponds to the given XML element,

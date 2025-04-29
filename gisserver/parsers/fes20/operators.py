@@ -729,7 +729,7 @@ class LikeOperator(ComparisonOperator):
             rhs = Literal(raw_value=value)
         else:
             raise ExternalParsingError(
-                f"Expected a literal value for the {self.xml_tags[0]} operator."
+                f"Expected a literal value for the {self.xml_name} operator."
             )
 
         # Use the FesLike lookup
