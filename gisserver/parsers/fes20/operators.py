@@ -496,7 +496,7 @@ class _ResolvedValueReference(ValueReference):
 
 
 @dataclass
-@tag_registry.register(TemporalOperatorName)  # <After>, <Before>, ...
+@tag_registry.register(TemporalOperatorName, hidden=True)  # <After>, <Before>, ...
 class TemporalOperator(NonIdOperator):
     """Comparisons with dates.
 
