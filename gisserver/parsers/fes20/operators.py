@@ -303,14 +303,14 @@ class NonIdOperator(Operator):
         For example, comparisons like ``name == "test"`` are fine,
         but ``geometry < 4`` or ``datefield == 35.2" raise an error.
 
-        The lhs/rhs are expected to be ordered in a logical sequence.
-        So ``<value> == <element>`` should be provided as ``<element> == <value>``.
-
         :param compiler: The object that holds the intermediate state
         :param lhs: The left-hand-side of the comparison (e.g. the element).
         :param lookup: The ORM lookup expression being used (e.g. ``equals`` or ``fes_like``).
         :param rhs: The right-hand-side of the comparison (e.g. the value).
         """
+        if isinstance(lhs, Literal) and isinstance(rhs, ValueReference):
+            lhs, rhs = rhs, lhs
+
         if isinstance(lhs, ValueReference):
             xsd_element = lhs.parse_xpath(compiler.feature_types).child
             tag = self._source if self._source is not None else None
