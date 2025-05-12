@@ -84,7 +84,7 @@ class GeoJsonRenderer(CollectionOutputRenderer):
                 output.write(b",\n")
 
             is_first = True
-            for instance in sub_collection:
+            for instance in self.read_features(sub_collection):
                 if is_first:
                     is_first = False
                 else:

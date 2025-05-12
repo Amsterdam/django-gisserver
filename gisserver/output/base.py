@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import math
 import typing
+from collections.abc import Iterator
 from io import BytesIO, StringIO
 from itertools import chain
 
@@ -11,6 +12,7 @@ from django.db import models
 from django.http import HttpResponse, StreamingHttpResponse
 from django.http.response import HttpResponseBase  # Django 3.2 import location
 
+from gisserver.exceptions import wrap_filter_errors
 from gisserver.features import FeatureType
 from gisserver.parsers.values import fix_type_name
 from gisserver.parsers.xml import split_ns
@@ -24,7 +26,7 @@ if typing.TYPE_CHECKING:
     from gisserver.operations.base import WFSOperation
     from gisserver.projection import FeatureProjection, FeatureRelation
 
-    from .results import FeatureCollection
+    from .results import FeatureCollection, SimpleFeatureCollection
 
 
 class OutputRenderer:
@@ -274,3 +276,8 @@ class CollectionOutputRenderer(OutputRenderer):
             "date": self.collection.date.strftime("%Y-%m-%d %H.%M.%S%z"),
             "timestamp": self.collection.timestamp,
         }
+
+    def read_features(self, sub_collection: SimpleFeatureCollection) -> Iterator[models.Model]:
+        """A wrapper to read features from a collection, while raising WFS exceptions on query errors."""
+        with wrap_filter_errors(sub_collection.source_query):
+            yield from sub_collection
