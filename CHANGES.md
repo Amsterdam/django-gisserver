@@ -1,3 +1,12 @@
+# in git
+
+* Improve error handling for invalid filter input (also fixes 500 errors).
+* Improve error messages for unexpected tags in the XML body.
+* Improve error handling for fes 1.0 arithmetic operators (e.g. typing: `date > 2020-01-01` in QGis).
+* Fix comparing to `NULL` when date/time input is invalid.
+* Fix filter comparisons for `<`, `<=`, `>`, `>=` when property name and value are reversed.
+
+
 # 2024-04-28 (2.0)
 
 * Added support for XML POST requests.
