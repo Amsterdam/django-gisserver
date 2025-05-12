@@ -93,9 +93,7 @@ class Command(BaseCommand):
         self.connection = connections[self.using]
         model: type[models.Model] = options["model"]
         main_geometry_field = self._get_geometry_field(model, options["geometry_field"])
-        field_map = (
-            self._parse_field_map(model, options["map_fields"]) if options["map_fields"] else {}
-        )
+        field_map = self._parse_field_map(model, options["map_fields"])
 
         # Read the file
         geojson = self._load_geojson(options["geojson-file"])
@@ -202,6 +200,9 @@ class Command(BaseCommand):
 
     def _parse_field_map(self, model, map_fields: list[dict]) -> dict:
         """Validate that the provided field mapping points to model fields."""
+        if not map_fields:
+            return {}
+
         field_map: dict = reduce(operator.or_, map_fields)
         for field_name in field_map.values():
             try:
@@ -267,22 +268,29 @@ class Command(BaseCommand):
             field_values[main_geometry_field] = geometry
 
             # Try to decode the identifier if it's present
-            if pk_field not in field_values and (id_value := feature.get("id")):
-                try:
-                    field_values[pk_field] = self._parse_id(model._meta.pk, id_value)
-                except (ValueError, TypeError):
-                    self.stderr.write(
-                        self.style.WARNING(
-                            f"Feature id value '{id_value}' can't be stored in the primary key field. ignoring."
-                        )
-                    )
+            if (
+                pk_field not in field_values
+                and (raw_value := feature.get("id")) is not None
+                and (id_value := self._parse_id(model._meta.pk, raw_value)) is not None
+            ):
+                field_values[pk_field] = id_value
 
             # Pass as Django model fields
             yield field_values
 
     def _parse_id(self, pk_field: models.Field, id_value):
         # Allow TypeName.id format, see if it parses
-        return pk_field.get_db_prep_save(id_value.rpartition(".")[2], connection=self.connection)
+        try:
+            return pk_field.get_db_prep_save(
+                id_value.rpartition(".")[2], connection=self.connection
+            )
+        except (ValueError, TypeError):
+            self.stderr.write(
+                self.style.WARNING(
+                    f"Feature id value '{id_value}' can't be stored in the primary key field. ignoring."
+                )
+            )
+            return None
 
     def _parse_value(self, field: models.Field, value):
         try:
