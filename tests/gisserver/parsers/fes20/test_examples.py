@@ -120,6 +120,37 @@ def test_fes20_c5_example2():
     ), repr(query)
 
 
+def test_fes20_c5_example2_reversed():
+    """Test what happens when the operators are reversed."""
+    xml_text = """
+        <fes:Filter
+            xmlns:fes="http://www.opengis.net/fes/2.0"
+            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+            xsi:schemaLocation="http://www.opengis.net/fes/2.0
+            http://schemas.opengis.net/filter/2.0/filterAll.xsd">
+            <fes:PropertyIsGreaterThan>
+                <fes:Literal>30</fes:Literal>
+                <fes:ValueReference>DEPTH</fes:ValueReference>
+            </fes:PropertyIsGreaterThan>
+        </fes:Filter>
+    """.strip()
+    expected = Filter(
+        BinaryComparisonOperator(
+            BinaryComparisonName.PropertyIsGreaterThan,
+            expression=(Literal("30"), ValueReference("DEPTH")),
+        )
+    )
+    result = Filter.from_string(xml_text)
+    assert result == expected, f"result={result!r}"
+
+    # Test SQL generating
+    query = compile_query(result)
+    assert query == CompiledQuery(
+        query.feature_types,
+        lookups=[Q(DEPTH__lt=30)],  # switched operators for easier query
+    ), repr(query)
+
+
 def test_fes20_c5_example3():
     """This example encodes a simple spatial filter. In this case, one is
     finding all features that have a geometry that spatially interacts with the

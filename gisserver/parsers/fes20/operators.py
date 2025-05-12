@@ -81,6 +81,14 @@ class BinaryComparisonName(TagNameEnum):
     PropertyIsGreaterThanOrEqualTo = "gte"
 
 
+REVERSE_LOOKUPS = {
+    "gt": "lt",
+    "gte": "lte",
+    "lt": "gt",
+    "lte": "gte",
+}
+
+
 class DistanceOperatorName(TagNameEnum):
     """XML tag names mapped to distance operators for the ORM."""
 
@@ -266,7 +274,9 @@ class NonIdOperator(Operator):
         # lhs and rhs are allowed to be reversed. However, the SQL compiler
         # works much simpler when Django can predict the actual data type.
         if isinstance(lhs, Literal) and isinstance(rhs, ValueReference):
+            logger.debug("Filter switches lhs/rhs for %s %s %s", lhs.raw_value, lookup, rhs.xpath)
             lhs, rhs = rhs, lhs
+            lookup = REVERSE_LOOKUPS.get(lookup, lookup)  # >= should become <=
 
         lookup = self.validate_comparison(compiler, lhs, lookup, rhs)
 
@@ -285,7 +295,7 @@ class NonIdOperator(Operator):
         lhs: Expression,
         lookup: str,
         rhs: Expression | gml.GM_Object | RhsTypes,
-    ):
+    ) -> str:
         """Validate whether a given comparison is even possible.
 
         For example, comparisons like ``name == "test"`` are fine,
