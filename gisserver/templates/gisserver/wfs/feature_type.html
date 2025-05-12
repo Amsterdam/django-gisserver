@@ -1,19 +1,33 @@
-{% load i18n %}
-<h3>{{ feature_type.title }}</h3>
-{% if feature_type.abstract %}{{ feature_type.abstract|linebreaks }}{% endif %}
+{% load i18n gisserver_tags %}
 
-{% block formats %}{% if wfs_output_formats %}
-  <p>
-    {% trans "Formats" %}:
-    {% for output_format in wfs_output_formats %}
-      <a href="?{{ base_query }}SERVICE=WFS&VERSION={{ version }}&REQUEST=GetFeature&TYPENAMES={{ feature_type.name }}&OUTPUTFORMAT={{ output_format.identifier }}">{{ output_format.title|default:output_format }}</a>{% if not forloop.last %},{% endif %}
-    {% endfor %}
-  </p>
-{% endif %}{% endblock %}
+{% block title %}<h3><a id="feature-{{ feature_type.name }}">{{ feature_type.title }}</a></h3>{% endblock %}
+{% block description %}
+  {% if feature_type.abstract %}{{ feature_type.abstract|linebreaks }}{% endif %}
+{% endblock %}
+
+{% block metadata %}
+  <dl>
+  {% block metadata-items %}
+    <dt>{% translate "Namespace" %}:</dt><dd><code>{{ feature_type.xml_namespace }}</code></dd>
+    <dt>{% translate "Typename" %}:</dt><dd><abbr title="{{ feature_type.xml_name }}">{% feature_qname feature_type %}</abbr></dd>
+    {% if wfs_output_formats %}
+      <dt>{% translate "Formats" %}:</dt>
+      <dd>{% block metadata-formats %}
+        {% for output_format in wfs_output_formats %}
+            <a href="?{{ base_query }}SERVICE=WFS&VERSION={{ version }}&REQUEST=GetFeature&TYPENAMES={% feature_qname feature_type %}&OUTPUTFORMAT={{ output_format.identifier }}">{{ output_format.title|default:output_format }}</a>{% block format-sep %},{% endblock %}
+        {% endfor %}
+        <a href="?{{ base_query }}SERVICE=WFS&VERSION={{ version }}&REQUEST=DescribeFeatureType&TYPENAMES={% feature_qname feature_type %}">XML Schema</a>
+      {% endblock %}
+    </dd>
+    {% endif %}
+  {% endblock %}
+  </dl>
+{% endblock %}
 
 {% block fields %}
-<p>{% trans "Fields" %}:</p>
-<table>
+<p>{% translate "The following fields are available:" %}</p>
+<table class="table table-striped">
+  <thead><tr><th>{% translate "Field Name" %}</th><th>{% translate "Type" %}</th><th>{% translate "Description" %}</th></tr></thead>
   <tbody>
   {% for field in feature_type.fields %}
     {% include "gisserver/wfs/feature_field.html" with level=0 %}

@@ -3,14 +3,14 @@
 {% if service_description.abstract %}{{ service_description.abstract|linebreaks }}{% endif %}
 
 {% if service_description.keywords %}
-<p>{% trans "Keywords" %}: {{ service_description.keywords|join:", " }}</p>
+<p>{% translate "Keywords" %}: {{ service_description.keywords|join:", " }}</p>
 {% endif %}
 {% if service_description.provider_name %}
-  <p>{% trans "Provider" %}: {% if service_description.provider_site %}<a href="{{ service_description.provider_site }}">{% endif %}{{ service_description.provider_name }}{% if service_description.provider_site %}</a></p>{% endif %}
-  {% if service_description.contact_person %}<p>{% trans "Contact" %}: {{ service_description.contact_person }}</p>{% endif %}
+  <p>{% translate "Provider" %}: {% if service_description.provider_site %}<a href="{{ service_description.provider_site }}">{% endif %}{{ service_description.provider_name }}{% if service_description.provider_site %}</a></p>{% endif %}
+  {% if service_description.contact_person %}<p>{% translate "Contact" %}: {{ service_description.contact_person }}</p>{% endif %}
 {% endif %}
 {% if connect_url %}
-<h2>{% trans "Using This WFS" %}</h2>
-<p>{% trans "Add the following URL to your GIS application:" %}</p>
-<blockquote><code>{{ connect_url }}</code></blockquote>
+<h2>{% translate "Using This WFS" %}</h2>
+<p>{% translate "Add the following URL to your GIS application:" %}</p>
+<p class="connect-url"><code>{{ connect_url }}</code></p>
 {% endif %}
