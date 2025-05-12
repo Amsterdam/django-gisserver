@@ -114,21 +114,21 @@ def validate_xsd(xml_text: bytes | str, xsd_file=None, xsd_content=None) -> etre
     except etree.XMLSyntaxError as err:
         source_lines = xml_str.splitlines()
         raise etree.DocumentInvalid(
-            f"{err.text} at {err.lineno}:{err.offset + 1} "
-            f"in {err.filename} (source: {source_lines[err.lineno - 1].strip()})"
+            f"XML syntax error: {err} (source: {source_lines[err.lineno - 1].strip()})"
         ) from err
 
     if not xml_schema.validate(xml_doc):
         # Improve error message display, to ease debugging of XML data
+        error_log: list[etree._LogEntry] = xml_schema.error_log
         source_lines = xml_str.splitlines()
         if len(source_lines) < 40:
             logger.debug("Failed XML validation for:\n%s", xml_str)
         raise etree.DocumentInvalid(
             "\n".join(
                 [
-                    f"{err.message} at {err.line}:{err.column} "
+                    f"XSD validation failed: {err.message} at {err.line}:{err.column} "
                     f"in {err.path} (source: {source_lines[err.line - 1].strip()})"
-                    for err in xml_schema.error_log
+                    for err in error_log
                 ]
             )
         )
