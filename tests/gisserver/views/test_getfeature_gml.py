@@ -12,6 +12,7 @@ from tests.utils import (
     WFS_20_XSD,
     XML_NS,
     assert_xml_equal,
+    read_partial_response,
     read_response,
     validate_xsd,
 )
@@ -777,44 +778,58 @@ class TestGetFeature:
         assert names[0] != names[1]
 
     @parametrize_response(
-        Get("?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"),
+        Get(
+            lambda: "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
+            "&TYPENAMES=(restaurant)(mini-restaurant)&PROPERTYNAME=gml:name"
+        ),
         Post(
-            f"""<GetFeature service="WFS" version="2.0.0" {XML_NS}>
-              <Query typeNames="restaurant">
-              </Query>
+            lambda: f"""<GetFeature service="WFS" version="2.0.0" {XML_NS}>
+                <Query typeNames="restaurant"><PropertyName>gml:name</PropertyName></Query>
+                <Query typeNames="mini-restaurant"></Query>
               </GetFeature>
               """
         ),
     )
     def test_truncated_response(self, restaurant, monkeypatch, response):
         """Prove that errors are properly handled during streaming."""
+        # Avoid early queryset evaluation:
+        monkeypatch.setattr(output.FeatureCollection, "has_next", False)
+        monkeypatch.setattr(output.FeatureCollection, "number_matched", 1)
+        monkeypatch.setattr(output.FeatureCollection, "number_returned", 1)
+        monkeypatch.setattr(output.SimpleFeatureCollection, "number_matched", 1)
+        monkeypatch.setattr(output.SimpleFeatureCollection, "number_returned", 1)
 
-        def _mock_error(*args, **kwargs):
-            raise OperationalError("Mocked Database Error")
+        # Make sure one chunk is outputted
+        monkeypatch.setattr(output.GML32Renderer, "chunk_size", 200)
 
-        monkeypatch.setattr(output.GML32Renderer, "start_collection", _mock_error)
-        content_parts = []
-        with pytest.raises(OperationalError):
-            for part in response:
-                content_parts.append(part)
+        # Let it fail in a second collection
+        _fail_on_next_call(monkeypatch, output.GML32Renderer, "start_collection")
 
-        content = b"".join(content_parts)
+        response = response()  # evoke after monkey patches
+        content, exception = read_partial_response(response)
+
         assert response["content-type"] == "text/xml; charset=utf-8", content
         assert response.status_code == 200, content  # rendering started before errors
 
         xml_doc = validate_xsd(content, WFS_20_XSD)
         timestamp = xml_doc.attrib["timeStamp"]
 
-        print(content.decode("utf-8"))
         assert_xml_equal(
             content,
             f"""<wfs:FeatureCollection
-             xmlns:app="http://example.org/gisserver"
-             xmlns:gml="http://www.opengis.net/gml/3.2"
-             xmlns:wfs="http://www.opengis.net/wfs/2.0"
-             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-             xsi:schemaLocation="http://example.org/gisserver http://testserver/v1/wfs/?SERVICE=WFS&amp;VERSION=2.0.0&amp;REQUEST=DescribeFeatureType&amp;TYPENAMES=app:restaurant http://www.opengis.net/wfs/2.0 http://schemas.opengis.net/wfs/2.0/wfs.xsd http://www.opengis.net/gml/3.2 http://schemas.opengis.net/gml/3.2.1/gml.xsd"
-             timeStamp="{timestamp}" numberMatched="1" numberReturned="1">
+                xmlns:wfs="http://www.opengis.net/wfs/2.0" xmlns:gml="http://www.opengis.net/gml/3.2"
+                 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:app="http://example.org/gisserver"
+                 xsi:schemaLocation="http://example.org/gisserver http://testserver/v1/wfs/?SERVICE=WFS&amp;VERSION=2.0.0&amp;REQUEST=DescribeFeatureType&amp;TYPENAMES=app:restaurant,app:mini-restaurant http://www.opengis.net/wfs/2.0 http://schemas.opengis.net/wfs/2.0/wfs.xsd http://www.opengis.net/gml/3.2 http://schemas.opengis.net/gml/3.2.1/gml.xsd"
+                 timeStamp="{timestamp}" numberMatched="1" numberReturned="1">
+              <wfs:member>
+                <wfs:FeatureCollection timeStamp="{timestamp}" numberMatched="1" numberReturned="1">
+                  <wfs:member>
+                    <app:restaurant gml:id="restaurant.{restaurant.id}">
+                      <gml:name>Café Noir</gml:name>
+                    </app:restaurant>
+                  </wfs:member>
+                </wfs:FeatureCollection>
+              </wfs:member>
               <wfs:truncatedResponse>
                 <ows:ExceptionReport
                     xmlns:ows="http://www.opengis.net/ows/1.1"
@@ -823,7 +838,7 @@ class TestGetFeature:
                     xml:lang="en-US" version="2.0.0">
                   <ows:Exception exceptionCode="OperationalError">
 
-                     <ows:ExceptionText>OperationalError during rendering!</ows:ExceptionText>
+                    <ows:ExceptionText>OperationalError during rendering!</ows:ExceptionText>
 
                   </ows:Exception>
                 </ows:ExceptionReport>
@@ -831,3 +846,18 @@ class TestGetFeature:
             </wfs:FeatureCollection>
         """,
         )
+
+
+def _fail_on_next_call(monkeypatch, target, name, fail_at=2, exception=None):
+    """Make a function fail after it's called at least once."""
+    num_calls = 0
+    original = getattr(target, name)
+
+    def _replacemnt(*args, **kwargs):
+        nonlocal num_calls
+        num_calls += 1
+        if num_calls >= fail_at:
+            raise exception or OperationalError("Mocked Database Error")
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(target, name, _replacemnt)

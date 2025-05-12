@@ -182,15 +182,14 @@ class GML32Renderer(CollectionOutputRenderer, XmlOutputRenderer):
             exception = WFSException(message, code=exception.__class__.__name__, status_code=500)
         exception.debug_hint = False
 
-        # Only at the top-level, an exception report can be rendered
-        closing_child = (
-            f"</wfs:{self.xml_sub_collection_tag}></wfs:member>\n"
-            if len(self.collection.results) > 1
-            else ""
-        )
+        # Only at the top-level, an exception report can be rendered, close any remaining tags.
+        if len(self.collection.results) > 1:
+            sub_closing = f"</wfs:{self.xml_sub_collection_tag}>\n</wfs:member>\n"
+            if not buffer.endswith(sub_closing):
+                buffer += sub_closing
+
         return (
             f"{buffer}"
-            f"{closing_child}"
             "  <wfs:truncatedResponse>"
             f"{exception.as_xml()}"
             "  </wfs:truncatedResponse>\n"
@@ -204,9 +203,14 @@ class GML32Renderer(CollectionOutputRenderer, XmlOutputRenderer):
         collection = self.collection
         self.output = output = StringIO()
         self._write = self.output.write
+
+        # The base class peaks the generator and handles early exceptions.
+        # Any database exceptions during calculating the number of results
+        # are all handled by the main WFS view.
         number_matched = collection.number_matched
         number_matched = int(number_matched) if number_matched is not None else "unknown"
         number_returned = collection.number_returned
+
         next = previous = ""
         if collection.next:
             next = f' next="{attr_escape(collection.next)}"'
@@ -238,7 +242,7 @@ class GML32Renderer(CollectionOutputRenderer, XmlOutputRenderer):
                         f' numberReturned="{int(sub_collection.number_returned)}">\n'
                     )
 
-                for instance in sub_collection:
+                for instance in self.read_features(sub_collection):
                     self.gml_seq = 0  # need to increment this between write_xml_field calls
                     self._write("<wfs:member>\n")
                     self.write_feature(projection, instance)

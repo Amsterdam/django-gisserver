@@ -8,12 +8,22 @@ https://docs.opengeospatial.org/is/09-025r2/09-025r2.html#35
 https://docs.opengeospatial.org/is/09-025r2/09-025r2.html#411
 """
 
+from __future__ import annotations
+
 import logging
+import typing
 from contextlib import contextmanager
 
 from django.conf import settings
+from django.core.exceptions import FieldError, ValidationError
+from django.db import InternalError, ProgrammingError
 from django.http import HttpResponse
 from django.utils.html import format_html
+
+from gisserver import conf
+
+if typing.TYPE_CHECKING:
+    from gisserver.parsers import wfs20
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +43,90 @@ def wrap_parser_errors(name: str, locator: str):
         # TypeError/ValueError are raised by most handlers for unexpected data
         # The NotImplementedError can be raised by fes parsing.
         raise InvalidParameterValue(f"Invalid {name} argument: {e}", locator=locator) from None
+
+
+@contextmanager
+def wrap_filter_errors(query: wfs20.QueryExpression):  # noqa:C901
+    """Perform a QuerySet/filter creation operation.
+    and trap many parser errors in the making of it."""
+    try:
+        yield
+    except ExternalParsingError as e:
+        # Bad input data
+        _log_filter_error(query, logging.ERROR, e)
+        raise OperationParsingFailed(str(e), locator=query.query_locator) from e
+    except ExternalValueError as e:
+        # Bad input data
+        _log_filter_error(query, logging.ERROR, e)
+        raise InvalidParameterValue(str(e), locator=query.query_locator) from e
+    except ValidationError as e:
+        # Bad input data
+        _log_filter_error(query, logging.ERROR, e)
+        raise OperationParsingFailed(
+            "\n".join(map(str, e.messages)),
+            locator=query.query_locator,
+        ) from e
+    except FieldError as e:
+        # e.g. doing a LIKE on a foreign key, or requesting an unknown field.
+        if not conf.GISSERVER_WRAP_FILTER_DB_ERRORS:
+            raise
+        _log_filter_error(query, logging.ERROR, e)
+        raise InvalidParameterValue(
+            "Internal error when processing filter",
+            locator=query.query_locator,
+        ) from e
+    except (InternalError, ProgrammingError) as e:
+        # e.g. comparing datetime against integer
+        if not conf.GISSERVER_WRAP_FILTER_DB_ERRORS:
+            raise
+        logger.exception("WFS request failed: %s\nQuery: %r", str(e), query)
+        msg = str(e)
+        locator = "srsName" if "Cannot find SRID" in msg else query.query_locator
+        raise InvalidParameterValue(f"Invalid request: {msg}", locator=locator) from e
+    except (TypeError, ValueError) as e:
+        # TypeError/ValueError could reference a datatype mismatch in an
+        # ORM query, but it could also be an internal bug. In most cases,
+        # this is already caught by XsdElement.validate_comparison().
+        raise
+        if _is_orm_error(e):
+            if query.query_locator == "STOREDQUERY_ID":
+                # This is a fallback, ideally the stored query performs its own validation.
+                raise InvalidParameterValue(
+                    f"Invalid stored query parameter: {e}", locator=query.query_locator
+                ) from e
+            else:
+                raise InvalidParameterValue(
+                    f"Invalid filter query: {e}", locator=query.query_locator
+                ) from e
+        raise
+
+
+def _is_orm_error(exception: Exception) -> bool:
+    """Tell whether an exception is caused by the ORM."""
+    traceback = exception.__traceback__
+    while traceback.tb_next is not None:
+        traceback = traceback.tb_next
+        if "/django/db/models/query" in traceback.tb_frame.f_code.co_filename:
+            return True
+    return False
+
+
+def _log_filter_error(query, level, exc):
+    """Report a filtering parsing error in the logging"""
+    filter = getattr(query, "filter", None)  # AdhocQuery only
+    fes_xml = filter.source if filter is not None else "(not provided)"
+    try:
+        sql = exc.__cause__.cursor.query.decode()
+    except AttributeError:
+        logger.log(level, "WFS query failed: %s\nFilter:\n%s", exc, fes_xml)
+    else:
+        logger.log(
+            level,
+            "WFS query failed: %s\nSQL Query: %s\n\nFilter:\n%s",
+            exc,
+            sql,
+            fes_xml,
+        )
 
 
 class ExternalValueError(ValueError):

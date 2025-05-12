@@ -60,6 +60,18 @@ def read_response(response: HttpResponseBase) -> str:
     return b"".join(response).decode()
 
 
+def read_partial_response(response: HttpResponseBase) -> tuple[str, Exception]:
+    """Read a response, allow it to be interrupted by an exception."""
+    content_parts = []
+    try:
+        for part in response:
+            content_parts.append(part)
+    except Exception as exc:
+        return b"".join(content_parts).decode(), exc
+    else:
+        return b"".join(content_parts).decode(), None
+
+
 def read_json(content) -> dict:
     try:
         return orjson.loads(content)

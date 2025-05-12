@@ -17,6 +17,7 @@ from django.db import models
 from django.utils.timezone import now
 
 from gisserver import conf
+from gisserver.exceptions import wrap_filter_errors
 from gisserver.features import FeatureType
 from gisserver.geometries import BoundingBox
 
@@ -126,12 +127,13 @@ class SimpleFeatureCollection:
             return self.queryset[self.start : self.stop + (1 if add_sentinel else 0)]
 
     def first(self):
-        try:
-            # Don't query a full page, return only one instance (for GetFeatureById)
-            # This also preserves the extra added annotations (like _as_gml_FIELD)
-            return self.queryset[self.start]
-        except IndexError:
-            return None
+        with wrap_filter_errors(self.source_query):
+            try:
+                # Don't query a full page, return only one instance (for GetFeatureById)
+                # This also preserves the extra added annotations (like _as_gml_FIELD)
+                return self.queryset[self.start]
+            except IndexError:
+                return None
 
     def fetch_results(self):
         """Forcefully read the results early."""
@@ -148,11 +150,15 @@ class SimpleFeatureCollection:
             if self.stop == math.inf:
                 # Infinite page requested, see if start is still requested
                 qs = self.queryset[self.start :] if self.start else self.queryset.all()
-                self._result_cache = list(qs)
+
+                with wrap_filter_errors(self.source_query):
+                    self._result_cache = list(qs)
             elif self._use_sentinel_record:
                 # No counting, but instead fetch an extra item as sentinel to see if there are more results.
                 qs = self.queryset[self.start : self.stop + 1]
-                page_results = list(qs)
+
+                with wrap_filter_errors(self.source_query):
+                    page_results = list(qs)
 
                 # The stop + 1 sentinel allows checking if there is a next page.
                 # This means no COUNT() is needed to detect that.
@@ -167,7 +173,9 @@ class SimpleFeatureCollection:
                 # Fetch exactly the page size, no more is needed.
                 # Will use a COUNT on the total table, so it can be used to see if there are more pages.
                 qs = self.queryset[self.start : self.stop]
-                self._result_cache = list(qs)
+
+                with wrap_filter_errors(self.source_query):
+                    self._result_cache = list(qs)
 
     @cached_property
     def _use_sentinel_record(self) -> bool:
@@ -224,7 +232,8 @@ class SimpleFeatureCollection:
             qs.query.annotations = clean_annotations
 
         # Calculate, cache and return
-        self._number_matched = qs.count()
+        with wrap_filter_errors(self.source_query):
+            self._number_matched = qs.count()
         return self._number_matched
 
     @property
