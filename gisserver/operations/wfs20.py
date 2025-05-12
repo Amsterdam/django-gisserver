@@ -16,18 +16,14 @@ import re
 import typing
 from urllib.parse import urlencode
 
-from django.core.exceptions import FieldError, ImproperlyConfigured, ValidationError
-from django.db import InternalError, ProgrammingError
-from django.db.models import QuerySet
+from django.core.exceptions import ImproperlyConfigured
 from django.utils.module_loading import import_string
 
 from gisserver import conf, output
 from gisserver.exceptions import (
-    ExternalParsingError,
-    ExternalValueError,
     InvalidParameterValue,
-    OperationParsingFailed,
     VersionNegotiationFailed,
+    wrap_filter_errors,
 )
 from gisserver.extensions.functions import function_registry
 from gisserver.extensions.queries import stored_query_registry
@@ -275,7 +271,9 @@ class BaseWFSGetDataOperation(OutputFormatMixin, WFSOperation):
         start, count = self.get_pagination()
         results = []
         for query in self.ows_request.queries:
-            queryset = self._get_queryset(query)
+            with wrap_filter_errors(query):
+                queryset = query.get_queryset()
+
             results.append(
                 output.SimpleFeatureCollection(
                     source_query=query,
@@ -300,7 +298,9 @@ class BaseWFSGetDataOperation(OutputFormatMixin, WFSOperation):
         results = []
         for query in self.ows_request.queries:
             # The querysets are not executed yet, until the output is reading them.
-            queryset = self._get_queryset(query)
+            with wrap_filter_errors(query):
+                queryset = query.get_queryset()
+
             results.append(
                 output.SimpleFeatureCollection(
                     source_query=query,
@@ -374,83 +374,6 @@ class BaseWFSGetDataOperation(OutputFormatMixin, WFSOperation):
         # Override/replace with new remaining uppercase variants
         new_params.update(updates)
         return f"{self.view.server_url}?{urlencode(new_params)}"
-
-    def _get_queryset(self, query: wfs20.QueryExpression) -> QuerySet:  # noqa:C901
-        """Generate the queryset, and trap many parser errors in the making of it."""
-        try:
-            return query.get_queryset()
-        except ExternalParsingError as e:
-            # Bad input data
-            self._log_filter_error(query, logging.ERROR, e)
-            raise OperationParsingFailed(str(e), locator=query.query_locator) from e
-        except ExternalValueError as e:
-            # Bad input data
-            self._log_filter_error(query, logging.ERROR, e)
-            raise InvalidParameterValue(str(e), locator=query.query_locator) from e
-        except ValidationError as e:
-            # Bad input data
-            self._log_filter_error(query, logging.ERROR, e)
-            raise OperationParsingFailed(
-                "\n".join(map(str, e.messages)),
-                locator=query.query_locator,
-            ) from e
-        except FieldError as e:
-            # e.g. doing a LIKE on a foreign key, or requesting an unknown field.
-            if not conf.GISSERVER_WRAP_FILTER_DB_ERRORS:
-                raise
-            self._log_filter_error(query, logging.ERROR, e)
-            raise InvalidParameterValue(
-                "Internal error when processing filter",
-                locator=query.query_locator,
-            ) from e
-        except (InternalError, ProgrammingError) as e:
-            # e.g. comparing datetime against integer
-            if not conf.GISSERVER_WRAP_FILTER_DB_ERRORS:
-                raise
-            logger.exception("WFS request failed: %s\nRequest: %r", str(e), self.ows_request)
-            msg = str(e)
-            locator = "srsName" if "Cannot find SRID" in msg else query.query_locator
-            raise InvalidParameterValue(f"Invalid request: {msg}", locator=locator) from e
-        except (TypeError, ValueError) as e:
-            # TypeError/ValueError could reference a datatype mismatch in an
-            # ORM query, but it could also be an internal bug. In most cases,
-            # this is already caught by XsdElement.validate_comparison().
-            if self._is_orm_error(e):
-                if query.query_locator == "STOREDQUERY_ID":
-                    # This is a fallback, ideally the stored query performs its own validation.
-                    raise InvalidParameterValue(
-                        f"Invalid stored query parameter: {e}", locator=query.query_locator
-                    ) from e
-                else:
-                    raise InvalidParameterValue(
-                        f"Invalid filter query: {e}", locator=query.query_locator
-                    ) from e
-            raise
-
-    def _is_orm_error(self, exception: Exception):
-        traceback = exception.__traceback__
-        while traceback.tb_next is not None:
-            traceback = traceback.tb_next
-            if "/django/db/models/query" in traceback.tb_frame.f_code.co_filename:
-                return True
-        return False
-
-    def _log_filter_error(self, query, level, exc):
-        """Report a filtering parsing error in the logging"""
-        filter = getattr(query, "filter", None)  # AdhocQuery only
-        fes_xml = filter.source if filter is not None else "(not provided)"
-        try:
-            sql = exc.__cause__.cursor.query.decode()
-        except AttributeError:
-            logger.log(level, "WFS query failed: %s\nFilter:\n%s", exc, fes_xml)
-        else:
-            logger.log(
-                level,
-                "WFS query failed: %s\nSQL Query: %s\n\nFilter:\n%s",
-                exc,
-                sql,
-                fes_xml,
-            )
 
 
 class GetFeature(BaseWFSGetDataOperation):

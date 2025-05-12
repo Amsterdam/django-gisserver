@@ -66,7 +66,7 @@ class CSVRenderer(CollectionOutputRenderer):
             writer.writerow(self.get_header(projection, xsd_elements))
 
             # Write all rows
-            for instance in sub_collection:
+            for instance in self.read_features(sub_collection):
                 writer.writerow(self.get_row(instance, projection, xsd_elements))
 
                 # Only perform a 'yield' every once in a while,
