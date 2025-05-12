@@ -4,6 +4,7 @@ import logging
 import math
 import typing
 from io import BytesIO, StringIO
+from itertools import chain
 
 from django.conf import settings
 from django.db import models
@@ -53,8 +54,15 @@ class OutputRenderer:
             )
         else:
             # An actual generator.
+            # Peek the generator so initial exceptions can still be handled,
+            # and get rendered as normal HTTP responses with the proper status.
+            try:
+                start = next(stream)  # peek, so any raised OWSException here is handled by OWSView
+                stream = chain([start], self._trap_exceptions(stream))
+            except StopIteration:
+                pass
+
             # Handover to WSGI server (starts streaming when reading the contents)
-            stream = self._trap_exceptions(stream)
             return StreamingHttpResponse(
                 streaming_content=stream,
                 content_type=self.content_type,
