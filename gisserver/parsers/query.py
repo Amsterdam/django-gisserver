@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import operator
 from datetime import date, datetime
+from decimal import Decimal as D
 from functools import reduce
 from typing import Union
 
@@ -16,7 +17,8 @@ from django.db.models.expressions import Combinable, Func
 from gisserver.features import FeatureType
 
 logger = logging.getLogger(__name__)
-RhsTypes = Union[Combinable, Func, Q, GEOSGeometry, bool, int, str, date, datetime, tuple]
+ScalarTypes = (bool, int, str, D, date, datetime)  # Not Union for Python 3.9
+RhsTypes = Union[Combinable, Func, Q, GEOSGeometry, bool, int, D, str, date, datetime, tuple]
 
 
 class CompiledQuery:

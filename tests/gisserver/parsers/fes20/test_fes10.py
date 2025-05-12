@@ -1,8 +1,8 @@
 """Additional tests for FES 1.0 Arithmetic operators."""
 
 import pytest
-from django.db import models
-from django.db.models import Q, Value
+from django.core.exceptions import ValidationError
+from django.db.models import F, Q
 
 from gisserver.parsers.fes20 import Filter
 from gisserver.parsers.fes20.expressions import (
@@ -19,6 +19,7 @@ from gisserver.parsers.fes20.operators import (
     MatchAction,
 )
 from gisserver.parsers.query import CompiledQuery
+from gisserver.types import XsdTypes
 
 from .utils import compile_query
 
@@ -71,19 +72,158 @@ def test_fes10_add_sub():
 
     # Test SQL generating
     query = compile_query(result)
-    integer_field = models.IntegerField()
     assert query == CompiledQuery(
         query.feature_types,
         lookups=[
-            Q(
-                SomeProperty__exact=(
-                    Value(100, output_field=integer_field)
-                    - Value(50, output_field=integer_field)
-                    + Value(200, output_field=integer_field)
-                )
-            )
+            # calculation happens in BinaryOperator
+            Q(SomeProperty__exact=250)
         ],
     ), repr(query)
+
+
+def test_fes10_add_other_property():
+    """A simple non-spatial filter checking to see if SomeProperty is equal to 100."""
+    xml_text = """
+        <fes:Filter
+            xmlns:fes="http://www.opengis.net/fes/2.0"
+            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+            xsi:schemaLocation="http://www.opengis.net/fes/2.0
+            http://schemas.opengis.net/filter/2.0/filterAll.xsd">
+            <fes:PropertyIsEqualTo>
+                <fes:PropertyName>SomeProperty</fes:PropertyName>
+                <fes:Add>
+                    <fes:ValueReference>OtherProperty</fes:ValueReference>
+                    <fes:Literal>200</fes:Literal>
+                </fes:Add>
+            </fes:PropertyIsEqualTo>
+        </fes:Filter>
+    """.strip()
+    expected = Filter(
+        predicate=BinaryComparisonOperator(
+            operatorType=BinaryComparisonName.PropertyIsEqualTo,
+            expression=(
+                ValueReference(xpath="SomeProperty"),
+                BinaryOperator(
+                    _operatorType=BinaryOperatorType.Add,
+                    expression=(
+                        ValueReference(xpath="OtherProperty"),
+                        Literal(raw_value="200"),
+                    ),
+                ),
+            ),
+            matchCase=True,
+            matchAction=MatchAction.Any,
+        )
+    )
+    result = Filter.from_string(xml_text)
+    assert result == expected, f"result={result!r}"
+
+    # Test SQL generating
+    # Testing against repr() because CombinedExpression / Value doesn't do __eq__ testing.
+    query = compile_query(result)
+    expect = CompiledQuery(
+        query.feature_types,
+        lookups=[Q(SomeProperty__exact=F("OtherProperty") + 200)],
+    )
+    assert repr(query) == repr(expect), repr(query)
+
+
+def test_fes10_reverse_operators():
+    """A simple non-spatial filter checking to see if SomeProperty is equal to 100."""
+    xml_text = """
+        <fes:Filter
+            xmlns:fes="http://www.opengis.net/fes/2.0"
+            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+            xsi:schemaLocation="http://www.opengis.net/fes/2.0
+            http://schemas.opengis.net/filter/2.0/filterAll.xsd">
+            <fes:PropertyIsEqualTo>
+                <fes:PropertyName>SomeProperty</fes:PropertyName>
+                <fes:Sub>
+                    <fes:Literal>200</fes:Literal>
+                    <fes:ValueReference>OtherProperty</fes:ValueReference>
+                </fes:Sub>
+            </fes:PropertyIsEqualTo>
+        </fes:Filter>
+    """.strip()
+    expected = Filter(
+        predicate=BinaryComparisonOperator(
+            operatorType=BinaryComparisonName.PropertyIsEqualTo,
+            expression=(
+                ValueReference(xpath="SomeProperty"),
+                BinaryOperator(
+                    _operatorType=BinaryOperatorType.Sub,
+                    expression=(
+                        Literal(raw_value="200"),
+                        ValueReference(xpath="OtherProperty"),
+                    ),
+                ),
+            ),
+            matchCase=True,
+            matchAction=MatchAction.Any,
+        )
+    )
+    result = Filter.from_string(xml_text)
+    assert result == expected, f"result={result!r}"
+
+    # Test SQL generating
+    # Testing against repr() because CombinedExpression / Value doesn't do __eq__ testing.
+    query = compile_query(result)
+    expect = CompiledQuery(
+        query.feature_types,
+        lookups=[Q(SomeProperty__exact=200 - F("OtherProperty"))],
+    )
+    assert repr(query) == repr(expect), repr(query)
+
+
+def test_fes10_add_date_field():
+    """A simple non-spatial filter checking to see if SomeProperty is equal to 100."""
+    # Based on what QGis generated when typing: "DOCUMENT_DATE > 2020-01-01" in the filter.
+    xml_text = """
+        <fes:Filter xmlns:fes="http://www.opengis.net/fes/2.0">
+           <fes:PropertyIsGreaterThan>
+            <fes:ValueReference>DOCUMENT_DATE</fes:ValueReference>
+            <fes:Sub>
+             <fes:Sub>
+              <fes:Literal>2020</fes:Literal>
+              <fes:Literal>1</fes:Literal>
+             </fes:Sub>
+             <fes:Literal>1</fes:Literal>
+            </fes:Sub>
+           </fes:PropertyIsGreaterThan>
+         </fes:Filter>
+    """.strip()
+    expected = Filter(
+        predicate=BinaryComparisonOperator(
+            operatorType=BinaryComparisonName.PropertyIsGreaterThan,
+            expression=(
+                ValueReference(xpath="DOCUMENT_DATE"),
+                BinaryOperator(
+                    _operatorType=BinaryOperatorType.Sub,
+                    expression=(
+                        BinaryOperator(
+                            _operatorType=BinaryOperatorType.Sub,
+                            expression=(
+                                Literal(raw_value="2020"),
+                                Literal(raw_value="1"),
+                            ),
+                        ),
+                        Literal(raw_value="1"),
+                    ),
+                ),
+            ),
+            matchCase=True,
+            matchAction=MatchAction.Any,
+        )
+    )
+    result = Filter.from_string(xml_text)
+    assert result == expected, f"result={result!r}"
+
+    # Test early value comparisons
+    with pytest.raises(
+        ValidationError,
+        match="Invalid data for the 'DOCUMENT_DATE' property: Can't cast '2018' to dateTime.",
+    ):
+        compile_query(result, field_types={"DOCUMENT_DATE": XsdTypes.dateTime})
 
 
 @pytest.mark.parametrize("leading_whitespace", [1, 0])

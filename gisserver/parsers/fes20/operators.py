@@ -29,7 +29,7 @@ from gisserver.parsers.ast import (
     expect_tag,
     tag_registry,
 )
-from gisserver.parsers.query import CompiledQuery, RhsTypes
+from gisserver.parsers.query import CompiledQuery, RhsTypes, ScalarTypes
 from gisserver.parsers.values import fix_type_name
 from gisserver.parsers.xml import NSElement, xmlns
 from gisserver.types import GeometryXsdElement, XPathMatch
@@ -283,12 +283,21 @@ class NonIdOperator(Operator):
         lookup = self.validate_comparison(compiler, lhs, lookup, rhs)
 
         # Build Django Q-object
-        lhs = lhs.build_lhs(compiler)
+        lhs_orm_name = lhs.build_lhs(compiler)
 
         if isinstance(rhs, (Expression, gml.GM_Object)):
             rhs = rhs.build_rhs(compiler)
+            if (
+                isinstance(lhs, ValueReference)
+                and isinstance(rhs, ScalarTypes)
+                and lookup != "isnull"
+            ):
+                # Building the expression resolved as a scalar after all (for BinaryOperator).
+                # It allows performing a better type check:
+                xsd_element = lhs.parse_xpath(compiler.feature_types).child
+                xsd_element.to_python(rhs)
 
-        comparison = Q(**{f"{lhs}__{lookup}": rhs})
+        comparison = Q(**{f"{lhs_orm_name}__{lookup}": rhs})
         return compiler.apply_extra_lookups(comparison)
 
     def validate_comparison(
@@ -347,6 +356,9 @@ class NonIdOperator(Operator):
                 # When a common case of value comparison is done, the inputs
                 # can be validated before the ORM query is constructed.
                 xsd_element.validate_comparison(rhs.raw_value, lookup=lookup, tag=tag)
+            elif isinstance(rhs, ScalarTypes) and lookup != "isnull":
+                # Can still compare two elements, e.g. date >= ((2020 - 12) - 10) by QGis
+                xsd_element.validate_comparison(rhs, lookup=lookup, tag=tag)
 
         return lookup
 
