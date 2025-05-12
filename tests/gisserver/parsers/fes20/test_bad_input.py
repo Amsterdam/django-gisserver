@@ -116,9 +116,8 @@ def test_between_sub_elements():
         </fes:Filter>
     """.strip()
 
-    with pytest.raises(ExternalParsingError) as e:
+    with pytest.raises(
+        ExternalParsingError,
+        match="{http://www.opengis.net/fes/2.0}UpperBoundary should have 1 expression child node",
+    ):
         Filter.from_string(xml_text)
-
-    assert str(e.value) == (
-        "{http://www.opengis.net/fes/2.0}UpperBoundary should have 1 expression child node"
-    )
