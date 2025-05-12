@@ -1,11 +1,8 @@
-# This is a dockerfile to run the unit tests against the Travis Ubuntu version,
-# to allow debugging proj/gdal differences between your local machine and Travis.
 FROM python:3.13-bookworm
 ARG DEBIAN_FRONTEND=noninteractive
 ENV LANG=C.UTF-8
 
-# No longer using ppa:ubuntugis repo, everything is part of ubuntu:focal
-# python3-dev is needed for lru_dict
+# Install system packages for GeoDjango and our dependencies
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
        libgdal32 \
