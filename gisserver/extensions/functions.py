@@ -112,6 +112,7 @@ class FesFunctionRegistry:
             ) from None
 
 
+#: The function registry
 function_registry = FesFunctionRegistry()
 
 

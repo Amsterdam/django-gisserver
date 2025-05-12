@@ -31,6 +31,7 @@ Features
    overriding
    extensions
    architecture
+   api/index
 
 .. toctree::
    :maxdepth: 1

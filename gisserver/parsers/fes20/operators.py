@@ -58,7 +58,7 @@ class HasBuildRhs(Protocol):
 
 
 class MatchAction(Enum):
-    """Values for the 'matchAction' attribute of the BinaryComparisonOperator."""
+    """Values for the 'matchAction' attribute of the :class:`BinaryComparisonOperator`."""
 
     All = "All"
     Any = "Any"
@@ -202,7 +202,16 @@ class Operator(BaseNode):
 
 @dataclass
 class IdOperator(Operator):
-    """List of ResourceId objects"""
+    """List of ResourceId objects.
+
+    A ``<fes:Filter>`` only has a single predicate.
+    Hence, this operator is used to wrap the ``<fes:ResourceId>`` elements in the syntax::
+
+        <fes:Filter>
+            <fes:ResourceId rid="typename.123" />
+            <fes:ResourceId rid="typename.345" />
+        </fes:Filter>
+    """
 
     id: list[Id]
 
@@ -252,7 +261,7 @@ class NonIdOperator(Operator):
     """Abstract base class, as defined by FES spec.
 
     This is used for nearly all operators,
-    except those that have <fes:ResourceId> elements as children.
+    except those that have ``<fes:ResourceId>`` elements as children.
 
     Some operators, such as the ``<fes:And>``, ``<fes:Or>`` and ``<fes:Not>`` operators
     explicitly support only ``NonIdOperator`` elements as arguments.

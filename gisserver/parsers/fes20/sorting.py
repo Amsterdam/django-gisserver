@@ -105,6 +105,7 @@ class SortBy(BaseNode):
     It also supports the SORTBY parameter for GET requests.
     """
 
+    #: The ``<fes:SortProperty>`` elements.
     sort_properties: list[SortProperty]
 
     @classmethod

@@ -46,17 +46,27 @@ class Id(BaseNode):
 class ResourceId(Id):
     """The <fes:ResourceId> element.
     This element allow queries to retrieve a resource by their identifier.
+
+    This parses the syntax::
+
+        <fes:ResourceId rid="typename.123" />
+
     """
 
-    # A raw "resource identifier". Needs to encode the object name somehow,
-    # and it's completely unrelated to XML namespacing.
+    #: A raw "resource identifier". It typically includes the object name,
+    #: which is completely unrelated to XML namespacing.
     rid: str
+
+    #: Internal extra attribute, referencing the inferred typename from the :attr:`rid`.
     type_name: str | None
+
+    #: Unused, this is part of additional conformance classes.
     version: int | datetime | VersionActionTokens | NoneType = None
     startTime: datetime | None = None
     endTime: datetime | None = None
 
     def get_type_name(self):
+        """Implemented/override to expose the inferred type name."""
         return self.type_name
 
     def __post_init__(self):

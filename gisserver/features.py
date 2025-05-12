@@ -1,14 +1,15 @@
-"""The configuration of a "feature type" in the WFS server.
+"""The main configuration for exposing model data in the WFS server.
 
 The "feature type" definitions define what models and attributes are exposed in the WFS server.
 When a model attribute is mentioned in the feature type, it can be exposed and queried against.
 Any field that is not mentioned in a definition, will therefore not be available, nor queryable.
 This metadata is used in the ``GetCapabilities`` call to advertise all available feature types.
 
-To handle other WFS request types besides ``GetCapabilities``, the "feature type" definition
-is translated internally into an internal XML Schema Definition (:mod:`gisserver.types`).
+The "feature type" definitions ares translated internally into
+an internal XML Schema Definition (made from :mod:`gisserver.types`).
 That schema maps all model attributes to a specific XML layout, and includes
 all XSD Complex Types, elements and attributes linked to the Django model metadata.
+
 The feature type classes (and field types) offer a flexible translation
 from attribute listings into a schema definition.
 For example, model relationships can be modelled to a different XML layout.

@@ -48,7 +48,7 @@ from gisserver.parsers.xml import NSElement, xmlns
 
 
 class TagNameEnum(Enum):
-    """An enumeration of XML tag names.
+    """An base clas for enumerations of XML tag names.
 
     All enumerations that represent tag names inherit from this.
     Each member name should be exactly the XML tag that it refers to.
@@ -56,7 +56,12 @@ class TagNameEnum(Enum):
 
     @classmethod
     def from_xml(cls, element: NSElement):
-        """Cast the element tag name into the enum member"""
+        """Cast the element tag name into the enum member.
+
+        This translates the element name
+        such as``{http://www.opengis.net/fes/2.0}PropertyIsEqualTo``
+        into a ``PropertyIsEqualTo`` member.
+        """
         tag_name = element.tag
         if tag_name.startswith("{"):
             # Split the element tag into the namespace and local name.
@@ -272,7 +277,17 @@ class TagRegistry:
 
 
 def expect_tag(namespace: xmlns | str, *tag_names: str):
-    """Validate whether a given tag is need."""
+    """Decorator for ``from_xml()` methods that validate whether a given tag is provided.
+
+    For example::
+
+        @classmethod
+        @expect_tag(xmlns.fes20, "Literal")
+        def from_xml(cls, element):
+            ...
+
+    This guard is needed when nodes are passed directly to a ``from_xml()`` method.
+    """
     valid_tags = {QName(namespace, name).text for name in tag_names}
     expect0 = QName(namespace, tag_names[0]).text
 
@@ -292,7 +307,16 @@ def expect_tag(namespace: xmlns | str, *tag_names: str):
 
 
 def expect_no_children(from_xml_func):
-    """Validate that the XML tag has no child nodes."""
+    """Decorator for ``from_xml()` methods that validate that the XML tag has no child nodes.
+
+    For example::
+
+        @classmethod
+        @expect_tag(xmlns.fes20, "ResourceId")
+        @expect_no_children
+        def from_xml(cls, element):
+            ...
+    """
 
     @wraps(from_xml_func)
     def _expect_no_children_decorator(cls, element: NSElement, *args, **kwargs):
@@ -310,7 +334,15 @@ def expect_no_children(from_xml_func):
 def expect_children(  # noqa: C901
     min_child_nodes, *expect_types: str | type[BaseNode], silent_allowed: tuple[str] = ()
 ):
-    """Validate whether an element has enough children to continue parsing."""
+    """Decorator for ``from_xml()` methods to validate whether an element has the expected children.
+
+    For example::
+
+        @classmethod
+        @expect_children(2, Expression)
+        def from_xml(cls, element):
+            ...
+    """
     # Validate arguments early
     for child_type in expect_types + silent_allowed:
         if isinstance(child_type, str):

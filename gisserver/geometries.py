@@ -130,7 +130,7 @@ class CRS:
 
         * A URI in OGC URN format.
         * A legacy CRS URI ("epsg:<SRID>", or "http://www.opengis.net/...").
-        * A numeric SRID (which calls `from_srid()`)
+        * A numeric SRID (which calls :meth:`from_srid()`)
         """
         if isinstance(uri, int) or uri.isdigit():
             return cls.from_srid(int(uri), backend=backend)
@@ -145,7 +145,7 @@ class CRS:
 
         This is logically identical to calling::
 
-            CRS.from_string("urn:ogc:def:crs:EPSG:6.9:<SRID>")
+            CRS.from_string("urn:ogc:def:crs:EPSG::<SRID>")
         """
         if backend is None and (common_crs := _COMMON_CRS_BY_SRID.get(srid)):
             return common_crs  # Avoid object re-creation
@@ -238,7 +238,7 @@ class CRS:
 
     @property
     def legacy(self):
-        """Return a legacy string in the format "EPSG:<srid>"""
+        """Return a legacy string in the format :samp:`EPSG:{srid}`."""
         return f"EPSG:{self.srid:d}"
 
     @cached_property
@@ -292,10 +292,10 @@ class CRS:
             return geometry.transform(transform, clone=clone)
 
 
-# Worldwide GPS, latitude/longitude (y/x). https://epsg.io/4326
+#: Worldwide GPS, latitude/longitude (y/x). https://epsg.io/4326
 WGS84 = CRS.from_string("urn:ogc:def:crs:EPSG::4326")
 
-# GeoJSON default. This is like WGS84 but with longitude/latitude (x/y).
+#: GeoJSON default. This is like WGS84 but with longitude/latitude (x/y).
 CRS84 = CRS.from_string("urn:ogc:def:crs:OGC::CRS84")
 
 #: Spherical Mercator (Google Maps, Bing Maps, OpenStreetMap, ...), see https://epsg.io/3857

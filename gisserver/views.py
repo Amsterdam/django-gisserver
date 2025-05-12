@@ -46,7 +46,7 @@ class OWSView(View):
     #: Define the namespace to use in the XML
     xml_namespace = "http://example.org/gisserver"
 
-    #: Define namespace aliases to use, default is {"app": self.xml_namespace}
+    #: Define namespace aliases to use, default is ``{"app": self.xml_namespace}``.
     xml_namespace_aliases = None
 
     #: Default version to use
@@ -102,6 +102,7 @@ class OWSView(View):
     def get_xml_namespace_aliases(cls) -> dict[str, str]:
         """Provide all namespaces aliases with a namespace.
         This is most useful for parsing input.
+        The default is: ``{"app": cls.xml_namespace}``.
         """
         return cls.xml_namespace_aliases or {"app": cls.xml_namespace}
 
@@ -109,6 +110,7 @@ class OWSView(View):
     def get_xml_namespaces_to_prefixes(cls) -> dict[str, str]:
         """Provide a mapping from namespace to prefix.
         This is most useful for rendering output.
+        The default is: ``{cls.xml_namespace: "app"}``.
         """
         return {
             xml_namespace: prefix
@@ -119,7 +121,7 @@ class OWSView(View):
         """Entry point to handle HTTP GET requests.
 
         This parses the 'SERVICE' and 'REQUEST' parameters,
-        to call the proper operation.
+        to call the proper :class:`~gisserver.operations.base.WFSOperation`.
 
         All query parameters are handled as case-insensitive.
         """
@@ -159,7 +161,7 @@ class OWSView(View):
         """Entry point to handle HTTP POST requests.
 
         This parses the XML to get the correct service and operation,
-        to call the proper WFSMethod.
+        to call the proper :class:`~gisserver.operations.base.WFSOperation`.
         """
         # Parse the XML body
         if logger.isEnabledFor(logging.DEBUG):

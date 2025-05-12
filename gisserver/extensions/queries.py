@@ -2,7 +2,7 @@
 These definitions follow the WFS spec.
 
 By using the registry, custom stored queries can be registered in this server.
-Out of the box, only the mandatory built-in ``GetFeatureById`` query is present.
+Out of the box, only the mandatory built-in :class:`GetFeatureById` query is present.
 """
 
 from __future__ import annotations
@@ -186,6 +186,7 @@ class StoredQueryRegistry:
             ) from None
 
 
+#: The stored query registry
 stored_query_registry = StoredQueryRegistry()
 
 

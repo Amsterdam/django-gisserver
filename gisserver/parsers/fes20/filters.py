@@ -23,7 +23,7 @@ FES_RESOURCE_ID = xmlns.fes20.qname("ResourceId")
 @dataclass
 @tag_registry.register("Filter", xmlns.fes20)
 class Filter(BaseNode):
-    """The <fes:Filter> element.
+    """The ``<fes:Filter>`` element.
 
     This parses and handles the syntax::
 

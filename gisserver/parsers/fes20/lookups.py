@@ -130,7 +130,7 @@ else:
 
     @ArrayField.register_lookup
     class FesArrayLike(FesLike):
-        """Allow fieldname__fes_like=... lookups in querysets."""
+        """Allow like lookups for array fields."""
 
         lookup_name = "fes_anylike"
 

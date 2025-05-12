@@ -98,13 +98,13 @@ class XsdAnyType:
 
 
 class XsdTypes(XsdAnyType, Enum):
-    """Brief enumeration of basic XMLSchema types.
+    """Brief enumeration of common XMLSchema types.
 
     The :class:`XsdElement` and :class:`XsdAttribute` can use these enum members
     to indicate their value is a well-known XML Schema. Some GML types are included as well.
 
-    The default namespace is the "xs:" (XMLSchema).
-    Based on https://www.w3.org/TR/xmlschema-2/#built-in-datatypes
+    Each member value is a fully qualified XML name.
+    The output rendering will convert these to the chosen prefixes.
     """
 
     anyType = xmlns.xs.qname("anyType")  # not "xsd:any", that is an element.
@@ -149,16 +149,22 @@ class XsdTypes(XsdAnyType, Enum):
     gmlMultiCurvePropertyType = xmlns.gml.qname("MultiCurvePropertyType")
     gmlMultiGeometryPropertyType = xmlns.gml.qname("MultiGeometryPropertyType")
 
-    # Other typical GML values
-    gmlCodeType = xmlns.gml.qname("CodeType")  # for <gml:name>
-    gmlBoundingShapeType = xmlns.gml.qname("BoundingShapeType")  # for <gml:boundedBy>
+    # Other typical GML values:
 
-    #: A direct geometry value (used as function argument type)
+    #: The type for ``<gml:name>`` elements.
+    gmlCodeType = xmlns.gml.qname("CodeType")  # for <gml:name>
+
+    #: The type for ``<gml:boundedBy>`` elements.
+    gmlBoundingShapeType = xmlns.gml.qname("BoundingShapeType")
+
+    #: A direct geometry value, sometimes used as function argument type.
     gmlAbstractGeometryType = xmlns.gml.qname("AbstractGeometryType")
 
     #: A feature that has a gml:name and gml:boundedBy as possible child element.
     gmlAbstractFeatureType = xmlns.gml.qname("AbstractFeatureType")
-    gmlAbstractGMLType = xmlns.gml.qname("AbstractGMLType")  # base of gml:AbstractFeatureType
+
+    #: The base of gml:AbstractFeatureType
+    gmlAbstractGMLType = xmlns.gml.qname("AbstractGMLType")
 
     def __str__(self):
         return self.value
