@@ -91,7 +91,7 @@ class GEOSGMLGeometry(AbstractGeometry):
 
     def __repr__(self):
         # Better rendering for unit test debugging
-        return f"GMLGEOSGeometry(srs={self.srs!r}, geos_data=GEOSGeometry({self.geos_data.wkt!r}))"
+        return f"{self.__class__.__name__}(srs={self.srs!r}, geos_data=GEOSGeometry({self.geos_data.wkt!r}))"
 
     @property
     def wkt(self) -> str:
