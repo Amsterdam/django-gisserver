@@ -11,9 +11,10 @@
 .meta-page p { margin: 0 0 1rem 0; }
 
 /* application-specific */
+.connect-url { margin-left: 4rem; }
 
 tbody th { text-align: left; padding-right: 2rem; }
 tbody td { padding-right: 2rem; }
-.complex-level-1 th { padding-left: 16px; }
-.complex-level-2 th { padding-left: 32px; }
-.complex-level-3 th { padding-left: 48px; }
+.table > tbody > tr.complex-level-1 > th { padding-left: 20px; }
+.table > tbody > tr.complex-level-2 > th { padding-left: 40px; }
+.table > tbody > tr.complex-level-3 > th { padding-left: 60px; }

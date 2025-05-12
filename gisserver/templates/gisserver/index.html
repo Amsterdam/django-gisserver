@@ -1,15 +1,15 @@
-{% extends "gisserver/base.html" %}
+{% extends "gisserver/base.html" %}{% load i18n %}
 
 {% block title %}{{ service_description.title }} {{ accept_operations|dictsort:0|join:"/" }}{% endblock %}
 {% block content %}
-  <header>
+  <header id="wfs-header">
     {% block header %}{% include "gisserver/service_description.html" %}{% endblock %}
   </header>
 
-  <main>
+  <main id="wfs-main">
     {% block main %}
       {% if wfs_features %}
-        <h2>WFS Feature Types</h2>
+        <h2>{% translate "WFS Feature Types" %}</h2>
         {% for feature_type in wfs_features %}
           <article>{% include "gisserver/wfs/feature_type.html" %}</article>
         {% endfor %}
