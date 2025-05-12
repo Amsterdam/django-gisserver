@@ -1,9 +1,9 @@
 import logging
 import re
-from datetime import datetime
+from datetime import date, datetime, time
 from decimal import Decimal as D
 
-from django.utils.dateparse import parse_datetime
+from django.utils.dateparse import parse_date, parse_datetime, parse_time
 
 from gisserver.exceptions import ExternalParsingError
 
@@ -26,14 +26,44 @@ def auto_cast(value: str):
     return value
 
 
+def parse_iso_date(raw_value: str) -> date:
+    """Translate ISO date into a Python date value."""
+    try:
+        value = parse_date(raw_value)
+    except ValueError as e:
+        raise ExternalParsingError(str(e)) from e
+
+    if value is None:
+        raise ExternalParsingError("Date must be in YYYY-MM-DD format.")
+    return value
+
+
 def parse_iso_datetime(raw_value: str) -> datetime:
-    value = parse_datetime(raw_value)
+    """Translate ISO datetimes into a Python datetime value."""
+    try:
+        value = parse_datetime(raw_value)
+    except ValueError as e:
+        raise ExternalParsingError(str(e)) from e
+
     if value is None:
         raise ExternalParsingError("Date must be in YYYY-MM-DD HH:MM[:ss[.uuuuuu]][TZ] format.")
     return value
 
 
+def parse_iso_time(raw_value: str) -> time:
+    """Translate ISO times into a Python time value."""
+    try:
+        value = parse_time(raw_value)
+    except ValueError as e:
+        raise ExternalParsingError(str(e)) from e
+
+    if value is None:
+        raise ExternalParsingError("Time must be in HH:MM[:ss[.uuuuuu]][TZ] format.")
+    return value
+
+
 def parse_bool(raw_value: str):
+    """Translate XML notations of true/1 and false/0 into a boolean."""
     if raw_value in ("true", "1"):
         return True
     elif raw_value in ("false", "0"):

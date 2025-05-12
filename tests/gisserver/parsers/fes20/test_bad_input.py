@@ -1,7 +1,10 @@
 import pytest
+from django.core.exceptions import ValidationError
 
 from gisserver.exceptions import ExternalParsingError
 from gisserver.parsers.fes20 import Filter
+from gisserver.types import XsdTypes
+from tests.gisserver.parsers.fes20.utils import compile_query
 
 
 def test_unclosed_xml():
@@ -167,3 +170,43 @@ def test_between_sub_elements():
         match="{http://www.opengis.net/fes/2.0}UpperBoundary should have 1 expression child node",
     ):
         Filter.from_string(xml_text)
+
+
+def test_compare_invalid_date_types():
+    """Test that comparing invalid types is detected early."""
+    xml_text = """
+        <Filter>
+            <PropertyIsEqualTo>
+                <ValueReference>DateProperty</ValueReference>
+                <Literal>100</Literal>
+            </PropertyIsEqualTo>
+        </Filter>
+    """.strip()
+    result = Filter.from_string(xml_text)
+
+    # Test SQL generating
+    with pytest.raises(
+        ValidationError,
+        match="Invalid data for the 'DateProperty' property: Date must be in YYYY-MM-DD HH:MM",
+    ):
+        compile_query(result, field_types={"DateProperty": XsdTypes.dateTime})
+
+
+def test_compare_invalid_time_types():
+    """Test that comparing invalid types is detected early."""
+    xml_text = """
+        <Filter>
+            <PropertyIsEqualTo>
+                <ValueReference>TimeProperty</ValueReference>
+                <Literal>100</Literal>
+            </PropertyIsEqualTo>
+        </Filter>
+    """.strip()
+    result = Filter.from_string(xml_text)
+
+    # Test SQL generating
+    with pytest.raises(
+        ValidationError,
+        match="Invalid data for the 'TimeProperty' property: Time must be in HH:MM",
+    ):
+        compile_query(result, field_types={"TimeProperty": XsdTypes.time})
