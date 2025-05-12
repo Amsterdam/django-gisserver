@@ -1,3 +1,5 @@
+/* general CSS that can be disabled by removing the .meta-page in the overwritten templates */
+
 .meta-page {
   font-family: Arial, sans-serif;
   line-height: 1.5;
@@ -7,6 +9,8 @@
 .meta-page h2 { margin: 2rem 0 0.5rem 0; }
 .meta-page h3 { margin: 1rem 0 0.5rem 0; }
 .meta-page p { margin: 0 0 1rem 0; }
+
+/* application-specific */
 
 tbody th { text-align: left; padding-right: 2rem; }
 tbody td { padding-right: 2rem; }
