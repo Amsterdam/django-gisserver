@@ -58,7 +58,6 @@ __all__ = [
     "field",
     "FeatureField",
     "ComplexFeatureField",
-    "get_basic_field_type",
 ]
 
 logger = logging.getLogger(__name__)
@@ -92,7 +91,7 @@ XSD_TYPES = {
 DEFAULT_XSD_TYPE = XsdTypes.anyType
 
 
-def get_basic_field_type(
+def _get_basic_field_type(
     field_name: str, model_field: models.Field | models.ForeignObjectRel
 ) -> XsdAnyType:
     """Determine the XSD field type for a Django field."""
@@ -113,10 +112,10 @@ def get_basic_field_type(
 
     if isinstance(model_field, models.ForeignKey):
         # Don't let it query on the relation value yet
-        return get_basic_field_type(field_name, model_field.target_field)
+        return _get_basic_field_type(field_name, model_field.target_field)
     elif isinstance(model_field, models.ForeignObjectRel):
         # e.g. ManyToOneRel descriptor of a foreignkey_id field.
-        return get_basic_field_type(field_name, model_field.remote_field.target_field)
+        return _get_basic_field_type(field_name, model_field.remote_field.target_field)
     else:
         # Subclass checks:
         for field_cls, xsd_type in XSD_TYPES.items():
@@ -235,7 +234,7 @@ class FeatureField:
             )
 
     def _get_xsd_type(self):
-        return get_basic_field_type(self.name, self.model_field)
+        return _get_basic_field_type(self.name, self.model_field)
 
     def bind(
         self,
