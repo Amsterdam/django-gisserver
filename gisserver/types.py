@@ -30,6 +30,7 @@ import logging
 import operator
 import re
 from dataclasses import dataclass, field
+from datetime import date, datetime, time
 from decimal import Decimal as D
 from enum import Enum
 from functools import cached_property, reduce
@@ -183,9 +184,12 @@ class XsdTypes(XsdAnyType, Enum):
             raise NotImplementedError(f'Casting to "{self}" is not implemented.') from None
 
     def to_python(self, raw_value):
-        """Convert a raw string value to this type representation"""
-        if self.is_geometry:
-            # Leave complex values as-is.
+        """Convert a raw string value to this type representation.
+
+        :raises ExternalParsingError: When the value can't be converted to the proper type.
+        """
+        if self.is_geometry or isinstance(raw_value, TYPES_AS_PYTHON[self]):
+            # Detect when the value was already parsed, no need to reparse a date for example.
             return raw_value
 
         try:
@@ -194,6 +198,7 @@ class XsdTypes(XsdAnyType, Enum):
             raise  # subclass of ValueError so explicitly caught and reraised
         except (TypeError, ValueError, ArithmeticError) as e:
             # ArithmeticError is base of DecimalException
+            logger.debug("Parsing error for %r: %s", raw_value, e)
             name = self.name if self.namespace == xmlns.xsd.value else self.value
             raise ExternalParsingError(f"Can't cast '{raw_value}' to {name}.") from e
 
@@ -220,12 +225,12 @@ def _as_is(v):
     return v
 
 
-TYPES_TO_PYTHON = {
-    XsdTypes.date: values.parse_iso_date,
-    XsdTypes.dateTime: values.parse_iso_datetime,
-    XsdTypes.time: values.parse_iso_time,
-    XsdTypes.string: _as_is,
-    XsdTypes.boolean: values.parse_bool,
+TYPES_AS_PYTHON = {
+    XsdTypes.date: date,
+    XsdTypes.dateTime: datetime,
+    XsdTypes.time: time,
+    XsdTypes.string: str,
+    XsdTypes.boolean: bool,
     XsdTypes.integer: int,
     XsdTypes.int: int,
     XsdTypes.long: int,
@@ -235,9 +240,20 @@ TYPES_TO_PYTHON = {
     XsdTypes.unsignedLong: int,
     XsdTypes.unsignedShort: int,
     XsdTypes.unsignedByte: int,
-    XsdTypes.float: D,
+    XsdTypes.float: D,  # auto_cast() always converts to decimal
     XsdTypes.double: D,
     XsdTypes.decimal: D,
+    XsdTypes.gmlCodeType: str,
+    XsdTypes.anyType: type(Ellipsis),
+}
+
+TYPES_TO_PYTHON = {
+    **TYPES_AS_PYTHON,
+    XsdTypes.date: values.parse_iso_date,
+    XsdTypes.dateTime: values.parse_iso_datetime,
+    XsdTypes.time: values.parse_iso_time,
+    XsdTypes.string: _as_is,
+    XsdTypes.boolean: values.parse_bool,
     XsdTypes.gmlCodeType: _as_is,
     XsdTypes.anyType: values.auto_cast,
 }
@@ -465,7 +481,9 @@ class XsdNode:
         return value
 
     def to_python(self, raw_value: str):
-        """Convert a raw value to the Python data type for this element type."""
+        """Convert a raw value to the Python data type for this element type.
+        :raises ValidationError: When the value isn't allowed for the field type.
+        """
         try:
             raw_value = self.type.to_python(raw_value)
             if self.source is not None:
