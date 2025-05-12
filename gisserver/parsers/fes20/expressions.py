@@ -13,6 +13,7 @@ from typing import Union
 
 from django.contrib.gis import geos
 from django.contrib.gis.db import models as gis_models
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import Q, Value
 from django.db.models.expressions import Combinable
@@ -138,7 +139,9 @@ class Literal(Expression):
 
     @cached_property
     def value(self) -> ParsedValue:  # officially <xsd:any>
-        """Access the value of the element, cast to the appropriate data type."""
+        """Access the value of the element, cast to the appropriate data type.
+        :raises ExternalParsingError: When the value can't be converted to the proper type.
+        """
         if not isinstance(self.raw_value, str):
             return self.raw_value  # GML element or None
         elif self.type:
@@ -296,9 +299,43 @@ class BinaryOperator(Expression):
         )
 
     def build_rhs(self, compiler) -> RhsTypes:
-        value1 = _make_combinable(self.expression[0].build_rhs(compiler))
-        value2 = _make_combinable(self.expression[1].build_rhs(compiler))
-        return self._operatorType.value(value1, value2)
+        self.validate_arithmetic(compiler, self.expression[0], self.expression[1])
+        value1 = self.expression[0].build_rhs(compiler)
+        value2 = self.expression[1].build_rhs(compiler)
+
+        # Func() + 2 or 2 + Func() are automatically handled,
+        # but Q(..) + 2 or 2 + Q(..) aren't.
+        # When both are values, a direct calculation takes place in Python.
+        if isinstance(value1, Q):
+            value2 = _make_combinable(value2)
+        if isinstance(value2, Q):
+            value1 = _make_combinable(value1)
+
+        try:
+            # This calls somthing like: operator.add(F("field"), 2) or operator.add(1, 2)
+            return self._operatorType.value(value1, value2)
+        except (TypeError, ValueError, ArithmeticError) as e:
+            raise ValidationError(
+                f"Invalid data for the 'fes:{self._operatorType.name}' element: {value1} {value2}"
+            ) from e
+
+    def validate_arithmetic(self, compiler, lhs: Expression, rhs: Expression):
+        """Check whether values support arithmetic operators."""
+        if isinstance(lhs, Literal) and isinstance(rhs, ValueReference):
+            lhs, rhs = rhs, lhs
+
+        if isinstance(lhs, ValueReference):
+            xsd_element = lhs.parse_xpath(compiler.feature_types).child
+            if isinstance(rhs, Literal):
+                # Since the element is resolved, inform the Literal how to parse the value.
+                # This avoids various validation errors along the path.
+                rhs.bind_type(xsd_element.type)
+
+                # Validate the expressions against each other
+                # This raises an ValidationError when values can't be converted
+                xsd_element.to_python(rhs.raw_value)
+
+        return None
 
 
 def _make_combinable(value) -> Combinable | Q:

@@ -13,6 +13,9 @@ RE_FLOAT = re.compile(r"\A[0-9]+(\.[0-9]+)\Z")
 
 def auto_cast(value: str):
     """Automatically cast a value to a scalar."""
+    if not isinstance(value, str):
+        return value
+
     if value.isdigit():
         return int(value)
     elif RE_FLOAT.match(value):
