@@ -5,7 +5,6 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import time, timedelta
 from decimal import Decimal
-from pathlib import Path
 from typing import cast
 from xml.etree import ElementTree
 
@@ -21,13 +20,10 @@ from psycopg2 import Binary
 from gisserver import conf
 from gisserver.parsers import ows
 from gisserver.parsers.xml import xmlns
+from tests import xsd_download
 from tests.requests import Request
 from tests.test_gisserver import models
 from tests.utils import NAMESPACES, RD_NEW, read_json
-from tests.xsd_download import download_schema
-
-HERE = Path(__file__).parent
-XSD_ROOT = HERE.joinpath("files/xsd")
 
 
 def pytest_configure():
@@ -41,9 +37,11 @@ def pytest_configure():
         "http://schemas.opengis.net/wfs/2.0/wfs.xsd",
         "http://schemas.opengis.net/gml/3.2.1/gml.xsd",
     ):
-        if not XSD_ROOT.joinpath(url.replace("http://", "")).exists():
-            print(f"Caching {url} to {XSD_ROOT.absolute()}")
-            download_schema(url)
+        if xsd_download.has_file(url):
+            print(f"Found cached {url} at {xsd_download.XSD_ROOT}")
+        else:
+            print(f"Caching {url} to {xsd_download.XSD_ROOT}")
+            xsd_download.download_schema(url)
 
 
 @dataclass
