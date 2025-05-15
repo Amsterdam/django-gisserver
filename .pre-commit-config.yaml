@@ -16,6 +16,10 @@ repos:
           - --unsafe
       - id: end-of-file-fixer
       - id: trailing-whitespace
+  - repo: https://github.com/abravalheri/validate-pyproject
+    rev: v0.24.1
+    hooks:
+      - id: validate-pyproject
   - repo: https://github.com/asottile/pyupgrade
     rev: v3.19.1
     hooks:

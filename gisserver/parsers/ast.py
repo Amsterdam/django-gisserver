@@ -24,7 +24,6 @@ to validate whether a provided XML structure confirms to the supported schema.
 
 from __future__ import annotations
 
-from collections.abc import Iterable
 from enum import Enum
 from functools import wraps
 from itertools import chain
@@ -112,10 +111,20 @@ class BaseNode:
         return sub_class.from_xml(element)
 
     @classmethod
-    def get_tag_names(cls) -> Iterable[str]:
+    def get_tag_names(cls) -> list[str]:
         """Provide all known XMl tags that this code can parse."""
-        return chain.from_iterable(sub_type.xml_tags for sub_type in cls.__subclasses__())
+        try:
+            # Because a cached class property is hard to build
+            return _KNOWN_TAG_NAMES[cls]
+        except KeyError:
+            all_xml_tags = cls.xml_tags.copy()
+            for sub_cls in cls.__subclasses__():
+                all_xml_tags.extend(sub_cls.get_tag_names())
+            _KNOWN_TAG_NAMES[cls] = all_xml_tags
+            return all_xml_tags
 
+
+_KNOWN_TAG_NAMES = {}
 
 BN = TypeVar("BN", bound=BaseNode)
 
@@ -170,7 +179,9 @@ class TagRegistry:
                 # Note using __members__, not _member_names_.
                 # The latter will skip aliased items (like BBOX/Within).
                 for member_name in tag.__members__:
-                    self._register_tag_parser(node_class, tag=member_name, namespace=namespace)
+                    self._register_tag_parser(
+                        node_class, tag=member_name, namespace=namespace, hidden=hidden
+                    )
             else:
                 raise TypeError("tag type incorrect")
 

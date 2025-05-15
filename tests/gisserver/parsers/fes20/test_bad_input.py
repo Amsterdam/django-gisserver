@@ -1,7 +1,10 @@
 import pytest
+from django.core.exceptions import ValidationError
 
 from gisserver.exceptions import ExternalParsingError
 from gisserver.parsers.fes20 import Filter
+from gisserver.types import XsdTypes
+from tests.gisserver.parsers.fes20.utils import compile_query
 
 
 def test_unclosed_xml():
@@ -69,6 +72,52 @@ def test_missing_children():
     )
 
 
+def test_missing_children_operator():
+    """See that get_tag_names() walks through the class hierarchy to
+    provide all possible tag names.
+    """
+    xml_text = """
+        <fes:Filter
+            xmlns:fes="http://www.opengis.net/fes/2.0"
+            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+            <fes:And>
+                <fes:PropertyIsLessThan>
+                    <fes:ValueReference>foobar</fes:ValueReference>
+                    <fes:Literal>30</fes:Literal>
+                </fes:PropertyIsLessThan>
+            </fes:And>
+        </fes:Filter>
+    """.strip()
+
+    with pytest.raises(ExternalParsingError) as e:
+        Filter.from_string(xml_text)
+
+    assert str(e.value) == (
+        "<{http://www.opengis.net/fes/2.0}And> should have 2 child nodes, got 1 "
+        "(possible tags: {http://www.opengis.net/fes/2.0}BBOX, "
+        "{http://www.opengis.net/fes/2.0}Beyond, "
+        "{http://www.opengis.net/fes/2.0}Contains, "
+        "{http://www.opengis.net/fes/2.0}Crosses, "
+        "{http://www.opengis.net/fes/2.0}DWithin, "
+        "{http://www.opengis.net/fes/2.0}Disjoint, "
+        "{http://www.opengis.net/fes/2.0}Equals, "
+        "{http://www.opengis.net/fes/2.0}Intersects, "
+        "{http://www.opengis.net/fes/2.0}Overlaps, "
+        "{http://www.opengis.net/fes/2.0}PropertyIsBetween, "
+        "{http://www.opengis.net/fes/2.0}PropertyIsEqualTo, "
+        "{http://www.opengis.net/fes/2.0}PropertyIsGreaterThan, "
+        "{http://www.opengis.net/fes/2.0}PropertyIsGreaterThanOrEqualTo, "
+        "{http://www.opengis.net/fes/2.0}PropertyIsLessThan, "
+        "{http://www.opengis.net/fes/2.0}PropertyIsLessThanOrEqualTo, "
+        "{http://www.opengis.net/fes/2.0}PropertyIsLike, "
+        "{http://www.opengis.net/fes/2.0}PropertyIsNil, "
+        "{http://www.opengis.net/fes/2.0}PropertyIsNotEqualTo, "
+        "{http://www.opengis.net/fes/2.0}PropertyIsNull, "
+        "{http://www.opengis.net/fes/2.0}Touches, "
+        "{http://www.opengis.net/fes/2.0}Within)"
+    )
+
+
 def test_between_fixed_ordering():
     """A simple non-spatial filter comparing a property value to a literal.
     In this case, the DEPTH is checked to find instances where it is less than
@@ -121,3 +170,43 @@ def test_between_sub_elements():
         match="{http://www.opengis.net/fes/2.0}UpperBoundary should have 1 expression child node",
     ):
         Filter.from_string(xml_text)
+
+
+def test_compare_invalid_date_types():
+    """Test that comparing invalid types is detected early."""
+    xml_text = """
+        <Filter>
+            <PropertyIsEqualTo>
+                <ValueReference>DateProperty</ValueReference>
+                <Literal>100</Literal>
+            </PropertyIsEqualTo>
+        </Filter>
+    """.strip()
+    result = Filter.from_string(xml_text)
+
+    # Test SQL generating
+    with pytest.raises(
+        ValidationError,
+        match="Invalid data for the 'DateProperty' property: Date must be in YYYY-MM-DD HH:MM",
+    ):
+        compile_query(result, field_types={"DateProperty": XsdTypes.dateTime})
+
+
+def test_compare_invalid_time_types():
+    """Test that comparing invalid types is detected early."""
+    xml_text = """
+        <Filter>
+            <PropertyIsEqualTo>
+                <ValueReference>TimeProperty</ValueReference>
+                <Literal>100</Literal>
+            </PropertyIsEqualTo>
+        </Filter>
+    """.strip()
+    result = Filter.from_string(xml_text)
+
+    # Test SQL generating
+    with pytest.raises(
+        ValidationError,
+        match="Invalid data for the 'TimeProperty' property: Time must be in HH:MM",
+    ):
+        compile_query(result, field_types={"TimeProperty": XsdTypes.time})

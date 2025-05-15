@@ -42,7 +42,6 @@ from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db import models
 from django.db.models import Q
 from django.db.models.fields.related import RelatedField
-from django.utils import dateparse
 
 from gisserver.compat import ArrayField, GeneratedField
 from gisserver.exceptions import ExternalParsingError, OperationProcessingFailed
@@ -222,9 +221,9 @@ def _as_is(v):
 
 
 TYPES_TO_PYTHON = {
-    XsdTypes.date: dateparse.parse_date,
+    XsdTypes.date: values.parse_iso_date,
     XsdTypes.dateTime: values.parse_iso_datetime,
-    XsdTypes.time: dateparse.parse_time,
+    XsdTypes.time: values.parse_iso_time,
     XsdTypes.string: _as_is,
     XsdTypes.boolean: values.parse_bool,
     XsdTypes.integer: int,
@@ -493,30 +492,33 @@ class XsdNode:
         :param tag: The filter operator tag name, e.g. ``PropertyIsEqualTo``.
         :returns: The parsed Python value.
         """
-        if self.source is not None:
-            # Not calling self.source.validate() as that checks for allowed choices,
-            # which shouldn't be checked against for a filter query.
-            raw_value = self.to_python(raw_value)
+        # Not calling self.source.validate() as that checks for allowed choices,
+        # which shouldn't be checked against for a filter query.
+        raw_value = self.to_python(raw_value)
 
-            # Check whether the Django model field supports the lookup
-            # This prevents calling LIKE on a datetime or float field.
-            # For foreign keys, this depends on the target field type.
-            if self.source.get_lookup(lookup) is None or (
+        # Check whether the Django model field supports the lookup
+        # This prevents calling LIKE on a datetime or float field.
+        # For foreign keys, this depends on the target field type.
+        if (
+            self.source is not None
+            and self.source.get_lookup(lookup) is None
+            or (
                 isinstance(self.source, RelatedField)
                 and self.source.target_field.get_lookup(lookup) is None
-            ):
-                logger.debug(
-                    "Model field '%s.%s' does not support ORM lookup '%s' used by '%s'.",
-                    self.feature_type.model._meta.model_name,
-                    self.absolute_model_attribute,
-                    lookup,
-                    tag,
-                )
-                raise OperationProcessingFailed(
-                    f"Operator '{tag}' is not supported for the '{self.name}' property.",
-                    locator="filter",
-                    status_code=400,  # not HTTP 500 here. Spec allows both.
-                )
+            )
+        ):
+            logger.debug(
+                "Model field '%s.%s' does not support ORM lookup '%s' used by '%s'.",
+                self.feature_type.model._meta.model_name,
+                self.absolute_model_attribute,
+                lookup,
+                tag,
+            )
+            raise OperationProcessingFailed(
+                f"Operator '{tag}' is not supported for the '{self.name}' property.",
+                locator="filter",
+                status_code=400,  # not HTTP 500 here. Spec allows both.
+            )
 
         return raw_value
 

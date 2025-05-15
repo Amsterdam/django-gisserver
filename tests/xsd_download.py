@@ -1,13 +1,20 @@
-"""Taken from https://github.com/n-a-t-e/xsd_download"""
+"""Taken from https://github.com/n-a-t-e/xsd_download
+and updated to use pathlib for absolute paths.
+"""
 
 import os
 import re
 import urllib.request
+from pathlib import Path
 from urllib.parse import urljoin, urlparse
 
 from lxml import etree
 
-XSD_DIR = "tests/files/xsd"
+XSD_ROOT = Path(__file__).parent.absolute().joinpath("files/xsd")
+
+
+def has_file(url: str) -> bool:
+    return XSD_ROOT.joinpath(url_to_path(url)).exists()
 
 
 def url_to_path(url: str) -> str:
@@ -30,7 +37,7 @@ def localize_links(text: str, filename_complete: str) -> str:
         path_url = url_to_path(schema_location)
         rel_path = os.path.relpath(os.path.dirname(path_url), os.path.dirname(filename_complete))
         base_name = os.path.basename(path_url)
-        text = text.replace(schema_location, rel_path + "/" + base_name)
+        text = text.replace(schema_location, f"{rel_path}/{base_name}")
     return text
 
 
@@ -39,16 +46,14 @@ def save_file(url: str, text: str) -> None:
     also creates the directory structure if it doesn't exist
     """
     filename_complete = url_to_path(url)
-    dir_name = os.path.dirname(XSD_DIR + "/" + filename_complete)
+    xsd_filename = XSD_ROOT / filename_complete
 
     # create directory structure
-    if not os.path.exists(dir_name):
-        os.makedirs(dir_name)
+    if not xsd_filename.parent.exists():
+        xsd_filename.parent.mkdir(parents=True)
 
-    with open(XSD_DIR + "/" + filename_complete, "w") as f:
-        text_localized = localize_links(text, filename_complete)
-        f.write(text_localized)
-        f.close()
+    text_localized = localize_links(text, filename_complete)
+    xsd_filename.write_text(text_localized)
 
 
 def download_xml_url(url: str) -> str:

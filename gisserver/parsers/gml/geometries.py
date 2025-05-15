@@ -115,19 +115,10 @@ class GEOSGMLGeometry(AbstractGeometry):
         return self.geos_data
 
 
-@tag_registry.register("After")
-@tag_registry.register("Before")
-@tag_registry.register("Begins")
-@tag_registry.register("BegunBy")
-@tag_registry.register("TContains")
-@tag_registry.register("TEquals")
-@tag_registry.register("TOverlaps")
-@tag_registry.register("During")
-@tag_registry.register("Meets")
-@tag_registry.register("OverlappedBy")
-@tag_registry.register("MetBy")
-@tag_registry.register("EndedBy")
-@tag_registry.register("AnyInteracts")
+@tag_registry.register("TimeInstant", hidden=True)
+@tag_registry.register("TimePeriod", hidden=True)
+@tag_registry.register("TimeNode", hidden=True)
+@tag_registry.register("TimeEdge", hidden=True)
 class TM_GeometricPrimitive(TM_Object):
     """Not implemented: the whole GML temporal logic"""
 
