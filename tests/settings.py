@@ -21,6 +21,10 @@ INSTALLED_APPS = [
     "django.contrib.postgres",
 ]
 
+LOCALE_PATHS = [
+    "gisserver/locale",
+]
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": True,
