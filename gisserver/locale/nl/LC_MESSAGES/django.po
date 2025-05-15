@@ -1,4 +1,4 @@
-#: gisserver/templates/gisserver/index.html:12
+#: gisserver/templates/gisserver/index.html:13
 msgid "WFS Feature Types"
 msgstr "WFS feature types"
 
@@ -23,29 +23,38 @@ msgid "Add the following URL to your GIS application:"
 msgstr "Voeg de volgende URL aan je GIS applicatie toe:"
 
 #: gisserver/templates/gisserver/wfs/feature_type.html:11
-msgid "Namespace"
-msgstr ""
+msgid "XML Namespace"
+msgstr "XML Naamruimte"
 
 #: gisserver/templates/gisserver/wfs/feature_type.html:12
 msgid "Typename"
 msgstr "Typename"
 
-#: gisserver/templates/gisserver/wfs/feature_type.html:14
+#: gisserver/templates/gisserver/wfs/feature_type.html:13
+msgid "Supported CRS"
+msgstr "Ondersteunde CRS"
+
+#: gisserver/templates/gisserver/wfs/feature_type.html:16
+#, python-format
+msgid "Any CRS value is supported, source data uses %(default_crs)s."
+msgstr "Alle CRS waarden worden ondersteund, de brongegevens gebruiken %(default_crs)s."
+
+#: gisserver/templates/gisserver/wfs/feature_type.html:22
 msgid "Formats"
 msgstr "Formaten"
 
-#: gisserver/templates/gisserver/wfs/feature_type.html:28
+#: gisserver/templates/gisserver/wfs/feature_type.html:36
 msgid "The following fields are available:"
 msgstr "De volgende velden zijn beschikbaar:"
 
-#: gisserver/templates/gisserver/wfs/feature_type.html:30
+#: gisserver/templates/gisserver/wfs/feature_type.html:38
 msgid "Field Name"
 msgstr "Veldnaam"
 
-#: gisserver/templates/gisserver/wfs/feature_type.html:30
+#: gisserver/templates/gisserver/wfs/feature_type.html:38
 msgid "Type"
 msgstr "Type"
 
-#: gisserver/templates/gisserver/wfs/feature_type.html:30
+#: gisserver/templates/gisserver/wfs/feature_type.html:38
 msgid "Description"
 msgstr "Omschrijving"
