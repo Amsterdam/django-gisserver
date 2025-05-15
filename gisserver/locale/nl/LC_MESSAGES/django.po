@@ -1,0 +1,51 @@
+#: gisserver/templates/gisserver/index.html:12
+msgid "WFS Feature Types"
+msgstr "WFS feature types"
+
+#: gisserver/templates/gisserver/service_description.html:6
+msgid "Keywords"
+msgstr "Keywords"
+
+#: gisserver/templates/gisserver/service_description.html:9
+msgid "Provider"
+msgstr "Uitgever"
+
+#: gisserver/templates/gisserver/service_description.html:10
+msgid "Contact"
+msgstr "Contact"
+
+#: gisserver/templates/gisserver/service_description.html:13
+msgid "Using This WFS"
+msgstr "Deze WFS gebruiken"
+
+#: gisserver/templates/gisserver/service_description.html:14
+msgid "Add the following URL to your GIS application:"
+msgstr "Voeg de volgende URL aan je GIS applicatie toe:"
+
+#: gisserver/templates/gisserver/wfs/feature_type.html:11
+msgid "Namespace"
+msgstr ""
+
+#: gisserver/templates/gisserver/wfs/feature_type.html:12
+msgid "Typename"
+msgstr "Typename"
+
+#: gisserver/templates/gisserver/wfs/feature_type.html:14
+msgid "Formats"
+msgstr "Formaten"
+
+#: gisserver/templates/gisserver/wfs/feature_type.html:28
+msgid "The following fields are available:"
+msgstr "De volgende velden zijn beschikbaar:"
+
+#: gisserver/templates/gisserver/wfs/feature_type.html:30
+msgid "Field Name"
+msgstr "Veldnaam"
+
+#: gisserver/templates/gisserver/wfs/feature_type.html:30
+msgid "Type"
+msgstr "Type"
+
+#: gisserver/templates/gisserver/wfs/feature_type.html:30
+msgid "Description"
+msgstr "Omschrijving"
