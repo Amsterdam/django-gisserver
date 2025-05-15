@@ -33,6 +33,11 @@ __all__ = [
     "BoundingBox",
 ]
 
+# Caches to avoid reinitializing WGS84 each time.
+_COMMON_CRS_BY_URN = {}
+_COMMON_CRS_BY_SRID = {}
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -142,6 +147,9 @@ class CRS:
 
             CRS.from_string("urn:ogc:def:crs:EPSG:6.9:<SRID>")
         """
+        if backend is None and (common_crs := _COMMON_CRS_BY_SRID.get(srid)):
+            return common_crs  # Avoid object re-creation
+
         crs = cls(
             domain="ogc",
             authority="EPSG",
@@ -156,6 +164,9 @@ class CRS:
     @classmethod
     def _from_urn(cls, urn, backend=None):  # noqa: C901
         """Instantiate this class using a URN format."""
+        if backend is None and (known_crs := _COMMON_CRS_BY_URN.get(urn)):
+            return known_crs  # Avoid object re-creation
+
         urn_match = CRS_URN_REGEX.match(urn)
         if not urn_match:
             raise ExternalValueError(f"Unknown CRS URN [{urn}] specified: {CRS_URN_REGEX.pattern}")
@@ -289,6 +300,21 @@ CRS84 = CRS.from_string("urn:ogc:def:crs:OGC::CRS84")
 
 #: Spherical Mercator (Google Maps, Bing Maps, OpenStreetMap, ...), see https://epsg.io/3857
 WEB_MERCATOR = CRS.from_string("urn:ogc:def:crs:EPSG::3857")
+
+
+def _register_common_crs(crs: CRS):
+    """Cache a common CRS, no need to re-instantiate the same object again."""
+    if crs.authority != "EPSG":
+        # Avoid conflicting axis ordering issues (WGS84 and CRS84 both use srid 4326)
+        raise ValueError("Only supporting EPSG CRS")
+
+    _COMMON_CRS_BY_SRID[crs.srid] = crs
+    _COMMON_CRS_BY_URN[crs.urn] = crs
+
+
+# Register these 2 common
+_register_common_crs(WGS84)
+_register_common_crs(WEB_MERCATOR)
 
 
 @dataclass
