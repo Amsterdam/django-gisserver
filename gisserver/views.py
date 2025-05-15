@@ -422,6 +422,7 @@ class WFSView(OWSView):
         context = super().get_index_context_data(**kwargs)
         context.update(
             {
+                "GISSERVER_SUPPORTED_CRS_ONLY": conf.GISSERVER_SUPPORTED_CRS_ONLY,
                 "wfs_features": self.get_bound_feature_types(),
                 "wfs_output_formats": self._get_wfs_output_formats(),
                 "wfs_filter_capabilities": self.wfs_filter_capabilities,
