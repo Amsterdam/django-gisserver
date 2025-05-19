@@ -40,7 +40,7 @@ class CSVRenderer(CollectionOutputRenderer):
         # First, make sure no array or m2m elements exist,
         # as these are not possible to render in CSV.
         projection.remove_fields(
-            lambda e: e.is_many
+            lambda e: (e.is_many and not e.is_array)
             or e.type == XsdTypes.gmlCodeType  # gml:name
             or e.type == XsdTypes.gmlBoundingShapeType  # gml:boundedBy
         )

@@ -38,9 +38,9 @@ class TestGetFeature:
             assert response.status_code == 200, content
 
         expect = f"""
-"id","name","city_id","location","rating","is_open","created"
-"{restaurant.id}","Café Noir","{restaurant.city_id}","{coordinates.point1_ewkt}","5.0","True","2020-04-05 12:11:10+00:00"
-"{bad_restaurant.id}","Foo Bar","","{coordinates.point2_ewkt}","1.0","False","2020-04-05 20:11:10+00:00"
+"id","name","city_id","location","rating","is_open","created","tags"
+"{restaurant.id}","Café Noir","{restaurant.city_id}","{coordinates.point1_ewkt}","5.0","True","2020-04-05 12:11:10+00:00","cafe,black"
+"{bad_restaurant.id}","Foo Bar","","{coordinates.point2_ewkt}","1.0","False","2020-04-05 20:11:10+00:00",""
 """.lstrip()  # noqa: E501
         assert content == expect
 
@@ -91,9 +91,9 @@ class TestGetFeature:
             assert response.status_code == 200, content
 
         expect = f"""
-"id","name","city.id","city.name","location","rating","is_open","created"
-"{restaurant_m2m.id}","Café Noir","{restaurant_m2m.city_id}","CloudCity","{coordinates.point1_ewkt}","5.0","True","2020-04-05 12:11:10+00:00"
-"{bad_restaurant.id}","Foo Bar","","","{coordinates.point2_ewkt}","1.0","False","2020-04-05 20:11:10+00:00"
+"id","name","city.id","city.name","location","rating","is_open","created","tags"
+"{restaurant_m2m.id}","Café Noir","{restaurant_m2m.city_id}","CloudCity","{coordinates.point1_ewkt}","5.0","True","2020-04-05 12:11:10+00:00","cafe,black"
+"{bad_restaurant.id}","Foo Bar","","","{coordinates.point2_ewkt}","1.0","False","2020-04-05 20:11:10+00:00",""
 """.lstrip()  # noqa: E501
         assert content == expect
         assert "SRID=4326;" in content
@@ -121,9 +121,9 @@ class TestGetFeature:
         # NOTE: seeing a single space difference in the EWKT "POINT (coordinates)" output likely means
         # the code isn't using DB-rendering but Python-GDAL based rendering.
         expect = f"""
-"id","name","city-id","city-name","city-region","location","rating","is_open","created"
-"{restaurant.id}","Café Noir","{restaurant.city_id}","CloudCity","OurRegion","{coordinates.point1_ewkt}","5.0","True","2020-04-05 12:11:10+00:00"
-"{bad_restaurant.id}","Foo Bar","","","","{coordinates.point2_ewkt}","1.0","False","2020-04-05 20:11:10+00:00"
+"id","name","city-id","city-name","city-region","location","rating","is_open","created","tags"
+"{restaurant.id}","Café Noir","{restaurant.city_id}","CloudCity","OurRegion","{coordinates.point1_ewkt}","5.0","True","2020-04-05 12:11:10+00:00","cafe,black"
+"{bad_restaurant.id}","Foo Bar","","","","{coordinates.point2_ewkt}","1.0","False","2020-04-05 20:11:10+00:00",""
 """.lstrip()  # noqa: E501
         assert content == expect
         assert "SRID=4326;" in content
@@ -151,9 +151,9 @@ class TestGetFeature:
         # NOTE: seeing a single space difference in the EWKT "POINT (coordinates)" output likely means
         # the code isn't using DB-rendering but Python-GDAL based rendering.
         expect = f"""
-"id","restaurant.id","restaurant.name","restaurant.city.id","restaurant.city.name","restaurant.location","restaurant.rating","restaurant.is_open","restaurant.created","review"
-"{restaurant_review.id}","{restaurant.id}","Café Noir","{restaurant.city_id}","CloudCity","{coordinates.point1_ewkt}","5.0","True","2020-04-05 12:11:10+00:00","Pretty good!"
-"{bad_restaurant_review.id}","{bad_restaurant.id}","Foo Bar","","","{coordinates.point2_ewkt}","1.0","False","2020-04-05 20:11:10+00:00","Stay away!"
+"id","restaurant.id","restaurant.name","restaurant.city.id","restaurant.city.name","restaurant.location","restaurant.rating","restaurant.is_open","restaurant.created","restaurant.tags","review"
+"{restaurant_review.id}","{restaurant.id}","Café Noir","{restaurant.city_id}","CloudCity","{coordinates.point1_ewkt}","5.0","True","2020-04-05 12:11:10+00:00","cafe,black","Pretty good!"
+"{bad_restaurant_review.id}","{bad_restaurant.id}","Foo Bar","","","{coordinates.point2_ewkt}","1.0","False","2020-04-05 20:11:10+00:00","","Stay away!"
 """.lstrip()  # noqa: E501
         assert content == expect
         assert "SRID=4326;" in content
