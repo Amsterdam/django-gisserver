@@ -19,9 +19,9 @@ The following additional conformance classes are not implemented:
 * WFS-Transactional support (``<wfs:Transaction>``).
 * Locking on updates: ``LockFeature``, ``GetFeatureWithLock``.
 * Managing stored queries (``<wfs:CreateStoredQuery>`` / ``DropStoredQuery``).
-* Standard, spatial and temporal JOIN queries, which involves queries with multiple feature types.
+* Temporal filtering (``<fes:After>``, ``<fes:Before>``, ``<fes:During>``, etc..).
+* JOIN queries, which involves queries with multiple feature types for standard, spatial or temporal joins.
 * Feature/resource versioning.
-* Temporal filtering.
 * SOAP requests.
 * Transactional-safe pagination.
 
