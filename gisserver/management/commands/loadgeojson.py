@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import operator
+from argparse import ArgumentTypeError
 from functools import reduce
 from itertools import islice
 from urllib.request import urlopen
@@ -22,15 +23,15 @@ def _parse_model(value):
     try:
         return apps.get_model(value)
     except LookupError as e:
-        raise ValueError(str(e)) from e
+        raise ArgumentTypeError(str(e)) from e
 
 
 def _parse_fields(value):
     field_map = {}
     for pair in value.split(","):
         geojson_name, _, field_name = pair.strip().partition("=")
-        if not value:
-            raise ValueError("Expect property=field,property2=field2 format")
+        if not field_name:
+            raise ArgumentTypeError("Expect property=field,property2=field2 format")
         field_map[geojson_name] = field_name
     return field_map
 
