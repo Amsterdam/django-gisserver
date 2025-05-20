@@ -264,8 +264,16 @@ class Command(BaseCommand):
             }
 
             # Store the geometry, note GEOS only parses stringified JSON.
-            geometry = GEOSGeometry(json.dumps(geometry_data), srid=self.crs.srid)
-            geometry.srid = self.crs.srid  # override default
+            if geometry_data is None:
+                geometry = None
+            else:
+                try:
+                    geometry = GEOSGeometry(json.dumps(geometry_data), srid=self.crs.srid)
+                except ValueError as e:
+                    raise CommandError(
+                        f"Unable to parse geometry data: {geometry_data!r}: {e}"
+                    ) from e
+                geometry.srid = self.crs.srid  # override default
             field_values[main_geometry_field] = geometry
 
             # Try to decode the identifier if it's present
