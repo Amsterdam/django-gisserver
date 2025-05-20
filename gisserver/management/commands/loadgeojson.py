@@ -73,7 +73,7 @@ class Command(BaseCommand):
         parser.add_argument(
             "-f",
             "--field",
-            nargs="*",
+            action="append",
             dest="map_fields",
             type=_parse_fields,
             metavar="NAME=FIELD",
