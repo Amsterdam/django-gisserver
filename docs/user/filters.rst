@@ -151,13 +151,13 @@ These tags are all supported:
      - Property may not exist (currently implemented as ``<PropertyIsNil>``).
    * - ``<BBOX>``
      - :samp:`ST_Intersects({a}, {b})`
-     - Geometry must be in value 2. The field name may be omitted to use the default.
+     - Geometry must be partly in value 2. The field name may be omitted to use the default.
    * - ``<Contains>``
      - :samp:`ST_Contains({a}, {b})`
-     - Geometry 1 completely contains geometry 2.
+     - Geometry completely contains geometry 2, e.g. province contains city.
    * - ``<Crosses>``
      - :samp:`ST_Crosses({a}, {b})`
-     - The geometries have some common interior points.
+     - The geometries have some common interior points, e.g. two streets.
    * - ``<Disjoint>``
      - :samp:`ST_Disjoint({a}, {b})`
      - The geometries are not connected in any way.
@@ -169,13 +169,13 @@ These tags are all supported:
      - The geometries share some space.
    * - ``<Touches>``
      - :samp:`ST_Touches({a}, {b})`
-     - The edges of the geometries touch each other.
+     - The edges of the geometries touch each other, e.g. country borders.
    * - ``<Overlaps>``
      - :samp:`ST_Overlaps({a}, {b})`
      - The geometries overlap.
    * - ``<Within>``
      - :samp:`ST_Within({a}, {b})`
-     - Geometry 1 is completely contained within geometry 2.
+     - Geometry is completely contained within geometry 2, e.g. city within province.
    * - ``<DWithin>``
      - :samp:`ST_DWithin({a}, {b}, {d})`
      - The geometries are within a given distance of each other.
@@ -183,22 +183,22 @@ These tags are all supported:
      - :samp:`NOT ST_DWithin({a}, {b}, {d})`
      - The geometries are not within a given distance.
    * - ``<And>``
-     - :samp:`{a} AND {b}`
-     - The nested elements must all be true.
+     - :samp:`{a} AND {b} AND {c}`
+     - The nested operators must all be true.
    * - ``<Or>``
-     - :samp:`{a} OR {b}`
-     - Only one of the nested elements has to be true.
+     - :samp:`{a} OR {b} OR {c}`
+     - Only one of the nested operators has to be true.
    * - ``<Not>``
      - :samp:`NOT {a}`
-     - Negation of the nested element.
+     - Negation of the nested operators.
    * - ``<ResourceId>``
      - :samp:`table.id == {value}` / :samp:`table.id IN ({v1}, {v2}, ...)`
-     - Searches only one element for "type name.identifier".
+     - Searches for a feature as "type name.identifier".
        Combines multiple elements into an ``IN`` query.
 
 .. tip::
    For the ``<BBOX>`` operator the geometry field may be omitted.
-   The standard geometry field is then used (usually the first field).
+   The standard geometry field is then used as configured in the feature type.
 
 .. note::
    Although a number of geometry operators seem to be identical for surfaces
@@ -292,6 +292,23 @@ As a simple example:
     <fes:Function name="sin">
         <fes:ValueReference>fieldname</fes:ValueReference>
     </fes:Function>
+
+As expressions can be functions, the following filter is possible:
+
+.. code-block:: xml
+
+    <Filter>
+        <PropertyIsEqualTo>
+            <Function name="strToLowerCase">
+                <Function name="strSubstring">
+                    <ValueReference>name</ValueReference>
+                    <Literal>0</Literal>
+                    <Literal>4</Literal>
+                </Function>
+            </Function>
+            <Literal>cafe</Literal>
+        </PropertyIsEqualTo>
+    </Filter>
 
 Various functions are built-in available in the server, inspired by the filter functions found
 in `GeoServer <https://docs.geoserver.org/stable/en/user/filter/function_reference.html>`_:
