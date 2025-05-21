@@ -3,6 +3,11 @@ Accessing WFS Data
 
 This is a brief explanation of using a WFS server.
 
+.. contents:: :local:
+
+Using GIS Software
+------------------
+
 Commonly, a WFS server can is accessed by GIS-software, such as `QGis <https://qgis.org/>`_.
 The URL that's configured inside ``urls.py`` can be used directly as WFS endpoint.
 For example, add https://api.data.amsterdam.nl/v1/wfs/gebieden/ to QGis.
@@ -12,6 +17,9 @@ Everything, for querying and viewing can be done in QGis.
 .. tip::
     The parameters ``?SERVICE=WFS&VERSION=2.0.0&REQUEST=..`` are appended to the URL
     by QGis. It's not required to add these yourself.
+
+Manual Access
+-------------
 
 The WFS server can also be accessed directly from a HTTP client (e.g. curl) or web browser.
 In such case, use the basic URL above, and include the query parameters:
@@ -24,8 +32,11 @@ The available feature types can be found in the **GetCapabilities** request:
 
 The remaining part of this page assumes this manual access.
 
+Tuning the Results
+------------------
+
 Export Formats
---------------
+~~~~~~~~~~~~~~
 
 The following export formats are available:
 
@@ -45,16 +56,35 @@ For example:
    When this parameter is omitted, *all objects* will be returned in a single request.
    For most datasets, the server is capable of efficiently delivering all results in a single response.
 
-Geometry Projections
---------------------
+Reducing Returned Fields
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+The ``PROPERTYNAME`` parameter can be used to define which elements should be returned.
+
+For example:
+
+* `...&PROPERTYNAME=app:naam,app:code <https://api.data.amsterdam.nl/v1/wfs/gebieden/?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetFeature&TYPENAMES=wijken&COUNT=10&PROPERTYNAME=app:naam,app:code>`_
+* `...&PROPERTYNAME=app:naam,app:code&OUTPUTFORMAT=geojson <https://api.data.amsterdam.nl/v1/wfs/gebieden/?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetFeature&TYPENAMES=wijken&COUNT=10&PROPERTYNAME=app:naam,app:code&OUTPUTFORMAT=geojson>`_
+
+.. tip::
+
+    This project also supports using ``PROPERTYNAME`` for nested elements (:samp:`{parent}/{child}`).
+    The WFS 2.0 specification defines the ``PROPERTYNAME`` as a QName for top-level elements only.
+
+
+Changing Geometry Projections
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 The exportlink can be extended with the ``SRSNAME`` parameter to define the geometry projection
 of all geo data. For example, ``SRSNAME=urn:ogc:def:crs:EPSG::3857`` activates the web-mercator projection
 which is used by Google Maps. A common default is ``urn:ogc:def:crs:EPSG::4326``, which is the
 worldwide WGS 84 longitude-latitude.
 
+Filtering Results
+-----------------
+
 Simple Filters
---------------
+~~~~~~~~~~~~~~
 
 The WFS protocol offers a powerful syntax to filter data.
 Use the request ``REQUEST=GetFeature`` with a ``FILTER`` argument.
@@ -107,7 +137,7 @@ The ``RESOURCEID`` parameter has a ``<ResourceId>`` equivalent which can appear 
 
 
 Complex Filters
----------------
+~~~~~~~~~~~~~~~
 
 The WFS Filter Encoding Standaard (FES) supports many operators.
 These tags are all supported:
@@ -205,6 +235,8 @@ These tags are all supported:
    (such as ``<Intersects>``, ``<Crosses>`` and ``<Overlaps>``),
    their mutual differences are particularly visible when comparing points with surfaces.
 
+Expressions in the Filter
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Various expressions may be used as values:
 
@@ -277,10 +309,10 @@ This allows to create complex filters, such as:
 
 .. _functions:
 
-Functions
----------
+Using Functions
+~~~~~~~~~~~~~~~
 
-Functions are executed by using the tag ``<Function name="..">..</Function>``.
+Functions are executed in a ``<Filter>`` by using the tag ``<Function name="..">..</Function>``.
 This can be used anywhere as an expression instead of a ``<ValueReference>`` or ``<Literal>``.
 
 Inside the function, the parameters are also given as expressions:
@@ -475,8 +507,56 @@ in `GeoServer <https://docs.geoserver.org/stable/en/user/filter/function_referen
      - Merge Geometry 1 and 2.
 
 
-Filter Compatibility
---------------------
+Using XML POST Requests
+-----------------------
+
+When the filter length exceeds the query-string limits,
+consider using an XML POST request instead of the KVP query-string format.
+
+A GET request such as:
+
+.. code-block:: urlencoded
+
+    ?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetFeature
+    &TYPENAMES=app:restaurant
+    &FILTER=<Filter>...</Filter>
+    &PROPERTYNAME=app:id,app:name,app:location
+    &SORTBY=app:name ASC
+
+...can also be defined as XML-encoded POST request:
+
+.. code-block:: xml
+
+    <wfs:GetFeature service="WFS" version="2.0.0"
+        xmlns:wfs="http://www.opengis.net/wfs/2.0"
+        xmlns:gml="http://www.opengis.net/gml/3.2"
+        xmlns:fes="http://www.opengis.net/fes/2.0"
+        xmlns:app="http://example.org/my-namespace">
+
+      <wfs:Query typeNames="app:restaurant">
+        <wfs:PropertyName>app:id</wfs:PropertyName>
+        <wfs:PropertyName>app:name</wfs:PropertyName>
+        <wfs:PropertyName>app:location</wfs:PropertyName>
+
+        <fes:Filter>
+          ...
+        </fes:Filter>
+
+        <fes:SortBy>
+          <fes:SortProperty>
+            <fes:ValueReference>app:name</fes:ValueReference>
+            <fes:SortOrder>ASC</fes:SortOrder>
+          </fes:SortProperty>
+        </fes:SortBy>
+      </wfs:Query>
+    </wfs:GetFeature>
+
+
+Support for Older Clients
+-------------------------
+
+Missing XML Namespaces
+~~~~~~~~~~~~~~~~~~~~~~
 
 Strictly speaking, XML namespaces are required in the filter. Since many clients omit them,
 the server also supports requests without namespaces. For the sake of completeness,
@@ -518,6 +598,9 @@ When a geometry filter is included, this also requires the GML namespace:
 
 According to the XML rules, the "fes" namespace alias can be renamed here
 or omitted if only ``xmlns="..."``` is used instead of ``xmlns:fes="..."``.
+
+Older Filter Syntax
+~~~~~~~~~~~~~~~~~~~
 
 Several existing clients still use other WFS 1 elements, such as ``<PropertyName>`` instead of
 of ``<ValueReference>``. For compatibility this tag is also supported.
