@@ -67,12 +67,16 @@ XSD_TYPES = {
     models.TextField: XsdTypes.string,
     models.BooleanField: XsdTypes.boolean,
     models.IntegerField: XsdTypes.integer,
+    models.PositiveIntegerField: XsdTypes.nonNegativeInteger,
+    models.PositiveBigIntegerField: XsdTypes.nonNegativeInteger,
+    models.PositiveSmallIntegerField: XsdTypes.nonNegativeInteger,
     models.AutoField: XsdTypes.integer,  # Only as of Django 3.0 this extends from IntegerField
     models.FloatField: XsdTypes.double,
     models.DecimalField: XsdTypes.decimal,
     models.TimeField: XsdTypes.time,
     models.DateTimeField: XsdTypes.dateTime,  # note: DateTimeField extends DateField!
     models.DateField: XsdTypes.date,
+    models.DurationField: XsdTypes.duration,
     models.URLField: XsdTypes.anyURI,
     gis_models.PointField: XsdTypes.gmlPointPropertyType,
     gis_models.PolygonField: XsdTypes.gmlSurfacePropertyType,
