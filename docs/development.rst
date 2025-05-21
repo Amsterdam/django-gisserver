@@ -14,7 +14,7 @@ The :file:`Makefile` has all options. Just typing ``make`` gives a list of all c
 
 Using ``make test``, and ``make retest`` should run the pytest suite.
 
-A special ``make docker-test`` runs the tests as they would run within Travis-CI.
+A special ``make docker-test`` runs the tests against a recent Ubuntu version.
 This helps to debug any differences between coordinate transformations due to
 different PROJ.4 versions being installed.
 
@@ -51,7 +51,7 @@ or::
 
 Start the docker version of the CITE test suite::
 
-    docker run  --rm -it -p 8081:8080 ogccite/ets-wfs20
+    make ogctest  # runs: docker run --rm -it -p 8081:8080 ogccite/ets-wfs20
 
 * Open: http://localhost:8081/teamengine/
 * Login using username: ``ogctest``  password: ``ogctest``
