@@ -4,19 +4,16 @@ import pytest
 from django.core.exceptions import ValidationError
 from django.db.models import F, Q
 
-from gisserver.parsers.fes20 import Filter
-from gisserver.parsers.fes20.expressions import (
-    BinaryOperator,
-    BinaryOperatorType,
-    Literal,
-    ValueReference,
-)
-
 # Importing all these elements directly, so copy-paste from assertion errors works:
-from gisserver.parsers.fes20.operators import (
+from gisserver.parsers.fes20 import (
     BinaryComparisonName,
     BinaryComparisonOperator,
+    BinaryOperator,
+    BinaryOperatorType,
+    Filter,
+    Literal,
     MatchAction,
+    ValueReference,
 )
 from gisserver.parsers.query import CompiledQuery
 from gisserver.types import XsdTypes

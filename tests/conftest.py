@@ -11,8 +11,7 @@ from xml.etree import ElementTree
 import django
 import pytest
 from django.contrib.gis.gdal import gdal_full_version
-from django.contrib.gis.geos import Point, geos_version
-from django.contrib.gis.geos.geometry import GEOSGeometry
+from django.contrib.gis.geos import GEOSGeometry, Point, geos_version
 from django.db import connection
 from django.http.response import HttpResponseBase
 from psycopg2 import Binary

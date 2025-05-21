@@ -4,11 +4,11 @@ import pytest
 
 from gisserver.exceptions import ExternalParsingError
 from gisserver.parsers import fes20, wfs20
-from gisserver.parsers.fes20.expressions import Literal
-from gisserver.parsers.fes20.operators import (
+from gisserver.parsers.fes20 import (
     BinaryComparisonName,
     BinaryComparisonOperator,
     IdOperator,
+    Literal,
 )
 from gisserver.parsers.ows import parse_get_request, parse_post_request
 from gisserver.parsers.xml import xmlns
