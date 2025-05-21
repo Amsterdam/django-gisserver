@@ -22,12 +22,9 @@ from django.db.models.functions import Sin
 
 from gisserver.extensions.functions import function_registry
 from gisserver.geometries import WGS84
-from gisserver.parsers.fes20 import Filter
-from gisserver.parsers.fes20.expressions import Function, Literal, ValueReference
-from gisserver.parsers.fes20.identifiers import ResourceId
 
 # Direct imports, so copy-paste from assertion errors works:
-from gisserver.parsers.fes20.operators import (
+from gisserver.parsers.fes20 import (
     BetweenComparisonOperator,
     BinaryComparisonName,
     BinaryComparisonOperator,
@@ -36,15 +33,19 @@ from gisserver.parsers.fes20.operators import (
     BinarySpatialOperator,
     DistanceOperator,
     DistanceOperatorName,
+    Filter,
+    Function,
     IdOperator,
     LikeOperator,
+    Literal,
     MatchAction,
     Measure,
+    ResourceId,
     SpatialOperatorName,
     UnaryLogicOperator,
     UnaryLogicType,
+    ValueReference,
 )
-from gisserver.parsers.gml import geometries
 from gisserver.parsers.gml.geometries import GEOSGMLGeometry
 from gisserver.parsers.query import CompiledQuery
 from gisserver.types import XsdTypes
@@ -670,7 +671,7 @@ def test_fes20_c5_example11():
         predicate=BinarySpatialOperator(
             operatorType=SpatialOperatorName.Overlaps,
             operand1=ValueReference(xpath="Geometry"),
-            operand2=geometries.GEOSGMLGeometry(
+            operand2=GEOSGMLGeometry(
                 srs=WGS84,
                 geos_data=GEOSGeometry("POLYGON ((10 10, 20 20, 30 30, 40 40, 10 10))", srid=4326),
             ),
@@ -725,7 +726,7 @@ def test_fes20_c5_example11_b():
         predicate=BinarySpatialOperator(
             operatorType=SpatialOperatorName.Overlaps,
             operand1=ValueReference(xpath="Geometry"),
-            operand2=geometries.GEOSGMLGeometry(
+            operand2=GEOSGMLGeometry(
                 srs=WGS84,
                 geos_data=GEOSGeometry("POLYGON ((10 10, 20 20, 30 30, 40 40, 10 10))", srid=4326),
             ),
@@ -876,7 +877,7 @@ def test_fes20_c5_example13():
                 BinarySpatialOperator(
                     operatorType=SpatialOperatorName.Within,
                     operand1=ValueReference(xpath="WKB_GEOM"),
-                    operand2=geometries.GEOSGMLGeometry(
+                    operand2=GEOSGMLGeometry(
                         srs=WGS84,
                         geos_data=GEOSGeometry(
                             "POLYGON ((10 10, 20 20, 30 30, 40 40, 10 10))", srid=4326
@@ -995,7 +996,7 @@ def test_fes20_c5_example15():
         predicate=DistanceOperator(
             valueReference=ValueReference(xpath="geometry"),
             operatorType=DistanceOperatorName.DWithin,
-            geometry=geometries.GEOSGMLGeometry(
+            geometry=GEOSGMLGeometry(
                 srs=WGS84,
                 geos_data=GEOSGeometry("POINT (43.716589 -79.34068600000001)", srid=4326),
             ),
@@ -1050,7 +1051,7 @@ def test_fes20_c7_example1():
         predicate=DistanceOperator(
             valueReference=ValueReference(xpath="geometry"),
             operatorType=DistanceOperatorName.DWithin,
-            geometry=geometries.GEOSGMLGeometry(
+            geometry=GEOSGMLGeometry(
                 srs=WGS84,
                 geos_data=GEOSGeometry("POINT (43.716589 -79.34068600000001)", srid=4326),
             ),
