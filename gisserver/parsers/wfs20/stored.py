@@ -60,7 +60,7 @@ class StoredQuery(QueryExpression):
     Note that the base class logic (such as ``<wfs:PropertyName>`` elements) are still applicable.
 
     This element resolves the stored query using the
-    :class:`~gisserver.projection.storage.StoredQueryRegistry`,
+    :class:`~gisserver.extensions.queries.StoredQueryRegistry`,
     and passes the execution to this custom function.
     """
 
@@ -165,7 +165,8 @@ class StoredQuery(QueryExpression):
         """Forward queryset creation to the implementation class."""
         return self.implementation.build_query(compiler)
 
-    def as_kvp(self):
+    def as_kvp(self) -> dict:
+        """Translate the POST request into KVP GET parameters. This is needed for pagination."""
         # As this is such edge case, only support the minimal for CITE tests.
         params = super().as_kvp()
         params["STOREDQUERY_ID"] = self.id

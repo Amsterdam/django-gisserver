@@ -66,7 +66,7 @@ Methods that can be defined include:
 For XML-based rendering, by including :class:`~gisserver.output.XmlOutputRenderer`:
 
 * :attr:`~gisserver.output.XmlOutputRenderer.xml_namespaces` defines extra XML namespaces,
-  which are combined with :attr:`~gisserver.views.WFSView.xml_namespace_aliases`.
+  which are combined with :attr:`~gisserver.views.OWSView.xml_namespace_aliases`.
 * The methods :meth:`~gisserver.output.XmlOutputRenderer.render_xmlns_attributes`,
   :meth:`~gisserver.output.XmlOutputRenderer.to_qname` and :meth:`~gisserver.output.XmlOutputRenderer.feature_to_qname`
   help with creating the proper abbreviated XML tag notations.

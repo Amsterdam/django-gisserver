@@ -1,5 +1,7 @@
 """WFS 2.0 element parsing.
 
+These classes parse the XML request body.
+
 The full spec can be found at: https://www.ogc.org/publications/standard/wfs/.
 Secondly, using https://www.mediamaps.ch/ogc/schemas-xsdoc/sld/1.2/wfs_xsd.html can be very
 helpful to see which options each object type should support.

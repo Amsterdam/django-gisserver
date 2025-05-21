@@ -1,11 +1,14 @@
-"""Operations that implement the WFS 2.0 spec.
+"""Operations that implement the WFS 2.0 specification.
 
-Useful docs:
-* http://portal.opengeospatial.org/files/?artifact_id=39967
-* https://www.opengeospatial.org/standards/wfs#downloads
-* http://schemas.opengis.net/wfs/2.0/
-* https://mapserver.org/development/rfc/ms-rfc-105.html
-* https://enonline.supermap.com/iExpress9D/API/WFS/WFS200/WFS_2.0.0_introduction.htm
+These operations are called by the :class:`~gisserver.views.WFSView`,
+and receive the request that was parsed using :mod:`gisserver.parsers.wfs20`.
+Thus, there is nearly no difference between GET/POST requests here.
+
+In a way this looks like an MVC (Model-View-Controller) design:
+
+* :mod:`gisserver.parsers.wfs20` parsed the request, and provides the "model".
+* :mod:`gisserver.operations.wfs20` orchestrates here what to do (the controller).
+* :mod:`gisserver.output` performs the rendering (the view).
 """
 
 from __future__ import annotations
@@ -37,6 +40,16 @@ logger = logging.getLogger(__name__)
 
 SAFE_VERSION = re.compile(r"\A[0-9.]+\Z")
 RE_SAFE_FILENAME = re.compile(r"\A[A-Za-z0-9]+[A-Za-z0-9.]*")  # no dot at the start.
+
+__all__ = [
+    "GetCapabilities",
+    "DescribeFeatureType",
+    "BaseWFSGetDataOperation",
+    "GetFeature",
+    "GetPropertyValue",
+    "ListStoredQueries",
+    "DescribeStoredQueries",
+]
 
 
 class GetCapabilities(XmlTemplateMixin, OutputFormatMixin, WFSOperation):
@@ -251,6 +264,8 @@ class BaseWFSGetDataOperation(OutputFormatMixin, WFSOperation):
             collection = self.get_results()
         else:
             raise NotImplementedError()
+
+        # assert False, str(collection.results[0].queryset.query)
 
         # Initialize the renderer.
         # This can also decorate the querysets with projection information,

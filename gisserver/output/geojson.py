@@ -32,7 +32,7 @@ class GeoJsonRenderer(CollectionOutputRenderer):
     The complex encoding bits are handled by the C-library "orjson"
     and the geojson property of GEOSGeometry.
 
-    NOTE: While Django has a GeoJSON serializer
+    While Django has a GeoJSON serializer
     (see https://docs.djangoproject.com/en/3.0/ref/contrib/gis/serializers/),
     it does not offer streaming response handling.
     """

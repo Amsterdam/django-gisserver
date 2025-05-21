@@ -15,7 +15,7 @@ from gisserver.parsers.ast import tag_registry
 from gisserver.parsers.query import CompiledQuery
 from gisserver.parsers.xml import NSElement, xmlns
 
-from .base import AbstractGeometry, TM_Object
+from .base import AbstractGeometry, AbstractTimePrimitive
 
 _ANY_GML_NS = "{http://www.opengis.net/gml/"
 
@@ -125,9 +125,37 @@ class GEOSGMLGeometry(AbstractGeometry):
 
 @tag_registry.register("TimeInstant", hidden=True)
 @tag_registry.register("TimePeriod", hidden=True)
+class AbstractTimeGeometricPrimitive(AbstractTimePrimitive):
+    """Not implemented: the whole GML temporal logic.
+
+    Examples for GML time elements include::
+
+      <gml:TimeInstant gml:id="TI1">
+         <gml:timePosition>2005-05-19T09:28:40Z</gml:timePosition>
+      </gml:TimeInstant>
+
+    and::
+
+      <gml:TimePeriod gml:id="TP1">
+         <gml:begin>
+            <gml:TimeInstant gml:id="TI1">
+               <gml:timePosition>2005-05-17T00:00:00Z</gml:timePosition>
+            </gml:TimeInstant>
+         </gml:begin>
+         <gml:end>
+            <gml:TimeInstant gml:id="TI2">
+               <gml:timePosition>2005-05-23T00:00:00Z</gml:timePosition>
+            </gml:TimeInstant>
+         </gml:end>
+      </gml:TimePeriod>
+    """
+
+    xml_ns = xmlns.gml32
+
+
 @tag_registry.register("TimeNode", hidden=True)
 @tag_registry.register("TimeEdge", hidden=True)
-class TM_GeometricPrimitive(TM_Object):
-    """Not implemented: the whole GML temporal logic"""
+class AbstractTimeTopologyPrimitiveType(AbstractTimePrimitive):
+    """Not implemented: GML temporal logic for TimeNode/TimeEdge."""
 
     xml_ns = xmlns.gml32

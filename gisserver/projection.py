@@ -47,13 +47,24 @@ class FeatureProjection:
 
     Instead of walking over the full XSD object tree,
     this object wraps that and makes sure only the actual requested fields are used.
-    When a PROPERTYNAME is used in the request, this will limit
-    which fields to retrieve, which to prefetch, and which to render.
+    When a ``PROPERTYNAME`` (or ``<wfs:PropertyName>``) is used in the request,
+    this will limit which fields to retrieve, which to prefetch, and which to render.
     """
 
+    #: Referencing the Feature that is rendered.
     feature_type: FeatureType
+
+    #: The list of root element to render for this feature.
     xsd_root_elements: list[XsdElement]
+
+    #: The subset of child nodes to render for a given element.
     xsd_child_nodes: dict[XsdElement | None, list[XsdElement]]
+
+    #: The output Coordinate Reference System
+    output_crs: CRS
+
+    #: Whether the output should be rendered without wrapper tags (for GetFeatureById).
+    output_standalone: bool
 
     def __init__(
         self,
@@ -69,7 +80,8 @@ class FeatureProjection:
         :param property_names: Limited list of fields to render only.
         :param value_reference: Single element to display fo GetPropertyValue
         :param output_crs: Which coordinate reference system to use for geometry data.
-        :param output_standalone: Whether the ``<wfs:
+        :param output_standalone: Used for the ``GetFeatureById`` stored query.
+            This removes the ``wfs:FeatureCollection><wfs:member>`` wrapper elements from the output.
         """
         self.feature_types = feature_types
         self.feature_type = feature_types[0]  # JOIN still not supported.
@@ -302,9 +314,7 @@ class FeatureProjection:
 
 @dataclass
 class FeatureRelation:
-    """Tell which related fields are queried by the feature.
-    Each dict holds an ORM-path, with the relevant sub-elements.
-    """
+    """Tell which related fields are queried by the feature."""
 
     #: The ORM path that is queried for this particular relation
     orm_path: str

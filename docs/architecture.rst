@@ -1,3 +1,5 @@
+.. _architecture:
+
 Internal Architecture
 =====================
 
@@ -16,9 +18,10 @@ Features and Fields
 -------------------
 
 Each :class:`~gisserver.features.FeatureField` is transformed into
-an internal ``XsdElement`` object. The model field access happens
-through ``XsdElement.get_value()``.
-Note that the ``type`` can either reference either an ``XsdTypes`` or ``XsdComplexType`` object.
+an internal :class:`~gisserver.types.XsdElement` object. The model field access happens
+through :meth:`~gisserver.types.XsdNode.get_value`.
+Note that the ``type`` can either reference either
+an :class:`~gisserver.types.XsdTypes` value or :class:`~gisserver.types.XsdComplexType` object.
 
 .. graphviz::
 
@@ -38,7 +41,7 @@ Note that the ``type`` can either reference either an ``XsdTypes`` or ``XsdCompl
     }
 
 Each :class:`~gisserver.features.FeatureType` is transformed into
-an internal ``XsdComplexType`` definition:
+an internal :class:`~gisserver.types.XsdComplexType` definition:
 
 .. graphviz::
 
@@ -112,7 +115,9 @@ The GET parameters are treated as Key-Value-Pairs (KVP).
 This is treated as a special case of the fully
 supported request notation that XML POST provides.
 
-A GET request such as::
+A GET request such as:
+
+.. code-block:: urlencoded
 
     ?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetFeature
     &TYPENAMES=app:restaurant
@@ -168,22 +173,27 @@ gives an AST somewhat like:
     digraph foo {
         node [shape=box]
 
-        GetFeature
+        GetFeature [label="GetFeature\n<wfs:GetFeature>"]
 
         GetFeature -> QueryExpression [label=".queries[...]"]
         QueryExpression -> AdhocQuery [dir=back arrowtail=empty]
 
         AdhocQuery [label="AdhocQuery\n<wfs:Query>"]
         StoredQuery [label="StoredQuery\n<wfs:StoredQuery>"]
+        PropertyName [label="PropertyName\n<wfs:PropertyName>"]
+        Filter [label="Filter\n<fes:Filter>"]
+        SortBy [label="SortBy\n<fes:SortBy>"]
 
         AdhocQuery -> PropertyName [label=".property_names"]
         AdhocQuery -> Filter [label=".filter"]
         AdhocQuery -> SortBy [label=".sortBy"]
 
-        BinaryComparisonOperator [label="BinaryComparisonOperator\n<fes:PropertyIsEqualTo>"]
-        BinarySpatialOperator [label="BinarySpatialOperator\n<fes:BBOX>"]
         BinaryLogicOperator [label="BinaryLogicOperator\n<fes:And>"]
+        BinarySpatialOperator [label="BinarySpatialOperator\n<fes:BBOX>"]
+        BinaryComparisonOperator [label="BinaryComparisonOperator\n<fes:PropertyIsEqualTo>"]
         Envelope [label="Envelope\n<gml:Envelope>"]
+        ValueReference [label="ValueReference\n<fes:ValueReference>"]
+        Literal [label="Literal\n<fes:Literal>"]
 
         Filter -> BinaryLogicOperator [label=".predicate"]
         BinaryLogicOperator -> BinarySpatialOperator
@@ -192,7 +202,10 @@ gives an AST somewhat like:
         BinaryComparisonOperator -> ValueReference [label=".expression[0]"]
         BinaryComparisonOperator -> Literal [label=".expression[1]"]
 
-        ValueReference2 [label="ValueReference"]
+        ValueReference2 [label="ValueReference\n<fes:ValueReference>"]
+        SortProperty [label="SortProperty\n<fes:SortProperty>"]
+        SortOrder [label="SortOrder\n<fes:SortOrder>"]
+
         SortBy -> SortProperty
         SortProperty -> ValueReference2
         SortProperty -> SortOrder
@@ -302,13 +315,15 @@ unless it would cause multiple queries (such as needing the ``number_matched`` d
 This information can now be passed to the output rendering.
 
 .. note::
-    The names such as ``FeatureCollection``, ``SimpleFeatureCollection``
+    The names such as :class:`~gisserver.output.results.FeatureCollection`
+    and :class:`~gisserver.output.results.SimpleFeatureCollection`
     all literally appear in the WFS 2.0 specification. They also correspond to the layout of the XML output.
 
 Output Rendering
 ~~~~~~~~~~~~~~~~
 
-Each ``WFSOperation`` has a list of ``OutputFormat`` objects:
+Each :class:`~gisserver.operations.base.WFSOperation` has a list
+of :class:`~gisserver.operations.base.OutputFormat` objects:
 
 .. code-block:: python
 
@@ -324,7 +339,10 @@ Each ``WFSOperation`` has a list of ``OutputFormat`` objects:
                 # OutputFormat("application/zip"),
             ]
 
-The ``OutputFormat`` class may reference an ``renderer_class`` which points to an ``OutputRenderer`` (or ``CollectionOutputRenderer``) subclass.
+The :class:`~gisserver.operations.base.OutputFormat` class may reference
+an :attr:`~gisserver.operations.base.OutputFormat.renderer_class`
+which points to an :class:`~gisserver.output.OutputRenderer`
+(or :class:`~gisserver.output.CollectionOutputRenderer`) subclass.
 
 .. graphviz::
 
@@ -356,12 +374,13 @@ of the EWKT, JSON or GML fragments is done by the database server.
 Most output formats return a streaming response for performance.
 
 Other WFS operations that also generate XML can implement a custom output renderer too.
-The ``ListStoredQueriesRenderer`` is a nice example for rendering custom XML responses.
+The :class:`~gisserver.output.ListStoredQueriesRenderer` is a nice example for rendering custom XML responses.
 
 The output rendering also translates the fully qualified XML names
 into shortened QName format (e.g. ``{http://www.opengis.net/gml/3.2}Point`` becomes ``<gml:Point>``).
 
-For fast development, the ``WFSOperation`` may include the ``XmlTemplateMixin`` mixin
+For fast development, the :class:`~gisserver.operations.base.WFSOperation`
+may include the :class:`~gisserver.operations.base.XmlTemplateMixin` mixin
 to render an XML template using Django templates. Currently, only ``GetCapabilities`` use that.
 
 Applying the Projection
@@ -371,10 +390,23 @@ One special situation remains; the query also contains information about the "pr
 That is, how the retrieved data should be transformed before rendering.
 Most notably, the ``<wfs:PropertyName>`` determines that only certain members should be rendered.
 
-Practically, this information is also used by the ``AdhocQuery`` so it can retrieve less data.
-For the collection rendering, our internal ``FeatureProjection`` provides all information
+Practically, this information is also used by the :class:`~gisserver.parsers.wfs20.AdhocQuery`
+so it can retrieve less data. For the collection rendering,
+our internal :class:`~gisserver.projection.FeatureProjection` provides all information
 to render the data, including which elements or which coordinate transformation to apply.
 
 It also detects that relations can be prefetched, to avoid N-query calls for related models.
-Just before rendering, the ``QuerySet`` is passed to a ``decorate_queryset()`` function
+Just before rendering, the ``QuerySet`` is passed to
+a :class:`~gisserver.output.CollectionOutputRenderer.decorate_queryset` function
 of the output format.
+
+Output Streaming
+~~~~~~~~~~~~~~~~
+
+The output rendering will generate a Django ``HttpResponse`` with the contents.
+When the renderer class returns a generator, it will return a ``StreamingHttpResponse``
+and hand that off to the WSGI server. The streaming rendering will help keep memory usage small.
+Data is incrementally read from the database (in chunks),
+and each chunk of rendered content (e.g. 40Kb) is written to the client.
+
+Now the client can consume the data and present it!

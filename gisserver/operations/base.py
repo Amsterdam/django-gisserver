@@ -50,7 +50,9 @@ __all__ = (
 class Parameter:
     """The ``<ows:Parameter>`` tag to output in ``GetCapabilities``."""
 
+    #: The name of the parameter
     name: str
+    #: The values to report in ``<ows:AllowedValues><ows:Value>``.
     allowed_values: list[str]
 
 
@@ -58,9 +60,12 @@ class OutputFormat(typing.Generic[R]):
     """Declare an output format for the method.
 
     These formats are used in the :meth:`get_output_formats` for
-    any WFSMethod that implements :class:`OutputFormatMixin`.
+    any :class:`WFSOperation` that implements :class:`OutputFormatMixin`.
     This also connects the output format with a :attr:`renderer_class`.
     """
+
+    #: The class that performs the output rendering.
+    renderer_class: type[R] | None = None
 
     def __init__(
         self,
@@ -161,7 +166,7 @@ class WFSOperation:
     @cached_property
     def all_feature_types_by_name(self) -> dict[str, FeatureType]:
         """Create a lookup for feature types by name.
-        This can be cached as the WFSMethod is instantiated with each request
+        This can be cached as the :class:`WFSOperation` is instantiated with each request.
         """
         return {ft.xml_name: ft for ft in self.view.get_bound_feature_types()}
 
@@ -194,12 +199,14 @@ class XmlTemplateMixin:
     """Mixin to support methods that render using a template."""
 
     #: Default template to use for rendering
+    #: This is resolved as :samp:`gisserver/{service}/{version}/{xml_template_name}`.
     xml_template_name = None
 
-    #: Default content-type for render_xml()
+    #: The content-type to render.
     xml_content_type = "text/xml; charset=utf-8"
 
     def process_request(self, ows_request: ows.BaseOwsRequest):
+        """Process the request by rendering a Django template."""
         context = self.get_context_data()
         return self.render_xml(context, ows_request)
 
@@ -208,10 +215,7 @@ class XmlTemplateMixin:
         return {}
 
     def render_xml(self, context, ows_request: ows.BaseOwsRequest):
-        """Shortcut to render XML.
-
-        This is the default method when the OutputFormat class doesn't have a renderer_class
-        """
+        """Render the response using a template."""
         return HttpResponse(
             render_to_string(
                 self._get_xml_template_name(ows_request),

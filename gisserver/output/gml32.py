@@ -170,7 +170,7 @@ class GML32Renderer(CollectionOutputRenderer, XmlOutputRenderer):
     def render_exception(self, exception: Exception):
         """Render the exception in a format that fits with the output.
 
-        The WSF XSD spec has a hidden gem: an <wfs:truncatedResponse> element
+        The WSF XSD spec has a hidden gem: an ``<wfs:truncatedResponse>`` element
         can be rendered at the end of a feature collection
         to inform the client an error happened during rendering.
         """
@@ -637,9 +637,9 @@ class DBGML32Renderer(DBGMLRenderingMixin, GML32Renderer):
 class GML32ValueRenderer(GML32Renderer):
     """Render the GetPropertyValue XML output in GML 3.2 format.
 
-    Geoserver seems to generate the element tag inside each <wfs:member> element. We've applied this one.
-    The GML standard demonstrates to render only their content inside a <wfs:member> element
-    (either plain text or an <gml:...> tag). Not sure what is right here.
+    Geoserver seems to generate the element tag inside each ``<wfs:member>`` element. We've applied this one.
+    The GML standard demonstrates to render only their content inside a ``<wfs:member>`` element
+    (either plain text or an ``<gml:...>`` tag). Not sure what is right here.
     """
 
     content_type = "text/xml; charset=utf-8"

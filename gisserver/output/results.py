@@ -32,7 +32,7 @@ class SimpleFeatureCollection:
     """Wrapper to read a result set.
 
     This object type is defined in the WFS spec.
-    It holds a collection of "wfs:member" objects.
+    It holds a collection of ``<wfs:member>`` objects.
     """
 
     def __init__(
@@ -85,7 +85,8 @@ class SimpleFeatureCollection:
         """Explicitly request the results to be streamed.
 
         This can be used by output formats that stream results, and don't
-        access `number_returned`. Note this is not compatible with prefetch_related().
+        access :attr:`number_returned`.
+        Note this is not compatible with ``prefetch_related()``.
         """
         if self._result_iterator is not None:
             raise RuntimeError("Results for feature collection are read twice.")
@@ -287,8 +288,9 @@ class SimpleFeatureCollection:
 
 
 class FeatureCollection:
-    """WFS object that holds the result type for GetFeature.
+    """WFS object that holds the result type for ``GetFeature``.
     This object type is defined in the WFS spec.
+    It holds a collection of :class:`SimpleFeatureCollection` results.
     """
 
     def __init__(

@@ -11,10 +11,10 @@ View Layer
 The following methods of the :class:`~gisserver.views.WFSView` can be overwritten:
 
 * :meth:`~gisserver.views.WFSView.get_feature_types` to dynamically generate all exposed features.
-* :meth:`~gisserver.views.WFSView.get_service_description` to dynamically generate the description.
-* :meth:`~gisserver.views.WFSView.dispatch` to implement basic auth.
+* :meth:`~gisserver.views.OWSView.get_service_description` to dynamically generate the description.
+* :attr:`~gisserver.views.OWSView.xml_namespace_aliases` can define aliases for namespaces. (default is ``{"app": self.xml_namespace}``).
+* :meth:`~gisserver.views.OWSView.dispatch` to implement basic auth.
 * :meth:`~gisserver.views.WFSView.check_permissions` to check for permissions
-* :attr:`~gisserver.views.WFSView.xml_namespace_aliases` can define aliases for namespaces. (default is ``{"app": self.xml_namespace}``).
 
 The permission checks can access the `self.request.user` object in Django,
 and inspect the fully parsed WFS request in `self.request.ows_request`.
@@ -57,7 +57,7 @@ The elements and attributes have the following fields:
 * :attr:`~gisserver.types.XsdNode.orm_field` - returns the first part of the ORM relation.
 * :attr:`~gisserver.types.XsdNode.orm_relation` - returns the ORM relation as path and final field name.
 * :meth:`~gisserver.types.XsdNode.get_value` - how to read the attribute value.
-* :meth:`~gisserver.types.XsdNode.format_value` - format raw-retrieved values from the database (e.g ``.values()`` query).
+* :meth:`~gisserver.types.XsdNode.format_raw_value` - format raw-retrieved values from the database (e.g ``.values()`` query).
 * :meth:`~gisserver.types.XsdNode.to_python` - how to cast input data.
 * :meth:`~gisserver.types.XsdNode.validate_comparison` - checks a field supports a certain data type.
 * :meth:`~gisserver.types.XsdNode.build_lhs_part` - how to generate the ORM left-hand-side.
@@ -72,6 +72,6 @@ The GET request parsing (KVP format) is a special case of these classes.
 
 New parser classes may be added for operations that are not implemented yet (such as WFS-T or creating stored queries).
 Subsequently, a :class:`~gisserver.operations.base.WFSOperation` needs to be implemented that handles this request.
-That operation needs to be registered in :class:`~gisserver.view.WFSView`'s ``accept_operations`` attribute.
+That operation needs to be registered in :class:`~gisserver.views.WFSView`'s ``accept_operations`` attribute.
 The :class:`~gisserver.operations.base.WFSOperation` may also define a ``parser_class`` to
 override which parser handles the request.

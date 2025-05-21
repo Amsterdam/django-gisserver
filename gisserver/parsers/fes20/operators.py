@@ -1,5 +1,33 @@
 """These classes map to the FES 2.0 specification for operators.
 The class names and attributes are identical to those in the FES spec.
+
+Inheritance structure:
+
+* :class:`Operator`
+
+ * :class:`IdOperator` chains ``<fes:ResourceId>``.
+ * :class:`NonIdOperator`
+
+  * :class:`ComparisonOperator`
+
+   * :class:`BinaryComparisonOperator` for :class:`BinaryComparisonName` tags like ``<fes:PropertyIsEqualTo>``.
+   * :class:`BetweenComparisonOperator` for ``<fes:PropertyIsBetween>``
+   * :class:`LikeOperator` for ``<fes:PropertyIsLike>``.
+   * :class:`NilOperator` for ``<fes:PropertyIsNil>``.
+   * :class:`NullOperator` for ``<fes:PropertyIsNill>``.
+
+  * :class:`SpatialOperator`
+
+   * :class:`DistanceOperator` for the :class:`DistanceOperator` tags: ``<fes:DWithin>`` and ``<fes:Beyond>``.
+   * :class:`BinarySpatialOperator` for :class:`SpatialOperatorName` tags like ``<fes:BBOX>``.
+
+  * :class:`TemporalOperator` for :class:`TemporalOperatorName` tags like ``<fes:After>``.
+  * :class:`LogicalOperator`
+
+   * :class:`BinaryLogicOperator` for the :class:`BinaryLogicType` tags: ``<fes:And>`` and ``<fes:Or>``.
+   * :class:`UnaryLogicOperator` for the :class:`UnaryLogicType` tag: ``<fes:Not>``.
+
+  * :class:`ExtensionOperator` for custom additions.
 """
 
 from __future__ import annotations
@@ -11,7 +39,7 @@ from decimal import Decimal
 from enum import Enum
 from functools import cached_property, reduce
 from itertools import groupby
-from typing import ClassVar, Protocol, Union
+from typing import ClassVar, Union
 
 from django.contrib.gis import measure
 from django.db.models import Q
@@ -40,7 +68,10 @@ from .lookups import ARRAY_LOOKUPS  # also registers the lookups.
 
 logger = logging.getLogger(__name__)
 
+#: Define the types that a ``<gml:SpatialDescription>`` can be:
 SpatialDescription = Union[gml.GM_Object, gml.GM_Envelope, ValueReference]
+
+#: Define the types that a ``<gml:TemporalOperand>`` can be:
 TemporalOperand = Union[gml.TM_Object, ValueReference]
 
 # Fully qualified tag names
@@ -51,14 +82,8 @@ FES_UPPER_BOUNDARY = xmlns.fes20.qname("UpperBoundary")
 FES1_PROPERTY_NAME = xmlns.fes20.qname("PropertyName")  # old tag sometimes used by clients
 
 
-class HasBuildRhs(Protocol):
-    """Define interface for any class that has ``build_rhs()``."""
-
-    def build_rhs(self, compiler) -> RhsTypes: ...
-
-
 class MatchAction(Enum):
-    """Values for the 'matchAction' attribute of the BinaryComparisonOperator."""
+    """Values for the 'matchAction' attribute of the :class:`BinaryComparisonOperator`."""
 
     All = "All"
     Any = "Any"
@@ -202,7 +227,16 @@ class Operator(AstNode):
 
 @dataclass
 class IdOperator(Operator):
-    """List of ResourceId objects"""
+    """List of :class:`~gisserver.parsers.fes20.identifers.ResourceId`` objects.
+
+    A ``<fes:Filter>`` only has a single predicate.
+    Hence, this operator is used to wrap the ``<fes:ResourceId>`` elements in the syntax::
+
+        <fes:Filter>
+            <fes:ResourceId rid="typename.123" />
+            <fes:ResourceId rid="typename.345" />
+        </fes:Filter>
+    """
 
     id: list[Id]
 
@@ -252,7 +286,7 @@ class NonIdOperator(Operator):
     """Abstract base class, as defined by FES spec.
 
     This is used for nearly all operators,
-    except those that have <fes:ResourceId> elements as children.
+    except those that have ``<fes:ResourceId>`` elements as children.
 
     Some operators, such as the ``<fes:And>``, ``<fes:Or>`` and ``<fes:Not>`` operators
     explicitly support only ``NonIdOperator`` elements as arguments.
@@ -310,7 +344,7 @@ class NonIdOperator(Operator):
         """Validate whether a given comparison is even possible.
 
         For example, comparisons like ``name == "test"`` are fine,
-        but ``geometry < 4`` or ``datefield == 35.2" raise an error.
+        but ``geometry < 4`` or ``datefield == 35.2`` raise an error.
 
         :param compiler: The object that holds the intermediate state
         :param lhs: The left-hand-side of the comparison (e.g. the element).
@@ -583,7 +617,7 @@ class ComparisonOperator(NonIdOperator):
 @dataclass
 @tag_registry.register(BinaryComparisonName)  # <PropertyIs...>
 class BinaryComparisonOperator(ComparisonOperator):
-    """A comparison between 2 values, e.g. A == B.
+    """A comparison between 2 values, e.g. *A == B*.
 
     This parses and handles the syntax::
 
@@ -740,7 +774,7 @@ class LikeOperator(ComparisonOperator):
 @tag_registry.register("PropertyIsNil")
 class NilOperator(ComparisonOperator):
     """Check whether the value evaluates to null/None.
-    If the WFS returned a property element with <tns:p xsi:nil='true'>, this returns true.
+    If the WFS returned a property element with ``<app:field xsi:nil='true'>``, this returns true.
 
     It parses and handles syntax such as::
 
@@ -777,7 +811,7 @@ class NilOperator(ComparisonOperator):
 @tag_registry.register("PropertyIsNull")
 class NullOperator(ComparisonOperator):
     """Check whether the property exists.
-    If the WFS would not return the property element <tns:p>, this returns true.
+    If the WFS would not return the property element ``<app:field>``, this returns true.
 
     It parses and handles syntax such as::
 
