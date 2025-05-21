@@ -1,14 +1,15 @@
-"""The configuration of a "feature type" in the WFS server.
+"""The main configuration for exposing model data in the WFS server.
 
 The "feature type" definitions define what models and attributes are exposed in the WFS server.
 When a model attribute is mentioned in the feature type, it can be exposed and queried against.
 Any field that is not mentioned in a definition, will therefore not be available, nor queryable.
 This metadata is used in the ``GetCapabilities`` call to advertise all available feature types.
 
-To handle other WFS request types besides ``GetCapabilities``, the "feature type" definition
-is translated internally into an internal XML Schema Definition (:mod:`gisserver.types`).
+The "feature type" definitions ares translated internally into
+an internal XML Schema Definition (made from :mod:`gisserver.types`).
 That schema maps all model attributes to a specific XML layout, and includes
 all XSD Complex Types, elements and attributes linked to the Django model metadata.
+
 The feature type classes (and field types) offer a flexible translation
 from attribute listings into a schema definition.
 For example, model relationships can be modelled to a different XML layout.
@@ -21,7 +22,7 @@ import itertools
 import logging
 from dataclasses import dataclass
 from functools import cached_property, lru_cache
-from typing import TYPE_CHECKING, Literal, Union
+from typing import TYPE_CHECKING, Literal
 
 from django.contrib.gis.db import models as gis_models
 from django.contrib.gis.db.models import GeometryField
@@ -50,8 +51,6 @@ from gisserver.types import (
 
 if TYPE_CHECKING:
     from gisserver.projection import FeatureRelation
-
-_all_ = Literal["__all__"]
 
 __all__ = [
     "FeatureType",
@@ -132,7 +131,7 @@ def _get_basic_field_type(
 
 def _get_model_fields(
     model: type[models.Model],
-    fields: _all_ | list[str],
+    fields: list[str] | Literal["__all__"],
     parent: ComplexFeatureField | None = None,
     feature_type: FeatureType | None = None,
 ):
@@ -353,10 +352,6 @@ class FeatureField:
         )
 
 
-_FieldDefinition = Union[str, FeatureField]
-_FieldDefinitions = Union[_all_, list[_FieldDefinition]]
-
-
 class ComplexFeatureField(FeatureField):
     """The configuration for an embedded relation field.
 
@@ -368,7 +363,7 @@ class ComplexFeatureField(FeatureField):
     def __init__(
         self,
         name: str,
-        fields: _FieldDefinitions,
+        fields: list[str | FeatureField] | Literal["__all__"],
         model_attribute=None,
         model=None,
         abstract=None,
@@ -443,7 +438,7 @@ def field(
     *,
     model_attribute=None,
     abstract: str | None = None,
-    fields: _FieldDefinitions | None = None,
+    fields: list[str | FeatureField] | Literal["__all__"] | None = None,
     xsd_class: type[XsdElement] | None = None,
 ) -> FeatureField:
     """Shortcut to define a WFS field.
@@ -494,7 +489,7 @@ class FeatureType:
         self,
         queryset: models.QuerySet,
         *,
-        fields: _FieldDefinitions | None = None,
+        fields: list[str | FeatureField] | Literal["__all__"] | None = None,
         display_field_name: str | None = None,
         geometry_field_name: str | None = None,
         name: str | None = None,

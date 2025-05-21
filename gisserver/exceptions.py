@@ -170,7 +170,8 @@ class OWSException(Exception):
         self.code = code or self.code or self.__class__.__name__
         self.status_code = status_code or self.status_code
 
-    def as_response(self):
+    def as_response(self) -> HttpResponse:
+        """Return the excetion as HTTP response."""
         logger.debug("Returning HTTP %d for %s: %s", self.status_code, self.code, self.text)
         xml_body = self.as_xml()
         return HttpResponse(
@@ -180,7 +181,8 @@ class OWSException(Exception):
             reason=self.reason,
         )
 
-    def as_xml(self):
+    def as_xml(self) -> str:
+        """Serialize the exception to an XML string."""
         return format_html(
             "<ows:ExceptionReport"
             ' xmlns:ows="http://www.opengis.net/ows/1.1"'

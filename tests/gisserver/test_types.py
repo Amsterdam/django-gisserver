@@ -38,11 +38,7 @@ class TestXsdElements:
             "PersonType",
             namespace=namespace,
             elements=[
-                XsdElement(
-                    "name",
-                    type=XsdTypes.string,
-                    namespace=namespace,
-                ),
+                XsdElement("name", type=XsdTypes.string, namespace=namespace),
                 XsdElement("age", type=XsdTypes.integer, namespace=namespace),
             ],
         )

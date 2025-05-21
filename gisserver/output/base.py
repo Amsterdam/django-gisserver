@@ -33,8 +33,8 @@ class OutputRenderer:
     """Base class for rendering content.
 
     Note most rendering logic will generally
-    need to use :class:`XmlOutputRenderer` or :class:`ConnectionOutputRenderer`
-    as their base class
+    need to use :class:`~gisserver.output.XmlOutputRenderer`
+    or :class:`~gisserver.output.CollectionOutputRenderer` as their base class
     """
 
     #: Default content type for the HTTP response
@@ -71,7 +71,8 @@ class OutputRenderer:
                 headers=self.get_headers(),
             )
 
-    def get_headers(self):
+    def get_headers(self) -> dict[str, str]:
+        """Override to define HTTP headers to add."""
         return {}
 
     def _trap_exceptions(self, stream):
@@ -146,10 +147,7 @@ class XmlOutputRenderer(OutputRenderer):
 
 
 class CollectionOutputRenderer(OutputRenderer):
-    """Base class to create streaming responses.
-
-    It receives the collected 'context' data of the WFSMethod.
-    """
+    """Base class to create streaming responses."""
 
     #: Allow to override the maximum page size.
     #: This value can be 'math.inf' to support endless pages by default.
@@ -162,7 +160,7 @@ class CollectionOutputRenderer(OutputRenderer):
         """
         Receive the collected data to render.
 
-        :param operation: The calling WFS Method (e.g. GetFeature class)
+        :param operation: The calling WFS Operation (e.g. GetFeature class)
         :param collection: The collected data for rendering.
         """
         super().__init__(operation)
@@ -170,7 +168,10 @@ class CollectionOutputRenderer(OutputRenderer):
         self.apply_projection()
 
     def apply_projection(self):
-        """Perform presentation-layer logic enhancements on the queryset."""
+        """Perform presentation-layer logic enhancements on all results.
+        This calls :meth:`decorate_queryset` for
+        each :class:`~gisserver.output.SimpleFeatureCollection`.
+        """
         for sub_collection in self.collection.results:
             queryset = self.decorate_queryset(
                 projection=sub_collection.projection,
@@ -190,9 +191,8 @@ class CollectionOutputRenderer(OutputRenderer):
 
         This allows fine-tuning the queryset for any special needs of the output rendering type.
 
-        :param feature_type: The feature that is being queried.
+        :param projection: The projection information, including feature that is being rendered.
         :param queryset: The constructed queryset so far.
-        :param output_crs: The projected output
         """
         if queryset._result_cache is not None:
             raise RuntimeError(

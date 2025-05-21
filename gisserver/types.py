@@ -52,7 +52,6 @@ from gisserver.parsers import values
 from gisserver.parsers.xml import parse_qname, split_ns, xmlns
 
 logger = logging.getLogger(__name__)
-_unbounded = Literal["unbounded"]
 
 __all__ = [
     "GeometryXsdElement",
@@ -99,13 +98,13 @@ class XsdAnyType:
 
 
 class XsdTypes(XsdAnyType, Enum):
-    """Brief enumeration of basic XMLSchema types.
+    """Brief enumeration of common XMLSchema types.
 
     The :class:`XsdElement` and :class:`XsdAttribute` can use these enum members
     to indicate their value is a well-known XML Schema. Some GML types are included as well.
 
-    The default namespace is the "xs:" (XMLSchema).
-    Based on https://www.w3.org/TR/xmlschema-2/#built-in-datatypes
+    Each member value is a fully qualified XML name.
+    The output rendering will convert these to the chosen prefixes.
     """
 
     anyType = xmlns.xs.qname("anyType")  # not "xsd:any", that is an element.
@@ -150,17 +149,25 @@ class XsdTypes(XsdAnyType, Enum):
     gmlMultiCurvePropertyType = xmlns.gml.qname("MultiCurvePropertyType")
     gmlMultiGeometryPropertyType = xmlns.gml.qname("MultiGeometryPropertyType")
 
-    # Other typical GML values
-    gmlCodeType = xmlns.gml.qname("CodeType")  # for <gml:name>
-    gmlBoundingShapeType = xmlns.gml.qname("BoundingShapeType")  # for <gml:boundedBy>
-    gmlEnvelopeType = xmlns.gml.qname("EnvelopeType")  # for <gml:Envelope>
+    # Other typical GML values:
 
-    #: A direct geometry value (used as function argument type)
+    #: The type for ``<gml:name>`` elements.
+    gmlCodeType = xmlns.gml.qname("CodeType")  # for <gml:name>
+
+    #: The type for ``<gml:boundedBy>`` elements.
+    gmlBoundingShapeType = xmlns.gml.qname("BoundingShapeType")
+
+    #: The type for ``<gml:Envelope>`` elements, sometimes used as function argument type.
+    gmlEnvelopeType = xmlns.gml.qname("EnvelopeType")
+
+    #: A direct geometry value, sometimes used as function argument type.
     gmlAbstractGeometryType = xmlns.gml.qname("AbstractGeometryType")
 
     #: A feature that has a gml:name and gml:boundedBy as possible child element.
     gmlAbstractFeatureType = xmlns.gml.qname("AbstractFeatureType")
-    gmlAbstractGMLType = xmlns.gml.qname("AbstractGMLType")  # base of gml:AbstractFeatureType
+
+    #: The base of gml:AbstractFeatureType
+    gmlAbstractGMLType = xmlns.gml.qname("AbstractGMLType")
 
     def __str__(self):
         return self.value
@@ -277,11 +284,16 @@ class XsdNode:
     parse query input and read model attributes to write as output.
     """
 
+    #: Whether this node is an :class:`XsdAttribute` (avoids slow ``isinstance()`` checks)
     is_attribute = False
+    #: Whether this node can occur multiple times.
     is_many = False
 
+    #: The local name of the XML element
     name: str
-    type: XsdAnyType  # Both XsdComplexType and XsdType are allowed
+
+    #: The data type of the element/attribute, both :class:`XsdComplexType` and :class:`XsdTypes` are allowed.
+    type: XsdAnyType
 
     #: XML Namespace of the element
     namespace: xmlns | str | None
@@ -294,7 +306,7 @@ class XsdNode:
     #: This supports dot notation to access related attributes.
     model_attribute: str | None
 
-    #: A link back to the parent that described the featuyre this node is a part of.
+    #: A link back to the parent that described the feature this node is a part of.
     #: This helps to perform additional filtering in side meth:get_value: based on user policies.
     feature_type: FeatureType | None
 
@@ -316,7 +328,8 @@ class XsdNode:
         :param source: Original Model field, which can provide more metadata/parsing.
         :param model_attribute: The Django model path that this element accesses.
         :param absolute_model_attribute: The full path, including parent elements.
-        :param feature_type: Typically assigned in :meth:`bind`, needed by some :meth:`get_value` functions.
+        :param feature_type: Typically assigned in :meth:`~gisserver.features.FeatureField.bind`,
+                             needed by some :meth:`get_value` functions.
         """
         if ":" in name:
             raise ValueError(
@@ -559,18 +572,21 @@ class XsdElement(XsdNode):
     This holds the definition for a single property in the WFS server.
     It's used in ``DescribeFeatureType`` to output the field metadata,
     and used in ``GetFeature`` to access the actual value from the object.
-    Overriding :meth:`get_value` allows to override this logic.
+    Overriding :meth:`XsdNode.get_value` allows to override this logic.
 
-    The :attr:`name` may differ from the underlying :attr:`model_attribute`,
+    The :attr:`name` may differ from the underlying :attr:`XsdNode.model_attribute`,
     so the WFS server can use other field names then the underlying model.
 
-    A dotted-path notation can be used for :attr:`model_attribute` to access
+    A dotted-path notation can be used for :attr:`XsdNode.model_attribute` to access
     a related field. For the WFS client, the data appears to be flattened.
     """
 
+    #: Whether the element can be null
     nillable: bool | None
+    #: The minimal number of times the element occurs in the output.
     min_occurs: int | None
-    max_occurs: int | _unbounded | None
+    #: The maximum number of times this element occurs in the output.
+    max_occurs: int | Literal["unbounded"] | None
 
     def __init__(
         self,
@@ -580,7 +596,7 @@ class XsdElement(XsdNode):
         *,
         nillable: bool | None = None,
         min_occurs: int | None = None,
-        max_occurs: int | _unbounded | None = None,
+        max_occurs: int | Literal["unbounded"] | None = None,
         source: models.Field | models.ForeignObjectRel | None = None,
         model_attribute: str | None = None,
         absolute_model_attribute: str | None = None,
@@ -691,8 +707,8 @@ class GeometryXsdElement(XsdElement):
 
 
 class GmlIdAttribute(XsdAttribute):
-    """A virtual 'gml:id' attribute that can be queried.
-    This subclass has overwritten get_value() logic to format the value.
+    """A virtual ``gml:id="..."`` attribute that can be queried.
+    This subclass has overwritten :meth:`get_value` logic to format the value.
     """
 
     type_name: str
@@ -716,6 +732,7 @@ class GmlIdAttribute(XsdAttribute):
         object.__setattr__(self, "type_name", type_name)
 
     def get_value(self, instance: models.Model):
+        """Render the value."""
         pk = super().get_value(instance)  # handle dotted-name notations
         return f"{self.type_name}.{pk}"
 
@@ -725,7 +742,7 @@ class GmlIdAttribute(XsdAttribute):
 
 
 class GmlNameElement(XsdElement):
-    """A subclass to handle the <gml:name> element.
+    """A subclass to handle the ``<gml:name>`` element.
     This displays a human-readable title for the object.
 
     Currently, this just reads a single attribute,
@@ -761,7 +778,7 @@ class GmlNameElement(XsdElement):
 
 
 class GmlBoundedByElement(XsdElement):
-    """A subclass to handle the <gml:boundedBy> element.
+    """A subclass to handle the ``<gml:boundedBy>`` element.
 
     This override makes sure this non-model element data
     can be included in the XML tree like every other element.
@@ -815,25 +832,50 @@ class GmlBoundedByElement(XsdElement):
 
 @dataclass(frozen=True)
 class XsdComplexType(XsdAnyType):
-    """Define an <xsd:complexType> that represents a whole class definition.
+    """Define an ``<xsd:complexType>`` that represents a whole class definition.
 
     Typically, this maps into a Django model, with each element pointing to a model field.
+    For example:
+
+    .. code-block:: python
+
+        XsdComplexType(
+            "PersonType",
+            elements=[
+                XsdElement("name", type=XsdTypes.string),
+                XsdElement("age", type=XsdTypes.integer),
+                XsdElement("address", type=XsdComplexType(
+                    "AddressType",
+                    elements=[
+                        XsdElement("street", type=XsdTypes.string),
+                        ...
+                    ]
+                )),
+            ],
+            attributes=[
+                XsdAttribute("id", type=XsdTypes.integer),
+            ],
+        )
 
     A complex type can hold multiple :class:`XsdElement` and :class:`XsdAttribute`
-    nodes as children, composing an object. The elements themselves can point
-    to a complex type themselves, to create a nested class structure.
+    nodes as children, composing an object. Its :attr:`base` may point to a :class:`XsdComplexType`
+    as base class, allowing to define those inherited elements too.
+
+    Each element can be a complex type themselves, to create a nested class structure.
     That also allows embedding models with their relations into a single response.
 
-    This object definition is the internal "source of truth" regarding
-    which field names and field elements are used in the WFS server.
-    The ``DescribeFeatureType`` request uses this definition to render the matching XMLSchema.
-    Incoming XPath queries are parsed using this object to resolve the XPath to model attributes.
+    .. note:: Good to know
+        This object definition is the internal "source of truth" regarding
+        which field names and field elements are used in the WFS server:
 
-    Objects of this type are typically generated by the ``FeatureType`` and
-    ``ComplexFeatureField`` classes, using the Django model data.
+        * The ``DescribeFeatureType`` request uses this definition to render the matching XMLSchema.
+        * Incoming XPath queries are parsed using this object to resolve the XPath to model attributes.
 
-    By default, The type is declared as subclass of <gml:AbstractFeatureType>,
-    which allows child elements like <gml:name> and <gml:boundedBy>.
+    Objects of this type are typically generated by the :class:`~gisserver.features.FeatureType` and
+    :class:`~gisserver.features.ComplexFeatureField` classes, using the Django model data.
+
+    By default, The :attr:`base` type is detected as ``<gml:AbstractFeatureType>``,
+    when there is a geometry element in the definition.
     """
 
     #: Internal class name (without XML namespace/prefix)
@@ -874,7 +916,8 @@ class XsdComplexType(XsdAnyType):
         return f"{{{self.namespace}}}{self.name}" if self.namespace else self.name
 
     @property
-    def is_complex_type(self):
+    def is_complex_type(self) -> bool:
+        """Always indicates this is a complex type."""
         return True  # a property to avoid being used as field.
 
     @cached_property
@@ -1003,7 +1046,7 @@ class ORMPath:
 
     def build_lhs(self, compiler: CompiledQuery):
         """Give the ORM part when this element is used as left-hand-side of a comparison.
-        For example: "path == value".
+        For example: ``path == value``.
         """
         if self.is_many:
             compiler.add_distinct()
@@ -1013,7 +1056,7 @@ class ORMPath:
 
     def build_rhs(self, compiler: CompiledQuery):
         """Give the ORM part when this element would be used as right-hand-side.
-        For example: "path == path" or "value == path".
+        For example: ``path1 == path2`` or ``value == path``.
         """
         if self.is_many:
             compiler.add_distinct()
@@ -1071,7 +1114,9 @@ class XPathMatch(ORMPath):
         return any(node.is_many for node in self.nodes)
 
     def build_lhs(self, compiler: CompiledQuery):
-        """Delegate the LHS construction to the final XsdNode."""
+        """Give the ORM part when this element is used as left-hand-side of a comparison.
+        For example: ``path == value``.
+        """
         if self.is_many:
             compiler.add_distinct()
         if self.orm_filters:
@@ -1079,7 +1124,9 @@ class XPathMatch(ORMPath):
         return self.child.build_lhs_part(compiler, self)
 
     def build_rhs(self, compiler: CompiledQuery):
-        """Delegate the RHS construction to the final XsdNode."""
+        """Give the ORM part when this element would be used as right-hand-side.
+        For example: ``path1 == path2`` or ``value == path``.
+        """
         if self.is_many:
             compiler.add_distinct()
         if self.orm_filters:

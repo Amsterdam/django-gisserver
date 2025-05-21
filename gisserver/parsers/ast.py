@@ -10,10 +10,10 @@ The custom `from_xml()` method should copy the XML data into local attributes.
 
 Next, when :meth:`TagRegistry.node_from_xml` is called,
 it will detect which class the XML Element refers to and initialize it using the ``from_xml()`` call.
-As convenience, calling :meth:`SomeNode.child_from_xml()` will also
-initialize the right subclass and initialize it.
+As convenience, calling a :meth:`AstNode.child_from_xml`
+on a subclass will also initialize the right subclass and initialize it.
 
-Since clients may not follow the desired XML schema, and make mistakes, one should avoid
+Since clients may not follow the desired XML schema, and make mistakes, we should guard against
 creating an invalid Abstract Syntax Tree. When using :meth:`TagRegistry.node_from_xml`,
 the allowed child types can also be provided, preventing invalid child elements.
 Furthermore, to support the creation of ``from_xml()`` methods, the :func:`expect_tag`,
@@ -47,7 +47,7 @@ __all__ = (
 
 
 class TagNameEnum(Enum):
-    """An enumeration of XML tag names.
+    """An base clas for enumerations of XML tag names.
 
     All enumerations that represent tag names inherit from this.
     Each member name should be exactly the XML tag that it refers to.
@@ -55,7 +55,12 @@ class TagNameEnum(Enum):
 
     @classmethod
     def from_xml(cls, element: NSElement):
-        """Cast the element tag name into the enum member"""
+        """Cast the element tag name into the enum member.
+
+        This translates the element name
+        such as``{http://www.opengis.net/fes/2.0}PropertyIsEqualTo``
+        into a ``PropertyIsEqualTo`` member.
+        """
         tag_name = element.tag
         if tag_name.startswith("{"):
             # Split the element tag into the namespace and local name.
@@ -101,7 +106,7 @@ class AstNode:
     @classmethod
     def from_xml(cls, element: NSElement):
         """Initialize this Python class from the data of the corresponding XML tag.
-        Each subclass overrides this to implement the XMl parsing of that particular XML tag.
+        Each subclass overrides this to implement the XML parsing of that particular XML tag.
         """
         raise NotImplementedError(
             f"{cls.__name__}.from_xml() is not implemented to parse <{element.tag}>"
@@ -157,6 +162,8 @@ class TagRegistry:
         """Decorator to register a class as XML element parser.
 
         Usage:
+
+        .. code-block:: python
 
             @dataclass
             @tag_registry.register()
@@ -270,7 +277,19 @@ class TagRegistry:
 
 
 def expect_tag(namespace: xmlns | str, *tag_names: str):
-    """Validate whether a given tag is need."""
+    """Decorator for ``from_xml()`` methods that validate whether a given tag is provided.
+
+    For example:
+
+    .. code-block:: python
+
+        @classmethod
+        @expect_tag(xmlns.fes20, "Literal")
+        def from_xml(cls, element):
+            ...
+
+    This guard is needed when nodes are passed directly to a ``from_xml()`` method.
+    """
     valid_tags = {QName(namespace, name).text for name in tag_names}
     expect0 = QName(namespace, tag_names[0]).text
 
@@ -290,7 +309,18 @@ def expect_tag(namespace: xmlns | str, *tag_names: str):
 
 
 def expect_no_children(from_xml_func):
-    """Validate that the XML tag has no child nodes."""
+    """Decorator for ``from_xml()`` methods that validate that the XML tag has no child nodes.
+
+    For example:
+
+    .. code-block:: python
+
+        @classmethod
+        @expect_tag(xmlns.fes20, "ResourceId")
+        @expect_no_children
+        def from_xml(cls, element):
+            ...
+    """
 
     @wraps(from_xml_func)
     def _expect_no_children_decorator(cls, element: NSElement, *args, **kwargs):
@@ -308,7 +338,17 @@ def expect_no_children(from_xml_func):
 def expect_children(  # noqa: C901
     min_child_nodes, *expect_types: str | type[AstNode], silent_allowed: tuple[str] = ()
 ):
-    """Validate whether an element has enough children to continue parsing."""
+    """Decorator for ``from_xml()`` methods to validate whether an element has the expected children.
+
+    For example:
+
+    .. code-block:: python
+
+        @classmethod
+        @expect_children(2, Expression)
+        def from_xml(cls, element):
+            ...
+    """
     # Validate arguments early
     for child_type in expect_types + silent_allowed:
         if isinstance(child_type, str):
@@ -382,4 +422,5 @@ def _replace_common_ns(text: str, user_element: NSElement):
     return text
 
 
+#: The tag registry to register new parsing classes at.
 tag_registry = TagRegistry()

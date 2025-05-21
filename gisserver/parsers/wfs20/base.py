@@ -47,16 +47,20 @@ class QueryExpression(AstNode):
     * :meth:`get_queryset` defines the full results.
     """
 
+    #: Configuration for the 'locator' argument in exceptions
     query_locator: ClassVar[str] = None
 
     # QueryExpression
+    #: The 'handle' that will be returned in exceptions.
     handle: str = ""
 
-    # Projection parameters (overwritten by subclasses)
-    # In the WFS spec, this is only part of the operation/presentation.
-    # For Django, we'd like to make this part of the query too.
+    #: Projection parameters (overwritten by subclasses)
+    #: In the WFS spec, this is only part of the operation/presentation.
+    #: For Django, we'd like to make this part of the query too.
     property_names: list[wfs20.PropertyName] | None = None  # PropertyName
-    value_reference: fes20.ValueReference | None = None  # GetPropertyValue call
+
+    #: The valueReference for the GetPropertyValue call, provided here for extra ORM filtering.
+    value_reference: fes20.ValueReference | None = None
 
     def bind(
         self,
@@ -120,6 +124,7 @@ class QueryExpression(AstNode):
 
     def get_type_names(self) -> list[str]:
         """Tell which type names this query applies to.
+        Multiple values means a JOIN is made (not supported yet).
 
         This method needs to be defined in subclasses.
         """
@@ -135,7 +140,7 @@ class QueryExpression(AstNode):
         """Define the compiled query that filters the queryset."""
         raise NotImplementedError()
 
-    def as_kvp(self):
+    def as_kvp(self) -> dict:
         """Translate the POST request into KVP GET parameters. This is needed for pagination."""
         params = {}
         if self.property_names:

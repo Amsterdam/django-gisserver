@@ -1,4 +1,15 @@
-"""Functions to be callable from fes."""
+"""Functions to be callable from query filters.
+
+By using the :attr:`function_registry`, custom stored functions can be registered in this server.
+These are called by the filter queries using the :class:`~gisserver.parsers.fes20.expressions.Function` element.
+Out of the box, various built-in functions are present.
+
+Built-in options are documented in :ref:`functions`.
+
+Most of the out-of-the box options are inspired
+by `GeoServer <https://docs.geoserver.org/latest/en/user/filter/function_reference.html>`_.
+Functions which already have a fes-syntax equivalent have been are omitted.
+"""
 
 from __future__ import annotations
 
@@ -15,7 +26,7 @@ from django.db.models.expressions import Combinable, Value
 from gisserver.exceptions import InvalidParameterValue
 from gisserver.types import XsdTypes
 
-__all__ = ["function_registry"]
+__all__ = ["function_registry", "FesFunctionRegistry", "FesFunction"]
 
 FesArg = Union[Combinable, models.Q]
 FesFunctionBody = Union[models.Func, Callable[..., models.Func]]
@@ -23,7 +34,7 @@ FesFunctionBody = Union[models.Func, Callable[..., models.Func]]
 
 @dataclass(order=True)
 class FesFunction:
-    """A registered database function that can be used by ``<fes:Function name="...">`.
+    """A registered database function that can be used by ``<fes:Function name="...">``.
 
     The :class:`~gisserver.parsers.fes20.expressions.Function` class will resolve
     these registered functions by name, and call :meth:`build_query` to include them
@@ -66,9 +77,11 @@ class FesFunctionRegistry:
         self.functions = {}
 
     def __bool__(self):
+        """Tell whether there are functions"""
         return bool(self.functions)
 
     def __iter__(self):
+        """Iterate over the functions"""
         return iter(sorted(self.functions.values()))  # for template rendering
 
     def register(
@@ -113,15 +126,11 @@ class FesFunctionRegistry:
             ) from None
 
 
+#: The function registry
 function_registry = FesFunctionRegistry()
 
 
 # Register a set of default SQL functions.
-# These are based on GeoServer:
-# https://docs.geoserver.org/latest/en/user/filter/function_reference.html
-# Not implemented:
-# - Aggregates (like Collection_*)
-# - Comparisons (which already has fes variants)
 
 # -- strings
 

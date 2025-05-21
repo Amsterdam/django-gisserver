@@ -1,5 +1,18 @@
 """These classes map to the FES 2.0 specification for expressions.
 The class names are identical to those in the FES spec.
+
+Inheritance structure:
+
+* :class:`Expression`
+
+ * :class:`Function` for ``<fes:Function>``.
+ * :class:`Literal` for ``<fes:Literal>``.
+ * :class:`ValueReference` for ``<fes:ValueReference>``.
+ * :class:`BinaryOperator` for FES 1.0 compatibility.
+
+The :class:`BinaryOperator` is included as expression
+to handle FES 1.0 :class:`BinaryOperatorType` arithmetic tags:
+``<fes:Add>``, ``<fes:Sub>``, ``<fes:Mul>``, ``<fes:Div>``.
 """
 
 from __future__ import annotations
@@ -79,6 +92,7 @@ class Expression(AstNode):
     """Abstract base class, as defined by FES spec.
 
     The FES spec defines the following subclasses:
+
     * :class:`ValueReference` (pointing to a field name)
     * :class:`Literal` (a scalar value)
     * :class:`Function` (a transformation for a value/field)
@@ -111,13 +125,13 @@ class Expression(AstNode):
 @dataclass(repr=False)
 @tag_registry.register("Literal")
 class Literal(Expression):
-    """The <fes:Literal> element that holds a literal value.
+    """The ``<fes:Literal>`` element that holds a literal value.
 
     This can be a string value, possibly annotated with a type::
 
         <fes:Literal type="xs:boolean">true</fes:Literal>
 
-    Following the spec, the value may also contain a complete geometry:
+    Following the spec, the value may also contain a complete geometry::
 
         <fes:Literal>
             <gml:Envelope xmlns:gml="http://www.opengis.net/gml/3.2" srsName="urn:ogc:def:crs:EPSG::4326">
@@ -211,14 +225,22 @@ class Literal(Expression):
 @tag_registry.register("ValueReference")
 @tag_registry.register("PropertyName", hidden=True)  # FES 1.0 name that old clients still use.
 class ValueReference(Expression):
-    """The <fes:ValueReference> element that holds an XPath string.
+    """The ``<fes:ValueReference>`` element that holds an XPath string.
     In the fes XSD, this is declared as a subclass of xsd:string.
+
+    This parses the syntax like::
+
+        <fes:ValueReference>field-name</fes:ValueReference>
+        <fes:ValueReference>path/to/field-name</fes:ValueReference>
+        <fes:ValueReference>collection[@attr=value]/field-name</fes:ValueReference>
 
     The old WFS1/FES1 "PropertyName" is allowed as an alias.
     Various clients still send this, and mapserver/geoserver support this.
     """
 
+    #: The XPath value
     xpath: str
+    #: The known namespaces aliases at this point in the XML tree
     xpath_ns_aliases: dict[str, str] | None = field(compare=False, default=None)
 
     def __str__(self):
@@ -234,12 +256,14 @@ class ValueReference(Expression):
         return cls(xpath=element.text, xpath_ns_aliases=element.ns_aliases)
 
     def build_lhs(self, compiler) -> str:
-        """Optimized LHS: there is no need to alias a field lookup through an annotation."""
+        """Use the field name in a left-hand-side expression."""
+        # Optimized from base class: fields don't need an alias lookup through annotations.
         match = self.parse_xpath(compiler.feature_types)
         return match.build_lhs(compiler)
 
     def build_rhs(self, compiler) -> RhsTypes:
-        """Return the value as F-expression"""
+        """Use the field name in a right-hand expression.
+        This generates an F-expression for the ORM."""
         match = self.parse_xpath(compiler.feature_types)
         return match.build_rhs(compiler)
 
@@ -251,7 +275,18 @@ class ValueReference(Expression):
 @dataclass
 @tag_registry.register("Function")
 class Function(Expression):
-    """The <fes:Function name="..."> element."""
+    """The ``<fes:Function name="...">`` element.
+
+    This parses the syntax such as::
+
+        <fes:Function name="Add">
+            <fes:ValueReference>field-name</fes:ValueReference>
+            <fes:Literal>2</fes:Literal>
+        </fes:Function>
+
+    Each argument of the function can be another :class:`Expression`,
+    such as a :class:`Function`, :class:`ValueReference` or :class:`Literal`.
+    """
 
     name: str  # scoped name
     arguments: list[Expression]  # xsd:element ref="fes20:expression"
@@ -276,8 +311,17 @@ class Function(Expression):
 class BinaryOperator(Expression):
     """Support for FES 1.0 arithmetic operators.
 
+    This parses a syntax like::
+
+        <fes:Add>
+            <fes:ValueReference>field-name</fes:ValueReference>
+            <fes:Literal>2</fes:Literal>
+        </fes:Add>
+
+    The operator can be a ``<fes:Add>``, ``<fes:Sub>``, ``<fes:Mul>``, ``<fes:Div>``.
+
     These are no longer part of the FES 2.0 spec, but clients (like QGis)
-    still assume the server supports these. Hence, these need to be included.
+    still assume the server use these. Hence, these need to be included.
     """
 
     _operatorType: BinaryOperatorType

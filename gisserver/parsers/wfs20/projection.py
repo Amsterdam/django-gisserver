@@ -17,7 +17,7 @@ from gisserver.types import XPathMatch
 
 
 class ResolveValue(Enum):
-    """The wfs:ResolveValueType enum, used by :class:`StandardResolveParameters`."""
+    """The ``wfs:ResolveValueType`` enum, used by :class:`StandardResolveParameters`."""
 
     local = "local"
     remote = "remote"

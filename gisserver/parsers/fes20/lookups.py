@@ -14,7 +14,7 @@ from gisserver.compat import ArrayField
 @models.TextField.register_lookup
 @models.ForeignObject.register_lookup
 class FesLike(lookups.Lookup):
-    """Allow fieldname__fes_like=... lookups in querysets."""
+    """Allow ``fieldname__fes_like=...`` lookups in querysets."""
 
     lookup_name = "fes_like"
 
@@ -36,7 +36,7 @@ class FesLike(lookups.Lookup):
 @models.Field.register_lookup
 @models.ForeignObject.register_lookup
 class FesNotEqual(lookups.Lookup):
-    """Allow fieldname__fes_notequal=... lookups in querysets."""
+    """Allow ``fieldname__fes_notequal=...`` lookups in querysets."""
 
     lookup_name = "fes_notequal"
 
@@ -49,10 +49,12 @@ class FesNotEqual(lookups.Lookup):
 
 @BaseSpatialField.register_lookup
 class FesBeyondLookup(DWithinLookup):
-    """Based on the FES 2.0.3 corrigendum:
+    """Allow ``fieldname__fes_beyond=...`` lookups in querysets.
 
-    DWithin(A,B,d) = Distance(A,B) < d
-    Beyond(A,B,d) = Distance(A,B) > d
+    Based on the FES 2.0.3 corrigendum:
+
+    * ``DWithin(A,B,d) = Distance(A,B) < d``
+    * ``Beyond(A,B,d) = Distance(A,B) > d``
 
     See: https://docs.opengeospatial.org/is/09-026r2/09-026r2.html#61
     """
@@ -130,7 +132,7 @@ else:
 
     @ArrayField.register_lookup
     class FesArrayLike(FesLike):
-        """Allow fieldname__fes_like=... lookups in querysets."""
+        """Allow like lookups for array fields."""
 
         lookup_name = "fes_anylike"
 

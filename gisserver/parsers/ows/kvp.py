@@ -105,7 +105,9 @@ class KVPRequest:
     def split_parameter_lists(self) -> list[KVPRequest]:
         """Split the parameter lists into individual requests.
 
-        This translates a request such as::
+        This translates a request such as:
+
+        .. code-block:: urlencoded
 
             TYPENAMES=(ns1:F1,ns2:F2)(ns1:F1,ns1:F1)
             &ALIASES=(A,B)(C,D)
@@ -113,15 +115,21 @@ class KVPRequest:
 
         into separate pairs:
 
+        .. code-block:: urlencoded
+
             TYPENAMES=ns1:F1,ns2:F2&ALIASES=A,B&FILTER=<Filter>…for A,B…</Filter>
             TYPENAMES=ns1:F1,ns1:F1&ALIASES=C,D&FILTER=<Filter>…for C,D…</Filter>
 
         It's both possible have some query parameters split and some shared.
         For example to have two different bounding boxes:
 
+        .. code-block:: urlencoded
+
              TYPENAMES=(INWATER_1M)(BuiltUpA_1M)&BBOX=(40.9821,...)(40.5874,...)
 
-        or have a single bounding box for both queries::
+        or have a single bounding box for both queries:
+
+        .. code-block:: urlencoded
 
              TYPENAMES=(INWATER_1M)(BuiltUpA_1M)&BBOX=40.9821,23.4948,41.0257,23.5525
         """
