@@ -6,10 +6,11 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Union
 
+import django
 from django.contrib.gis.db.models import functions as gis
 from django.db import models
 from django.db.models import functions
-from django.db.models.expressions import Combinable
+from django.db.models.expressions import Combinable, Value
 
 from gisserver.exceptions import InvalidParameterValue
 from gisserver.types import XsdTypes
@@ -128,6 +129,27 @@ function_registry.register(
     "strConcat",
     functions.Concat,
     arguments={"string1": XsdTypes.string, "string2": XsdTypes.string},
+    returns=XsdTypes.string,
+)
+
+function_registry.register(
+    "strIndexOf",
+    lambda string, substring: (functions.StrIndex(string, Value(substring)) - 1),
+    arguments={"string": XsdTypes.string, "substring": XsdTypes.string},
+    returns=XsdTypes.string,
+)
+
+function_registry.register(
+    "strSubstring",
+    lambda string, begin, end: functions.Substr(string, begin + 1, end - begin),
+    arguments={"string": XsdTypes.string, "begin": XsdTypes.integer, "end": XsdTypes.integer},
+    returns=XsdTypes.string,
+)
+
+function_registry.register(
+    "strSubstringStart",
+    lambda string, begin, end: functions.Substr(string, begin + 1),
+    arguments={"string": XsdTypes.string, "begin": XsdTypes.integer},
     returns=XsdTypes.string,
 )
 
@@ -312,25 +334,25 @@ function_registry.register(
 # -- geometric
 
 function_registry.register(
-    "Area",
+    "area",
     gis.Area,
-    arguments={"geometry": XsdTypes.gmlAbstractGeometryType},
+    arguments={"geom": XsdTypes.gmlAbstractGeometryType},
     returns=XsdTypes.double,
 )
 
 function_registry.register(
-    "Centroid",
+    "centroid",
     gis.Centroid,
-    arguments={"features": XsdTypes.gmlAbstractGeometryType},
+    arguments={"geom": XsdTypes.gmlAbstractGeometryType},
     returns=XsdTypes.string,
 )
 
 function_registry.register(
-    "Difference",
+    "difference",
     gis.Difference,
     arguments={
-        "geometry1": XsdTypes.gmlAbstractGeometryType,
-        "geometry2": XsdTypes.gmlAbstractGeometryType,
+        "a": XsdTypes.gmlAbstractGeometryType,
+        "b": XsdTypes.gmlAbstractGeometryType,
     },
     returns=XsdTypes.string,
 )
@@ -339,35 +361,98 @@ function_registry.register(
     "distance",
     gis.Distance,
     arguments={
-        "geometry1": XsdTypes.gmlAbstractGeometryType,
-        "geometry2": XsdTypes.gmlAbstractGeometryType,
+        "a": XsdTypes.gmlAbstractGeometryType,
+        "b": XsdTypes.gmlAbstractGeometryType,
     },
     returns=XsdTypes.double,
 )
 
 function_registry.register(
-    "Envelope",
+    "envelope",
     gis.Envelope,
-    arguments={"geometry": XsdTypes.gmlAbstractGeometryType},
-    returns=XsdTypes.string,
+    arguments={"geom": XsdTypes.gmlAbstractGeometryType},
+    returns=XsdTypes.gmlAbstractGeometryType,  # returns point or polygon
 )
 
 function_registry.register(
-    "Intersection",
+    "geomLength",
+    gis.Length,
+    arguments={"geometry": XsdTypes.gmlAbstractGeometryType},
+    returns=XsdTypes.float,
+)
+
+function_registry.register(
+    "intersection",
     gis.Intersection,
     arguments={
-        "geometry1": XsdTypes.gmlAbstractGeometryType,
-        "geometry2": XsdTypes.gmlAbstractGeometryType,
+        "a": XsdTypes.gmlAbstractGeometryType,
+        "b": XsdTypes.gmlAbstractGeometryType,
     },
-    returns=XsdTypes.string,
+    returns=XsdTypes.gmlAbstractGeometryType,
+)
+
+if django.VERSION >= (4, 2):
+    function_registry.register(
+        "isEmpty",
+        gis.IsEmpty,
+        arguments={
+            "geom": XsdTypes.gmlAbstractGeometryType,
+        },
+        returns=XsdTypes.boolean,
+    )
+
+function_registry.register(
+    "isValid",
+    gis.IsValid,
+    arguments={
+        "geom": XsdTypes.gmlAbstractGeometryType,
+    },
+    returns=XsdTypes.boolean,
 )
 
 function_registry.register(
-    "Union",
+    "numGeometries",
+    gis.NumGeometries,
+    arguments={
+        "collection": XsdTypes.gmlAbstractGeometryType,
+    },
+    returns=XsdTypes.integer,
+)
+
+function_registry.register(
+    "numPoints",
+    gis.NumPoints,
+    arguments={
+        "collection": XsdTypes.gmlAbstractGeometryType,
+    },
+    returns=XsdTypes.integer,
+)
+
+function_registry.register(
+    "perimeter",
+    gis.Perimeter,
+    arguments={
+        "geom": XsdTypes.gmlAbstractGeometryType,
+    },
+    returns=XsdTypes.integer,
+)
+
+function_registry.register(
+    "symDifference",
+    gis.SymDifference,
+    arguments={
+        "a": XsdTypes.gmlAbstractGeometryType,
+        "b": XsdTypes.gmlAbstractGeometryType,
+    },
+    returns=XsdTypes.gmlAbstractGeometryType,
+)
+
+function_registry.register(
+    "union",
     gis.Union,
     arguments={
-        "geometry1": XsdTypes.gmlAbstractGeometryType,
-        "geometry2": XsdTypes.gmlAbstractGeometryType,
+        "a": XsdTypes.gmlAbstractGeometryType,
+        "b": XsdTypes.gmlAbstractGeometryType,
     },
-    returns=XsdTypes.string,
+    returns=XsdTypes.gmlAbstractGeometryType,
 )

@@ -152,6 +152,7 @@ class XsdTypes(XsdAnyType, Enum):
     # Other typical GML values
     gmlCodeType = xmlns.gml.qname("CodeType")  # for <gml:name>
     gmlBoundingShapeType = xmlns.gml.qname("BoundingShapeType")  # for <gml:boundedBy>
+    gmlEnvelopeType = xmlns.gml.qname("EnvelopeType")  # for <gml:Envelope>
 
     #: A direct geometry value (used as function argument type)
     gmlAbstractGeometryType = xmlns.gml.qname("AbstractGeometryType")
