@@ -281,6 +281,47 @@ FILTERS = [
         </fes:Filter>""",
     ),
     (
+        "equal_functions",
+        Url.NORMAL,
+        """
+        <?xml version="1.0"?>
+        <fes:Filter
+             xmlns:fes="http://www.opengis.net/fes/2.0"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xsi:schemaLocation="http://www.opengis.net/fes/2.0
+             http://schemas.opengis.net/filter/2.0/filterAll.xsd">
+            <fes:PropertyIsEqualTo>
+                <fes:Function name="strToLowerCase">
+                    <fes:Function name="strSubstring">
+                        <fes:ValueReference>name</fes:ValueReference>
+                        <fes:Literal>0</fes:Literal>
+                        <fes:Literal>3</fes:Literal>
+                    </fes:Function>
+                </fes:Function>
+                <fes:Literal>caf</fes:Literal>
+            </fes:PropertyIsEqualTo>
+        </fes:Filter>""",
+    ),
+    (
+        "strIndexOf",
+        Url.NORMAL,
+        """
+        <?xml version="1.0"?>
+        <fes:Filter
+             xmlns:fes="http://www.opengis.net/fes/2.0"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xsi:schemaLocation="http://www.opengis.net/fes/2.0
+             http://schemas.opengis.net/filter/2.0/filterAll.xsd">
+            <fes:PropertyIsEqualTo>
+                <fes:Function name="strIndexOf">
+                    <fes:ValueReference>name</fes:ValueReference>
+                    <fes:Literal>af</fes:Literal>
+                </fes:Function>
+                <fes:Literal>1</fes:Literal>
+            </fes:PropertyIsEqualTo>
+        </fes:Filter>""",
+    ),
+    (
         "not_nil_child",
         Url.COMPLEX,
         """
@@ -293,6 +334,23 @@ FILTERS = [
             <fes:Not>
                 <fes:PropertyIsNil>
                     <fes:ValueReference>city/name</fes:ValueReference>
+                </fes:PropertyIsNil>
+            </fes:Not>
+        </fes:Filter>""",
+    ),
+    (
+        "not_nil_flat",
+        Url.FLAT,
+        """
+        <?xml version="1.0"?>
+        <fes:Filter
+             xmlns:fes="http://www.opengis.net/fes/2.0"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xsi:schemaLocation="http://www.opengis.net/fes/2.0
+             http://schemas.opengis.net/filter/2.0/filterAll.xsd">
+            <fes:Not>
+                <fes:PropertyIsNil>
+                    <fes:ValueReference>city-name</fes:ValueReference>
                 </fes:PropertyIsNil>
             </fes:Not>
         </fes:Filter>""",
@@ -343,23 +401,6 @@ FILTERS = [
                 <fes:ValueReference>app:city-name</fes:ValueReference>
                 <fes:Literal>CloudCity</fes:Literal>
             </fes:PropertyIsEqualTo>
-        </fes:Filter>""",
-    ),
-    (
-        "not_nil_flat",
-        Url.FLAT,
-        """
-        <?xml version="1.0"?>
-        <fes:Filter
-             xmlns:fes="http://www.opengis.net/fes/2.0"
-             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-             xsi:schemaLocation="http://www.opengis.net/fes/2.0
-             http://schemas.opengis.net/filter/2.0/filterAll.xsd">
-            <fes:Not>
-                <fes:PropertyIsNil>
-                    <fes:ValueReference>city-name</fes:ValueReference>
-                </fes:PropertyIsNil>
-            </fes:Not>
         </fes:Filter>""",
     ),
 ]

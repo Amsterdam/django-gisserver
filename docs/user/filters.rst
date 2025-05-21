@@ -215,7 +215,7 @@ Various expressions may be used as values:
      - SQL equivalent
      - Description
    * - ``<ValueReference>``
-     - :samp:`{field-name}`
+     - :samp:`"{field-name}"`
      - References a field.
    * - ``<Literal>``
      - value
@@ -275,6 +275,8 @@ This allows to create complex filters, such as:
         </And>
     </Filter>
 
+.. _functions:
+
 Functions
 ---------
 
@@ -291,17 +293,28 @@ As a simple example:
         <fes:ValueReference>fieldname</fes:ValueReference>
     </fes:Function>
 
-The following functions are available in the server:
+Various functions are built-in available in the server, inspired by the filter functions found
+in `GeoServer <https://docs.geoserver.org/stable/en/user/filter/function_reference.html>`_:
 
-.. list-table::
+.. list-table:: String Functions
    :header-rows: 1
+   :widths: 40 30 30
 
-   * - Functie
+   * - Function
      - SQL equivalent
      - Description
    * - ``strConcat(string)``
      - ``CONCAT()``
      - Concatenates strings
+   * - ``strIndexOf(string, substring)``
+     - ``STRPOS() - 1``
+     - Finds the text inside a string, 0-based index.
+   * - ``strSubstring(string, begin, end)``
+     - ``SUBSTRING()``
+     - Removes characters before *begin* and after *end*.
+   * - ``strSubstringStart(string, begin)``
+     - ``SUBSTRING()``
+     - Removes characters before *begin*, 0-based index.
    * - ``strToLowerCase(string)``
      - ``LOWER()``
      - Convert text to lowercase.
@@ -317,6 +330,14 @@ The following functions are available in the server:
    * - ``length(string)``
      - ``LENGTH()`` / ``CHAR_LENGTH()``
      - Alias of ``strLength()``.
+
+.. list-table:: Math Number Functions
+   :header-rows: 1
+   :widths: 40 30 30
+
+   * - Function
+     - SQL equivalent
+     - Description
    * - ``abs(number)``
      - ``ABS()``
      - Invert negative numbers.
@@ -347,6 +368,14 @@ The following functions are available in the server:
    * - ``sqrt(value)``
      - ``SQRT()``
      - Square root, inverse of exponentiation.
+
+.. list-table:: Math Trigonometry Functions
+   :header-rows: 1
+   :widths: 40 30 30
+
+   * - Function
+     - SQL equivalent
+     - Description
    * - ``acos(value)``
      - ``ACOS()``
      - Arccosine; inverse of cosine.
@@ -377,8 +406,16 @@ The following functions are available in the server:
    * - ``toRadians(degree)``
      - ``RADIANS()``
      - Conversion degrees to radians.
-   * - ``Area(geometry)``
-     - ``ST_AREA()``
+
+.. list-table:: Geometric Functions
+   :header-rows: 1
+
+   * - Function
+     - SQL equivalent
+     - Description
+
+   * - ``area(geometry)``
+     - ``ST_Area()``
      - Convert geometry to area.
    * - ``Centroid(features)``
      - ``ST_Centroid()``
@@ -389,13 +426,34 @@ The following functions are available in the server:
    * - ``distance(geometry1, geometry2)``
      - ``ST_Distance()``
      - Minimum distance between 2 geometries.
-   * - ``Envelope(geometry)``
+   * - ``envelope(geometry)``
      - ``ST_Envelope()``
      - Convert geometry to bounding box.
-   * - ``Intersection(geometry1, geometry2)``
+   * - ``geomLength(geometry)``
+     - ``ST_Length()``
+     - The cartesian length for a linestring/curve.
+   * - ``intersection(geometry1, geometry2)``
      - ``ST_Intersection()``
      - Parts of geometry 1 that overlap with geometry 2.
-   * - ``Union(geometry1, geometry2)``
+   * - ``isEmpty(geometry)``
+     - ``ST_IsEmpty()``
+     - Tests whether the geometry is empty.
+   * - ``isValid(geometry)``
+     - ``ST_IsValid()``
+     - Tests whether the geometry is valid.
+   * - ``numGeometries(geometry)``
+     - ``ST_NumGeometries()``
+     - Tests how many geometries are found in the collection.
+   * - ``numPoints(geometry)``
+     - ``ST_NumPoints()``
+     - Tests how many points are found in a linestring.
+   * - ``perimeter(geometry)``
+     - ``ST_Perimeter()``
+     - The 2D perimeter of the surface/polygon.
+   * - ``symDifference(geometry1, geometry1)``
+     - ``ST_SymDifference()``
+     - Parts of geometry 1 and 2 that don't intersect.
+   * - ``union(geometry1, geometry2)``
      - ``ST_Union()``
      - Merge Geometry 1 and 2.
 
