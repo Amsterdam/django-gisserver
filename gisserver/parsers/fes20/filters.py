@@ -6,7 +6,7 @@ from typing import AnyStr, ClassVar, Union
 from django.db.models import Q
 
 from gisserver.exceptions import InvalidParameterValue
-from gisserver.parsers.ast import BaseNode, expect_tag, tag_registry
+from gisserver.parsers.ast import AstNode, expect_tag, tag_registry
 from gisserver.parsers.gml import GEOSGMLGeometry
 from gisserver.parsers.ows import KVPRequest
 from gisserver.parsers.query import CompiledQuery
@@ -22,7 +22,7 @@ FES_RESOURCE_ID = xmlns.fes20.qname("ResourceId")
 
 @dataclass
 @tag_registry.register("Filter", xmlns.fes20)
-class Filter(BaseNode):
+class Filter(AstNode):
     """The <fes:Filter> element.
 
     This parses and handles the syntax::

@@ -12,7 +12,7 @@ from django.db.models import Q
 
 from gisserver import conf
 from gisserver.exceptions import ExternalValueError, InvalidParameterValue
-from gisserver.parsers.ast import BaseNode, expect_no_children, expect_tag, tag_registry
+from gisserver.parsers.ast import AstNode, expect_no_children, expect_tag, tag_registry
 from gisserver.parsers.values import auto_cast, parse_iso_datetime
 from gisserver.parsers.xml import parse_qname, xmlns
 
@@ -29,7 +29,7 @@ class VersionActionTokens(Enum):
     PREVIOUS = "PREVIOUS"
 
 
-class Id(BaseNode):
+class Id(AstNode):
     """Abstract base class, as defined by FES spec."""
 
     xml_ns = xmlns.fes20

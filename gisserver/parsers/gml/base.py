@@ -6,11 +6,11 @@ map to the GML implementations. These names are referenced by the FES spec.
 
 from __future__ import annotations
 
-from gisserver.parsers.ast import BaseNode
+from gisserver.parsers.ast import AstNode
 from gisserver.parsers.query import CompiledQuery
 
 
-class AbstractGeometry(BaseNode):
+class AbstractGeometry(AstNode):
     """Abstract base classes for all GML objects, regardless of their version.
 
     <gml:AbstractGeometry> implements the ISO 19107 GM_Object.
@@ -21,14 +21,14 @@ class AbstractGeometry(BaseNode):
         raise NotImplementedError()
 
 
-class Envelope(BaseNode):
+class Envelope(AstNode):
     """Abstract base classes for all GML objects, regardless of their version.
 
     <gml:Envelope> implements ISO 19107 GM_Envelope (see D.2.3.4 and ISO 19107:2003, 6.4.3).
     """
 
 
-class TM_Object(BaseNode):
+class TM_Object(AstNode):
     """Abstract base classes for temporal GML objects, regardless of their version.
 
     See ISO 19108 TM_Object (see D.2.5.2 and ISO 19108:2002, 5.2.2)
