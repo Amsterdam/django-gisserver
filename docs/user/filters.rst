@@ -3,6 +3,9 @@ Accessing WFS Data
 
 This is a brief explanation of using a WFS server.
 
+Using GIS Software
+------------------
+
 Commonly, a WFS server can is accessed by GIS-software, such as `QGis <https://qgis.org/>`_.
 The URL that's configured inside ``urls.py`` can be used directly as WFS endpoint.
 For example, add https://api.data.amsterdam.nl/v1/wfs/gebieden/ to QGis.
@@ -12,6 +15,9 @@ Everything, for querying and viewing can be done in QGis.
 .. tip::
     The parameters ``?SERVICE=WFS&VERSION=2.0.0&REQUEST=..`` are appended to the URL
     by QGis. It's not required to add these yourself.
+
+Manual Access
+-------------
 
 The WFS server can also be accessed directly from a HTTP client (e.g. curl) or web browser.
 In such case, use the basic URL above, and include the query parameters:
@@ -44,6 +50,22 @@ For example:
    In the example links above, a ``COUNT=`` parameter is included to activate pagination.
    When this parameter is omitted, *all objects* will be returned in a single request.
    For most datasets, the server is capable of efficiently delivering all results in a single response.
+
+Reducing Returned Fields
+------------------------
+
+The ``PROPERTYNAME`` parameter can be used to define which elements should be returned.
+
+For example:
+
+* `...&PROPERTYNAME=app:naam,app:code <https://api.data.amsterdam.nl/v1/wfs/gebieden/?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetFeature&TYPENAMES=wijken&COUNT=10&PROPERTYNAME=app:naam,app:code>`_
+* `...&PROPERTYNAME=app:naam,app:code&OUTPUTFORMAT=geojson <https://api.data.amsterdam.nl/v1/wfs/gebieden/?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetFeature&TYPENAMES=wijken&COUNT=10&PROPERTYNAME=app:naam,app:code&OUTPUTFORMAT=geojson>`_
+
+.. tip::
+
+    This project also supports using ``PROPERTYNAME`` for nested elements (:samp:`{parent}/{child}`).
+    The WFS 2.0 specification defines the ``PROPERTYNAME`` as a QName for top-level elements only.
+
 
 Geometry Projections
 --------------------
@@ -274,6 +296,47 @@ This allows to create complex filters, such as:
             </Or>
         </And>
     </Filter>
+
+.. tip::
+
+    When the filter length exceeds the query-string limits,
+    consider using an XML POST request instead of the KVP query-string format.
+
+A GET request such as:
+
+.. code-block:: urlencoded
+
+    ?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetFeature
+    &TYPENAMES=app:restaurant
+    &FILTER=<Filter>...</Filter>
+    &PROPERTYNAME=app:id,app:name,app:location
+    &SORTBY=app:name ASC
+
+...can also be defined as XML-encoded POST request:
+
+.. code-block:: xml
+
+    <wfs:GetFeature service="WFS" version="2.0.0" xmlns:wfs="..."
+        xmlns:gml="..." xmlns:fes="..." xmlns:app="...">
+
+      <wfs:Query typeNames="app:restaurant">
+        <wfs:PropertyName>app:id</wfs:PropertyName>
+        <wfs:PropertyName>app:name</wfs:PropertyName>
+        <wfs:PropertyName>app:location</wfs:PropertyName>
+
+        <fes:Filter>
+          ...
+        </fes:Filter>
+
+        <fes:SortBy>
+          <fes:SortProperty>
+            <fes:ValueReference>app:name</fes:ValueReference>
+            <fes:SortOrder>ASC</fes:SortOrder>
+          </fes:SortProperty>
+        </fes:SortBy>
+      </wfs:Query>
+    </wfs:GetFeature>
+
 
 .. _functions:
 
