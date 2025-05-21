@@ -30,7 +30,7 @@ import logging
 import operator
 import re
 from dataclasses import dataclass, field
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 from decimal import Decimal as D
 from enum import Enum
 from functools import cached_property, reduce
@@ -243,6 +243,13 @@ TYPES_AS_PYTHON = {
     XsdTypes.float: D,  # auto_cast() always converts to decimal
     XsdTypes.double: D,
     XsdTypes.decimal: D,
+    XsdTypes.duration: timedelta,
+    XsdTypes.nonNegativeInteger: int,
+    XsdTypes.gYear: int,
+    XsdTypes.hexBinary: bytes,
+    XsdTypes.base64Binary: bytes,
+    XsdTypes.token: str,
+    XsdTypes.language: str,
     XsdTypes.gmlCodeType: str,
     XsdTypes.anyType: type(Ellipsis),
 }
@@ -254,6 +261,7 @@ TYPES_TO_PYTHON = {
     XsdTypes.time: values.parse_iso_time,
     XsdTypes.string: _as_is,
     XsdTypes.boolean: values.parse_bool,
+    XsdTypes.duration: values.parse_iso_duration,
     XsdTypes.gmlCodeType: _as_is,
     XsdTypes.anyType: values.auto_cast,
 }

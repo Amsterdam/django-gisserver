@@ -3,7 +3,7 @@ import re
 from datetime import date, datetime, time
 from decimal import Decimal as D
 
-from django.utils.dateparse import parse_date, parse_datetime, parse_time
+from django.utils.dateparse import parse_date, parse_datetime, parse_duration, parse_time
 
 from gisserver.exceptions import ExternalParsingError
 
@@ -62,6 +62,23 @@ def parse_iso_time(raw_value: str) -> time:
 
     if value is None:
         raise ExternalParsingError("Time must be in HH:MM[:ss[.uuuuuu]][TZ] format.")
+    return value
+
+
+def parse_iso_duration(raw_value: str) -> time:
+    """Translate ISO times into a Python time value."""
+    # The parse_duration() supports multiple formats, including ISO8601.
+    # Limit it to only one format.
+    if not raw_value.startswith(("P", "-P")):
+        raise ExternalParsingError("Duration must be in ISO8601 format (e.g. PT1H).")
+
+    try:
+        value = parse_duration(raw_value)
+    except ValueError as e:
+        raise ExternalParsingError(str(e)) from e
+
+    if value is None:
+        raise ExternalParsingError("Duration must be in ISO8601 format (e.g. PT1H).")
     return value
 
 
