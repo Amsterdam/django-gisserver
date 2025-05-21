@@ -1,4 +1,23 @@
-# 2024-04-28 (2.0)
+# 2025-05-29 (2.1)
+
+* Added support for `ArrayField` field in CSV exports.
+* Added support for `models.DurationField` for features.
+* Added proper axis ordering handling.
+* Changed built-in fes functions to match current GeoServer signatures.
+* Improved error handling for invalid filter input (also fixes 500 errors).
+* Improved error handling for database query errors during rendering.
+* Improved error messages for unexpected tags in the XML body.
+* Improved error handling for fes 1.0 arithmetic operators (e.g. typing: `date > 2020-01-01` in QGis).
+* Improved HTML index page, make it easier to override and restyle.
+* Improved documentation, added API documentation.
+* Fixed axis ordering handling for `EPSG:4326` and other longitude/latitude CRS definitions.
+* Fixed comparing to `NULL` when date/time input is invalid.
+* Fixed filter comparisons for `<`, `<=`, `>`, `>=` when using a reversed "value < property" ordering.
+* Fixed crash when receiving WFS 1.0 POST requests.
+* Fixed building readthedocs.
+
+
+# 2025-04-28 (2.0)
 
 * Added support for XML POST requests.
 * Added support for geometry elements on child nodes.
