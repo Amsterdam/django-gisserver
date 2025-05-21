@@ -111,13 +111,13 @@ class KVPRequest:
             &ALIASES=(A,B)(C,D)
             &FILTER=(<Filter>… for A,B …</Filter>)(<Filter>…for C,D…</Filter>)
 
-        into separate pairs:
+        into separate pairs::
 
             TYPENAMES=ns1:F1,ns2:F2&ALIASES=A,B&FILTER=<Filter>…for A,B…</Filter>
             TYPENAMES=ns1:F1,ns1:F1&ALIASES=C,D&FILTER=<Filter>…for C,D…</Filter>
 
         It's both possible have some query parameters split and some shared.
-        For example to have two different bounding boxes:
+        For example to have two different bounding boxes::
 
              TYPENAMES=(INWATER_1M)(BuiltUpA_1M)&BBOX=(40.9821,...)(40.5874,...)
 

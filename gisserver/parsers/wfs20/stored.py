@@ -165,7 +165,8 @@ class StoredQuery(QueryExpression):
         """Forward queryset creation to the implementation class."""
         return self.implementation.build_query(compiler)
 
-    def as_kvp(self):
+    def as_kvp(self) -> dict:
+        """Translate the POST request into KVP GET parameters. This is needed for pagination."""
         # As this is such edge case, only support the minimal for CITE tests.
         params = super().as_kvp()
         params["STOREDQUERY_ID"] = self.id

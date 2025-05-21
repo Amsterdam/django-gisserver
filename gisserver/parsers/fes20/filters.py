@@ -14,6 +14,7 @@ from gisserver.parsers.xml import NSElement, parse_xml_from_string, xmlns
 
 from . import expressions, identifiers, operators
 
+#: The FES element group that can be used as body for the :class:`Filter` element.
 FilterPredicates = Union[expressions.Function, operators.Operator]
 
 # Fully qualified tag names
@@ -23,7 +24,7 @@ FES_RESOURCE_ID = xmlns.fes20.qname("ResourceId")
 @dataclass
 @tag_registry.register("Filter", xmlns.fes20)
 class Filter(AstNode):
-    """The <fes:Filter> element.
+    """The ``<fes:Filter>`` element.
 
     This parses and handles the syntax::
 
@@ -41,7 +42,9 @@ class Filter(AstNode):
 
     query_language: ClassVar[str] = "urn:ogc:def:queryLanguage:OGC-FES:Filter"
 
+    #: The filter predicate (body)
     predicate: FilterPredicates
+
     source: AnyStr | None = field(default=None, compare=False)
 
     @classmethod
@@ -106,7 +109,7 @@ class Filter(AstNode):
 
     @classmethod
     def from_string(cls, text: AnyStr, ns_aliases: dict[str, str] | None = None) -> Filter:
-        """Parse an XML <fes20:Filter> string.
+        """Parse an XML ``<fes:Filter>`` string.
 
         This uses defusedxml by default, to avoid various XML injection attacks.
 
@@ -156,8 +159,8 @@ class Filter(AstNode):
         return self.predicate.build_query(compiler)
 
     def get_resource_id_types(self) -> list[str] | None:
-        """When the filter parses ResourceId objects, return those.
-        This can return an empty list in case a ResourceId object doesn't define a type.
+        """When the filter predicate consists of ``<fes:ResourceId>`` elements, return those.
+        This can return an empty list in case a ``<fes:ResourceId>`` object doesn't define a type.
         """
         if isinstance(self.predicate, operators.IdOperator):
             return self.predicate.get_type_names()

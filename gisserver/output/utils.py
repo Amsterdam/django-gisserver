@@ -23,16 +23,20 @@ __all__ = (
 
 
 def tag_escape(s: str):
+    """Escape a value for usage in XML text."""
     return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
 def attr_escape(s: str):
-    # Slightly faster then html.escape() as it doesn't replace single quotes.
+    """Escape a value for usage in an XML attribute.
+    This is slightly faster than ``html.escape()`` as it doesn't replace single quotes.
+    """
     # Having tried all possible variants, this code still outperforms other forms of escaping.
     return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
 
 
 def value_to_xml_string(value):
+    """Format a Python value for usage in XML text."""
     # Simple scalar value
     if isinstance(value, str):  # most cases
         return tag_escape(value)
@@ -47,6 +51,9 @@ def value_to_xml_string(value):
 
 
 def value_to_text(value):
+    """Format a Python value for usage in plain text output.
+    This doesn't do any XML escaping.
+    """
     # Simple scalar value, no XML escapes
     if isinstance(value, str):  # most cases
         return value
@@ -59,7 +66,7 @@ def value_to_text(value):
 
 
 def render_xmlns_attributes(xml_namespaces: dict[str, str]):
-    """Render XML Namespace declaration attributes"""
+    """Render XML Namespace declaration attributes, i.e. ``xmlns:prefix="uri"`` for each dict item."""
     return " ".join(
         f'xmlns:{prefix}="{xml_namespace}"' if prefix else f'xmlns="{xml_namespace}"'
         for xml_namespace, prefix in xml_namespaces.items()

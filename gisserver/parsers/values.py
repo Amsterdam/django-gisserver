@@ -1,3 +1,5 @@
+"""Parsing of scalar values in the request."""
+
 import logging
 import re
 from datetime import date, datetime, time
@@ -12,7 +14,12 @@ RE_FLOAT = re.compile(r"\A[0-9]+(\.[0-9]+)\Z")
 
 
 def auto_cast(value: str):
-    """Automatically cast a value to a scalar."""
+    """Automatically cast a value to a scalar.
+
+    This recognizes integers, floats and ISO datetimes.
+    Booleans are not handled, as that leads to unpredictable behavior
+    (as seen in Yaml for example).
+    """
     if not isinstance(value, str):
         return value
 

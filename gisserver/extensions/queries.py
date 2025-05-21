@@ -1,8 +1,8 @@
 """Storage and registry for stored queries.
 These definitions follow the WFS spec.
 
-By using the registry, custom stored queries can be registered in this server.
-Out of the box, only the mandatory built-in ``GetFeatureById`` query is present.
+By using the :attr:`stored_query_registry`, custom stored queries can be registered in this server.
+Out of the box, only the mandatory built-in :class:`GetFeatureById` query is present.
 """
 
 from __future__ import annotations
@@ -30,10 +30,14 @@ __all__ = (
     "StoredQueryDescription",
     "StoredQueryRegistry",
     "stored_query_registry",
+    "WFS_LANGUAGE",
+    "FES_LANGUAGE",
 )
 
-WFS_LANGUAGE = "urn:ogc:def:queryLanguage:OGC-WFS::WFS_QueryExpression"  # body is <wfs:Query>
-FES_LANGUAGE = "urn:ogc:def:queryLanguage:OGC-FES:Filter"  # body is <fes:Filter>
+#: The query body is a ``<wfs:Query>``.
+WFS_LANGUAGE = "urn:ogc:def:queryLanguage:OGC-WFS::WFS_QueryExpression"
+#: The query body is a ``<fes:Filter>``.
+FES_LANGUAGE = "urn:ogc:def:queryLanguage:OGC-FES:Filter"
 
 
 @dataclass
@@ -41,7 +45,7 @@ class QueryExpressionText:
     """Define the body of a stored query.
 
     This object type is defined in the WFS spec.
-    It may contain a wfs:Query or wfs:StoredQuery element.
+    It may contain a ``<wfs:Query>`` or ``<fes:Filter>`` element.
     """
 
     #: Which types the query will return.
@@ -61,7 +65,7 @@ class StoredQueryDescription:
     This is based on the ``<wfs:StoredQueryDescription>`` element,
     and returned in ``DescribeStoredQueries``.
 
-    While it's possible to define multiple QueryExpressionText nodes
+    While it's possible to define multiple :class:`QueryExpressionText` nodes
     as metadata to describe a query, there is still only one implementation.
     Note there is no 'typeNames=...' parameter for stored queries.
     Only direct parameters act as input.
@@ -127,7 +131,7 @@ class StoredQueryImplementation:
 
 
 class StoredQueryRegistry:
-    """Registry of functions to be callable by <wfs:StoredQuery>."""
+    """Registry of functions to be callable by ``<wfs:StoredQuery>`` and ``STOREDQUERY_ID=...``."""
 
     def __init__(self):
         self.stored_queries: dict[str, type(StoredQueryImplementation)] = {}
@@ -186,6 +190,7 @@ class StoredQueryRegistry:
             ) from None
 
 
+#: The stored query registry
 stored_query_registry = StoredQueryRegistry()
 
 
@@ -211,7 +216,7 @@ class GetFeatureById(StoredQueryImplementation):
 
     The execution of the ``GetFeatureById`` query is essentially the same as::
 
-        <wfs:Query xmlns:wfs='..." xmlns:fes='...'>
+        <wfs:Query xmlns:wfs="..." xmlns:fes="...'>
           <fes:Filter><fes:ResourceId rid='{ID}'/></fes:Filter>
         </wfs:Query>
 

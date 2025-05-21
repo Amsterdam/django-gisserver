@@ -59,7 +59,7 @@ class AdhocQuery(QueryExpression):
 
     The WFS Spec has 3 class levels for this:
 
-    - AdhocQueryExpression (types, projection, selection, sorting)
+     - AdhocQueryExpression (types, projection, selection, sorting)
      - Query (adds srsName, featureVersion)
      - StoredQuery (adds storedQueryID)
 
@@ -71,25 +71,31 @@ class AdhocQuery(QueryExpression):
         https://www.mediamaps.ch/ogc/schemas-xsdoc/sld/1.2/query_xsd.html#AbstractAdhocQueryExpressionType
     """
 
-    # Tag attributes (fes:AbstractAdhocQueryExpression)
+    # Tag attributes (implements ``fes:AbstractAdhocQueryExpression``)
     # WFS allows multiple names to construct JOIN queries.
     # See https://docs.ogc.org/is/09-025r2/09-025r2.html#107
     # and https://docs.ogc.org/is/09-025r2/09-025r2.html#190
-    typeNames: list[str]  # typeNames in WFS/FES spec, multiple values means a JOIN is made.
-    aliases: list[str] | None = None  # aliases for typeNames for joining the same table twice.
-    handle: str = ""  # only for XML POST requests, is returned in ows:Exception
-    # Query tag attributes
+
+    #: The 'typeNames' value if the request provided them. use :meth:`get_type_names` instead.
+    typeNames: list[str]
+    #: Aliases for typeNames are used for joining the same table twice. (JOIN statements are not supported yet).
+    aliases: list[str] | None = None
+    #: For XML POST requests, this handle value is returned in the ``<ows:Exception>``.
+    handle: str = ""
+
+    # part of the <wfs:Query> tag attributes:
+    #: The Coordinate Reference System to render the tag in
     srsName: CRS | None = None
 
-    # Projection clause (fes:AbstractProjectionClause)
+    #: Projection clause (implements ``fes:AbstractProjectionClause``)
     property_names: list[PropertyName] | None = None
 
-    # Selection clause (fes:AbstractSelectionClause):
-    # - for XML POST this is encoded in a <fes:Query>
-    # - for HTTP GET, this is encoded as FILTER, FILTER_LANGUAGE, RESOURCEID, BBOX.
+    #: Selection clause (implements ``fes:AbstractSelectionClause``).
+    #: - for XML POST this is encoded in a <fes:Filter> tag.
+    #: - for HTTP GET, this is encoded as FILTER, FILTER_LANGUAGE, RESOURCEID, BBOX.
     filter: fes20.Filter | None = None
 
-    # Sorting Clause (fes:AbstractSortingClause)
+    #: Sorting Clause (implements ``fes:AbstractSortingClause``)
     sortBy: fes20.SortBy | None = None
 
     def __post_init__(self):
@@ -188,7 +194,9 @@ class AdhocQuery(QueryExpression):
             return "filter"
 
     def get_type_names(self) -> list[str]:
-        """Tell which type names this query uses."""
+        """Tell which type names this query uses.
+        Multiple values means a JOIN is made (not supported yet).
+        """
         if not self.typeNames and self.filter is not None:
             # Also make the behavior consistent, always supply the type name.
             return self.filter.get_resource_id_types() or []
@@ -196,7 +204,7 @@ class AdhocQuery(QueryExpression):
             return self.typeNames
 
     def get_projection(self) -> FeatureProjection:
-        """Tell how the <wfs:Query> element should be displayed."""
+        """Tell how the ``<wfs:Query>`` element should be displayed."""
         return FeatureProjection(
             self.feature_types,
             self.property_names,
@@ -205,7 +213,7 @@ class AdhocQuery(QueryExpression):
         )
 
     def bind(self, *args, **kwargs):
-        """Make sure the 'locator' points to the actual object that defined the type."""
+        """Override to make sure the 'locator' points to the actual object that defined the type."""
         try:
             super().bind(*args, **kwargs)
         except InvalidParameterValue as e:
@@ -219,7 +227,7 @@ class AdhocQuery(QueryExpression):
 
     def build_query(self, compiler: CompiledQuery) -> Q | None:
         """Apply our collected filter data to the compiler."""
-        # Add the
+        # Add the sorting
         if self.sortBy is not None:
             self.sortBy.build_ordering(compiler)
 
@@ -230,7 +238,7 @@ class AdhocQuery(QueryExpression):
         else:
             return None
 
-    def as_kvp(self):
+    def as_kvp(self) -> dict:
         """Translate the POST request into KVP GET parameters. This is needed for pagination."""
         params = super().as_kvp()
         params["TYPENAMES"] = ",".join(self.typeNames)

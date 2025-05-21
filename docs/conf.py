@@ -65,6 +65,8 @@ html_static_path = ["_static"]
 
 django_settings = "djangodummy.settings"
 
+highlight_language = "guess"
+
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3/", None),
     "django": (

@@ -252,6 +252,8 @@ class BaseWFSGetDataOperation(OutputFormatMixin, WFSOperation):
         else:
             raise NotImplementedError()
 
+        # assert False, str(collection.results[0].queryset.query)
+
         # Initialize the renderer.
         # This can also decorate the querysets with projection information,
         # such as converting geometries to the correct CRS or add prefetch_related logic.

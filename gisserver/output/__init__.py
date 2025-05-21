@@ -1,4 +1,7 @@
-"""All supported output formats"""
+"""The output rendering classes for all response types.
+
+This also includes collection classes for iterating over the Django QuerySet results.
+"""
 
 from .results import FeatureCollection, SimpleFeatureCollection  # isort: skip (fixes import loops)
 

@@ -1,3 +1,5 @@
+"""The FES elements that handle sorting."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -14,11 +16,16 @@ FES_SORT_ORDER = xmlns.fes20.qname("SortOrder")
 
 
 class SortOrder(Enum):
+    #: Ascending order
     ASC = ""
+    #: Descrending order
     DESC = "-"
 
-    # Support WFS 1 names for clients that still use this.
+    # Support WFS 1 names for clients that still use this:
+
+    #: WFS 1 name that clients still use for ascending.
     A = ASC
+    #: WFS 1 name that clients still use for descending.
     D = DESC
 
     @classmethod
@@ -105,6 +112,7 @@ class SortBy(AstNode):
     It also supports the SORTBY parameter for GET requests.
     """
 
+    #: The ``<fes:SortProperty>`` elements.
     sort_properties: list[SortProperty]
 
     @classmethod

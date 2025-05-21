@@ -25,7 +25,7 @@ class CompiledQuery:
     """Intermediate data for translating FES queries to Django.
 
     This class effectively contains all data from the ``<fes:Filter>`` object,
-    but using a format that can be translated to a django QuerySet.
+    but using a format that can be translated to a Django QuerySet.
 
     As the Abstract Syntax Tree of a FES-filter creates the ORM query,
     it fills this object with all intermediate bits. This allows building
@@ -66,6 +66,7 @@ class CompiledQuery:
         return name
 
     def add_distinct(self):
+        """Enforce "SELECT DISTINCT" on the query, used when joining 1-N or N-M relationships."""
         self.distinct = True
 
     def add_lookups(self, q_object: Q, type_name: str | None = None):
@@ -89,6 +90,7 @@ class CompiledQuery:
         """
         if not isinstance(q_object, Q):
             raise TypeError()
+        # Note the ORM also provides a FilteredRelation() option, that is not explored yet here.
         self.extra_lookups.append(q_object)
 
     def add_ordering(self, ordering: list[str]):
