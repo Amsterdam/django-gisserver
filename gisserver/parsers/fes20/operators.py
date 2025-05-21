@@ -23,7 +23,7 @@ from gisserver.exceptions import (
 )
 from gisserver.parsers import gml
 from gisserver.parsers.ast import (
-    BaseNode,
+    AstNode,
     TagNameEnum,
     expect_children,
     expect_tag,
@@ -156,7 +156,7 @@ class UnaryLogicType(TagNameEnum):
 
 @dataclass
 @tag_registry.register("Distance")
-class Measure(BaseNode):
+class Measure(AstNode):
     """A measurement for a distance element.
 
     This parses and handles the syntax::
@@ -185,7 +185,7 @@ class Measure(BaseNode):
         return measure.Distance(default_unit=self.uom, **{self.uom: self.value})
 
 
-class Operator(BaseNode):
+class Operator(AstNode):
     """Abstract base class, as defined by FES spec.
 
     This base class is also used in parsing; for example the ``<fes:Filter>``

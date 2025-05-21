@@ -23,12 +23,12 @@ from gisserver.exceptions import (
 )
 from gisserver.features import FeatureType
 from gisserver.parsers import fes20, wfs20
-from gisserver.parsers.ast import BaseNode
+from gisserver.parsers.ast import AstNode
 from gisserver.parsers.query import CompiledQuery
 from gisserver.projection import FeatureProjection
 
 
-class QueryExpression(BaseNode):
+class QueryExpression(AstNode):
     """WFS base class for all queries.
     This object type is defined in the WFS spec (as ``<fes:AbstractQueryExpression>``).
 

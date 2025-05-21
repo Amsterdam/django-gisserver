@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from enum import Enum
 
 from gisserver.exceptions import InvalidParameterValue
-from gisserver.parsers.ast import BaseNode, expect_children, expect_tag, tag_registry
+from gisserver.parsers.ast import AstNode, expect_children, expect_tag, tag_registry
 from gisserver.parsers.fes20 import ValueReference
 from gisserver.parsers.ows import KVPRequest
 from gisserver.parsers.query import CompiledQuery
@@ -38,7 +38,7 @@ class SortOrder(Enum):
 
 @dataclass
 @tag_registry.register("SortProperty", xmlns.fes20)
-class SortProperty(BaseNode):
+class SortProperty(AstNode):
     """This class name is based on the WFS spec.
 
     This parses and handles the syntax::
@@ -90,7 +90,7 @@ class SortProperty(BaseNode):
 
 @dataclass
 @tag_registry.register("SortBy", xmlns.fes20)
-class SortBy(BaseNode):
+class SortBy(AstNode):
     """The sortBy clause.
 
     This parses and handles the syntax::
