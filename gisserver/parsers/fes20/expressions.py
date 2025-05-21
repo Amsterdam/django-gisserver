@@ -21,7 +21,7 @@ from django.db.models.expressions import Combinable
 from gisserver.exceptions import ExternalParsingError
 from gisserver.extensions.functions import function_registry
 from gisserver.parsers.ast import (
-    BaseNode,
+    AstNode,
     TagNameEnum,
     expect_no_children,
     expect_tag,
@@ -75,7 +75,7 @@ class BinaryOperatorType(TagNameEnum):
     Div = operator.truediv
 
 
-class Expression(BaseNode):
+class Expression(AstNode):
     """Abstract base class, as defined by FES spec.
 
     The FES spec defines the following subclasses:

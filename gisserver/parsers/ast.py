@@ -3,9 +3,9 @@
 By transforming the XML Element nodes into Python objects, most logic naturally follows.
 For example, the FES filter syntax can be processed into objects that build an ORM query.
 
-Python classes can inherit :class:`BaseNode` and register themselves as the parser/handler
+Python classes can inherit :class:`AstNode` and register themselves as the parser/handler
 for a given tag. Both normal Python classes and dataclass work,
-as long as it has an :meth:`BaseNode.from_xml` class method.
+as long as it has an :meth:`AstNode.from_xml` class method.
 The custom `from_xml()` method should copy the XML data into local attributes.
 
 Next, when :meth:`TagRegistry.node_from_xml` is called,
@@ -34,7 +34,7 @@ from gisserver.exceptions import InvalidXmlElement, XmlElementNotSupported
 
 __all__ = (
     "TagNameEnum",
-    "BaseNode",
+    "AstNode",
     "TagRegistry",
     "tag_registry",
     "expect_children",
@@ -73,7 +73,7 @@ class TagNameEnum(Enum):
         return f"{self.__class__.__name__}.{self.name}"
 
 
-class BaseNode:
+class AstNode:
     """The base node for all classes that represent an XML tag.
 
     All subclasses of this class build an Abstract Syntax Tree (AST)
@@ -101,7 +101,7 @@ class BaseNode:
         )
 
     @classmethod
-    def child_from_xml(cls, element: NSElement) -> BaseNode:
+    def child_from_xml(cls, element: NSElement) -> AstNode:
         """Parse the element, returning the correct subclass of this tag.
 
         When ``Expression.child_from_xml(some_node)`` is given, it may
@@ -126,7 +126,8 @@ class BaseNode:
 
 _KNOWN_TAG_NAMES = {}
 
-BN = TypeVar("BN", bound=BaseNode)
+BaseNode = AstNode  # keep old name around
+A = TypeVar("A", bound=AstNode)
 
 
 class TagRegistry:
@@ -135,7 +136,7 @@ class TagRegistry:
     The same class can be registered multiple times for different tag names.
     """
 
-    parsers: dict[str, type[BaseNode]]
+    parsers: dict[str, type[AstNode]]
 
     def __init__(self):
         self.parsers = {}
@@ -152,7 +153,7 @@ class TagRegistry:
 
             @dataclass
             @tag_registry.register()
-            class SomeXmlTag(BaseNode):
+            class SomeXmlTag(AstNode):
                 xml_ns = FES
 
                 @classmethod
@@ -168,7 +169,7 @@ class TagRegistry:
         each member name is assumed to be an XML tag name.
         """
 
-        def _dec(node_class: type[BaseNode]) -> type[BaseNode]:
+        def _dec(node_class: type[AstNode]) -> type[AstNode]:
             if tag is None or isinstance(tag, str):
                 # Single tag name for the class.
                 self._register_tag_parser(
@@ -191,14 +192,14 @@ class TagRegistry:
 
     def _register_tag_parser(
         self,
-        node_class: type[BaseNode],
+        node_class: type[AstNode],
         tag: str,
         namespace: xmlns | str | None = None,
         hidden: bool = False,
     ):
         """Register a Python (data) class as parser for an XML node."""
-        if not issubclass(node_class, BaseNode):
-            raise TypeError(f"{node_class} must be a subclass of BaseNode")
+        if not issubclass(node_class, AstNode):
+            raise TypeError(f"{node_class} must be a subclass of AstNode")
 
         if namespace is None and node_class.xml_ns is None:
             raise RuntimeError(
@@ -215,19 +216,17 @@ class TagRegistry:
         if not hidden:
             node_class.xml_tags.append(xml_name)  # Allow fetching all names later
 
-    def node_from_xml(
-        self, element: NSElement, allowed_types: tuple[type[BN]] | None = None
-    ) -> BN:
-        """Find the ``BaseNode`` subclass that corresponds to the given XML element,
+    def node_from_xml(self, element: NSElement, allowed_types: tuple[type[A]] | None = None) -> A:
+        """Find the ``AstNode`` subclass that corresponds to the given XML element,
         and initialize it with the element. This is a convenience shortcut.
         ``"""
         node_class = self.resolve_class(element, allowed_types)
         return node_class.from_xml(element)
 
     def resolve_class(
-        self, element: NSElement, allowed_types: tuple[type[BN]] | None = None
-    ) -> type[BN]:
-        """Find the ``BaseNode`` subclass that corresponds to the given XML element."""
+        self, element: NSElement, allowed_types: tuple[type[A]] | None = None
+    ) -> type[A]:
+        """Find the ``AstNode`` subclass that corresponds to the given XML element."""
         try:
             node_class = self.parsers[element.tag]
         except KeyError:
@@ -250,11 +249,11 @@ class TagRegistry:
 
         return node_class
 
-    def get_parser_class(self, xml_qname) -> type[BaseNode]:
+    def get_parser_class(self, xml_qname) -> type[AstNode]:
         """Provide the parser class for a given XML Qualified name."""
         return self.parsers[xml_qname]
 
-    def find_subclasses(self, node_type: type[BN]) -> list[type[BN]]:
+    def find_subclasses(self, node_type: type[A]) -> list[type[A]]:
         """Find all registered parsers for a given node."""
         return {
             tag: node_class
@@ -300,7 +299,7 @@ def expect_no_children(from_xml_func):
 
 
 def expect_children(  # noqa: C901
-    min_child_nodes, *expect_types: str | type[BaseNode], silent_allowed: tuple[str] = ()
+    min_child_nodes, *expect_types: str | type[AstNode], silent_allowed: tuple[str] = ()
 ):
     """Validate whether an element has enough children to continue parsing."""
     # Validate arguments early
@@ -311,7 +310,7 @@ def expect_children(  # noqa: C901
                     f"String arguments to @expect_children() should be"
                     f" fully qualified XML namespaces, not {child_type!r}"
                 )
-        elif not isinstance(child_type, type) or not issubclass(child_type, BaseNode):
+        elif not isinstance(child_type, type) or not issubclass(child_type, AstNode):
             raise TypeError(f"Unexpected {child_type!r}")
 
     def _get_allowed(known_tag_names, element):
@@ -344,12 +343,12 @@ def expect_children(  # noqa: C901
     return _wrapper
 
 
-def _get_allowed_tag_names(*expect_types: type[BaseNode] | str) -> list[str]:
+def _get_allowed_tag_names(*expect_types: type[AstNode] | str) -> list[str]:
     # Resolve arguments later, as get_tag_names() depends on __subclasses__()
     # which may not be completely known at this point.
     tag_names = []
     for child_type in expect_types:
-        if isinstance(child_type, type) and issubclass(child_type, BaseNode):
+        if isinstance(child_type, type) and issubclass(child_type, AstNode):
             tag_names.extend(child_type.get_tag_names())
         elif isinstance(child_type, str):
             if not child_type.startswith("{"):

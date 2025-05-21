@@ -10,7 +10,7 @@ from gisserver.exceptions import (
     OperationParsingFailed,
     OperationProcessingFailed,
 )
-from gisserver.parsers.ast import BaseNode, tag_registry
+from gisserver.parsers.ast import AstNode, tag_registry
 from gisserver.parsers.query import CompiledQuery
 from gisserver.parsers.xml import NSElement, xmlns
 from gisserver.types import XPathMatch
@@ -31,7 +31,7 @@ class ResolveValue(Enum):
 
 @dataclass
 @tag_registry.register("PropertyName", xmlns.wfs)
-class PropertyName(BaseNode):
+class PropertyName(AstNode):
     """The ``<wfs:PropertyName>`` element in the projection clause.
 
     This parses and handles the syntax::

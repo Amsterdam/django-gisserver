@@ -13,7 +13,7 @@ from gisserver.exceptions import (
     OperationNotSupported,
     OperationParsingFailed,
 )
-from gisserver.parsers.ast import BaseNode, tag_registry
+from gisserver.parsers.ast import AstNode, tag_registry
 from gisserver.parsers.xml import NSElement, parse_xml_from_string, split_ns, xmlns
 
 from .kvp import KVPRequest
@@ -28,7 +28,7 @@ __all__ = (
 
 
 @dataclass
-class BaseOwsRequest(BaseNode):
+class BaseOwsRequest(AstNode):
     """Base request data for all request types of the OWS standards.
     This mirrors the ``<wfs:BaseRequestType>`` element from the WFS spec.
     """
