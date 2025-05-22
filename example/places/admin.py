@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.contrib.gis.admin import GISModelAdmin  # Uses OSM tiles instead of NASA map
 
 from . import models
 
@@ -21,7 +22,7 @@ class OpeningHourInline(admin.TabularInline):
 
 
 @admin.register(models.Place)
-class PlaceAdmin(admin.ModelAdmin):
+class PlaceAdmin(GISModelAdmin):
     """Admin for restaurants"""
 
     list_display = ("name", "category", "tags")
@@ -29,3 +30,4 @@ class PlaceAdmin(admin.ModelAdmin):
     list_select_related = ("category",)
     inlines = [OpeningHourInline]
     filter_horizontal = ("owners",)
+    # gis_widget_kwargs = {"attrs": {"display_raw": True}}
