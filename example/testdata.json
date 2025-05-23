@@ -43,7 +43,7 @@
   "pk": 1,
   "fields": {
     "name": "Artis",
-    "location": "SRID=4326;POINT (4.9566404301400135 52.39909345718829)",
+    "location": "SRID=4326;POINT (4.9165321 52.3660003)",
     "category": 3,
     "has_free_parking": false,
     "tags": "[\"animals\", \"child-friendly\"]",
