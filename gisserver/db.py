@@ -9,7 +9,7 @@ from django.contrib.gis.db.models import functions
 from django.db import connection, connections, models
 
 from gisserver import conf
-from gisserver.geometries import CRS
+from gisserver.crs import CRS
 from gisserver.types import GeometryXsdElement
 
 logger = logging.getLogger(__name__)

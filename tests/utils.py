@@ -11,7 +11,7 @@ from django.http.response import HttpResponseBase
 from lxml import etree
 from lxml.doctestcompare import PARSE_XML, LXMLOutputChecker
 
-from gisserver.geometries import CRS
+from gisserver.crs import CRS
 from gisserver.parsers.xml import xmlns
 
 logger = logging.getLogger(__name__)

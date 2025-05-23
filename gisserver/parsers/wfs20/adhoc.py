@@ -14,12 +14,12 @@ from functools import cached_property
 
 from django.db.models import Q
 
+from gisserver.crs import CRS
 from gisserver.exceptions import (
     InvalidParameterValue,
     MissingParameterValue,
     OperationNotSupported,
 )
-from gisserver.geometries import CRS
 from gisserver.parsers import fes20
 from gisserver.parsers.ast import tag_registry
 from gisserver.parsers.ows import KVPRequest

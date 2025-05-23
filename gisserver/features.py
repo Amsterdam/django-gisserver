@@ -31,9 +31,10 @@ from django.http import HttpRequest
 
 from gisserver import conf
 from gisserver.compat import ArrayField, GeneratedField
+from gisserver.crs import CRS, WGS84
 from gisserver.db import get_db_geometry_target
 from gisserver.exceptions import ExternalValueError, InvalidParameterValue
-from gisserver.geometries import CRS, WGS84, BoundingBox
+from gisserver.geometries import BoundingBox
 from gisserver.parsers.xml import parse_qname, xmlns
 from gisserver.types import (
     GeometryXsdElement,

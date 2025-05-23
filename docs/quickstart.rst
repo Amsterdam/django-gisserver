@@ -38,8 +38,8 @@ Suppose the project has this exisiting GeoDjango model:
 
 .. code-block:: python
 
+    from gisserver.crs import CRS, WGS84
     from gisserver.features import FeatureType, ServiceDescription
-    from gisserver.geometries import CRS, WGS84
     from gisserver.views import WFSView
     from .models import Restaurant
 
