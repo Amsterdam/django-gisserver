@@ -8,8 +8,8 @@ from xml.etree.ElementTree import tostring
 
 from django.contrib.gis.geos import GEOSGeometry, Polygon
 
+from gisserver.crs import CRS
 from gisserver.exceptions import ExternalParsingError
-from gisserver.geometries import CRS
 from gisserver.parsers.ast import tag_registry
 from gisserver.parsers.query import CompiledQuery
 from gisserver.parsers.xml import NSElement, xmlns

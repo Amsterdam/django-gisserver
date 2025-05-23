@@ -64,12 +64,13 @@ class Restaurant(models.Model):
 Write a view that exposes this model as a WFS feature:
 
 ```python
+from gisserver.crs import CRS, CRS84, WEB_MERCATOR
 from gisserver.features import FeatureType, ServiceDescription
-from gisserver.geometries import CRS, WGS84
 from gisserver.views import WFSView
 from .models import Restaurant
 
-RD_NEW = CRS.from_srid(28992)
+# As example, the local coordinate system for The Netherlands
+RD_NEW = CRS.from_string("urn:ogc:def:crs:EPSG::28992")
 
 
 class PlacesWFSView(WFSView):
@@ -92,7 +93,7 @@ class PlacesWFSView(WFSView):
         FeatureType(
             Restaurant.objects.all(),
             fields="__all__",
-            other_crs=[RD_NEW]
+            other_crs=[RD_NEW, CRS84, WEB_MERCATOR]
         ),
     ]
 ```

@@ -16,7 +16,7 @@ from django.core.exceptions import FieldDoesNotExist
 from django.core.management import BaseCommand, CommandError, CommandParser
 from django.db import DEFAULT_DB_ALIAS, connections, models, transaction
 
-from gisserver.geometries import CRS, WGS84
+from gisserver.crs import CRS, WGS84
 
 
 def _parse_model(value):

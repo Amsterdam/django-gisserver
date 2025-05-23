@@ -10,8 +10,8 @@ from django.db import models
 from django.utils.functional import Promise
 
 from gisserver import conf
+from gisserver.crs import CRS84, WGS84
 from gisserver.db import get_db_geometry_target
-from gisserver.geometries import CRS84, WGS84
 from gisserver.projection import FeatureProjection
 from gisserver.types import XsdElement
 

@@ -1,5 +1,5 @@
+from gisserver.crs import CRS
 from gisserver.features import FeatureType, ServiceDescription, field
-from gisserver.geometries import CRS
 from gisserver.views import WFSView
 
 from . import models

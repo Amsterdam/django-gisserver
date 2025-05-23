@@ -29,8 +29,8 @@ if typing.TYPE_CHECKING:
     from django.contrib.gis.geos import GEOSGeometry
     from django.db import models
 
+    from gisserver.crs import CRS
     from gisserver.features import FeatureType
-    from gisserver.geometries import CRS
     from gisserver.parsers import fes20, wfs20
 
 __all__ = (

@@ -1,6 +1,6 @@
 from django.contrib.gis.geos import Point
 
-from gisserver.geometries import CRS, WGS84
+from gisserver.crs import CRS, WGS84
 
 
 class TestCRS:

@@ -45,8 +45,9 @@ from django.db.models import Q
 from django.db.models.fields.related import RelatedField
 
 from gisserver.compat import ArrayField, GeneratedField
+from gisserver.crs import CRS
 from gisserver.exceptions import ExternalParsingError, OperationProcessingFailed
-from gisserver.geometries import CRS, BoundingBox
+from gisserver.geometries import BoundingBox
 from gisserver.parsers import values
 from gisserver.parsers.xml import parse_qname, split_ns, xmlns
 
