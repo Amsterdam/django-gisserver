@@ -127,7 +127,9 @@ class OWSView(View):
         if logger.isEnabledFor(logging.DEBUG):
             logger.debug(
                 "Parsing GET parameters:\n%s",
-                unquote_plus(request.META["QUERY_STRING"].replace("&", "\n")),
+                unquote_plus(
+                    request.META["QUERY_STRING"].replace("\n&", "\n").replace("&", "\n")
+                ).rstrip(),
             )
         self.kvp = kvp = KVPRequest(request.GET, ns_aliases=self.get_xml_namespace_aliases())
 

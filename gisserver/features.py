@@ -24,17 +24,17 @@ from functools import cached_property, lru_cache
 from typing import TYPE_CHECKING, Literal, Union
 
 from django.contrib.gis.db import models as gis_models
-from django.contrib.gis.db.models import Extent, GeometryField
+from django.contrib.gis.db.models import GeometryField
 from django.core.exceptions import FieldDoesNotExist, ImproperlyConfigured
 from django.db import models
 from django.http import HttpRequest
 
 from gisserver import conf
 from gisserver.compat import ArrayField, GeneratedField
-from gisserver.crs import CRS, WGS84
-from gisserver.db import get_db_geometry_target
+from gisserver.crs import CRS
+from gisserver.db import get_wgs84_bounding_box
 from gisserver.exceptions import ExternalValueError, InvalidParameterValue
-from gisserver.geometries import BoundingBox
+from gisserver.geometries import WGS84BoundingBox
 from gisserver.parsers.xml import parse_qname, xmlns
 from gisserver.types import (
     GeometryXsdElement,
@@ -554,6 +554,13 @@ class FeatureType:
 
         self._cached_resolver = lru_cache(200)(self._inner_resolve_element)
 
+    def __repr__(self):
+        return (
+            f"<{self.__class__.__qualname__}: {self.xml_name},"
+            f" fields={self.fields!r},"
+            f" geometry_field_name={self.main_geometry_element.absolute_model_attribute!r}>"
+        )
+
     def bind_namespace(self, default_xml_namespace: str):
         """Make sure the feature type receives the settings from the parent view."""
         if not self.xml_namespace:
@@ -710,19 +717,20 @@ class FeatureType:
         """When a related object returns a queryset, this hook allows extra filtering."""
         return queryset
 
-    def get_bounding_box(self) -> BoundingBox | None:
+    def get_bounding_box(self) -> WGS84BoundingBox | None:
         """Returns a WGS84 BoundingBox for the complete feature.
 
         This is used by the GetCapabilities request. It may return ``None``
         when the database table is empty, or the custom queryset doesn't
         return any results.
+
+        Note that the ``<ows:WGS84BoundingBox>`` element always uses longitude/latitude,
+        as it doesn't describe a CRS.
         """
         if not self.main_geometry_element:
             return None
 
-        geo_expression = get_db_geometry_target(self.main_geometry_element, WGS84)
-        bbox = self.get_queryset().aggregate(a=Extent(geo_expression))["a"]
-        return BoundingBox(*bbox, crs=WGS84) if bbox else None
+        return get_wgs84_bounding_box(self.get_queryset(), self.main_geometry_element)
 
     def get_display_value(self, instance: models.Model) -> str:
         """Generate the display name value"""

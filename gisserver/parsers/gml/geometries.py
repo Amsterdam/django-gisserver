@@ -6,6 +6,7 @@ Overview of GML 3.2 changes: https://mapserver.org/el/development/rfc/ms-rfc-105
 from dataclasses import dataclass
 from xml.etree.ElementTree import tostring
 
+from django.contrib.gis.gdal import AxisOrder
 from django.contrib.gis.geos import GEOSGeometry, Polygon
 
 from gisserver.crs import CRS
@@ -71,6 +72,7 @@ class GEOSGMLGeometry(AbstractGeometry):
             crs = None  # will be resolved
 
         # Wrap in an element that the filter can use.
+        CRS.tag_geometry(polygon, axis_order=AxisOrder.AUTHORITY)
         return cls(srs=crs, geos_data=polygon)
 
     @classmethod
@@ -87,6 +89,7 @@ class GEOSGMLGeometry(AbstractGeometry):
         # This avoids having to support the whole GEOS logic.
         geos_data = GEOSGeometry.from_gml(tostring(element))
         geos_data.srid = srs.srid
+        CRS.tag_geometry(geos_data, axis_order=AxisOrder.AUTHORITY)
         return cls(srs=srs, geos_data=geos_data)
 
     def __repr__(self):
@@ -112,7 +115,12 @@ class GEOSGMLGeometry(AbstractGeometry):
         elif compiler.feature_types:  # for unit tests
             self.srs = compiler.feature_types[0].resolve_crs(self.srs, locator="bbox")
 
-        return self.geos_data
+        # Make sure the data is suitable for processing by the ORM.
+        # The database needs the geometry in traditional (x/y) ordering.
+        if self.srs.is_north_east_order:
+            return self.srs.apply_to(self.geos_data, clone=True, axis_order=AxisOrder.TRADITIONAL)
+        else:
+            return self.geos_data
 
 
 @tag_registry.register("TimeInstant", hidden=True)

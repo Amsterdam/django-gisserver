@@ -6,6 +6,7 @@ from io import BytesIO
 
 import orjson
 from django.contrib.gis.db.models.functions import AsGeoJSON
+from django.contrib.gis.gdal import AxisOrder
 from django.db import models
 from django.utils.functional import Promise
 
@@ -155,9 +156,9 @@ class GeoJsonRenderer(CollectionOutputRenderer):
         if geometry is None:
             return b"null"
 
-        # The .json property always outputs coordinates as x,y (longitude,latitude),
-        # which the GeoJSON spec requires.
-        projection.output_crs.apply_to(geometry)
+        # The GeoJSON spec requires coordinates to be x,y (longitude,latitude),
+        # so web-based clients don't have to ship projection tables.
+        projection.output_crs.apply_to(geometry, axis_order=AxisOrder.TRADITIONAL)
         return geometry.json.encode()
 
     def get_header(self) -> dict:

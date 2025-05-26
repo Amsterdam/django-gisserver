@@ -41,6 +41,7 @@ class PlacesWFSView(WFSView):
                 "name",
                 "geometry",
             ],
+            other_crs=[RD_NEW],
         ),
         FeatureType(
             # Second example for a more extended usage:

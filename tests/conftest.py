@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import calendar
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from datetime import time, timedelta
 from decimal import Decimal
 from typing import cast
@@ -18,6 +18,7 @@ from django.http.response import HttpResponseBase
 from psycopg2 import Binary
 
 from gisserver import conf
+from gisserver.crs import WGS84
 from gisserver.parsers import ows
 from gisserver.parsers.xml import xmlns
 from tests import xsd_download
@@ -44,7 +45,7 @@ def pytest_configure():
             xsd_download.download_schema(url)
 
 
-@dataclass
+@dataclass(repr=False)
 class CoordinateInputs:
     point1_rd = Point(122411, 486250, srid=RD_NEW.srid)
     point2_rd = Point(199709, 307385, srid=RD_NEW.srid)
@@ -53,6 +54,7 @@ class CoordinateInputs:
     point1_ewkt: str
     point1_geojson: list[Decimal]
     point1_xml_wgs84: str
+    point1_xml_wgs84_bbox: str
     point1_xml_rd: str
 
     translated_wgs84: Point  # How GeoDjango retrieved the object from the database
@@ -65,6 +67,18 @@ class CoordinateInputs:
     point2_ewkt: str
     point2_geojson: list[Decimal]
     point2_xml_wgs84: str
+
+    def __repr__(self):
+        """Have a recent repr() that also shows the contents of GEOS Point objects for debugging."""
+        members = []
+        for field in fields(self):
+            value = getattr(self, field.name)
+            if isinstance(value, GEOSGeometry):
+                value_repr = f"{value.__class__.__name__}({value.ewkt!r})"
+            else:
+                value_repr = repr(value)
+            members.append(f"{field.name}={value_repr}")
+        return f"{self.__class__.__name__}({', '.join(members)})"
 
     @property
     def bbox(self) -> str:
@@ -145,15 +159,16 @@ def db_coordinates(django_db_setup, django_db_blocker):
             f" ST_AsEWKT({point1_translated}, {pr}) as translated_ewkt,"
             f" ST_AsGeoJson({point1_wgs84}, {pr}) as point1_geojson,"
             f" ST_AsGeoJson({point1_translated}, {pr}) as translated_geojson,"
-            f" ST_AsGML(3, {point1_wgs84}, {pr}, 1) as point1_xml_wgs84,"
-            f" ST_AsGML(3, {point1_translated}, {pr}, 1) as translated_xml_wgs84,"
-            f" ST_AsGML(3, ST_Union({point1_wgs84}, {point1_translated}), {pr}, 33) as translated_xml_envelope,"
+            f" ST_AsGML(3, {point1_wgs84}, {pr}, 17) as point1_xml_wgs84,"
+            f" ST_AsGML(3, {point1_wgs84}, {pr}, 1) as point1_xml_wgs84_bbox,"
+            f" ST_AsGML(3, {point1_translated}, {pr}, 17) as translated_xml_wgs84,"
+            f" ST_AsGML(3, ST_Union({point1_wgs84}, {point1_translated}), {pr}, 49) as translated_xml_envelope,"
             f" ST_AsGML(3, {point1_rd}, {pr}, 1) as point1_xml_rd,"
             # Point 2
             f" {point2_wgs84} as point2_wgs84,"
             f" ST_AsEWKT({point2_wgs84}, {pr}) as point2_ewkt,"
             f" ST_AsGeoJson({point2_wgs84}, {pr}) as point2_geojson,"
-            f" ST_AsGML(3, {point2_wgs84}, {pr}, 1) as point2_xml_wgs84",
+            f" ST_AsGML(3, {point2_wgs84}, {pr}, 17) as point2_xml_wgs84",
             {
                 "point1": Binary(CoordinateInputs.point1_rd.ewkb),
                 "point2": Binary(CoordinateInputs.point2_rd.ewkb),
@@ -169,6 +184,7 @@ def db_coordinates(django_db_setup, django_db_blocker):
             point1_ewkt=result["point1_ewkt"],
             point1_geojson=_get_geojson_coordinates(result["point1_geojson"]),
             point1_xml_wgs84=_get_gml_coordinates(result["point1_xml_wgs84"]),
+            point1_xml_wgs84_bbox=_get_gml_coordinates(result["point1_xml_wgs84_bbox"]),
             point1_xml_rd=_get_gml_coordinates(result["point1_xml_rd"]),
             translated_wgs84=_get_point(result["translated_wgs84"]),
             translated_ewkt=result["translated_ewkt"],
@@ -189,30 +205,31 @@ def python_coordinates(db_coordinates):
     # As base, use how the database would return the stored object.
     # Saving a RD-NEW coordinate in the database will transform the data to WGS84 on saving,
     # but this happens inside the database itself as the SRID of the field differs from the input.
-    point1_wgs84 = db_coordinates.point1_wgs84
-    translated_wgs84 = db_coordinates.translated_wgs84
-    point2_wgs84 = db_coordinates.point2_wgs84
+    flipped_point1_wgs84 = WGS84.apply_to(db_coordinates.point1_wgs84, clone=True)
+    flipped_point2_wgs84 = WGS84.apply_to(db_coordinates.point2_wgs84, clone=True)
+    flipped_translated_wgs84 = WGS84.apply_to(db_coordinates.translated_wgs84, clone=True)
+    point1_rd_back = RD_NEW.apply_to(db_coordinates.point1_wgs84, clone=True)
 
-    point1_rd_back = RD_NEW.apply_to(point1_wgs84, clone=True)
     return CoordinateInputs(
-        point1_wgs84=point1_wgs84,  # How data from PointField is returned
-        point1_ewkt=point1_wgs84.ewkt,
-        point1_geojson=_get_geojson_coordinates(point1_wgs84.json),
-        point1_xml_wgs84=_get_coordinates_text(point1_wgs84),
+        point1_wgs84=db_coordinates.point1_wgs84,  # How data from PointField is returned
+        point1_ewkt=flipped_point1_wgs84.ewkt,
+        point1_geojson=_get_geojson_coordinates(db_coordinates.point1_wgs84.json),
+        point1_xml_wgs84=_get_coordinates_text(flipped_point1_wgs84),
+        point1_xml_wgs84_bbox=_get_coordinates_text(db_coordinates.point1_wgs84),
         point1_xml_rd=_get_coordinates_text(point1_rd_back),
-        translated_wgs84=translated_wgs84,  # How data from PointField is returned
-        translated_ewkt=translated_wgs84.ewkt,
-        translated_geojson=_get_geojson_coordinates(translated_wgs84.json),
-        translated_xml_wgs84=_get_coordinates_text(translated_wgs84),
+        translated_wgs84=flipped_translated_wgs84,  # How data from PointField is returned
+        translated_ewkt=flipped_translated_wgs84.ewkt,
+        translated_geojson=_get_geojson_coordinates(db_coordinates.translated_wgs84.json),
+        translated_xml_wgs84=_get_coordinates_text(flipped_translated_wgs84),
         translated_xml_envelope=[
             # Literally calculated as the box of both points
-            _get_coordinates_text(point1_wgs84),
-            _get_coordinates_text(translated_wgs84),
+            _get_coordinates_text(flipped_point1_wgs84),
+            _get_coordinates_text(flipped_translated_wgs84),
         ],
-        point2_wgs84=point2_wgs84,  # How data from PointField is returned
-        point2_ewkt=point2_wgs84.ewkt,
-        point2_geojson=_get_geojson_coordinates(point2_wgs84.json),
-        point2_xml_wgs84=_get_coordinates_text(point2_wgs84),
+        point2_wgs84=flipped_point2_wgs84,  # How data from PointField is returned
+        point2_ewkt=flipped_point2_wgs84.ewkt,
+        point2_geojson=_get_geojson_coordinates(db_coordinates.point2_wgs84.json),
+        point2_xml_wgs84=_get_coordinates_text(flipped_point2_wgs84),
     )
 
 

@@ -7,11 +7,10 @@ properties match the WFS 2.0 spec closely.
 from __future__ import annotations
 
 import math
-import operator
 import typing
 from collections.abc import Iterable
 from datetime import timezone
-from functools import cached_property, reduce
+from functools import cached_property
 
 from django.db import models
 from django.utils.timezone import now
@@ -19,7 +18,6 @@ from django.utils.timezone import now
 from gisserver import conf
 from gisserver.exceptions import wrap_filter_errors
 from gisserver.features import FeatureType
-from gisserver.geometries import BoundingBox
 
 from .iters import ChunkedQuerySetIterator, CountingIterator
 
@@ -287,24 +285,6 @@ class SimpleFeatureCollection:
         # but since the projection needs to be calculated once, it's stored here for convenience.
         return self.source_query.get_projection()
 
-    def get_bounding_box(self) -> BoundingBox:
-        """Determine bounding box of all items."""
-        self.fetch_results()  # Avoid querying results twice
-
-        # Start with an obviously invalid bbox,
-        # which corrects at the first extend_to_geometry call.
-        bbox = BoundingBox(math.inf, math.inf, -math.inf, -math.inf)
-
-        # Allow the geometry to exist in a dotted relationship.
-        for instance in self:
-            geometry_value = self.projection.get_main_geometry_value(instance)
-            if geometry_value is None:
-                continue
-
-            bbox.extend_to_geometry(geometry_value)
-
-        return bbox
-
 
 class FeatureCollection:
     """WFS object that holds the result type for GetFeature.
@@ -331,11 +311,6 @@ class FeatureCollection:
         self.previous = previous
         self.date = now()
         self.timestamp = self.date.astimezone(timezone.utc).isoformat()
-
-    def get_bounding_box(self) -> BoundingBox:
-        """Determine bounding box of all items."""
-        # Combine the bounding box of all collections
-        return reduce(operator.add, [c.get_bounding_box() for c in self.results])
 
     @cached_property
     def number_returned(self) -> int:

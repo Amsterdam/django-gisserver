@@ -16,7 +16,7 @@ from django.core.exceptions import FieldDoesNotExist
 from django.core.management import BaseCommand, CommandError, CommandParser
 from django.db import DEFAULT_DB_ALIAS, connections, models, transaction
 
-from gisserver.crs import CRS, WGS84
+from gisserver.crs import CRS, CRS84
 
 
 def _parse_model(value):
@@ -187,7 +187,7 @@ class Command(BaseCommand):
         """Find the CRS that should be used for all geometry data."""
         crs = geojson.get("crs")
         if not crs:
-            return WGS84
+            return CRS84  # default for GeoJSON
 
         try:
             type = crs["type"]
@@ -268,12 +268,15 @@ class Command(BaseCommand):
                 geometry = None
             else:
                 try:
+                    # NOTE: this looses the axis ordering information,
+                    # and assumes x/y as the standard prescribes.
                     geometry = GEOSGeometry(json.dumps(geometry_data), srid=self.crs.srid)
                 except ValueError as e:
                     raise CommandError(
                         f"Unable to parse geometry data: {geometry_data!r}: {e}"
                     ) from e
                 geometry.srid = self.crs.srid  # override default
+
             field_values[main_geometry_field] = geometry
 
             # Try to decode the identifier if it's present

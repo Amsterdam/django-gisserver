@@ -205,8 +205,9 @@ def test_fes20_c5_example3():
         lookups=[
             ~Q(
                 Geometry__disjoint=GEOSGeometry(
-                    "POLYGON ((13.0983 31.5899, 35.5472 31.5899"
-                    ", 35.5472 42.8143, 13.0983 42.8143, 13.0983 31.5899))",
+                    # Note coordinates swapped to PostGIS storage x/y format
+                    "POLYGON ((31.5899 13.0983, 31.5899 35.5472, "
+                    "42.8143 35.5472, 42.8143 13.0983 , 31.5899 13.0983))",
                     srid=4326,
                 )
             )
@@ -258,8 +259,9 @@ def test_fes20_c5_example3_b():
         lookups=[
             Q(
                 Geometry__intersects=GEOSGeometry(
-                    "POLYGON ((13.0983 31.5899, 35.5472 31.5899"
-                    ", 35.5472 42.8143, 13.0983 42.8143, 13.0983 31.5899))",
+                    # Note coordinates swapped to PostGIS storage x/y format
+                    "POLYGON ((31.5899 13.0983, 31.5899 35.5472, "
+                    "42.8143 35.5472, 42.8143 13.0983 , 31.5899 13.0983))",
                     srid=4326,
                 )
             )
@@ -341,8 +343,9 @@ def test_fes20_c5_example4():
             Q(DEPTH__lt=30)
             & ~Q(
                 Geometry__disjoint=GEOSGeometry(
-                    "POLYGON ((13.0983 31.5899, 35.5472 31.5899"
-                    ", 35.5472 42.8143, 13.0983 42.8143, 13.0983 31.5899))",
+                    # Note coordinates swapped to PostGIS storage x/y format
+                    "POLYGON ((31.5899 13.0983, 31.5899 35.5472, "
+                    "42.8143 35.5472, 42.8143 13.0983, 31.5899 13.0983))",
                     srid=4326,
                 )
             )
@@ -1009,7 +1012,7 @@ def test_fes20_c5_example15():
         lookups=[
             Q(
                 geometry__dwithin=(
-                    GEOSGeometry("POINT (43.716589 -79.34068600000001)", srid=4326),
+                    GEOSGeometry("POINT (-79.34068600000001 43.716589)", srid=4326),
                     measure.Distance(m=10.0),
                 )
             )
@@ -1064,7 +1067,8 @@ def test_fes20_c7_example1():
         lookups=[
             Q(
                 geometry__dwithin=(
-                    GEOSGeometry("POINT (43.716589 -79.34068600000001)", srid=4326),
+                    # Note coordinates swapped to PostGIS storage x/y format
+                    GEOSGeometry("POINT (-79.34068600000001 43.716589)", srid=4326),
                     measure.Distance(m=10),
                 )
             )

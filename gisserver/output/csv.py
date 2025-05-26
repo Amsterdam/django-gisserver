@@ -113,7 +113,7 @@ class CSVRenderer(CollectionOutputRenderer):
         append = values.append
         for xsd_element in xsd_elements:
             if xsd_element.type.is_geometry:
-                append(self.render_geometry(instance, xsd_element))
+                append(self.render_geometry(projection, instance, xsd_element))
                 continue
 
             value = xsd_element.get_value(instance)
@@ -134,9 +134,16 @@ class CSVRenderer(CollectionOutputRenderer):
                 append(value)
         return values
 
-    def render_geometry(self, instance: models.Model, geo_element: GeometryXsdElement):
+    def render_geometry(
+        self,
+        projection: FeatureProjection,
+        instance: models.Model,
+        geo_element: GeometryXsdElement,
+    ) -> str:
         """Render the contents of a geometry value."""
-        return geo_element.get_value(instance)
+        geometry = geo_element.get_value(instance)
+        projection.output_crs.apply_to(geometry)
+        return geometry.ewkt
 
 
 class DBCSVRenderer(CSVRenderer):
@@ -167,6 +174,11 @@ class DBCSVRenderer(CSVRenderer):
             queryset, feature_relation.geometry_elements, projection.output_crs, AsEWKT
         )
 
-    def render_geometry(self, instance: models.Model, geo_element: GeometryXsdElement):
+    def render_geometry(
+        self,
+        projection: FeatureProjection,
+        instance: models.Model,
+        geo_element: GeometryXsdElement,
+    ):
         """Render the geometry using a database-rendered version."""
         return get_db_rendered_geometry(instance, geo_element, AsEWKT)

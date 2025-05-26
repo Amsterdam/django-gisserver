@@ -412,7 +412,7 @@ class DistanceOperator(SpatialOperator):
     operatorType: DistanceOperatorName
     geometry: gml.GM_Object
     distance: Measure
-    _source: str | None = field(compare=False, default=None)
+    _source: str | None = field(compare=False, default=None, repr=False)
 
     @classmethod
     @expect_children(3, ValueReference, gml.GM_Object, Measure)
@@ -464,7 +464,7 @@ class BinarySpatialOperator(SpatialOperator):
     operatorType: SpatialOperatorName
     operand1: ValueReference | None
     operand2: SpatialDescription
-    _source: str | None = field(compare=False, default=None)
+    _source: str | None = field(compare=False, default=None, repr=False)
 
     @classmethod
     def from_xml(cls, element: NSElement):
@@ -558,7 +558,7 @@ class TemporalOperator(NonIdOperator):
     operatorType: TemporalOperatorName
     operand1: ValueReference
     operand2: TemporalOperand
-    _source: str | None = field(compare=False, default=None)
+    _source: str | None = field(compare=False, default=None, repr=False)
 
     @classmethod
     @expect_children(2, ValueReference, *TemporalOperand.__args__)
@@ -644,7 +644,7 @@ class BetweenComparisonOperator(ComparisonOperator):
     expression: Expression
     lowerBoundary: Expression
     upperBoundary: Expression
-    _source: str | None = field(compare=False, default=None)
+    _source: str | None = field(compare=False, default=None, repr=False)
 
     @classmethod
     @expect_children(3, Expression, FES_LOWER_BOUNDARY, FES_UPPER_BOUNDARY)
@@ -696,7 +696,7 @@ class LikeOperator(ComparisonOperator):
     wildCard: str
     singleChar: str
     escapeChar: str
-    _source: str | None = field(compare=False, default=None)
+    _source: str | None = field(compare=False, default=None, repr=False)
 
     @classmethod
     @expect_children(2, Expression)
@@ -754,7 +754,7 @@ class NilOperator(ComparisonOperator):
 
     expression: Expression | None
     nilReason: str
-    _source: str | None = field(compare=False, default=None)
+    _source: str | None = field(compare=False, default=None, repr=False)
 
     # Allow checking whether the geometry is null
     allow_geometries: ClassVar[bool] = True
@@ -789,7 +789,7 @@ class NullOperator(ComparisonOperator):
     """
 
     expression: Expression
-    _source: str | None = field(compare=False, default=None)
+    _source: str | None = field(compare=False, default=None, repr=False)
 
     # Allow checking whether the geometry is null
     allow_geometries: ClassVar[bool] = True
@@ -833,7 +833,7 @@ class BinaryLogicOperator(LogicalOperator):
 
     operands: list[NonIdOperator]
     operatorType: BinaryLogicType
-    _source: str | None = field(compare=False, default=None)
+    _source: str | None = field(compare=False, default=None, repr=False)
 
     @classmethod
     @expect_children(2, NonIdOperator)
@@ -866,7 +866,7 @@ class UnaryLogicOperator(LogicalOperator):
 
     operands: NonIdOperator
     operatorType: UnaryLogicType
-    _source: str | None = field(compare=False, default=None)
+    _source: str | None = field(compare=False, default=None, repr=False)
 
     @classmethod
     @expect_children(1, NonIdOperator)
