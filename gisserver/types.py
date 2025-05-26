@@ -33,7 +33,7 @@ from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal as D
 from enum import Enum
-from functools import cached_property, reduce
+from functools import cached_property
 from typing import TYPE_CHECKING, Literal
 
 import django
@@ -810,15 +810,7 @@ class GmlBoundedByElement(XsdElement):
         if not geometries:
             return None
 
-        # Perform the combining of geometries inside libgeos
-        if len(geometries) == 1:
-            geometry = geometries[0]
-        else:
-            geometry = reduce(operator.or_, geometries)
-            if crs is not None and geometry.srid != crs.srid:
-                crs.apply_to(geometry)  # avoid clone
-
-        return BoundingBox.from_geometry(geometry, crs=crs)
+        return BoundingBox.from_geometries(geometries, crs)
 
 
 @dataclass(frozen=True)

@@ -35,9 +35,10 @@ setup(
     license="Mozilla Public License 2.0",
     install_requires=[
         "Django >= 3.2",
-        "defusedxml >= 0.6.0",
+        "defusedxml >= 0.7.1",
         "lru_dict >= 1.1.7",
         "orjson >= 3.9.15",
+        "pyproj >= 3.6.1",
     ],
     tests_require=tests_require,
     extras_require={

@@ -107,7 +107,7 @@ class TestGetFeature:
         # `geometry_translated` GeneratedField falls inside it.
         response = client.get(
             "/v1/wfs-gen-field/?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=modelwithgeneratedfields"
-            "&BBOX=5,53,6,55,urn:ogc:def:crs:EPSG::4326"
+            "&BBOX=53,5,55,6,urn:ogc:def:crs:EPSG::4326"
         )
         content = read_response(response)
         assert response["content-type"] == "text/xml; charset=utf-8", content

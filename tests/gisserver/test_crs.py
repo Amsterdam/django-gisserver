@@ -1,3 +1,5 @@
+import pytest
+from django.contrib.gis.gdal import AxisOrder
 from django.contrib.gis.geos import Point
 
 from gisserver.crs import CRS, WGS84
@@ -26,10 +28,36 @@ class TestCRS:
             == "urn:ogc:def:crs:EPSG::4326"
         )
 
+    def test_axis_order_custom(self):
+        """Prove that custom axis ordering is applied."""
+        rd_point = Point(121400, 487400, srid=28992)
+        point1 = WGS84.apply_to(rd_point, clone=True, axis_order=AxisOrder.TRADITIONAL)
+        assert point1.x == pytest.approx(4.893, rel=0.001)
+        assert point1.y == pytest.approx(52.373, rel=0.001)
+
+        point2 = WGS84.apply_to(rd_point, clone=True, axis_order=AxisOrder.AUTHORITY)
+        assert point1.x == point2.y
+        assert point1.y == point2.x
+
+    def test_axis_order_keep_traditional(self):
+        """Prove that keeping traditional axis ordering works."""
+        db_point = Point(4.8936582, 52.3731716, srid=WGS84.srid)  # in storage ordering.
+        wgs84_point = WGS84.apply_to(db_point, clone=True, axis_order=AxisOrder.TRADITIONAL)
+        assert db_point == wgs84_point
+
+    def test_axis_order_wgs84_changes(self):
+        # In CRS ordering in storage, yet converted to y/x in applications
+        db_point = Point(4.8936582, 52.3731716, srid=WGS84.srid)  # in storage ordering.
+
+        wgs84_point = WGS84.apply_to(db_point, clone=True)
+        assert wgs84_point.y == db_point.x
+        assert wgs84_point.x == db_point.y
+
+        # Prove that applying again has no effect of flipping again.
+        wgs84_point2 = WGS84.apply_to(wgs84_point, clone=True)
+        assert wgs84_point == wgs84_point2
+
     def test_axis_order_crs(self):
-        # Note: testing a WGS84 -> CRS84 point won't work,
-        # as Django only uses stores the srid in the GEOSGeometry internals.
-        # But converting another coordinate to either WGS84 or CRS84 will work.
         rd_point = Point(121400, 487400, srid=28992)
 
         # https://epsg.io/4326
@@ -43,31 +71,26 @@ class TestCRS:
         assert round(crs84_point.y, 6) == 52.373446
 
     def test_axis_order_finland(self):
-        wgs84_point = Point(58.84, 19.08, srid=WGS84.srid)
+        wgs84_point = Point(19.08, 58.84, srid=WGS84.srid)  # in PostGIS storage ordering
         finland_crs = CRS.from_string("urn:ogc:def:crs:EPSG::3879")  # https://epsg.io/3879
         finland_point = finland_crs.apply_to(wgs84_point, clone=True)
         assert round(int(finland_point.x), -2) == 6540000  # 65... first
         assert round(int(finland_point.y), -2) == 25158500
 
     def test_wgs_to_rd(self):
-        wgs84_point = Point(52.3731716, 4.8936582, srid=WGS84.srid)
+        wgs84_point = Point(4.8936582, 52.3731716, srid=WGS84.srid)  # in storage ordering.
         netherlands_crs = CRS.from_string("urn:ogc:def:crs:EPSG::28992")  # https://epsg.io/28992
         rd_point = netherlands_crs.apply_to(wgs84_point, clone=True)
         assert round(int(rd_point.x), -2) == 121400  # 12... first
         assert round(int(rd_point.y), -2) == 487400
 
-    def test_python_coordinates(self, python_coordinates):
+    def test_coordinates(self, coordinates):
         # confirm it renders as x/y
-        assert 4 < python_coordinates.point1_geojson[0] < 5
-        assert 52 < python_coordinates.point1_geojson[1] < 53
+        assert coordinates.point1_geojson[0] == pytest.approx(4.908, rel=0.001)
+        assert coordinates.point1_geojson[1] == pytest.approx(52.363, rel=0.001)
 
-        assert 6 < python_coordinates.point2_geojson[0] < 7
-        assert 50 < python_coordinates.point2_geojson[1] < 51
+        assert coordinates.point2_geojson[0] == pytest.approx(6.02, rel=0.001)
+        assert coordinates.point2_geojson[1] == pytest.approx(50.75, rel=0.001)
 
-    def test_db_coordinates(self, db_coordinates):
-        # confirm it renders as x/y
-        assert 4 < db_coordinates.point1_geojson[0] < 5
-        assert 52 < db_coordinates.point1_geojson[1] < 53
-
-        assert 6 < db_coordinates.point2_geojson[0] < 7
-        assert 50 < db_coordinates.point2_geojson[1] < 51
+        assert coordinates.point1_xml_wgs84.startswith("52.363")
+        assert coordinates.point1_xml_wgs84_bbox.startswith("4.908")

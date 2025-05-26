@@ -7,10 +7,12 @@ from __future__ import annotations
 
 import logging
 import re
+import typing
 from dataclasses import dataclass, field
 from functools import cached_property, lru_cache
 
-from django.contrib.gis.gdal import AxisOrder, CoordTransform, SpatialReference
+import pyproj
+from django.contrib.gis.gdal import AxisOrder, CoordTransform, OGRGeometry, SpatialReference
 from django.contrib.gis.geos import GEOSGeometry
 
 from gisserver.exceptions import ExternalValueError
@@ -18,11 +20,13 @@ from gisserver.exceptions import ExternalValueError
 CRS_URN_REGEX = re.compile(
     r"^urn:(?P<domain>[a-z]+)"
     r":def:crs:(?P<authority>[a-z]+)"
-    r":(?P<version>[0-9]+\.[0-9]+(\.[0-9]+)?)?"
+    r":(?P<version>[0-9]+(\.[0-9]+(\.[0-9]+)?)?)?"
     r":(?P<id>[0-9]+|crs84)"
     r"$",
     re.IGNORECASE,
 )
+
+AnyGeometry = typing.TypeVar("AnyGeometry", GEOSGeometry, OGRGeometry)
 
 __all__ = [
     "CRS",
@@ -40,12 +44,8 @@ logger = logging.getLogger(__name__)
 
 
 @lru_cache(maxsize=200)  # Using lru-cache to avoid repeated GDAL c-object construction
-def _get_spatial_reference(srs_input: str | int, srs_type="user", axis_order=None):
+def _get_spatial_reference(srs_input: str | int, srs_type, axis_order):
     """Construct an GDAL object reference"""
-    if axis_order is None:
-        # WFS 1.0 used x/y coordinates, WFS 2.0 uses the ordering from the CRS authority.
-        axis_order = AxisOrder.AUTHORITY
-
     logger.debug(
         "Constructed GDAL SpatialReference(%r, srs_type=%r, axis_order=%s)",
         srs_input,
@@ -56,23 +56,22 @@ def _get_spatial_reference(srs_input: str | int, srs_type="user", axis_order=Non
 
 
 @lru_cache(maxsize=100)
-def _get_coord_transform(
-    source: int | SpatialReference, target: int | SpatialReference
-) -> CoordTransform:
+def _get_coord_transform(source: SpatialReference, target: SpatialReference) -> CoordTransform:
     """Get an efficient coordinate transformation object.
 
     The CoordTransform should be used when performing the same
     coordinate transformation repeatedly on different geometries.
 
-    NOTE that the cache could be busted when CRS objects are
-    repeatedly created with a custom 'backend' object.
+    Using a CoordinateTransform also allows setting the AxisOrder setting
+    on both ends. When calling ``GEOSGeometry.transform()``, Django will
+    create an internal CoordTransform object internally without setting AxisOrder,
+    implicitly setting its source SpatialReference to be 'AxisOrder.TRADITIONAL'.
     """
-    if isinstance(source, int):
-        source = _get_spatial_reference(source, srs_type="epsg")
-    if isinstance(target, int):
-        target = _get_spatial_reference(target, srs_type="epsg")
-
     return CoordTransform(source, target)
+
+
+_get_proj_crs_from_string = lru_cache(maxsize=10)(pyproj.CRS.from_string)
+_get_proj_crs_from_authority = lru_cache(maxsize=10)(pyproj.CRS.from_authority)
 
 
 @dataclass(frozen=True)
@@ -106,19 +105,13 @@ class CRS:
     srid: int
 
     #: GDAL SpatialReference with PROJ.4 / WKT content to describe the exact transformation.
-    backend: SpatialReference | None = None
+    backends: tuple[SpatialReference, SpatialReference] = (None, None)
 
     #: Original input
     origin: str = field(init=False, default=None)
 
-    has_custom_backend: bool = field(init=False)
-
-    def __post_init__(self):
-        # Using __dict__ because of frozen=True
-        self.__dict__["has_custom_backend"] = self.backend is not None
-
     @classmethod
-    def from_string(cls, uri: str | int, backend: SpatialReference | None = None) -> CRS:
+    def from_string(cls, uri: str | int) -> CRS:
         """
         Parse an CRS (Coordinate Reference System) URI, which preferably follows the URN format
         as specified by `the OGC consortium <http://www.opengeospatial.org/ogcUrnPolicy>`_
@@ -128,24 +121,24 @@ class CRS:
 
         * A URI in OGC URN format.
         * A legacy CRS URI ("epsg:<SRID>", or "http://www.opengis.net/...").
-        * A numeric SRID (which calls `from_srid()`)
+        * A numeric SRID (which calls :meth:`from_srid()`)
         """
         if isinstance(uri, int) or uri.isdigit():
-            return cls.from_srid(int(uri), backend=backend)
+            return cls.from_srid(int(uri))
         elif uri.startswith("urn:"):
-            return cls._from_urn(uri, backend=backend)
+            return cls._from_urn(uri)
         else:
-            return cls._from_legacy(uri, backend=backend)
+            return cls._from_legacy(uri)
 
     @classmethod
-    def from_srid(cls, srid: int, backend=None):
+    def from_srid(cls, srid: int):
         """Instantiate this class using a numeric spatial reference ID
 
         This is logically identical to calling::
 
-            CRS.from_string("urn:ogc:def:crs:EPSG:6.9:<SRID>")
+            CRS.from_string("urn:ogc:def:crs:EPSG::<SRID>")
         """
-        if backend is None and (common_crs := _COMMON_CRS_BY_SRID.get(srid)):
+        if common_crs := _COMMON_CRS_BY_SRID.get(srid):
             return common_crs  # Avoid object re-creation
 
         crs = cls(
@@ -154,15 +147,14 @@ class CRS:
             version="",
             crsid=str(srid),
             srid=int(srid),
-            backend=backend,
         )
         crs.__dict__["origin"] = srid
         return crs
 
     @classmethod
-    def _from_urn(cls, urn, backend=None):  # noqa: C901
+    def _from_urn(cls, urn):  # noqa: C901
         """Instantiate this class using a URN format."""
-        if backend is None and (known_crs := _COMMON_CRS_BY_URN.get(urn)):
+        if known_crs := _COMMON_CRS_BY_URN.get(urn):
             return known_crs  # Avoid object re-creation
 
         urn_match = CRS_URN_REGEX.match(urn)
@@ -186,7 +178,7 @@ class CRS:
         elif authority == "OGC":
             # urn:ogc:def:crs:OGC::CRS84 has x/y ordering (longitude/latitude)
             crsid = urn_match.group("id").upper()
-            if crsid != "CRS84":
+            if crsid not in ("CRS84", "84"):
                 raise ExternalValueError(f"OGC CRS URI from [{urn}] contains unknown id [{id}]")
             srid = 4326
         else:
@@ -198,13 +190,12 @@ class CRS:
             version=urn_match.group(3),
             crsid=crsid,
             srid=srid,
-            backend=backend,
         )
         crs.__dict__["origin"] = urn
         return crs
 
     @classmethod
-    def _from_legacy(cls, uri, backend=None):
+    def _from_legacy(cls, uri):
         """Instantiate this class from a legacy URL"""
         luri = uri.lower()
         for head in (
@@ -227,7 +218,6 @@ class CRS:
                     version="",
                     crsid=crsid,
                     srid=srid,
-                    backend=backend,
                 )
                 crs.__dict__["origin"] = uri
                 return crs
@@ -236,13 +226,32 @@ class CRS:
 
     @property
     def legacy(self):
-        """Return a legacy string in the format "EPSG:<srid>"""
+        """Return a legacy string in the format :samp:`EPSG:{srid}`."""
         return f"EPSG:{self.srid:d}"
 
     @cached_property
     def urn(self):
         """Return The OGC URN corresponding to this CRS."""
         return f"urn:{self.domain}:def:crs:{self.authority}:{self.version or ''}:{self.crsid}"
+
+    @property
+    def is_north_east_order(self) -> bool:
+        """Tell whether the axis is in north/east ordering."""
+        return self.axis_direction == ["north", "east"]
+
+    @cached_property
+    def axis_direction(self) -> list[str]:
+        """Tell what the axis ordering of this coordinate system is.
+
+        For example, WGS84 will return ``['north', 'east']``.
+
+        While computer systems typically use X,Y, other systems may use northing/easting.
+        Historically, latitude was easier to measure and given first.
+        In physics, using 'radial, polar, azimuthal' is again a different perspective.
+        See: https://wiki.osgeo.org/wiki/Axis_Order_Confusion for a good summary.
+        """
+        proj_crs = self._as_proj()
+        return [axis.direction for axis in proj_crs.axis_info]
 
     def __str__(self):
         return self.urn
@@ -259,57 +268,134 @@ class CRS:
         """Used to match objects in a set."""
         return hash((self.authority, self.srid))
 
-    def _as_gdal(self) -> SpatialReference:
-        """Generate the GDAL Spatial Reference object"""
-        if self.backend is None:
-            # Avoid repeated construction, reuse the object from cache if possible.
-            # Note that the original data is used, as it also defines axis orientation.
+    def _as_gdal(self, axis_order: AxisOrder) -> SpatialReference:
+        """Generate the GDAL Spatial Reference object."""
+        if self.backends[axis_order] is None:
+            backends = list(self.backends)
             if self.origin:
-                self.__dict__["backend"] = _get_spatial_reference(self.origin)
+                backends[axis_order] = _get_spatial_reference(self.origin, "user", axis_order)
             else:
-                self.__dict__["backend"] = _get_spatial_reference(self.srid, srs_type="epsg")
-        return self.backend
+                backends[axis_order] = _get_spatial_reference(self.srid, "epsg", axis_order)
 
-    def apply_to(self, geometry: GEOSGeometry, clone=False) -> GEOSGeometry | None:
+            # Write back in "readonly" format.
+            self.__dict__["backends"] = tuple(backends)
+
+        return self.backends[axis_order]
+
+    def _as_proj(self) -> pyproj.CRS:
+        """Generate the PROJ CRS object"""
+        if isinstance(self.origin, str) and not self.origin.isdigit():
+            return _get_proj_crs_from_string(self.origin)
+        else:
+            return _get_proj_crs_from_authority(self.authority, self.srid)
+
+    def apply_to(
+        self,
+        geometry: AnyGeometry,
+        clone=False,
+        axis_order: AxisOrder = AxisOrder.AUTHORITY,
+    ) -> AnyGeometry | None:
         """Transform the geometry using this coordinate reference.
-
-        This method caches the used CoordTransform object
 
         Every transformation within this package happens through this method,
         giving full control over coordinate transformations.
+
+        A bit of background: geometries are provided as ``GEOSGeometry`` from the database.
+        This is basically a simple C-based storage implementing "OpenGIS Simple Features for SQL",
+        except it does *not* store axis orientation. These are assumed to be x/y.
+
+        To perform transformations, GeoDjango loads the GEOS-geometry into GDAL/OGR.
+        The transformed geometry is loaded back to GEOS. To avoid this conversion,
+        pass the OGR object directly and continue working on that.
+
+        Internally, this method caches the used GDAL ``CoordTransform`` object,
+        so repeated transformations of the same coordinate systems are faster.
+
+        The axis order can change during the transformation.
+        From a programming perspective, screen coordinates (x/y) were traditionally used.
+        However, various systems and industries have always worked with north/east (y/x).
+        This includes systems with critical safety requirements in aviation and maritime.
+        The CRS authority reflects this practice. What you need depends on the use case:
+
+        * The (GML) output of WFS 2.0 and WMS 1.3 respect the axis ordering of the CRS.
+        * GeoJSON always provides coordinates in x/y, to keep web-based clients simple.
+        * PostGIS stores the data in x/y.
+        * WFS 1.0 used x/y, WFS 1.3 used y/x except for ``EPSG:4326``.
+
+        After GDAL/OGR changed the axis orientation, that information is
+        lost when the return value is loaded back into GEOS.
+        To address this, :meth:`tag_geometry` is called on the result.
+
+        :param geometry: The GEOS Geometry, or GDAL/OGR loaded geometry.
+        :param clone: Whether the object is changed in-place, or a copy is returned.
+                      For GEOS->GDAL->GEOS conversions, this makes no difference in efficiency.
+        :param axis_order: Which axis ordering to convert the geometry into (depends on the use-case).
         """
-        if self.srid == geometry.srid:
-            # Avoid changes if spatial reference system is identical.
-            if clone:
-                return geometry.clone()
-            else:
-                return None
-        else:
-            # Convert using GDAL / proj
-            transform = _get_coord_transform(geometry.srid, self._as_gdal())
+        if isinstance(geometry, OGRGeometry):
+            transform = _get_coord_transform(geometry.srs, self._as_gdal(axis_order=axis_order))
             return geometry.transform(transform, clone=clone)
+        else:
+            # See if the geometry was tagged with a CRS.
+            # When the data comes from an unknown source, assume this is from database storage.
+            # PostGIS stores data in longitude/latitude (x/y) ordering, even for srid 4326.
+            # By passing the 'AxisOrder.TRADITIONAL', a conversion from 4326 to 4326
+            # with 'AxisOrder.AUTHORITY' will detect that coordinate ordering needs to be changed.
+            source_axis_order = getattr(geometry, "_axis_order", AxisOrder.TRADITIONAL)
+
+            if self.srid == geometry.srid and source_axis_order == axis_order:
+                # Avoid changes if spatial reference system is identical, and no axis need to change.
+                if clone:
+                    return geometry.clone()
+                else:
+                    return None
+
+            # Get GDAL spatial reference for converting coordinates (uses proj internally).
+            # Using a cached coordinate transform object (is faster for repeated transforms)
+            # The object is also tagged so another apply_to() call would recognize the state.
+            source = _get_spatial_reference(geometry.srid, "epsg", source_axis_order)
+            target = self._as_gdal(axis_order=axis_order)
+            transform = _get_coord_transform(source, target)
+
+            # Transform
+            geometry = geometry.transform(transform, clone=clone)
+            if clone:
+                self.tag_geometry(geometry, axis_order=axis_order)
+            return geometry
+
+    @classmethod
+    def tag_geometry(self, geometry: GEOSGeometry, axis_order: AxisOrder):
+        """Associate this object with the geometry.
+
+        This informs the :meth:`apply_to` method that this source geometry
+        already had the correct axis ordering (e.g. it was part of the ``<fes:BBOX>`` logic).
+        The srid integer doesn't communicate that information.
+        """
+        geometry._axis_order = axis_order
+
+    def cache_instance(self):
+        """Cache a common CRS, no need to re-instantiate the same object again.
+        This also makes sure that requests which use the same URN will get our CRS object
+        version, instead of a fresh new one.
+        """
+        if self.authority == "EPSG":
+            # Only register for EPSG to avoid conflicting axis ordering issues.
+            # (WGS84 and CRS84 both use srid 4326)
+            _COMMON_CRS_BY_SRID[self.srid] = self
+
+        _COMMON_CRS_BY_URN[self.urn] = self
 
 
-# Worldwide GPS, latitude/longitude (y/x). https://epsg.io/4326
+#: Worldwide GPS, latitude/longitude (y/x). https://epsg.io/4326
 WGS84 = CRS.from_string("urn:ogc:def:crs:EPSG::4326")
 
-# GeoJSON default. This is like WGS84 but with longitude/latitude (x/y).
+#: GeoJSON default. This is like WGS84 but with longitude/latitude (x/y).
 CRS84 = CRS.from_string("urn:ogc:def:crs:OGC::CRS84")
 
 #: Spherical Mercator (Google Maps, Bing Maps, OpenStreetMap, ...), see https://epsg.io/3857
 WEB_MERCATOR = CRS.from_string("urn:ogc:def:crs:EPSG::3857")
 
 
-def _register_common_crs(crs: CRS):
-    """Cache a common CRS, no need to re-instantiate the same object again."""
-    if crs.authority != "EPSG":
-        # Avoid conflicting axis ordering issues (WGS84 and CRS84 both use srid 4326)
-        raise ValueError("Only supporting EPSG CRS")
-
-    _COMMON_CRS_BY_SRID[crs.srid] = crs
-    _COMMON_CRS_BY_URN[crs.urn] = crs
-
-
-# Register these 2 common
-_register_common_crs(WGS84)
-_register_common_crs(WEB_MERCATOR)
+# Register these common ones:
+WGS84.cache_instance()
+CRS84.cache_instance()
+WEB_MERCATOR.cache_instance()

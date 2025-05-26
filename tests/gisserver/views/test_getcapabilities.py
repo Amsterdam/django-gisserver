@@ -55,16 +55,6 @@ class TestGetCapabilities:
         # Check exposed FeatureTypeList
         feature_type_list = xml_doc.find("wfs:FeatureTypeList", NAMESPACES)
 
-        # The box should be within WGS84 limits, otherwise gis tools can't process the service.
-        wgs84_bbox = feature_type_list.find("wfs:FeatureType/ows:WGS84BoundingBox", NAMESPACES)
-        lower = wgs84_bbox.find("ows:LowerCorner", NAMESPACES).text.split(" ")
-        upper = wgs84_bbox.find("ows:UpperCorner", NAMESPACES).text.split(" ")
-        coords = list(map(float, lower + upper))
-        assert coords[0] >= -180
-        assert coords[1] >= -90
-        assert coords[2] <= 180
-        assert coords[2] <= 90
-
         assert_xml_equal(
             etree.tostring(feature_type_list, inclusive_ns_prefixes=True).decode(),
             f"""<FeatureTypeList xmlns="{xmlns.wfs}" xmlns:ows="{xmlns.ows11}" xmlns:xlink="{xmlns.xlink}">
@@ -84,8 +74,8 @@ class TestGetCapabilities:
           <Format>text/csv; subtype=csv; charset=utf-8</Format>
         </OutputFormats>
         <ows:WGS84BoundingBox dimensions="2">
-          <ows:LowerCorner>{coordinates.point1_xml_wgs84}</ows:LowerCorner>
-          <ows:UpperCorner>{coordinates.point1_xml_wgs84}</ows:UpperCorner>
+          <ows:LowerCorner>{coordinates.point1_xml_wgs84_bbox}</ows:LowerCorner>
+          <ows:UpperCorner>{coordinates.point1_xml_wgs84_bbox}</ows:UpperCorner>
         </ows:WGS84BoundingBox>
         <MetadataURL xlink:href="http://testserver/v1/wfs/" />
       </FeatureType>
@@ -106,8 +96,8 @@ class TestGetCapabilities:
           <Format>text/csv; subtype=csv; charset=utf-8</Format>
         </OutputFormats>
         <ows:WGS84BoundingBox dimensions="2">
-          <ows:LowerCorner>{coordinates.point1_xml_wgs84}</ows:LowerCorner>
-          <ows:UpperCorner>{coordinates.point1_xml_wgs84}</ows:UpperCorner>
+          <ows:LowerCorner>{coordinates.point1_xml_wgs84_bbox}</ows:LowerCorner>
+          <ows:UpperCorner>{coordinates.point1_xml_wgs84_bbox}</ows:UpperCorner>
         </ows:WGS84BoundingBox>
         <MetadataURL xlink:href="http://testserver/v1/wfs/" />
       </FeatureType>

@@ -372,11 +372,11 @@ class GML32Renderer(CollectionOutputRenderer, XmlOutputRenderer):
         if geo_element.type is XsdTypes.gmlBoundingShapeType:
             # Special case for <gml:boundedBy>, which doesn't need xsd:nil values, nor a gml:id.
             # The value is not a GEOSGeometry either, as that is not exposed by django.contrib.gis.
-            value = cast(GmlBoundedByElement, geo_element).get_value(
+            envelope = cast(GmlBoundedByElement, geo_element).get_value(
                 instance, crs=projection.output_crs
             )
-            if value is not None:
-                self._write(self.render_gml_bounds(value))
+            if envelope is not None:
+                self._write(self.render_gml_bounds(envelope))
         else:
             # Regular geometry elements.
             xml_qname = self.xml_qnames[geo_element]
@@ -402,12 +402,12 @@ class GML32Renderer(CollectionOutputRenderer, XmlOutputRenderer):
 
     def render_gml_bounds(self, envelope: BoundingBox) -> str:
         """Render the gml:boundedBy element that contains an Envelope.
-        Note this uses an internal object type,
-        as :mod:`django.contrib.gis.geos` only provides a Point/Polygon or 4-tuple envelope.
+        This uses an internal object type,
+        as :mod:`django.contrib.gis.geos` only provides a 4-tuple envelope.
         """
         return f"""<gml:boundedBy><gml:Envelope srsDimension="2" srsName="{attr_escape(envelope.crs.urn)}">
-            <gml:lowerCorner>{envelope.south} {envelope.west}</gml:lowerCorner>
-            <gml:upperCorner>{envelope.north} {envelope.east}</gml:upperCorner>
+            <gml:lowerCorner>{envelope.min_x} {envelope.min_y}</gml:lowerCorner>
+            <gml:upperCorner>{envelope.max_x} {envelope.max_y}</gml:upperCorner>
           </gml:Envelope></gml:boundedBy>\n"""
 
     def render_gml_value(
@@ -554,7 +554,11 @@ class DBGML32Renderer(DBGMLRenderingMixin, GML32Renderer):
         # Only take the geometries of the current level.
         # The annotations for relations will be handled by prefetches and get_prefetch_queryset()
         return replace_queryset_geometries(
-            queryset, projection.geometry_elements, projection.output_crs, AsGML
+            queryset,
+            projection.geometry_elements,
+            projection.output_crs,
+            AsGML,
+            is_latlon=projection.output_crs.is_north_east_order,
         )
 
     def get_prefetch_queryset(
@@ -569,7 +573,11 @@ class DBGML32Renderer(DBGMLRenderingMixin, GML32Renderer):
 
         # Find which fields are GML elements
         return replace_queryset_geometries(
-            queryset, feature_relation.geometry_elements, projection.output_crs, AsGML
+            queryset,
+            feature_relation.geometry_elements,
+            projection.output_crs,
+            AsGML,
+            is_latlon=projection.output_crs.is_north_east_order,
         )
 
     def get_db_envelope_as_gml(self, projection: FeatureProjection, queryset) -> AsGML:
@@ -578,7 +586,11 @@ class DBGML32Renderer(DBGMLRenderingMixin, GML32Renderer):
         This also avoids offloads the geometry union calculation to the DB.
         """
         geo_fields_union = self._get_geometries_union(projection, queryset)
-        return AsGML(geo_fields_union, envelope=True)
+        return AsGML(
+            geo_fields_union,
+            envelope=True,
+            is_latlon=projection.output_crs.is_north_east_order,
+        )
 
     def _get_geometries_union(self, projection: FeatureProjection, queryset):
         """Combine all geometries of the model in a single SQL function."""
@@ -739,7 +751,11 @@ class DBGML32ValueRenderer(DBGMLRenderingMixin, GML32ValueRenderer):
             # Add 'gml_member' to point to the pre-rendered GML version.
             geo_element = cast(GeometryXsdElement, element)
             return queryset.values(
-                "pk", gml_member=AsGML(get_db_geometry_target(geo_element, projection.output_crs))
+                "pk",
+                gml_member=AsGML(
+                    get_db_geometry_target(geo_element, projection.output_crs),
+                    is_latlon=projection.output_crs.is_north_east_order,
+                ),
             )
         else:
             return queryset

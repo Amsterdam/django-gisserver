@@ -168,6 +168,23 @@ FILTERS = [
         </fes:Filter>""",
     ),
     (
+        "bbox_wgs84",
+        Url.NORMAL,
+        """
+        <fes:Filter
+            xmlns:ns16="http://example.org/gisserver"
+            xmlns:wfs="http://www.opengis.net/wfs/2.0"
+            xmlns:fes="http://www.opengis.net/fes/2.0">
+            <fes:BBOX>
+                <gml:Envelope xmlns:gml="http://www.opengis.net/gml/3.2"
+                              srsName="urn:ogc:def:crs:EPSG::4326">
+                    <gml:lowerCorner>52.36308132956971 4.908747234134033</gml:lowerCorner>
+                    <gml:upperCorner>52.36326119473073 4.908774657180266</gml:upperCorner>
+                </gml:Envelope>
+            </fes:BBOX>
+        </fes:Filter>""",
+    ),
+    (
         "and",
         Url.NORMAL,
         """
@@ -587,8 +604,8 @@ GENERATED_FIELD_FILTER = {
                 <fes:ValueReference>geometry_translated</fes:ValueReference>
                 <gml:Envelope xmlns:gml="http://www.opengis.net/gml/3.2"
                               srsName="urn:ogc:def:crs:EPSG::4326">
-                    <gml:lowerCorner>5.7 53.1</gml:lowerCorner>
-                    <gml:upperCorner>6.1 53.5</gml:upperCorner>
+                    <gml:lowerCorner>53.1 5.7</gml:lowerCorner>
+                    <gml:upperCorner>53.5 6.1</gml:upperCorner>
                 </gml:Envelope>
             </fes:BBOX>
         </fes:Filter>
