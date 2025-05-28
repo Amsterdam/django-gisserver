@@ -30,7 +30,7 @@ from functools import wraps
 from typing import TypeVar
 from xml.etree.ElementTree import QName
 
-from gisserver.exceptions import ExternalParsingError
+from gisserver.exceptions import InvalidXmlElement, XmlElementNotSupported
 
 __all__ = (
     "TagNameEnum",
@@ -238,12 +238,12 @@ class TagRegistry:
                 allowed = _tag_names_to_text(_get_allowed_tag_names(*allowed_types), element)
                 msg = f"{msg}, expected one of: {allowed}."
 
-            raise ExternalParsingError(msg) from None
+            raise XmlElementNotSupported(msg) from None
 
         # Check whether the resolved class is indeed a valid option here.
         if allowed_types is not None and not issubclass(node_class, allowed_types):
             types = ", ".join(c.__name__ for c in allowed_types)
-            raise ExternalParsingError(
+            raise InvalidXmlElement(
                 f"Unexpected {node_class.__name__} for <{element.qname}> node, "
                 f"expected one of: {types}"
             )
@@ -272,7 +272,7 @@ def expect_tag(namespace: xmlns | str, *tag_names: str):
         @wraps(func)
         def _expect_tag_decorator(cls, element: NSElement, *args, **kwargs):
             if element.tag not in valid_tags:
-                raise ExternalParsingError(
+                raise InvalidXmlElement(
                     f"{cls.__name__} parser expects an <{_replace_common_ns(expect0, element)}> node,"
                     f" got <{element.qname}>"
                 )
@@ -289,7 +289,7 @@ def expect_no_children(from_xml_func):
     @wraps(from_xml_func)
     def _expect_no_children_decorator(cls, element: NSElement, *args, **kwargs):
         if len(element):
-            raise ExternalParsingError(
+            raise InvalidXmlElement(
                 f"Element <{element.qname}> does not support child elements,"
                 f" found <{element[0].qname}>."
             )
@@ -324,7 +324,7 @@ def expect_children(  # noqa: C901
 
             if len(element) < min_child_nodes:
                 allowed = _get_allowed(known_tag_names, element)
-                raise ExternalParsingError(
+                raise InvalidXmlElement(
                     f"<{element.qname}> should have {min_child_nodes} child nodes,"
                     f" got only {len(element)}."
                     f" Allowed types are: {allowed}."
@@ -332,7 +332,7 @@ def expect_children(  # noqa: C901
             for child in element:
                 if child.tag not in known_tag_names:
                     allowed = _get_allowed(known_tag_names, element)
-                    raise ExternalParsingError(
+                    raise InvalidXmlElement(
                         f"<{element.qname}> does not support a <{child.qname}> child node."
                         f" Allowed types are: {allowed}."
                     )

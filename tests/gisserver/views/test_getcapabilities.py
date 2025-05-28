@@ -6,7 +6,14 @@ from lxml import etree
 
 from gisserver.parsers.xml import xmlns
 from tests.requests import Get, Post, Url, parametrize_response
-from tests.utils import NAMESPACES, WFS_20_XSD, XML_NS, assert_xml_equal, validate_xsd
+from tests.utils import (
+    NAMESPACES,
+    WFS_20_XSD,
+    XML_NS,
+    assert_ows_exception,
+    assert_xml_equal,
+    validate_xsd,
+)
 
 # enable for all tests in this file
 pytestmark = [pytest.mark.urls("tests.test_gisserver.urls")]
@@ -26,7 +33,7 @@ class TestGetCapabilities:
         </GetCapabilities>"""
         ),
     )
-    def test_get(self, restaurant, coordinates, response):
+    def test_xml_response(self, restaurant, coordinates, response):
         """Prove that the happy flow works"""
         content = response.content.decode()
         assert response["content-type"] == "text/xml; charset=utf-8", content
@@ -116,31 +123,23 @@ class TestGetCapabilities:
     </FeatureTypeList>""",
         )
 
-    def test_missing_parameters(self, client):
-        """Prove that missing arguments are handled"""
-        response = client.get("/v1/wfs/?SERVICE=WFS")
+    @parametrize_response(
+        Get(
+            f"?SERVICE=WFS&REQUEST=GetCapabilities&ACCEPTVERSIONS=2.0.0&OUTPUTFORMAT={gml32}",
+        ),
+        Post(
+            f"""<GetCapabilities service="WFS" {XML_NS}>
+              <ows:AcceptVersions><ows:Version>2.0.0</ows:Version></ows:AcceptVersions>
+            </GetCapabilities>""",
+        ),
+        url=Url.FLAT,
+    )
+    def test_flattened(self, restaurant, coordinates, response):
         content = response.content.decode()
-        assert response.status_code == 400, content
         assert response["content-type"] == "text/xml; charset=utf-8", content
-
-        assert_xml_equal(
-            response.content,
-            """<ows:ExceptionReport version="2.0.0"
- xmlns:ows="http://www.opengis.net/ows/1.1"
- xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
- xml:lang="en-US"
- xsi:schemaLocation="http://www.opengis.net/ows/1.1 http://schemas.opengis.net/ows/1.1.0/owsExceptionReport.xsd">
-
-  <ows:Exception exceptionCode="MissingParameterValue" locator="request">
-    <ows:ExceptionText>Missing required &#x27;request&#x27; parameter.</ows:ExceptionText>
-  </ows:Exception>
-</ows:ExceptionReport>""",  # noqa: E501
-        )
-
-        xml_doc = validate_xsd(response.content, WFS_20_XSD)
-        assert xml_doc.attrib["version"] == "2.0.0"
-        exception = xml_doc.find("ows:Exception", NAMESPACES)
-        assert exception.attrib["exceptionCode"] == "MissingParameterValue"
+        assert response.status_code == 200, content
+        assert "<ows:OperationsMetadata>" in content
+        assert '<ows:WGS84BoundingBox dimensions="2">' in content
 
     @parametrize_response(
         Get("?SERVICE=WFS&REQUEST=GetCapabilities&ACCEPTVERSIONS=1.0.0,2.0.0"),
@@ -162,40 +161,76 @@ class TestGetCapabilities:
         xml_doc = validate_xsd(response.content, WFS_20_XSD)
         assert xml_doc.attrib["version"] == "2.0.0"
 
-    @parametrize_response(
-        Get("?SERVICE=WFS&REQUEST=GetCapabilities&ACCEPTVERSIONS=1.5.0"),
-        Post(
-            f'<GetCapabilities service="WFS" {XML_NS}>'
-            "  <ows:AcceptVersions>"
-            "    <ows:Version>1.5.0</ows:Version>"
-            "  </ows:AcceptVersions>"
-            "</GetCapabilities>"
-        ),
-    )
-    def test_get_invalid_version(self, response):
-        """Prove that version negotiation works"""
-        content = response.content.decode()
-        assert response["content-type"] == "text/xml; charset=utf-8", content
-        assert response.status_code == 400, content
+    def test_missing_parameters(self, client):
+        """Prove that missing arguments are handled"""
+        response = client.get("/v1/wfs/?SERVICE=WFS")
+        assert_ows_exception(
+            response, "MissingParameterValue", "Missing required 'request' parameter."
+        )
 
-        xml_doc = validate_xsd(response.content, WFS_20_XSD)
-        exception = xml_doc.find("ows:Exception", NAMESPACES)
-        assert exception.attrib["exceptionCode"] == "VersionNegotiationFailed"
+        # For once, test the full exception message XML too
+        assert_xml_equal(
+            response.content,
+            """<ows:ExceptionReport version="2.0.0"
+ xmlns:ows="http://www.opengis.net/ows/1.1"
+ xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+ xml:lang="en-US"
+ xsi:schemaLocation="http://www.opengis.net/ows/1.1 http://schemas.opengis.net/ows/1.1.0/owsExceptionReport.xsd">
+
+  <ows:Exception exceptionCode="MissingParameterValue" locator="request">
+    <ows:ExceptionText>Missing required &#x27;request&#x27; parameter.</ows:ExceptionText>
+  </ows:Exception>
+</ows:ExceptionReport>""",  # noqa: E501
+        )
 
     @parametrize_response(
         Get(
-            f"?SERVICE=WFS&REQUEST=GetCapabilities&ACCEPTVERSIONS=2.0.0&OUTPUTFORMAT={gml32}",
+            "?SERVICE=WFS&REQUEST=GetCapabilities&ACCEPTVERSIONS=1.1.0",
+            id="WFS1",
         ),
         Post(
-            f"""<GetCapabilities service="WFS" {XML_NS}>
-              <ows:AcceptVersions><ows:Version>2.0.0</ows:Version></ows:AcceptVersions>
-            </GetCapabilities>""",
+            f'<GetCapabilities service="WFS" xmlns="{xmlns.wfs1}" xmlns:ows="{xmlns.ows}">'
+            "  <ows:AcceptVersions>"
+            "    <ows:Version>1.1.0</ows:Version>"
+            "  </ows:AcceptVersions>"
+            "</GetCapabilities>",
+            validate_xml=False,
+            id="WFS1",
         ),
-        url=Url.FLAT,
     )
-    def test_get_flattened(self, restaurant, coordinates, response):
-        content = response.content.decode()
-        assert response["content-type"] == "text/xml; charset=utf-8", content
-        assert response.status_code == 200, content
-        assert "<ows:OperationsMetadata>" in content
-        assert '<ows:WGS84BoundingBox dimensions="2">' in content
+    def test_invalid_version(self, response):
+        """Prove that version negotiation works"""
+        assert_ows_exception(response, "VersionNegotiationFailed")
+
+    @parametrize_response(
+        Get(
+            "?SERVICE=WCS&REQUEST=GetCapabilities&VERSION=2.0.0",
+            expect="InvalidParameterValue",
+        ),
+        Post(
+            f'<wcs:GetCapabilities service="WCS" version="2.0.0" xmlns:wcs="{xmlns.wcs20}" />',
+            expect="InvalidParameterValue",
+            validate_xml=False,
+        ),
+    )
+    def test_invalid_service(self, response):
+        """Prove that version negotiation works"""
+        assert_ows_exception(
+            response, "InvalidParameterValue", "'WCS' is not supported, available are: WFS."
+        )
+
+    @parametrize_response(
+        Post(
+            f'<GetCapabilities service="WFS" version="2.0.0" xmlns="{xmlns.wcs20}" />',
+            validate_xml=False,
+            expect="Unsupported tag: <GetCapabilities>, expected one of: <",
+        ),
+        Post(
+            f'<wcs:GetCapabilities service="WFS" version="2.0.0" xmlns:wcs="{xmlns.wcs20}" />',
+            validate_xml=False,
+            expect="Unsupported tag: <wcs:GetCapabilities>, expected one of: <",
+        ),
+    )
+    def test_invalid_xmlns_combinations(self, response):
+        """Prove that inconsistent namespace is properly handled works"""
+        assert_ows_exception(response, "OperationNotSupported", response.expect)

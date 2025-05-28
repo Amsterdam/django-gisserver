@@ -12,7 +12,7 @@ from lxml import etree
 from lxml.doctestcompare import PARSE_XML, LXMLOutputChecker
 
 from gisserver.crs import CRS
-from gisserver.parsers.xml import xmlns
+from gisserver.parsers.xml import NSElement, xmlns
 
 logger = logging.getLogger(__name__)
 
@@ -170,3 +170,36 @@ def assert_xml_equal(got: bytes | str, want: str):
 def clean_filter_for_xml(xml):
     """Removes leading <? xml ?> tag"""
     return re.sub(r"<\?.*\?>", "", xml)
+
+
+def assert_ows_exception(
+    response: HttpResponseBase,
+    expect_code,
+    expect_message=None,
+    expect_locator=None,
+    expect_status=400,
+) -> NSElement:
+    """Utility to perform all assertion checks for a returned exception message."""
+    content = read_response(response)
+
+    # Test response
+    assert response["content-type"] == "text/xml; charset=utf-8", content
+    assert response.status_code == expect_status, content
+    assert "</ows:Exception>" in content
+
+    # Parse/validate XML
+    xml_doc = validate_xsd(content, WFS_20_XSD)
+    assert xml_doc.attrib["version"] == "2.0.0"
+
+    # Find XML tags
+    exception = xml_doc.find("ows:Exception", NAMESPACES)
+    message = exception.find("ows:ExceptionText", NAMESPACES).text
+
+    # Compare content
+    assert exception.attrib["exceptionCode"] == expect_code, content
+    if expect_message is not None:
+        assert expect_message in message, message
+    if expect_locator is not None:
+        assert exception.attrib["locator"] == expect_locator, content
+
+    return exception

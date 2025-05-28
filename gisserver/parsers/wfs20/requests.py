@@ -45,6 +45,7 @@ WFS_STORED_QUERY = xmlns.wfs20.qname("StoredQuery")
 
 @dataclass
 @tag_registry.register("GetCapabilities", xmlns.wfs20)
+@tag_registry.register("GetCapabilities", xmlns.wfs1, hidden=True)  # to give negotiation error.
 class GetCapabilities(BaseOwsRequest):
     """Request parsing for GetCapabilities.
 
