@@ -115,7 +115,7 @@ class NSElement(Element):
         if ns:
             for prefix, full_ns in self.ns_aliases.items():
                 if full_ns == ns:
-                    return f"{prefix}:{localname}"
+                    return f"{prefix}:{localname}" if prefix else localname
         return localname
 
     def get_str_attribute(self, name: str) -> str:
