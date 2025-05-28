@@ -21,6 +21,7 @@ from gisserver.exceptions import (
     OperationProcessingFailed,
     OWSException,
     PermissionDenied,
+    XmlElementNotSupported,
 )
 from gisserver.features import FeatureType, ServiceDescription
 from gisserver.operations import base, wfs20
@@ -179,17 +180,24 @@ class OWSView(View):
             if self.default_service
             else root.get_str_attribute("service")
         )
-        operation = split_ns(root.tag)[1]
+
+        # Perform early version check. version can be omitted for GetCapabilities
+        self.set_version(service, root.attrib.get("version"))
+
+        # Find the registered operation that handles the request
+        namespace, operation = split_ns(root.tag)
         wfs_operation_cls = self.get_operation_class(service, operation)
 
-        # Parse the request syntax
-        request_cls = wfs_operation_cls.parser_class or resolve_xml_parser_class(root)
         try:
+            # Parse the request syntax
+            request_cls = wfs_operation_cls.parser_class or resolve_xml_parser_class(root)
             self.ows_request = request_cls.from_xml(root)
-            self.set_version(service, self.ows_request.version)
 
             # Process the request!
             return self.call_operation(wfs_operation_cls)
+        except XmlElementNotSupported as e:
+            # Unknown XML element, e.g. wrong namespace.
+            raise OperationNotSupported(str(e), locator=root.attrib.get("handle")) from e
         except (OperationParsingFailed, OperationProcessingFailed) as e:
             # The WFS spec dictates that these exceptions
             # (and ResponseCacheExpired, CannotLockAllFeatures, FeaturesNotLocked which we don't raise)
@@ -277,7 +285,7 @@ class OWSView(View):
         except KeyError:
             allowed = ", ".join(sorted(self.accept_operations.keys()))
             raise InvalidParameterValue(
-                f"'{service}' is an invalid service, supported are: {allowed}.",
+                f"'{service}' is not supported, available are: {allowed}.",
                 locator="service",
             ) from None
 
@@ -307,6 +315,13 @@ class OWSView(View):
 
     def set_version(self, service: str, version: str | None):
         """Enforce a particular version based on the request."""
+        if service.upper() not in self.accept_operations:
+            allowed = ", ".join(sorted(self.accept_operations.keys()))
+            raise InvalidParameterValue(
+                f"'{service}' is not supported, available are: {allowed}.",
+                locator="service",
+            ) from None
+
         if not version:
             return
 
@@ -316,7 +331,7 @@ class OWSView(View):
 
         if version not in self.accept_versions:
             raise InvalidParameterValue(
-                f"{service} Server does not support VERSION {version}.", locator="version"
+                f"This server does not support {service} version {version}.", locator="version"
             )
 
         # Enforce the requested version

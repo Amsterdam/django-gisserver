@@ -140,6 +140,14 @@ class ExternalParsingError(ValueError):
     """Raise a ValueError for a parsing problem."""
 
 
+class XmlElementNotSupported(ExternalParsingError):
+    """Raise a ValueError when an XML tag is not known by the parser at all."""
+
+
+class InvalidXmlElement(ExternalParsingError):
+    """Raise a ValueError when a particular XML tag wasn't expected."""
+
+
 class OWSException(Exception):
     """Base class for XML based exceptions in this module."""
 

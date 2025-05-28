@@ -50,8 +50,10 @@ class xmlns(Enum):
     ows20 = "http://www.opengis.net/ows/2.0"
     wms = "http://www.opengis.net/wms"  # Web Map Service (WMS)
     wcs = "http://www.opengis.net/wcs"  # Web Coverage Service (WCS)
+    wcs20 = "http://www.opengis.net/wcs/2.0"
     wps = "http://www.opengis.net/wps/1.0.0"  # Web Processing Service (WPS)
     wmts = "http://www.opengis.net/wmts/1.0"  # Web Map Tile Service (WMTS)
+    wfs1 = "http://www.opengis.net/wfs"
     wfs20 = "http://www.opengis.net/wfs/2.0"  # Web Feature Service (WFS)
     fes20 = "http://www.opengis.net/fes/2.0"  # Filter Encoding Standard (FES)
     gml21 = "http://www.opengis.net/gml"
