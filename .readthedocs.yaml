@@ -10,6 +10,7 @@ build:
   apt_packages:
     - libgdal34t64
     - libproj25
+    - graphviz
   tools:
     python: "3.12"
 
