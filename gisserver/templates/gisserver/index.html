@@ -12,7 +12,7 @@
       {% if wfs_features %}
         <h2>{% translate "WFS Feature Types" %}</h2>
         {% for feature_type in wfs_features %}
-          <article>{% include "gisserver/wfs/feature_type.html" %}</article>
+          <article class="wfs-feature-type">{% include "gisserver/wfs/feature_type.html" %}</article>
         {% endfor %}
       {% endif %}
     {% endblock %}

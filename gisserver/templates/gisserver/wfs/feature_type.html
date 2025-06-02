@@ -13,9 +13,13 @@
     <dt>{% translate "Supported CRS" %}:</dt>
     <dd>
       {% if GISSERVER_SUPPORTED_CRS_ONLY %}
-        {% blocktranslate with default_crs=feature_type.crs %}Any CRS value is supported, source data uses {{ default_crs }}.{% endblocktranslate %}
+        {% blocktranslate trimmed with default_crs=feature_type.crs supported_crs=feature_type.supported_crs|join:", " %}
+          {{ supported_crs }}, and all others. Source data uses {{ default_crs }}.
+        {% endblocktranslate %}
       {% else %}
-        {{ feature_type.supported_crs|join:", " }}
+        {% blocktranslate trimmed with default_crs=feature_type.crs supported_crs=feature_type.supported_crs|join:", " %}
+          {{ supported_crs }}. Source data uses {{ default_crs }}.
+        {% endblocktranslate %}
       {% endif %}
     </dd>
     {% if wfs_output_formats %}
@@ -35,6 +39,11 @@
 {% block fields %}
 <p>{% translate "The following fields are available:" %}</p>
 <table class="table table-striped">
+  <colgroup>
+    <col class="field-name" />
+    <col class="field-type" />
+    <col class="field-description" />
+  </colgroup>
   <thead><tr><th>{% translate "Field Name" %}</th><th>{% translate "Type" %}</th><th>{% translate "Description" %}</th></tr></thead>
   <tbody>
   {% for field in feature_type.fields %}

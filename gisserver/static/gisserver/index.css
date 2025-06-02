@@ -1,17 +1,33 @@
-/* general CSS that can be disabled by removing the .meta-page in the overwritten templates */
+/* Common page styling */
+
+/*
+  This general CSS that can be disabled
+  by removing the .meta-page in the overwritten templates
+*/
 
 .meta-page {
-  font-family: Arial, sans-serif;
-  line-height: 1.5;
-  margin: 0 2rem 4rem 2rem;
+  margin: 2rem 2rem 4rem 2rem;
 }
 
 .meta-page h2 { margin: 2rem 0 0.5rem 0; }
 .meta-page h3 { margin: 1rem 0 0.5rem 0; }
 .meta-page p { margin: 0 0 1rem 0; }
 
+.meta-page code { color: #000; }
+
+.meta-page dl {
+  display: grid;
+  grid-gap: 2px 16px;
+  grid-template-columns: max-content;
+}
+.meta-page dd { grid-column-start: 2; margin: 0; }
+
+.meta-page .wfs-feature-type { margin-bottom: 2.5rem; }
+.meta-page .field-name { min-width: 20%; }
+.meta-page .field-type { min-width: 25%; }
+
 /* application-specific */
-.connect-url { margin-left: 4rem; }
+p.connect-url { margin-left: 2.5rem; font-weight: bold; }
 
 tbody th { text-align: left; padding-right: 2rem; }
 tbody td { padding-right: 2rem; }

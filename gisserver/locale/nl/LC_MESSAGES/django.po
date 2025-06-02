@@ -1,3 +1,9 @@
+msgid ""
+msgstr ""
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-06-02 12:40+0200\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+
 #: gisserver/templates/gisserver/index.html:13
 msgid "WFS Feature Types"
 msgstr "WFS feature types"
@@ -36,27 +42,31 @@ msgstr "Ondersteunde CRS"
 
 #: gisserver/templates/gisserver/wfs/feature_type.html:16
 #, python-format
-msgid "Any CRS value is supported, source data uses %(default_crs)s."
+msgid "%(supported_crs)s, and all others. Source data uses %(default_crs)s."
 msgstr ""
-"Alle CRS waarden worden ondersteund, de brongegevens gebruiken "
-"%(default_crs)s."
+"%(supported_crs)s én alle anderen. De brongegevens gebruiken %(default_crs)s."
 
-#: gisserver/templates/gisserver/wfs/feature_type.html:22
+#: gisserver/templates/gisserver/wfs/feature_type.html:20
+#, python-format
+msgid "%(supported_crs)s. Source data uses %(default_crs)s."
+msgstr "%(supported_crs)s. De brongegevens gebruiken %(default_crs)s."
+
+#: gisserver/templates/gisserver/wfs/feature_type.html:26
 msgid "Formats"
 msgstr "Formaten"
 
-#: gisserver/templates/gisserver/wfs/feature_type.html:36
+#: gisserver/templates/gisserver/wfs/feature_type.html:40
 msgid "The following fields are available:"
 msgstr "De volgende velden zijn beschikbaar:"
 
-#: gisserver/templates/gisserver/wfs/feature_type.html:38
+#: gisserver/templates/gisserver/wfs/feature_type.html:47
 msgid "Field Name"
 msgstr "Veldnaam"
 
-#: gisserver/templates/gisserver/wfs/feature_type.html:38
+#: gisserver/templates/gisserver/wfs/feature_type.html:47
 msgid "Type"
 msgstr "Type"
 
-#: gisserver/templates/gisserver/wfs/feature_type.html:38
+#: gisserver/templates/gisserver/wfs/feature_type.html:47
 msgid "Description"
 msgstr "Omschrijving"
