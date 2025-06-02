@@ -6,6 +6,7 @@ ENV LANG=C.UTF-8
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
        libgdal32 \
+       libproj25 \
        libpq-dev \
        cargo \
        make \
