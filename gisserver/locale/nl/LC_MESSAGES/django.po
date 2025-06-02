@@ -2,23 +2,23 @@
 msgid "WFS Feature Types"
 msgstr "WFS feature types"
 
-#: gisserver/templates/gisserver/service_description.html:6
+#: gisserver/templates/gisserver/service_description.html:8
 msgid "Keywords"
 msgstr "Keywords"
 
-#: gisserver/templates/gisserver/service_description.html:9
+#: gisserver/templates/gisserver/service_description.html:11
 msgid "Provider"
 msgstr "Uitgever"
 
-#: gisserver/templates/gisserver/service_description.html:10
+#: gisserver/templates/gisserver/service_description.html:13
 msgid "Contact"
 msgstr "Contact"
 
-#: gisserver/templates/gisserver/service_description.html:13
+#: gisserver/templates/gisserver/service_description.html:19
 msgid "Using This WFS"
 msgstr "Deze WFS gebruiken"
 
-#: gisserver/templates/gisserver/service_description.html:14
+#: gisserver/templates/gisserver/service_description.html:20
 msgid "Add the following URL to your GIS application:"
 msgstr "Voeg de volgende URL aan je GIS applicatie toe:"
 
@@ -37,7 +37,9 @@ msgstr "Ondersteunde CRS"
 #: gisserver/templates/gisserver/wfs/feature_type.html:16
 #, python-format
 msgid "Any CRS value is supported, source data uses %(default_crs)s."
-msgstr "Alle CRS waarden worden ondersteund, de brongegevens gebruiken %(default_crs)s."
+msgstr ""
+"Alle CRS waarden worden ondersteund, de brongegevens gebruiken "
+"%(default_crs)s."
 
 #: gisserver/templates/gisserver/wfs/feature_type.html:22
 msgid "Formats"
