@@ -227,7 +227,7 @@ class Operator(AstNode):
 
 @dataclass
 class IdOperator(Operator):
-    """List of :class:`~gisserver.parsers.fes20.identifers.ResourceId`` objects.
+    """List of :class:`~gisserver.parsers.fes20.identifers.ResourceId` objects.
 
     A ``<fes:Filter>`` only has a single predicate.
     Hence, this operator is used to wrap the ``<fes:ResourceId>`` elements in the syntax::

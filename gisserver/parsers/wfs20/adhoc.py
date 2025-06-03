@@ -48,7 +48,9 @@ class AdhocQuery(QueryExpression):
             <fes:SortBy>...</fes:SortBy>
         </wfs:Query>
 
-    And supports the KVP syntax::
+    And supports the KVP syntax:
+
+    .. code-block:: urlencoded
 
         ?SERVICE=WFS&...&TYPENAMES=ns:myType&FILTER=...&SORTBY=...&SRSNAME=...&PROPERTYNAME=...
         ?SERVICE=WFS&...&TYPENAMES=ns:myType&BBOX=...&SORTBY=...&SRSNAME=...&PROPERTYNAME=...

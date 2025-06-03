@@ -27,7 +27,7 @@ class BoundingBox:
     Due to the overlap between 2 types, this element is used for 2 cases:
 
     * The ``<ows:WGS84BoundingBox>`` element for ``GetCapabilities``.
-    * The ``<gml:Envelope>`` inside an``<gml:boundedBy>``  single feature.
+    * The ``<gml:Envelope>`` inside an ``<gml:boundedBy>``  single feature.
 
     While both classes have no common base class (and exist in different schema's),
     their properties are identical.

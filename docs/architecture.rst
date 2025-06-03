@@ -5,7 +5,9 @@ Internal Architecture
 
 .. contents:: :local:
 
-When you follow the source of the ``WFSView``, ``WFSOperation`` and ``BaseOwsRequest`` classes,
+When you follow the source of
+the :class:`~gisserver.views.WFSView`, :class:`~gisserver.operations.base.WFSOperation`
+and :class:`~gisserver.parsers.ows.BaseOwsRequest` classes,
 you'll find that it's written with extensibility in mind.
 Extra operations can easily be added there.
 You could even do that within your own projects and implementations.
@@ -403,8 +405,8 @@ of the output format.
 Output Streaming
 ~~~~~~~~~~~~~~~~
 
-The output rendering will generate a Django ``HttpResponse`` with the contents.
-When the renderer class returns a generator, it will return a ``StreamingHttpResponse``
+The output rendering will generate a Django :class:`~django.http.HttpResponse` with the contents.
+When the renderer class returns a generator, it will return a :class:`~django.http.StreamingHttpResponse`
 and hand that off to the WSGI server. The streaming rendering will help keep memory usage small.
 Data is incrementally read from the database (in chunks),
 and each chunk of rendered content (e.g. 40Kb) is written to the client.

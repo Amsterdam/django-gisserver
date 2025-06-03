@@ -597,7 +597,7 @@ When a geometry filter is included, this also requires the GML namespace:
     </fes:Filter>
 
 According to the XML rules, the "fes" namespace alias can be renamed here
-or omitted if only ``xmlns="..."``` is used instead of ``xmlns:fes="..."``.
+or omitted if only ``xmlns="..."`` is used instead of ``xmlns:fes="..."``.
 
 Older Filter Syntax
 ~~~~~~~~~~~~~~~~~~~

@@ -3,7 +3,7 @@
 These types are the internal schema definition, and the foundation for all output generation.
 
 The end-users of this library typically create a WFS feature type definition by using
-the :class:~gisserver.features.FeatureType` / :class:`~gisserver.features.FeatureField` classes.
+the :class:`~gisserver.features.FeatureType` / :class:`~gisserver.features.FeatureField` classes.
 
 The feature type classes use the model metadata to construct the internal XMLSchema structure.
 Nearly all WFS requests are handled by walking this structure (like ``DescribeFeatureType``

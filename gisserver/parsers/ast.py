@@ -6,7 +6,7 @@ For example, the FES filter syntax can be processed into objects that build an O
 Python classes can inherit :class:`AstNode` and register themselves as the parser/handler
 for a given tag. Both normal Python classes and dataclass work,
 as long as it has an :meth:`AstNode.from_xml` class method.
-The custom `from_xml()` method should copy the XML data into local attributes.
+The custom ``from_xml()`` method should copy the XML data into local attributes.
 
 Next, when :meth:`TagRegistry.node_from_xml` is called,
 it will detect which class the XML Element refers to and initialize it using the ``from_xml()`` call.
@@ -58,7 +58,7 @@ class TagNameEnum(Enum):
         """Cast the element tag name into the enum member.
 
         This translates the element name
-        such as``{http://www.opengis.net/fes/2.0}PropertyIsEqualTo``
+        such as ``{http://www.opengis.net/fes/2.0}PropertyIsEqualTo``
         into a ``PropertyIsEqualTo`` member.
         """
         tag_name = element.tag
@@ -90,6 +90,7 @@ class AstNode:
     an XML tag into a Python (data) class.
     """
 
+    #: Default namespace of the element and subclasses, if not given by ``@tag_registry.register()``.
     xml_ns: xmlns | str | None = None
 
     _xml_tags = []
@@ -98,6 +99,8 @@ class AstNode:
     def xml_name(cls) -> str:
         """Tell the default tag by which this class is registered"""
         return cls._xml_tags[0]
+
+    xml_name.__doc__ = "Tell the default tag by which this class is registered"
 
     def __init_subclass__(cls):
         # Each class level has a fresh list of supported child tags.
@@ -124,7 +127,7 @@ class AstNode:
 
     @classmethod
     def get_tag_names(cls) -> list[str]:
-        """Provide all known XMl tags that this code can parse."""
+        """Provide all known XML tags that this code can parse."""
         try:
             # Because a cached class property is hard to build
             return _KNOWN_TAG_NAMES[cls]
@@ -233,14 +236,14 @@ class TagRegistry:
     def node_from_xml(self, element: NSElement, allowed_types: tuple[type[A]] | None = None) -> A:
         """Find the ``AstNode`` subclass that corresponds to the given XML element,
         and initialize it with the element. This is a convenience shortcut.
-        ``"""
+        """
         node_class = self.resolve_class(element, allowed_types)
         return node_class.from_xml(element)
 
     def resolve_class(
         self, element: NSElement, allowed_types: tuple[type[A]] | None = None
     ) -> type[A]:
-        """Find the ``AstNode`` subclass that corresponds to the given XML element."""
+        """Find the :class:`AstNode` subclass that corresponds to the given XML element."""
         try:
             node_class = self.parsers[element.tag]
         except KeyError:
