@@ -466,10 +466,10 @@ in `GeoServer <https://docs.geoserver.org/stable/en/user/filter/function_referen
    * - ``area(geometry)``
      - ``ST_Area()``
      - Convert geometry to area.
-   * - ``Centroid(features)``
+   * - ``centroid(features)``
      - ``ST_Centroid()``
      - Return geometric center as "gravity point".
-   * - ``Difference(geometry1, geometry2)``
+   * - ``difference(geometry1, geometry2)``
      - ``ST_Difference()``
      - Parts of geometry 1 that do not overlap with geometry 2.
    * - ``distance(geometry1, geometry2)``
