@@ -31,6 +31,7 @@ tests_require = [
 docs_require = [
     "Django ~= 5.0",
     "sphinxcontrib-django >= 2.5",
+    "myst-parser >= 3.0.1",
     "psycopg2-binary >= 2.8.4",
 ]
 

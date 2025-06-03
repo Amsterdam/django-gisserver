@@ -40,6 +40,7 @@ Features
 
    compliance
    development
+   changelog
 
 
 Why this code is shared
