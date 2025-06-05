@@ -4,6 +4,8 @@ from django.conf import settings
 from django.core.signals import setting_changed
 from django.dispatch import receiver
 
+_originals = {}
+
 # -- feature flags
 
 # Configure whether the <ows:WGS84BoundingBox> should be included in GetCapabilities.
@@ -59,4 +61,13 @@ def _on_settings_change(setting, value, enter, **kwargs):
     if not setting.startswith("GISSERVER_"):
         return
 
-    globals()[setting] = value
+    conf_module = globals()
+    if value is None and not enter:
+        # override_settings().disable() returns what the django settings module had.
+        # Revert to our defaults here instead.
+        value = _originals.get(setting)
+    else:
+        # Track defaults of this file for reverting to them
+        _originals.setdefault(setting, conf_module[setting])
+
+    conf_module[setting] = value
