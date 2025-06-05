@@ -57,6 +57,7 @@ __all__ = [
     "GeometryXsdElement",
     "GmlIdAttribute",
     "GmlNameElement",
+    "GmlBoundedByElement",
     "ORMPath",
     "XPathMatch",
     "XsdAnyType",
