@@ -73,6 +73,7 @@ class TestGetCapabilities:
         </ows:Keywords>
         <DefaultCRS>urn:ogc:def:crs:EPSG::4326</DefaultCRS>
         <OtherCRS>urn:ogc:def:crs:EPSG::28992</OtherCRS>
+        <OtherCRS>urn:ogc:def:crs:OGC::CRS84</OtherCRS>
         <OutputFormats>
           <Format>application/gml+xml; version=3.2</Format>
           <Format>text/xml; subtype=gml/3.2.1</Format>

@@ -846,19 +846,24 @@ class FeatureType:
 
     def resolve_crs(self, crs: CRS, locator="") -> CRS:
         """Check a parsed CRS against the list of supported types."""
-        try:
-            pos = self.supported_crs.index(crs)
+        for candidate in self.supported_crs:
+            # Not using self.supported_crs.index(crs), as that depends on CRS.__eq__():
+            if candidate.matches(crs, compare_legacy=False):
+                if candidate.force_xy != crs.force_xy:
+                    # user provided legacy CRS, allow output in legacy CRS
+                    return crs
+                else:
+                    # Replace the parsed CRS with the declared one.
+                    return candidate
 
-            # Replace the parsed CRS with the declared one, which may have a 'backend' configured.
-            return self.supported_crs[pos]
-        except ValueError:
-            if conf.GISSERVER_SUPPORTED_CRS_ONLY:
-                raise InvalidParameterValue(
-                    f"Feature '{self.name}' does not support SRID {crs.srid}.",
-                    locator=locator,
-                ) from None
-            else:
-                return crs
+        # No match found
+        if conf.GISSERVER_SUPPORTED_CRS_ONLY:
+            raise InvalidParameterValue(
+                f"Feature '{self.name}' does not support CRS '{crs}'.",
+                locator=locator,
+            ) from None
+        else:
+            return crs
 
 
 class HDict(dict):

@@ -1,6 +1,7 @@
 import django
 from django.core.exceptions import PermissionDenied
 
+from gisserver.crs import CRS84
 from gisserver.features import FeatureType, ServiceDescription, field
 from gisserver.views import WFSView
 from tests.test_gisserver import models
@@ -30,7 +31,7 @@ class PlacesWFSView(WFSView):
             models.Restaurant.objects.all(),
             fields="__all__",  # includes 'tags' as array field, but no relations.
             keywords=["unittest"],
-            other_crs=[RD_NEW],
+            other_crs=[RD_NEW, CRS84],
             metadata_url="/feature/restaurants/",
         ),
         FeatureType(
