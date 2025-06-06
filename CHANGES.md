@@ -1,3 +1,13 @@
+# 2025-06-06 (2.1.1)
+
+* Fixed using legacy longitude/latitude rendering for `EPSG:4326` and `:http://www.opengis.net/gml/srs/epsg.xml#xxxx` SRS names.
+* Improved styling for the default HTML page.
+
+This increases interoperability with web-based clients and legacy libraries. GeoServer applies the same heuristic.
+Clients that use the official OGC notations such as `urn:ogc:def:crs:EPSG::4326` and `http://www.opengis.net/def/crs/epsg/0/4326`
+are not affected. If needed, this behavior can be disabled using `GISSERVER_FORCE_XY_EPSG_4326=False` and `GISSERVER_FORCE_XY_OLD_CRS=False`.
+
+
 # 2025-05-29 (2.1)
 
 * Added support for `ArrayField` field in CSV exports.
