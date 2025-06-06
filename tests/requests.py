@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Callable
+from typing import Any, Callable, ClassVar
 
 import pytest
 from django.test import Client
@@ -50,6 +50,7 @@ class Request:
 
 @dataclass
 class Get(Request):
+    method: ClassVar[str] = "GET"
     query: str | Callable
 
     def __init__(self, query, **kwargs):
@@ -82,6 +83,7 @@ class Get(Request):
 
 @dataclass
 class Post(Request):
+    method: ClassVar[str] = "POST"
     body: str | Callable
     query: str | Callable | None
     validate_xml: bool
@@ -141,6 +143,9 @@ def parametrize_response(*param_values: Request, url: Url | None = None):
     Requests (Get, Post) either get a string query/body argument or a Callable, which can be used
     later in the testing function to perform different requests at different times in the test.
     In this case, you need to call the response() to get an actual response object in your test.
+
+    The ``response`` fixture also receives a ``params`` that references the original parameters,
+    and it will get an ``expect`` value when that is set.
 
     NB: When your response depends on other fixtures (for example because you need to have
     some rows in the database), ensure the `response` fixture argument comes at the end of the

@@ -338,7 +338,8 @@ def response(client, request) -> HttpResponseBase | Callable[..., HttpResponseBa
             ...
     """
     req: Request = request.param
-    response = req.get_response(client)
+    response = req.get_response(client)  # lambda or Django HTTP response
+    response.params = req
     response.expect = req.expect
     return response
 
