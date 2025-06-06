@@ -15,6 +15,7 @@ import pyproj
 from django.contrib.gis.gdal import AxisOrder, CoordTransform, OGRGeometry, SpatialReference
 from django.contrib.gis.geos import GEOSGeometry
 
+from gisserver import conf
 from gisserver.exceptions import ExternalValueError
 
 CRS_URN_REGEX = re.compile(
@@ -36,7 +37,7 @@ __all__ = [
 ]
 
 # Caches to avoid reinitializing WGS84 each time.
-_COMMON_CRS_BY_URN = {}
+_COMMON_CRS_BY_STR = {}
 _COMMON_CRS_BY_SRID = {}
 
 
@@ -74,7 +75,7 @@ _get_proj_crs_from_string = lru_cache(maxsize=10)(pyproj.CRS.from_string)
 _get_proj_crs_from_authority = lru_cache(maxsize=10)(pyproj.CRS.from_authority)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class CRS:
     """
     Represents a CRS (Coordinate Reference System), which preferably follows the URN format
@@ -110,6 +111,9 @@ class CRS:
     #: Original input
     origin: str = field(init=False, default=None)
 
+    #: Tell whether the input format used the legacy notation.
+    force_xy: bool = False
+
     @classmethod
     def from_string(cls, uri: str | int) -> CRS:
         """
@@ -123,12 +127,15 @@ class CRS:
         * A legacy CRS URI ("epsg:<SRID>", or "http://www.opengis.net/...").
         * A numeric SRID (which calls :meth:`from_srid()`)
         """
+        if known_crs := _COMMON_CRS_BY_STR.get(uri):
+            return known_crs  # Avoid object re-creation
+
         if isinstance(uri, int) or uri.isdigit():
             return cls.from_srid(int(uri))
         elif uri.startswith("urn:"):
             return cls._from_urn(uri)
         else:
-            return cls._from_legacy(uri)
+            return cls._from_prefix(uri)
 
     @classmethod
     def from_srid(cls, srid: int):
@@ -141,22 +148,19 @@ class CRS:
         if common_crs := _COMMON_CRS_BY_SRID.get(srid):
             return common_crs  # Avoid object re-creation
 
-        crs = cls(
+        return cls(
             domain="ogc",
             authority="EPSG",
             version="",
             crsid=str(srid),
             srid=int(srid),
         )
-        crs.__dict__["origin"] = srid
-        return crs
 
     @classmethod
     def _from_urn(cls, urn):  # noqa: C901
-        """Instantiate this class using a URN format."""
-        if known_crs := _COMMON_CRS_BY_URN.get(urn):
-            return known_crs  # Avoid object re-creation
-
+        """Instantiate this class using a URN format.
+        This format is defined in https://portal.ogc.org/files/?artifact_id=30575.
+        """
         urn_match = CRS_URN_REGEX.match(urn)
         if not urn_match:
             raise ExternalValueError(f"Unknown CRS URN [{urn}] specified: {CRS_URN_REGEX.pattern}")
@@ -187,7 +191,7 @@ class CRS:
         crs = cls(
             domain=domain,
             authority=authority,
-            version=urn_match.group(3),
+            version=urn_match.group(3) or "",
             crsid=crsid,
             srid=srid,
         )
@@ -195,16 +199,30 @@ class CRS:
         return crs
 
     @classmethod
-    def _from_legacy(cls, uri):
-        """Instantiate this class from a legacy URL"""
-        luri = uri.lower()
-        for head in (
-            "epsg:",
-            "http://www.opengis.net/def/crs/epsg/0/",
-            "http://www.opengis.net/gml/srs/epsg.xml#",
+    def _from_prefix(cls, uri):
+        """Instantiate this class from a non-URI notation.
+
+        The modern URL format (:samp:`http://www.opengis.net/def/crs/epsg/0/{xxxx}`)
+        is defined in https://portal.ogc.org/files/?artifact_id=46361.
+
+        Older notations like :samp:`EPSG:{xxxx}` or legacy XML URLs like
+        and :samp`:http://www.opengis.net/gml/srs/epsg.xml#{xxxx}` are also supported.
+        """
+        # Make sure origin uses the expected upper/lowercasing.
+        origin = uri.lower() if "://" in uri else uri.upper()
+        for prefix, force_xy in (
+            (
+                "EPSG:",
+                (conf.GISSERVER_FORCE_XY_EPSG_4326 and origin == "EPSG:4326"),
+            ),
+            (
+                "http://www.opengis.net/gml/srs/epsg.xml#",
+                conf.GISSERVER_FORCE_XY_OLD_CRS,
+            ),
+            ("http://www.opengis.net/def/crs/epsg/0/", False),
         ):
-            if luri.startswith(head):
-                crsid = luri[len(head) :]
+            if origin.startswith(prefix):
+                crsid = origin[len(prefix) :]
                 try:
                     srid = int(crsid)
                 except ValueError:
@@ -218,16 +236,19 @@ class CRS:
                     version="",
                     crsid=crsid,
                     srid=srid,
+                    force_xy=force_xy,
                 )
-                crs.__dict__["origin"] = uri
+                crs.__dict__["origin"] = origin
                 return crs
 
         raise ExternalValueError(f"Unknown CRS URI [{uri}] specified")
 
     @property
     def legacy(self):
-        """Return a legacy string in the format :samp:`EPSG:{srid}`."""
-        return f"EPSG:{self.srid:d}"
+        """Return a legacy string in the format :samp:`http://www.opengis.net/gml/srs/epsg.xml#{srid}`."""
+        # This mirrors what GeoSever does, as this notation always has an axis ordering defined.
+        # Notations like EPSG:xxxx notation don't have such consistent usage.
+        return f"http://www.opengis.net/gml/srs/epsg.xml#{self.srid:d}"
 
     @cached_property
     def urn(self):
@@ -254,15 +275,28 @@ class CRS:
         return [axis.direction for axis in proj_crs.axis_info]
 
     def __str__(self):
-        return self.urn
+        return self.legacy if self.force_xy else self.urn
 
     def __eq__(self, other):
         if isinstance(other, CRS):
-            # CRS84 is NOT equivalent to EPSG:4326.
-            # EPSG:4326 specifies coordinates in lat/long order and CRS84 in long/lat order.
-            return self.authority == other.authority and self.srid == other.srid
+            return self.matches(other, compare_legacy=True)
         else:
             return NotImplemented
+
+    def matches(self, other, compare_legacy=True) -> bool:
+        """Tell whether this CRS is identical to another one."""
+        return (
+            # "urn:ogc:def:crs:EPSG::4326" != "urn:ogc:def:crs:OGC::CRS84"
+            # even through they both share the same srid.
+            self.srid == other.srid
+            and self.authority == other.authority
+            and (
+                # Also, legacy notations like EPSG:4326 are treated differently,
+                # unless this is configured to not make a difference.
+                not compare_legacy
+                or self.force_xy == other.force_xy
+            )
+        )
 
     def __hash__(self):
         """Used to match objects in a set."""
@@ -272,7 +306,8 @@ class CRS:
         """Generate the GDAL Spatial Reference object."""
         if self.backends[axis_order] is None:
             backends = list(self.backends)
-            if self.origin:
+            if self.origin and "://" not in self.origin:  # avoid downloads and OGR errors
+                # Passing the origin helps to detect CRS84 strings
                 backends[axis_order] = _get_spatial_reference(self.origin, "user", axis_order)
             else:
                 backends[axis_order] = _get_spatial_reference(self.srid, "epsg", axis_order)
@@ -284,7 +319,12 @@ class CRS:
 
     def _as_proj(self) -> pyproj.CRS:
         """Generate the PROJ CRS object"""
-        if isinstance(self.origin, str) and not self.origin.isdigit():
+        if (
+            isinstance(self.origin, str)
+            and not self.origin.isdigit()
+            and "epsg.xml#" not in self.origin  # not supported
+        ):
+            # Passing the origin helps to detect CRS84 strings
             return _get_proj_crs_from_string(self.origin)
         else:
             return _get_proj_crs_from_authority(self.authority, self.srid)
@@ -293,7 +333,7 @@ class CRS:
         self,
         geometry: AnyGeometry,
         clone=False,
-        axis_order: AxisOrder = AxisOrder.AUTHORITY,
+        axis_order: AxisOrder | None = None,
     ) -> AnyGeometry | None:
         """Transform the geometry using this coordinate reference.
 
@@ -322,6 +362,12 @@ class CRS:
         * PostGIS stores the data in x/y.
         * WFS 1.0 used x/y, WFS 1.3 used y/x except for ``EPSG:4326``.
 
+        When receiving legacy notations (e.g. ``EPSG:4326`` instead of ``urn:ogc:def:crs:EPSG::4326``),
+        the data is still projected in legacy ordering, unless ``GISSERVER_FORCE_XY_...`` is disabled.
+        This reflects the design of `GeoServer Axis Ordering
+        <https://docs.geoserver.org/stable/en/user/services/wfs/axis_order.html>`_
+        to have maximum interoperability with legacy/JavaScript clients.
+
         After GDAL/OGR changed the axis orientation, that information is
         lost when the return value is loaded back into GEOS.
         To address this, :meth:`tag_geometry` is called on the result.
@@ -331,6 +377,11 @@ class CRS:
                       For GEOS->GDAL->GEOS conversions, this makes no difference in efficiency.
         :param axis_order: Which axis ordering to convert the geometry into (depends on the use-case).
         """
+        if axis_order is None:
+            # This transforms by default to WFS 2 axis ordering (e.g. latitude/longitude),
+            # unless a legacy notation is used (e.g. EPSG:4326).
+            axis_order = AxisOrder.TRADITIONAL if self.force_xy else AxisOrder.AUTHORITY
+
         if isinstance(geometry, OGRGeometry):
             transform = _get_coord_transform(geometry.srs, self._as_gdal(axis_order=axis_order))
             return geometry.transform(transform, clone=clone)
@@ -377,12 +428,12 @@ class CRS:
         This also makes sure that requests which use the same URN will get our CRS object
         version, instead of a fresh new one.
         """
-        if self.authority == "EPSG":
+        if self.authority == "EPSG" and self.srid != 4326:
             # Only register for EPSG to avoid conflicting axis ordering issues.
-            # (WGS84 and CRS84 both use srid 4326)
+            # (WGS84 and CRS84 both use srid 4326, and the 'EPSG:4326' notation is treated as legacy)
             _COMMON_CRS_BY_SRID[self.srid] = self
 
-        _COMMON_CRS_BY_URN[self.urn] = self
+        _COMMON_CRS_BY_STR[str(self)] = self
 
 
 #: Worldwide GPS, latitude/longitude (y/x). https://epsg.io/4326

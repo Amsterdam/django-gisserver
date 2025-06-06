@@ -53,6 +53,7 @@ class CoordinateInputs:
     point1_ewkt: str
     point1_geojson: list[Decimal]
     point1_xml_wgs84: str
+    point1_xml_wgs84_legacy: str
     point1_xml_wgs84_bbox: str
     point1_xml_rd: str
 
@@ -159,6 +160,7 @@ def db_coordinates(django_db_setup, django_db_blocker):
             f" ST_AsGeoJson({point1_wgs84}, {pr}) as point1_geojson,"
             f" ST_AsGeoJson({point1_translated}, {pr}) as translated_geojson,"
             f" ST_AsGML(3, {point1_wgs84}, {pr}, 17) as point1_xml_wgs84,"
+            f" ST_AsGML(3, {point1_wgs84}, {pr}, 1) as point1_xml_wgs84_legacy,"
             f" ST_AsGML(3, {point1_wgs84}, {pr}, 1) as point1_xml_wgs84_bbox,"
             f" ST_AsGML(3, {point1_translated}, {pr}, 17) as translated_xml_wgs84,"
             f" ST_AsGML(3, ST_Union({point1_wgs84}, {point1_translated}), {pr}, 49) as translated_xml_envelope,"
@@ -183,6 +185,7 @@ def db_coordinates(django_db_setup, django_db_blocker):
             point1_ewkt=result["point1_ewkt"],
             point1_geojson=_get_geojson_coordinates(result["point1_geojson"]),
             point1_xml_wgs84=_get_gml_coordinates(result["point1_xml_wgs84"]),
+            point1_xml_wgs84_legacy=_get_gml_coordinates(result["point1_xml_wgs84_legacy"]),
             point1_xml_wgs84_bbox=_get_gml_coordinates(result["point1_xml_wgs84_bbox"]),
             point1_xml_rd=_get_gml_coordinates(result["point1_xml_rd"]),
             translated_wgs84=_get_point(result["translated_wgs84"]),
@@ -214,6 +217,7 @@ def python_coordinates(db_coordinates):
         point1_ewkt=flipped_point1_wgs84.ewkt,
         point1_geojson=_get_geojson_coordinates(db_coordinates.point1_wgs84.json),
         point1_xml_wgs84=_get_coordinates_text(flipped_point1_wgs84),
+        point1_xml_wgs84_legacy=_get_coordinates_text(db_coordinates.point1_wgs84),
         point1_xml_wgs84_bbox=_get_coordinates_text(db_coordinates.point1_wgs84),
         point1_xml_rd=_get_coordinates_text(point1_rd_back),
         translated_wgs84=flipped_translated_wgs84,  # How data from PointField is returned

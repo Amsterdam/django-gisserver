@@ -171,6 +171,145 @@ class TestGetPropertyValue:
 
     @parametrize_response(
         Get(
+            lambda srs_name: "?SERVICE=WFS&REQUEST=GetPropertyValue&VERSION=2.0.0&TYPENAMES=restaurant"
+            f"&VALUEREFERENCE=location&SRSNAME={srs_name}"
+        ),
+        Post(
+            lambda srs_name: f"""<GetPropertyValue service="WFS" version="2.0.0" valueReference="location" {XML_NS}>
+              <Query typeNames="restaurant" srsName="{srs_name}">
+              </Query>
+              </GetPropertyValue>
+              """
+        ),
+    )
+    @pytest.mark.parametrize(
+        "srs_name",
+        [
+            "urn:ogc:def:crs:EPSG::28992",
+            "urn:ogc:def:crs:EPSG::4326",
+            "urn:ogc:def:crs:OGC::CRS84",
+        ],
+    )
+    def test_get_location_srs_name(self, restaurant, coordinates, response, srs_name):
+        expect_xml_point = {
+            "urn:ogc:def:crs:EPSG::28992": coordinates.point1_xml_rd,
+            "urn:ogc:def:crs:EPSG::4326": coordinates.point1_xml_wgs84,
+            "urn:ogc:def:crs:OGC::CRS84": coordinates.point1_xml_wgs84_legacy,
+        }[srs_name]
+
+        response = response(srs_name)
+        content = read_response(response)
+        assert response["content-type"] == "text/xml; charset=utf-8", content
+        assert response.status_code == 200, content
+        assert "</wfs:ValueCollection>" in content
+
+        # Validate against the WFS 2.0 XSD
+        xml_doc = validate_xsd(content, WFS_20_XSD)
+        assert xml_doc.attrib["numberMatched"] == "1"
+        assert xml_doc.attrib["numberReturned"] == "1"
+
+        # Prove that the output is now rendered in EPSG:28992
+        geometry = xml_doc.find("wfs:member/app:location/gml:Point", namespaces=NAMESPACES)
+        assert geometry.attrib["srsName"] == srs_name
+
+        timestamp = xml_doc.attrib["timeStamp"]
+        assert_xml_equal(
+            content,
+            f"""<wfs:ValueCollection
+                xmlns:app="http://example.org/gisserver"
+                xmlns:gml="http://www.opengis.net/gml/3.2"
+                xmlns:wfs="http://www.opengis.net/wfs/2.0"
+                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                xsi:schemaLocation="http://example.org/gisserver http://testserver/v1/wfs/?SERVICE=WFS&amp;VERSION=2.0.0&amp;REQUEST=DescribeFeatureType&amp;TYPENAMES=app:restaurant http://www.opengis.net/wfs/2.0 http://schemas.opengis.net/wfs/2.0/wfs.xsd http://www.opengis.net/gml/3.2 http://schemas.opengis.net/gml/3.2.1/gml.xsd"
+                timeStamp="{timestamp}" numberMatched="1" numberReturned="1">
+            <wfs:member>
+                <app:location>
+                    <gml:Point gml:id="Restaurant.{restaurant.id}.1" srsName="{srs_name}">
+                        <gml:pos srsDimension="2">{expect_xml_point}</gml:pos>
+                    </gml:Point>
+                </app:location>
+            </wfs:member>
+            </wfs:ValueCollection>""",  # noqa: E501
+        )
+
+    @parametrize_response(
+        Get(
+            lambda srs_name: "?SERVICE=WFS&REQUEST=GetPropertyValue&VERSION=2.0.0&TYPENAMES=restaurant"
+            f"&VALUEREFERENCE=location&SRSNAME={srs_name}"
+        ),
+        Post(
+            lambda srs_name: f"""<GetPropertyValue version="2.0.0" service="WFS" valueReference="location" {XML_NS}>
+              <Query typeNames="restaurant" srsName="{srs_name}"></Query>
+            </GetPropertyValue>
+            """
+        ),
+    )
+    @pytest.mark.parametrize(
+        "srs_name", ["http://www.opengis.net/gml/srs/epsg.xml#4326", "EPSG:4326"]
+    )
+    @pytest.mark.parametrize("force_xy", [False, True], ids=["modern", "force_xy"])
+    def test_get_location_srs_name_legacy(
+        self, restaurant, coordinates, response, settings, force_xy, srs_name
+    ):
+        """Prove that specifying a legacy SRSNAME will render coordinates in their legacy notation"""
+        settings.GISSERVER_FORCE_XY_OLD_CRS = force_xy
+        settings.GISSERVER_FORCE_XY_EPSG_4326 = force_xy
+        if force_xy:
+            # Let legacy input stay legacy output
+            expect_srs_name = "http://www.opengis.net/gml/srs/epsg.xml#4326"
+            expect_point = coordinates.point1_xml_wgs84_legacy
+            comment = f"""<!--
+ NOTE: you are requesting the legacy projection notation '{srs_name}'. Please use 'urn:ogc:def:crs:EPSG::4326' instead.
+ This also means output coordinates are ordered in legacy the 'west, north' axis ordering.
+
+-->"""  # noqa: E501
+        else:
+            # Let legacy input become regular WFS 2.0 output
+            expect_srs_name = "urn:ogc:def:crs:EPSG::4326"
+            expect_point = coordinates.point1_xml_wgs84
+            comment = ""
+
+        # perform request after settings have been updated.
+        response = response(
+            srs_name.replace("#", "%23") if response.params.method == "GET" else srs_name
+        )
+        content = read_response(response)
+        assert response["content-type"] == "text/xml; charset=utf-8", content
+        assert response.status_code == 200, content
+        assert "</wfs:ValueCollection>" in content
+
+        # Validate against the WFS 2.0 XSD
+        xml_doc = validate_xsd(content, WFS_20_XSD)
+        assert xml_doc.attrib["numberMatched"] == "1"
+        assert xml_doc.attrib["numberReturned"] == "1"
+
+        # Prove that the output is now rendered in srid 4326
+        geometry = xml_doc.find("wfs:member/app:location/gml:Point", namespaces=NAMESPACES)
+        assert geometry.attrib["srsName"] == expect_srs_name
+
+        timestamp = xml_doc.attrib["timeStamp"]
+        assert_xml_equal(
+            content,
+            f"""<wfs:ValueCollection
+                xmlns:app="http://example.org/gisserver"
+                xmlns:gml="http://www.opengis.net/gml/3.2"
+                xmlns:wfs="http://www.opengis.net/wfs/2.0"
+                xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                xsi:schemaLocation="http://example.org/gisserver http://testserver/v1/wfs/?SERVICE=WFS&amp;VERSION=2.0.0&amp;REQUEST=DescribeFeatureType&amp;TYPENAMES=app:restaurant http://www.opengis.net/wfs/2.0 http://schemas.opengis.net/wfs/2.0/wfs.xsd http://www.opengis.net/gml/3.2 http://schemas.opengis.net/gml/3.2.1/gml.xsd"
+                timeStamp="{timestamp}" numberMatched="1" numberReturned="1">
+            {comment}
+            <wfs:member>
+                <app:location>
+                    <gml:Point gml:id="Restaurant.{restaurant.id}.1" srsName="{expect_srs_name}">
+                        <gml:pos srsDimension="2">{expect_point}</gml:pos>
+                    </gml:Point>
+                </app:location>
+            </wfs:member>
+            </wfs:ValueCollection>""",  # noqa: E501
+        )
+
+    @parametrize_response(
+        Get(
             "?SERVICE=WFS&REQUEST=GetPropertyValue&VERSION=2.0.0&TYPENAMES=restaurant"
             "&VALUEREFERENCE=tags"
         ),

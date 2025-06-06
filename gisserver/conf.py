@@ -32,6 +32,17 @@ GISSERVER_COUNT_NUMBER_MATCHED = getattr(settings, "GISSERVER_COUNT_NUMBER_MATCH
 
 # -- output rendering
 
+# Following https://docs.geoserver.org/stable/en/user/services/wfs/axis_order.html here:
+# Whether the older EPSG:4326 notation (instead of the OGC recommended styles)
+# should render in legacy longitude/latitude (x/y) ordering.
+# This increases interoperability with legacy web clients,
+# as others use urn:ogc:def:crs:EPSG::4326 or http://www.opengis.net/def/crs/epsg/0/4326.
+GISSERVER_FORCE_XY_EPSG_4326 = getattr(settings, "GISSERVER_FORCE_XY_EPSG_4326", True)
+
+# Whether the legacy CRS notation http://www.opengis.net/gml/srs/epsg.xml# should render in X/Y
+GISSERVER_FORCE_XY_OLD_CRS = getattr(settings, "GISSERVER_FORCE_XY_OLD_CRS", True)
+
+# Extra output formats for GetFeature (see documentation for details)
 GISSERVER_EXTRA_OUTPUT_FORMATS = getattr(settings, "GISSERVER_EXTRA_OUTPUT_FORMATS", {})
 GISSERVER_GET_FEATURE_OUTPUT_FORMATS = getattr(
     settings, "GISSERVER_GET_FEATURE_OUTPUT_FORMATS", {}

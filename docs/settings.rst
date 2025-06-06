@@ -16,6 +16,8 @@ The defaults are:
     GISSERVER_COUNT_NUMBER_MATCHED = 1
 
     # Output rendering
+    GISSERVER_FORCE_XY_OLD_CRS = True
+    GISSERVER_FORCE_XY_EPSG_4326 = True
     GISSERVER_EXTRA_OUTPUT_FORMATS = {}
     GISSERVER_GET_FEATURE_OUTPUT_FORMATS = {}
 
@@ -73,6 +75,29 @@ Possible values:
 
 In the WFS output, ``number_matched="unknown"`` will be found when paging is disabled.
 
+.. _GISSERVER_FORCE_XY_EPSG_4326:
+.. _GISSERVER_FORCE_XY_OLD_CRS:
+
+GISSERVER_FORCE_XY\_...
+-----------------------
+
+By default, WFS 2.0 follows the axis ordering of the CRS authority.
+This means ``urn:ogc:def:crs:EPSG::4326`` will render in latitude/longitude ordering.
+
+For maximum interoperability with legacy web-clients,
+this behavior is relaxed by returning legacy longitude/latitude (screen x/y) ordering
+when legacy notations are used.
+
+* Using ``GISSERVER_FORCE_XY_EPSG_4326=True`` will force ``EPSG:4326`` into classic ordering.
+* Using ``GISSERVER_FORCE_XY_OLD_CRS=True`` will force :samp:`http://www.opengis.net/gml/srs/epsg.xml#{xxxx}` notations in classic ordering.
+
+Clients that use the OGC recommended notations, like ``urn:ogc:def:crs:EPSG::4326``
+and ``http://www.opengis.net/def/crs/epsg/0/4326`` always get the proper longitude/latitude.
+
+This does not affect GeoJSON output. The GeoJSON standard mandates that
+data is always returned in ``urn:ogc:def:crs:OGC::CRS84`` (which uses longitude/latitude ordering),
+to keep web-based clients simple.
+
 
 GISSERVER\_..._OUTPUT_FORMATS
 -----------------------------
@@ -104,6 +129,8 @@ paging unless the ``?COUNT=...`` request parameter is used.
     QGis often requests 1000 features per request, regardless of the maximum page size.
     Custom ``OutputRenderer`` subclasses may also override this setting.
 
+
+.. _GISSERVER_WFS_STRICT_STANDARD:
 
 GISSERVER_WFS_STRICT_STANDARD
 -----------------------------

@@ -89,7 +89,13 @@ class GEOSGMLGeometry(AbstractGeometry):
         # This avoids having to support the whole GEOS logic.
         geos_data = GEOSGeometry.from_gml(tostring(element))
         geos_data.srid = srs.srid
-        CRS.tag_geometry(geos_data, axis_order=AxisOrder.AUTHORITY)
+
+        # Using the WFS 2 format (urn:ogc:def:crs:EPSG::4326"), coordinates should be latitude/longitude.
+        # However, when providing legacy formats like srsName="EPSG:4326",
+        # input is assumed to be in legacy longitude/latitude axis ordering too.
+        # This reflects what GeoServer does: https://docs.geoserver.org/main/en/user/services/wfs/axis_order.html
+        if not srs.force_xy:
+            CRS.tag_geometry(geos_data, axis_order=AxisOrder.AUTHORITY)
         return cls(srs=srs, geos_data=geos_data)
 
     def __repr__(self):

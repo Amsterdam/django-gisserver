@@ -11,6 +11,7 @@ much extra method calls per field. Some bits are non-DRY inlined for this reason
 from __future__ import annotations
 
 import itertools
+import re
 from collections import defaultdict
 from datetime import date, datetime, time, timezone
 from decimal import Decimal as D
@@ -23,6 +24,7 @@ from django.core.exceptions import ImproperlyConfigured
 from django.db import models
 from django.http import HttpResponse
 
+from gisserver.crs import CRS84
 from gisserver.db import (
     AsGML,
     get_db_geometry_target,
@@ -46,6 +48,7 @@ from .utils import (
 )
 
 GML_RENDER_FUNCTIONS = {}
+RE_SRS_NAME = re.compile(r'srsName="([^"]+)"')
 
 
 def register_geos_type(geos_type):
@@ -232,6 +235,15 @@ class GML32Renderer(CollectionOutputRenderer, XmlOutputRenderer):
 
             for sub_collection in collection.results:
                 projection = sub_collection.projection
+                if projection.output_crs.force_xy and projection.output_crs.is_north_east_order:
+                    self._write(
+                        "<!--\n"
+                        f" NOTE: you are requesting the legacy projection notation '{tag_escape(projection.output_crs.origin)}'."
+                        f" Please use '{tag_escape(projection.output_crs.urn)}' instead.\n\n"
+                        " This also means output coordinates are ordered in legacy the 'west, north' axis ordering.\n"
+                        "\n-->\n"
+                    )
+
                 self.start_collection(sub_collection)
                 if has_multiple_collections:
                     self._write(
@@ -405,7 +417,7 @@ class GML32Renderer(CollectionOutputRenderer, XmlOutputRenderer):
         This uses an internal object type,
         as :mod:`django.contrib.gis.geos` only provides a 4-tuple envelope.
         """
-        return f"""<gml:boundedBy><gml:Envelope srsDimension="2" srsName="{attr_escape(envelope.crs.urn)}">
+        return f"""<gml:boundedBy><gml:Envelope srsDimension="2" srsName="{attr_escape(str(envelope.crs))}">
             <gml:lowerCorner>{envelope.min_x} {envelope.min_y}</gml:lowerCorner>
             <gml:upperCorner>{envelope.max_x} {envelope.max_y}</gml:upperCorner>
           </gml:Envelope></gml:boundedBy>\n"""
@@ -419,7 +431,7 @@ class GML32Renderer(CollectionOutputRenderer, XmlOutputRenderer):
     ) -> str:
         """Normal case: 'value' is raw geometry data.."""
         # In case this is a standalone response, this will be the top-level element, hence includes the xmlns.
-        base_attrs = f' gml:id="{attr_escape(gml_id)}" srsName="{attr_escape(projection.output_crs.urn)}"{extra_xmlns}'
+        base_attrs = f' gml:id="{attr_escape(gml_id)}" srsName="{attr_escape(str(projection.output_crs))}"{extra_xmlns}'
         projection.output_crs.apply_to(value)
         return self._render_gml_type(value, base_attrs=base_attrs)
 
@@ -521,17 +533,34 @@ class DBGMLRenderingMixin:
         id_pos = gml_tag.find("gml:id=")
         if id_pos == -1:
             # Inject
-            return f'{gml_tag} gml:id="{attr_escape(gml_id)}"{extra_xmlns}{value[end_pos:]}'
+            gml = f'{gml_tag} gml:id="{attr_escape(gml_id)}"{extra_xmlns}{value[end_pos:]}'
         else:
             # Replace
             end_pos1 = gml_tag.find('"', id_pos + 8)
-            return (
+            gml = (
                 f"{gml_tag[:id_pos]}"
                 f'gml:id="{attr_escape(gml_id)}'
                 f"{value[end_pos1:end_pos]}"  # from " right until >
                 f"{extra_xmlns}"  # extra namespaces?
                 f"{value[end_pos:]}"  # from > and beyond
             )
+
+        return self._fix_db_crs_name(projection, gml)
+
+    def _fix_db_crs_name(self, projection: FeatureProjection, gml: str) -> str:
+        if projection.output_crs.force_xy:
+            # When legacy output is used, make sure the srsName matches the input.
+            # PostgreSQL will still generate the EPSG:xxxx notation.
+            return gml.replace(
+                'srsName="EPSG:', 'srsName="http://www.opengis.net/gml/srs/epsg.xml#', 1
+            )
+        elif projection.output_crs == CRS84:
+            # Fix PostgreSQL not knowing it's CRS84 or WGS84 (both srid 4326)
+            return gml.replace(
+                'srsName="urn:ogc:def:crs:EPSG::4326"', 'srsName="urn:ogc:def:crs:OGC::CRS84"', 1
+            )
+        else:
+            return gml
 
 
 class DBGML32Renderer(DBGMLRenderingMixin, GML32Renderer):
@@ -553,12 +582,14 @@ class DBGML32Renderer(DBGMLRenderingMixin, GML32Renderer):
         # Retrieve geometries as pre-rendered instead.
         # Only take the geometries of the current level.
         # The annotations for relations will be handled by prefetches and get_prefetch_queryset()
+        use_modern = not projection.output_crs.force_xy
         return replace_queryset_geometries(
             queryset,
             projection.geometry_elements,
             projection.output_crs,
             AsGML,
-            is_latlon=projection.output_crs.is_north_east_order,
+            is_latlon=use_modern and projection.output_crs.is_north_east_order,
+            long_urn=use_modern,
         )
 
     def get_prefetch_queryset(
@@ -572,12 +603,14 @@ class DBGML32Renderer(DBGMLRenderingMixin, GML32Renderer):
             return None
 
         # Find which fields are GML elements
+        use_modern = not projection.output_crs.force_xy
         return replace_queryset_geometries(
             queryset,
             feature_relation.geometry_elements,
             projection.output_crs,
             AsGML,
-            is_latlon=projection.output_crs.is_north_east_order,
+            is_latlon=use_modern and projection.output_crs.is_north_east_order,
+            long_urn=use_modern,
         )
 
     def get_db_envelope_as_gml(self, projection: FeatureProjection, queryset) -> AsGML:
@@ -586,10 +619,12 @@ class DBGML32Renderer(DBGMLRenderingMixin, GML32Renderer):
         This also avoids offloads the geometry union calculation to the DB.
         """
         geo_fields_union = self._get_geometries_union(projection, queryset)
+        use_modern = not projection.output_crs.force_xy
         return AsGML(
             geo_fields_union,
             envelope=True,
-            is_latlon=projection.output_crs.is_north_east_order,
+            is_latlon=use_modern and projection.output_crs.is_north_east_order,
+            long_urn=use_modern,
         )
 
     def _get_geometries_union(self, projection: FeatureProjection, queryset):
@@ -620,6 +655,8 @@ class DBGML32Renderer(DBGMLRenderingMixin, GML32Renderer):
             gml = instance._as_envelope_gml
             if gml is None:
                 return
+
+            gml = self._fix_db_crs_name(projection, gml)
         else:
             value = get_db_rendered_geometry(instance, geo_element, AsGML)
             if value is None:
@@ -750,11 +787,13 @@ class DBGML32ValueRenderer(DBGMLRenderingMixin, GML32ValueRenderer):
         if element.type.is_geometry:
             # Add 'gml_member' to point to the pre-rendered GML version.
             geo_element = cast(GeometryXsdElement, element)
+            use_modern = not projection.output_crs.force_xy
             return queryset.values(
                 "pk",
                 gml_member=AsGML(
                     get_db_geometry_target(geo_element, projection.output_crs),
-                    is_latlon=projection.output_crs.is_north_east_order,
+                    is_latlon=use_modern and projection.output_crs.is_north_east_order,
+                    long_urn=use_modern,
                 ),
             )
         else:

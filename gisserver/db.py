@@ -42,16 +42,22 @@ class AsGML(functions.AsGML):
         precision=conf.GISSERVER_DB_PRECISION,
         envelope=False,
         is_latlon=False,
+        long_urn=False,
         **extra,
     ):
         # Note that Django's AsGml the defaults are: version=2, precision=8
         super().__init__(expression, version, precision, **extra)
         self.envelope = envelope
         self.is_latlon = is_latlon
+        self.long_urn = long_urn
 
     def as_postgresql(self, compiler, connection, **extra_context):
         # Fill options parameter (https://postgis.net/docs/ST_AsGML.html)
-        options = 33 if self.envelope else 1  # 32 = bbox, 1 = long CRS urn
+        options = 0
+        if self.long_urn:
+            options |= 1  # long CRS urn
+        if self.envelope:
+            options |= 32  # bbox
         if self.is_latlon:
             # PostGIS provides the data in longitude/latitude format (east/north to look like x/y).
             # However, WFS 2.0 fixed their axis by following the authority. The ST_AsGML() doesn't

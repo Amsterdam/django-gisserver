@@ -185,6 +185,38 @@ FILTERS = [
         </fes:Filter>""",
     ),
     (
+        "bbox_crs84",
+        Url.NORMAL,
+        """
+        <fes:Filter
+            xmlns:wfs="http://www.opengis.net/wfs/2.0"
+            xmlns:fes="http://www.opengis.net/fes/2.0">
+            <fes:BBOX>
+                <gml:Envelope xmlns:gml="http://www.opengis.net/gml/3.2"
+                              srsName="urn:ogc:def:crs:OGC::CRS84">
+                    <gml:lowerCorner>4.908747234134033 52.36308132956971</gml:lowerCorner>
+                    <gml:upperCorner>4.908774657180266 52.36326119473073</gml:upperCorner>
+                </gml:Envelope>
+            </fes:BBOX>
+        </fes:Filter>""",
+    ),
+    (
+        "bbox_epsg_old",
+        Url.NORMAL,
+        """
+        <fes:Filter
+            xmlns:wfs="http://www.opengis.net/wfs/2.0"
+            xmlns:fes="http://www.opengis.net/fes/2.0">
+            <fes:BBOX>
+                <gml:Envelope xmlns:gml="http://www.opengis.net/gml/3.2"
+                              srsName="EPSG:4326">
+                    <gml:lowerCorner>4.908747234134033 52.36308132956971</gml:lowerCorner>
+                    <gml:upperCorner>4.908774657180266 52.36326119473073</gml:upperCorner>
+                </gml:Envelope>
+            </fes:BBOX>
+        </fes:Filter>""",
+    ),
+    (
         "and",
         Url.NORMAL,
         """
