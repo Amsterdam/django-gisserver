@@ -1,3 +1,8 @@
+# 2025-09-10 (2.1.2)
+
+* Stop using CDN for bootstrap stylesheet, instead use a static local file.
+  This in order for the server to work in an airgapped environment (PR#72).
+
 # 2025-06-06 (2.1.1)
 
 * Fixed using legacy longitude/latitude rendering for `EPSG:4326` and `:http://www.opengis.net/gml/srs/epsg.xml#xxxx` SRS names.
@@ -6,7 +11,6 @@
 This increases interoperability with web-based clients and legacy libraries. GeoServer applies the same heuristic.
 Clients that use the official OGC notations such as `urn:ogc:def:crs:EPSG::4326` and `http://www.opengis.net/def/crs/epsg/0/4326`
 are not affected. If needed, this behavior can be disabled using `GISSERVER_FORCE_XY_EPSG_4326=False` and `GISSERVER_FORCE_XY_OLD_CRS=False`.
-
 
 # 2025-05-29 (2.1)
 
@@ -25,7 +29,6 @@ are not affected. If needed, this behavior can be disabled using `GISSERVER_FORC
 * Fixed filter comparisons for `<`, `<=`, `>`, `>=` when using a reversed "value < property" ordering.
 * Fixed crash when receiving WFS 1.0 POST requests.
 * Fixed building readthedocs.
-
 
 # 2025-04-28 (2.0)
 
@@ -96,7 +99,6 @@ the notable API changes are:
   * `XsdElement.is_geometry` was unneeded, use `XsdElement.type.is_geometry` now.
   * `XsdElement.orm_path` points to the absolute path, and `XsdElement.local_orm_path` to the relative path.
 
-
 # 2024-11-25 (1.5.0)
 
 * Added `PROPERTYNAME` support
@@ -130,10 +132,11 @@ the notable API changes are:
 * Django 5 support added.
 
 ## Contributors
+
 We would like to thank the following contributors
 for their work on this release.
 
-   - [tomdtp](https://github.com/tomdtp)
+* [tomdtp](https://github.com/tomdtp)
 
 # 2023-06-08 (1.2.7)
 
@@ -153,24 +156,20 @@ for their work on this release.
 
 * Fixed type assertion when `django.contrib.postgres` was not installed.
 
-
 # 2022-09-07 (1.2.3)
 
 * Added "geojson" as output format alias in `GetCapabilities` for ESRI ArcGIS online.
-
 
 # 2022-07-28 (1.2.2)
 
 * Optimized response writing, buffering provement gave ~12-15% speedup.
 * Optimized GML response, reduced response size by ~9% by removing whitespace.
 
-
 # 2022-04-13 (1.2.1)
 
 * Fixed regression for auto-correcting xmlns for `<Filter>` tags that have leading whitespace.
 * Fixed weird crashes when geometry field is not provided.
 * Simplify `FeatureType.geometry_field` logic.
-
 
 # 2022-04-11 (1.2)
 
@@ -192,7 +191,6 @@ for their work on this release.
 * Various code cleanups.
 * Dropped Python 3.6 support.
 
-
 # 2021-05-17 (1.1.3)
 
 * Included Django 3.2 in test matrix.
@@ -201,13 +199,11 @@ for their work on this release.
 * Updated pre-commit hooks.
 * Drop universal wheel declaration (Python 2 is no longer supported)
 
-
 # 2020-12-22 (1.1.2)
 
 * Fixed double ``>`` sign in ``<Filter xml..>>`` code when namespaces were auto-corrected.
 * Fixed basic ``<Beyond>`` support for distance queries.
 * Fixed parameter name for ``round()`` function.
-
 
 # 2020-08-19 (1.1.1)
 
@@ -215,14 +211,12 @@ for their work on this release.
 * Fixed Django 3.1 compatibility.
 * Improved error message for `<fes:PropertyIsLike>` operator when comparing against a `<fes:ValueReference>` instead of `<fes:Literal>`.
 
-
 # 2020-08-13 (1.1)
 
 * Added browsable HTML views for WFS views, which can be extended/overwritten.
 * Added content-disposition header to export formats, to have a proper filename.
 * Added "abstract" property to field classes to provide a description.
 * Consider `?SERVICE=WFS` as default for `WFSView` views.
-
 
 # 2020-07-21 (1.0)
 
@@ -245,11 +239,9 @@ for their work on this release.
   * Fixed exception message for bad SRID's.
 * Internal code reorganizations.
 
-
 # 2020-07-09 (0.9.1)
 
 * Fixed `GetPropertyValue` calls for non-db optimized rendering.
-
 
 # 2020-07-09 (0.9)
 
@@ -270,7 +262,6 @@ for their work on this release.
 * Optimize feature retrieval, only fetch the actual fields being displayed.
 * Compactified XML output headers.
 
-
 # 2020-07-06 (0.8.4)
 
 * Added field renaming support with `field(..., model_attribute=...)`.
@@ -290,7 +281,6 @@ for their work on this release.
   * Fix exposed WFS capabilities to pass cite WFS Simple conformance
 * Fixed SORTBY parameter to handle renamed fields.
 
-
 # 2020-06-30 (0.8.3)
 
 * Added `GISSERVER_CAPABILITIES_BOUNDING_BOX` setting.
@@ -298,12 +288,10 @@ for their work on this release.
 * Fixed `DescribeFeatureType` to return all types when TYPENAMES is not provided.
 * Advertise `ImplementsMinimumXPath` in `GetCapabilities` for cite testing (other servers also do this while being incomplete).
 
-
 # 2020-06-30 (0.8.2)
 
 * Improve XPath matching support, allow "app:" prefix and root elements.
 * Refactored `FeatureType.resolve_element()` to return an `XPathMatch` object
-
 
 # 2020-06-29 (0.8.1)
 
@@ -314,7 +302,6 @@ for their work on this release.
 * Optimized results streaming by automatically using a queryset-iterator if possible.
 * Optimized GeoJSON output by no longer selecting the other geometry fields.
 * Added shortcut properties to `XsdComplexType`: `gml_elements` and `complex_elements`.
-
 
 # 2020-06-25 (0.8)
 
@@ -337,7 +324,6 @@ for their work on this release.
 * Fixed raising `InvalidParameterValue` for runtime errors in a custom `WFSView.get_feature_types()` implementation.
 * Enforce using keyword-arguments on `FeatureType(...)`
 * Internal code reorganizations/cleanups.
-
 
 # 2020-06-08 (0.7)
 
@@ -410,6 +396,6 @@ for their work on this release.
 * First basic release that works in QGis.
 * Features:
 
- * WFS `GetCapabilities`
- * WFS `DescribeFeatureType`
- * WFS `GetFeature` with bbox and pagination support.
+* WFS `GetCapabilities`
+* WFS `DescribeFeatureType`
+* WFS `GetFeature` with bbox and pagination support.
