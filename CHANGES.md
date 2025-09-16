@@ -1,3 +1,7 @@
+# 2025-09-16 (2.1.3)
+
+* Add missing bootstrap.min.css.map file
+
 # 2025-09-10 (2.1.2)
 
 * Stop using CDN for bootstrap stylesheet, instead use a static local file.
