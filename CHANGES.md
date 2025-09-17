@@ -1,3 +1,7 @@
+# 2025-09-17 (2.1.4)
+
+* Remove reference to bootstrap.min.css.map file
+
 # 2025-09-16 (2.1.3)
 
 * Add missing bootstrap.min.css.map file

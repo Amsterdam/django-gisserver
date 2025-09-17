@@ -24,7 +24,7 @@ copyright = "2020-2025, City of Amsterdam"
 author = "Team Datadiensten > DII > City of Amsterdam"
 
 # The full version, including alpha/beta/rc tags
-release = "2.1.3"
+release = "2.1.4"
 
 
 # -- General configuration ---------------------------------------------------
