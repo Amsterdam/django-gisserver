@@ -33,9 +33,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Django 3.2
-          - django: "3.2"
-            python: "3.9"
           # Django 4.2
           - django: "4.2"
             python: "3.10"
