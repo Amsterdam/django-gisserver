@@ -1,3 +1,7 @@
+# 2025-09-18 (2.2.0)
+
+* Drop support for python 3.9 and Django 3.2
+
 # 2025-09-17 (2.1.4)
 
 * Remove reference to bootstrap.min.css.map file
