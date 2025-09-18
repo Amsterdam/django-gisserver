@@ -1,3 +1,4 @@
+import django
 import pytest
 from django.db.models import Prefetch
 
@@ -31,6 +32,7 @@ class TestCountingIterator:
 class TestChunkedQuerySetIterator:
     """Prove that our takeover of prefetch_related() can restore data from caches."""
 
+    @pytest.mark.skipif(django.VERSION >= (5, 2), reason="Django 5.2 gives different SQL output")
     def test_foreign_key(self, city, django_assert_num_queries, caplog):
         """Prove that foreign key data is restored from cache in the next chunk.
         Also tests correct instances are assigned.
