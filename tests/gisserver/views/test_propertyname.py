@@ -95,6 +95,7 @@ class TestPropertyName:
             "LIMIT 5000"
         )
 
+    @pytest.mark.skipif(django.VERSION >= (5, 2), reason="Django 5.2 gives different SQL output")
     @parametrize_response(
         Get(
             lambda: "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
@@ -296,6 +297,7 @@ class TestPropertyName:
             ],
         }
 
+    @pytest.mark.skipif(django.VERSION >= (5, 2), reason="Django 5.2 gives different SQL output")
     @parametrize_response(
         Get(
             lambda: "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"

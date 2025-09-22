@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Callable, ClassVar
+from typing import Any, ClassVar
 
 import pytest
 from django.test import Client
