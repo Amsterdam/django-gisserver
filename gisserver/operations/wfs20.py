@@ -473,6 +473,14 @@ class GetFeature(BaseWFSGetDataOperation):
 
         return result
 
+    def get_parameters(self) -> list[Parameter]:
+        """Extend Parameters with outputFormat to support ArcGISOnline."""
+        parameters = super().get_parameters()
+
+        return parameters + [
+            Parameter("outputFormat", allowed_values=self.get_output_formats()),
+        ]
+
 
 class GetPropertyValue(BaseWFSGetDataOperation):
     """This returns a limited set of properties of the feature.
