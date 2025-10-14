@@ -1,3 +1,7 @@
+# 2025-10-14 (2.2.1)
+
+* Add outputFormat to GetFeature operation to support ArcGISOnline
+
 # 2025-09-18 (2.2.0)
 
 * Drop support for python 3.9 and Django 3.2
