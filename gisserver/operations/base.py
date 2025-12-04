@@ -97,11 +97,17 @@ class OutputFormat(typing.Generic[R]):
 
     def matches(self, value):
         """Test whether the 'value' is matched by this object."""
-        if self.content_type == "application/gml+xml":
-            # Allow "application/gml+xml; version=3.2" as sent by FME.
-            # TODO rewrite this matching code in a clean way.
-            value = value.split("; ", 1)[0]
-        return self.content_type == value or self.subtype == value
+        regex = (
+            r"^(?P<ct>[^;]+);?\s?(?:(?:subtype=)(?P<st>[^;]*))?;?\s?"
+            r"(?:(?:charset=)(?P<cs>.*))?(;\s)?(?:(?:version=)(?P<v>.*))?"
+        )
+        if match := re.match(regex, value):
+            # If we capture a subtype, match on both
+            if match.group("st") is not None:
+                return self.content_type == match.group("ct") and self.subtype == match.group("st")
+            else:
+                return self.content_type == match.group("ct") or self.subtype == match.group("ct")
+        return False
 
     @property
     def identifier(self):

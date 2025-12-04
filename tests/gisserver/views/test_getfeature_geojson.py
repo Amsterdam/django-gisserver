@@ -20,6 +20,10 @@ class TestGetFeatureGeoJson:
             "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
             "&outputformat=geojson"
         ),
+        Get(
+            "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&TYPENAMES=restaurant"
+            "&outputformat=application/json; subtype=geojson; charset=utf-8"
+        ),
         Post(
             f"""
                 <GetFeature version="2.0.0" outputFormat="geojson" service="WFS" {XML_NS}>
