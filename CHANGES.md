@@ -1,3 +1,7 @@
+# 2025-12-04 (2.2.2)
+
+* Fix output format matching to allow `application/json; subtype=geojson; charset=utf-8`
+
 # 2025-10-14 (2.2.1)
 
 * Add outputFormat to GetFeature operation to support ArcGISOnline
