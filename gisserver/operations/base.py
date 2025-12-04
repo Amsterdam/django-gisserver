@@ -96,7 +96,21 @@ class OutputFormat(typing.Generic[R]):
         self._max_page_size = max_page_size
 
     def matches(self, value):
-        """Test whether the 'value' is matched by this object."""
+        """
+        Test whether the 'value' is matched by this object.
+
+        The regex used captures the content-type (ct), subtype (st), charset (cs) and version (v)
+        from the supplied value.
+
+        Some possible input values are:
+        - application/gml+xml
+        - application/gml+xml; version=3.2
+        - csv
+        - text/csv
+        - application/json; subtype=geojson; charset=utf-8
+        - geojson
+        """
+
         regex = (
             r"^(?P<ct>[^;]+);?\s?(?:(?:subtype=)(?P<st>[^;]*))?;?\s?"
             r"(?:(?:charset=)(?P<cs>.*))?(;\s)?(?:(?:version=)(?P<v>.*))?"
