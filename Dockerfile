@@ -1,4 +1,4 @@
-FROM python:3.13-bookworm
+FROM python:3.14-bookworm
 ARG DEBIAN_FRONTEND=noninteractive
 ENV LANG=C.UTF-8
 
