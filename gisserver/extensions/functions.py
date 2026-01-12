@@ -17,7 +17,6 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Union
 
-import django
 from django.contrib.gis.db.models import functions as gis
 from django.db import models
 from django.db.models import functions
@@ -400,15 +399,14 @@ function_registry.register(
     returns=XsdTypes.gmlAbstractGeometryType,
 )
 
-if django.VERSION >= (4, 2):
-    function_registry.register(
-        "isEmpty",
-        gis.IsEmpty,
-        arguments={
-            "geom": XsdTypes.gmlAbstractGeometryType,
-        },
-        returns=XsdTypes.boolean,
-    )
+function_registry.register(
+    "isEmpty",
+    gis.IsEmpty,
+    arguments={
+        "geom": XsdTypes.gmlAbstractGeometryType,
+    },
+    returns=XsdTypes.boolean,
+)
 
 function_registry.register(
     "isValid",
