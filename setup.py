@@ -41,11 +41,11 @@ setup(
     version=find_version("gisserver", "__init__.py"),
     license="Mozilla Public License 2.0",
     install_requires=[
-        "Django >= 5.2, <6.0",
+        "Django >= 4.2, <6.0",
         "defusedxml >= 0.7.1",
         "lru_dict >= 1.4.1",
         "orjson >= 3.11.5",
-        "pyproj >= 3.7.2",
+        "pyproj >= 3.7.1",
     ],
     extras_require={
         "tests": tests_require,
