@@ -1,3 +1,8 @@
+# 2026-01-12 (2.3.0)
+
+* Add support for python 3.14 and Django 5.2
+* Drop support for Django 5.1
+
 # 2025-12-04 (2.2.2)
 
 * Fix output format matching to allow `application/json; subtype=geojson; charset=utf-8`
