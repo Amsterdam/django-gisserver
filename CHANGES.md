@@ -1,3 +1,7 @@
+# 2026-02-04 (2.3.1)
+
+* Add workflow for automated release.
+
 # 2026-01-12 (2.3.0)
 
 * Add support for python 3.14 and Django 5.2
