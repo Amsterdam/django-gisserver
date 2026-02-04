@@ -53,13 +53,3 @@ compilemessages:  ## Compile the .po files into .mo files.
 
 format:           ## Fix code formatting using pre-commit hooks
 	pre-commit run -a
-
-##
-## Release packaging:
-##
-
-dist: clean       ## Generate the sdist/wheel (can be uploaded with twine)
-	python -m build
-
-clean:            ## Remove build artifacts
-	rm -rf build/ dist/ *.egg-info/
