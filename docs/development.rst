@@ -124,3 +124,18 @@ Coordinate systems, and axis orientation:
 * https://mapserver.org/ogc/wfs_server.html#axis-orientation-in-wfs-1-1-and-2-0 (mapserver WFS part)
 * https://docs.geoserver.org/stable/en/user/services/wms/basics.html#axis-ordering (geoserver WMS part)
 * https://docs.geoserver.org/stable/en/user/services/wfs/axis_order.html (geoserver WFS part)
+
+Releasing
+---------
+
+We use GitHub pull requests. If your PR should produce a new release of
+schema-tools, make sure one of the commit increments the version number in
+``gisserver/__init__.py`` appropriately. Also add an entry to ``CHANGES.md``.
+Then,
+
+* Merge the commit in GitHub, after approval.
+* Checkout the latest master branch,
+  ``git fetch && git checkout origin/master``.
+* Tag the release X.Y.Z with ``git tag -a vX.Y.Z -m "Bump to vX.Y.Z"``.
+* Push the tag to GitHub with ``git push origin --tags``.
+* The publish-to-pypi workflow will automatically publish the release.
