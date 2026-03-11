@@ -1,3 +1,7 @@
+# 2026-02-04 (2.3.2)
+
+* Fix bug in applying CRS.
+
 # 2026-02-04 (2.3.1)
 
 * Add workflow for automated release.
