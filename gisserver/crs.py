@@ -408,9 +408,11 @@ class CRS:
             transform = _get_coord_transform(source, target)
 
             # Transform
-            geometry = geometry.transform(transform, clone=clone)
             if clone:
+                geometry = geometry.transform(transform, clone=True)
                 self.tag_geometry(geometry, axis_order=axis_order)
+            else:
+                geometry.transform(transform)
             return geometry
 
     @classmethod

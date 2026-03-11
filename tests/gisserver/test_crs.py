@@ -99,6 +99,16 @@ class TestCRS:
         assert legacy_crs.srid == modern_crs.srid
         assert legacy_crs.urn == modern_crs.urn == "urn:ogc:def:crs:EPSG::4326"
 
+    def test_crs_apply_to_is_idempotent(self):
+        rd_point = Point(121400, 487400, srid=28992)
+        WGS84.apply_to(rd_point, axis_order=AxisOrder.TRADITIONAL)
+        assert rd_point.srid == WGS84.srid
+        assert rd_point.x == pytest.approx(4.893, rel=0.001)
+        assert rd_point.y == pytest.approx(52.373, rel=0.001)
+        # Applying again should not fail:
+        WGS84.apply_to(rd_point, axis_order=AxisOrder.TRADITIONAL)
+        assert rd_point.srid == WGS84.srid
+
     def test_axis_order_custom(self):
         """Prove that custom axis ordering is applied."""
         rd_point = Point(121400, 487400, srid=28992)
