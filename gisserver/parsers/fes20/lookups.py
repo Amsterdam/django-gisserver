@@ -26,7 +26,7 @@ class FesLike(lookups.Lookup):
         # lhs_params = ["prep-value"]
         lhs, lhs_params = self.process_lhs(compiler, connection)
         rhs, rhs_params = self.process_rhs(compiler, connection)
-        return f"{lhs} LIKE {rhs}", lhs_params + rhs_params
+        return f"{lhs} LIKE {rhs}", (*lhs_params, *rhs_params)
 
     def get_db_prep_lookup(self, value, connection):
         """This expects that the right-hand-side already has wildcard characters."""
@@ -44,7 +44,7 @@ class FesNotEqual(lookups.Lookup):
         """Generate the required SQL."""
         lhs, lhs_params = self.process_lhs(compiler, connection)  # = (table.field, %s)
         rhs, rhs_params = self.process_rhs(compiler, connection)  # = ("prep-value", [])
-        return f"{lhs} != {rhs}", (lhs_params + rhs_params)
+        return f"{lhs} != {rhs}", (*lhs_params, *rhs_params)
 
 
 @BaseSpatialField.register_lookup
@@ -128,7 +128,7 @@ else:
             """Generate the required SQL."""
             lhs, lhs_params = self.process_lhs(compiler, connection)
             rhs, rhs_params = self.process_rhs(compiler, connection)
-            return f"{rhs} != ANY({lhs})", (rhs_params + lhs_params)
+            return f"{rhs} != ANY({lhs})", (*rhs_params, *lhs_params)
 
     @ArrayField.register_lookup
     class FesArrayLike(FesLike):
@@ -142,5 +142,5 @@ else:
             rhs, rhs_params = self.process_rhs(compiler, connection)  # = ("prep-value", [])
             return (
                 f"EXISTS(SELECT 1 FROM unnest({lhs}) AS item WHERE item LIKE {rhs})",  # noqa: S608
-                (lhs_params + rhs_params),
+                (*lhs_params, *rhs_params),
             )

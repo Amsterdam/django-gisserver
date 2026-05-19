@@ -1,3 +1,7 @@
+# 2026-05-19 (2.4.0)
+
+* Support for Django 6.0.
+
 # 2026-02-04 (2.3.1)
 
 * Add workflow for automated release.

@@ -51,6 +51,13 @@ jobs:
             python: "3.13"
           - django: "5.2"
             python: "3.14"
+          # Django 6.0
+          - django: "6.0"
+            python: "3.12"
+          - django: "6.0"
+            python: "3.13"
+          - django: "6.0"
+            python: "3.14"
 
     steps:
       - name: Install GeoDjango dependencies
