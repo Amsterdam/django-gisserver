@@ -433,6 +433,54 @@ class ComplexFeatureField(FeatureField):
             return self.model_field.related_model
 
 
+class RelatedGeometryFeatureField(FeatureField):
+    """Bind a related geometry through its full path, but expose a local field name.
+
+    django-gisserver needs the full relation path (e.g. betreft_bag_pand.geometrie) during binding
+    so it can resolve the actual ``GeometryField`` on the related model. After binding,
+    the field should still appear in the WFS schema and output under its short, local name (e.g. geometrie).
+    """
+
+    def __init__(
+        self,
+        *args,
+        absolute_model_attribute: str,
+        relative_model_attribute: str,
+        **kwargs,
+    ):
+        """Store both the full relation path and the local geometry field name."""
+        self._absolute_model_attribute = absolute_model_attribute
+        super().__init__(*args, model_attribute=relative_model_attribute, **kwargs)
+
+    def bind(
+        self,
+        model: type[models.Model],
+        parent: ComplexFeatureField | None = None,
+        feature_type: FeatureType | None = None,
+    ):
+        """Resolve the real related ``GeometryField`` during binding.
+
+        The field is normally exposed under a short local name such as
+        ``geometrie``. For binding, django-gisserver must temporarily see the
+        full relation path, for example ``betreft_bag_pand.geometrie``, so it
+        can resolve the actual field definition on the related model.
+        """
+        local_model_attribute = self.model_attribute
+        try:
+            # Temporarily expose the full relation path so FeatureField.bind()
+            # resolves the actual GeometryField on the related model.
+            self.model_attribute = self._absolute_model_attribute
+            super().bind(model, parent=parent, feature_type=feature_type)
+        finally:
+            # Restore the public/local field name for schema generation and output.
+            self.model_attribute = local_model_attribute
+
+    @cached_property
+    def absolute_model_attribute(self) -> str:
+        """Return the full dotted ORM path to the related geometry field."""
+        return self._absolute_model_attribute
+
+
 def field(
     name: str,
     *,
