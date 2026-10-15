@@ -1,7 +1,8 @@
 import django
 import pytest
+from django.core.exceptions import ImproperlyConfigured
 
-from gisserver.features import FeatureField, FeatureType
+from gisserver.features import FeatureField, FeatureType, RelatedGeometryFeatureField
 from gisserver.output import XmlSchemaRenderer
 from gisserver.types import GeometryXsdElement, XsdElement, XsdTypes
 from tests.test_gisserver import models
@@ -48,6 +49,56 @@ class TestFeatureField:
         assert element_xml == xml
         assert ff.xsd_element.type == xsd_type
         assert isinstance(ff.xsd_element, cls_type)
+
+    def test_related_geometry_bind(self):
+        """
+        Test that RelatedGeometryFeatureField binds using the absolute dotted path
+        and restores the relative model_attribute afterwards.
+        """
+        ft = FeatureType(models.RestaurantReview.objects.none(), xml_namespace=None)
+        ff = RelatedGeometryFeatureField(
+            "location",
+            absolute_model_attribute="restaurant.location",
+            relative_model_attribute="location",
+            model=models.RestaurantReview,
+            feature_type=ft,
+        )
+
+        assert ff.model is models.RestaurantReview
+        assert ff.model_field == models.Restaurant._meta.get_field("location")
+        assert ff.absolute_model_attribute == "restaurant.location"
+        assert ff.model_attribute == "location"
+
+        # Also test xsd values
+        assert ff.xsd_element.model_attribute == "location"
+        assert ff.xsd_element.absolute_model_attribute == "restaurant.location"
+
+    def test_related_geometry_bind_error(self):
+        """Test if the the relatiev model name is restored when binding fails."""
+        ff = RelatedGeometryFeatureField(
+            "location",
+            absolute_model_attribute="restaurant.wrong",
+            relative_model_attribute="location",
+        )
+
+        with pytest.raises(ImproperlyConfigured):
+            ff.bind(models.RestaurantReview)
+
+        assert ff.model_attribute == "location"
+
+    def test_related_geometry_late_bind(self):
+        """Support binding after construction."""
+        ft = FeatureType(models.RestaurantReview.objects.none(), xml_namespace=None)
+        ff = RelatedGeometryFeatureField(
+            "location",
+            absolute_model_attribute="restaurant.location",
+            relative_model_attribute="location",
+        )
+
+        ff.bind(models.RestaurantReview, feature_type=ft)
+
+        assert ff.model_field == models.Restaurant._meta.get_field("location")
+        assert ff.model_attribute == "location"
 
 
 @pytest.mark.skipif(

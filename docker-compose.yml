@@ -1,11 +1,11 @@
 services:
   database:
-    image: postgis/postgis:14-3.5
+    image: postgis/postgis:17-3.5
     restart: always
     user: postgres
     shm_size: 128mb
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -d $${POSTGRES_DB} -U $${POSTGRES_USER}"]
+      test: [ "CMD-SHELL", "pg_isready -h 127.0.0.1 -d $${POSTGRES_DB} -U $${POSTGRES_USER}" ]
       interval: 5s
       timeout: 60s
       retries: 10
@@ -16,7 +16,7 @@ services:
       POSTGRES_DB: gisserver_example
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: insecure
-    command: ["postgres", "-c", "log_statement=all"]
+    command: [ "postgres", "-c", "log_statement=all" ]
 
   web:
     build:
@@ -31,7 +31,7 @@ services:
     environment:
       DATABASE_URL: "${DATABASE_URL:-postgresql://postgres:insecure@database/gisserver_example}"
       GISSERVER_WFS_STRICT_STANDARD: "${GISSERVER_WFS_STRICT_STANDARD:-false}"
-      SQL_DEBUG: false  # as database container also logs these
+      SQL_DEBUG: false # as database container also logs these
     volumes:
       - .:/code/
     working_dir: /code/example/
