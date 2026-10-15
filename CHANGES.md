@@ -1,3 +1,7 @@
+# 2026-10-20 (2.5.1)
+
+* Use uv, ruff and ty
+
 # 2026-05-19 (2.5.0)
 
 * Add RelatedGeometryFeatureField class to resolve related geometry relations

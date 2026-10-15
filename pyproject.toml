@@ -1,3 +1,75 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "django-gisserver"
+description = "Django speaking WFS 2.0 (exposing GeoDjango model fields)"
+readme = "README.md"
+license = "MPL-2.0"
+authors = [
+    { name = "Diederik van der Boor", email = "opensource@edoburu.nl" },
+]
+requires-python = ">=3.10"
+dynamic = ["version"]
+dependencies = [
+    "Django >= 4.2",
+    "defusedxml >= 0.7.1",
+    "lru_dict >= 1.4.1",
+    "orjson >= 3.11.5",
+    "pyproj >= 3.7.1",
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: Web Environment",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Framework :: Django",
+    "Framework :: Django :: 4.2",
+    "Framework :: Django :: 5.2",
+    "Topic :: Internet :: WWW/HTTP",
+    "Topic :: Internet :: WWW/HTTP :: Dynamic Content",
+    "Topic :: Software Development :: Libraries :: Application Frameworks",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+
+[project.urls]
+Homepage = "https://github.com/amsterdam/django-gisserver"
+Repository = "https://github.com/amsterdam/django-gisserver"
+
+[project.optional-dependencies]
+tests = [
+    "django-environ >= 0.12.0",
+    "psycopg2-binary >= 2.9.11",
+    "lxml >= 6.0.2",
+    "pytest >= 9.0.2",
+    "pytest-django >= 4.11.1",
+    "pytest-cov >= 7.0.0",
+]
+docs = [
+    "Django ~= 5.2",
+    "sphinxcontrib-django >= 2.5",
+    "myst-parser >= 4.0.1",
+    "psycopg2-binary >= 2.9.11",
+]
+
+[tool.setuptools]
+include-package-data = true
+zip-safe = false
+
+[tool.setuptools.dynamic]
+version = { attr = "gisserver.__version__" }
+
+[tool.setuptools.packages.find]
+include = ["gisserver*"]
+exclude = ["tests*", "example*"]
+
 # ==== pytest ====
 [tool.pytest.ini_options]
 xfail_strict = true
@@ -95,3 +167,9 @@ max-complexity = 10
 "**/migrations/*.py" = ["E501"]  # line too long
 "docs/_ext/djangodummy/settings.py" = ["S105"]  # allow hardcoded SECRET_KEY
 "tests/**/*.py" = ["S101", "S105", "S106", "S314", "S320", "S608"]  # allow asserts, hardcoded passwords, lxml parsing, SQL variables
+
+[tool.ty.rules]
+all = "warn"
+
+[tool.ty.terminal]
+error-on-warning = false

@@ -1,6 +1,8 @@
-.PHONY: help install test retest coverage dist docs format
+.PHONY: help install test retest coverage dist docs format typecheck
 
 ROOT_DIR := $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
+TEST_DATABASE_URL ?= postgresql://postgres:insecure@localhost:15432/gisserver_example
+DOCKER_TEST_DATABASE_URL ?= postgresql://postgres:insecure@host.docker.internal:15432/gisserver_example
 
 help:
 	@grep -F -h "##" $(MAKEFILE_LIST) | fgrep -v fgrep | perl -pe 's/^([\w\-]+):(.+?)##/"  $$1:" . " " x (20 - length($$1))/e' | perl -pe 's/^## ?//'
@@ -11,17 +13,17 @@ help:
 ##
 
 install:       ## Install the package into the current virtualenv
-	pip install --require-virtualenv -e .[tests]
-	pip install --require-virtualenv pre-commit
-	pre-commit install
+	uv venv --clear
+	uv sync --extra tests
+	uv run pre-commit install
 
 ##
 ## Running tests:
 ##
 
 test:          ## Run the tests
-	PYTHONPATH=. GISSERVER_USE_DB_RENDERING=1 pytest -vs
-	PYTHONPATH=. GISSERVER_USE_DB_RENDERING=0 pytest -vs
+	DATABASE_URL=$(TEST_DATABASE_URL) GISSERVER_USE_DB_RENDERING=1 uv run pytest -vs
+	DATABASE_URL=$(TEST_DATABASE_URL) GISSERVER_USE_DB_RENDERING=0 uv run pytest -vs
 
 ogctest:       ## Start the OGC teamserver
 	@echo "* Start the example app"
@@ -32,14 +34,14 @@ ogctest:       ## Start the OGC teamserver
 
 docker-test:   ## Run the tests in docker against Linux GIS library versions
 	docker build . -t django-gisserver
-	docker run -v $(ROOT_DIR):/host/ -e PYTHONPATH=. -e GISSERVER_USE_DB_RENDERING=1 --rm -it django-gisserver pytest -vvs
-	docker run -v $(ROOT_DIR):/host/ -e PYTHONPATH=. -e GISSERVER_USE_DB_RENDERING=0 --rm -it django-gisserver pytest -vvs
+	docker run --add-host=host.docker.internal:host-gateway -v $(ROOT_DIR):/host/ -e PYTHONPATH=. -e DATABASE_URL=$(DOCKER_TEST_DATABASE_URL) -e GISSERVER_USE_DB_RENDERING=1 -e UV_PROJECT_ENVIRONMENT=/tmp/django-gisserver-venv --rm -it django-gisserver uv run pytest -vvs
+	docker run --add-host=host.docker.internal:host-gateway -v $(ROOT_DIR):/host/ -e PYTHONPATH=. -e DATABASE_URL=$(DOCKER_TEST_DATABASE_URL) -e GISSERVER_USE_DB_RENDERING=0 -e UV_PROJECT_ENVIRONMENT=/tmp/django-gisserver-venv --rm -it django-gisserver uv run pytest -vvs
 
 retest:        ## Rerun the last failed tests.
-	PYTHONPATH=. pytest -vs --lf
+	DATABASE_URL=$(TEST_DATABASE_URL) uv run pytest -vs --lf
 
 coverage:      ## Run the tests with coverage.
-	PYTHONPATH=. pytest --cov=gisserver --cov-report=term-missing --cov-report=html
+	DATABASE_URL=$(TEST_DATABASE_URL) uv run pytest --cov=gisserver --cov-report=term-missing --cov-report=html
 
 ##
 ## Developer tools
@@ -52,4 +54,4 @@ compilemessages:  ## Compile the .po files into .mo files.
 	PYTHONPATH=. django-admin compilemessages --settings=tests.settings
 
 format:           ## Fix code formatting using pre-commit hooks
-	pre-commit run -a
+	uv run pre-commit run -a
