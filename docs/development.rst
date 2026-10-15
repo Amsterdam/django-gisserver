@@ -7,6 +7,22 @@ The :file:`Makefile` gives you all you need to start working on the project.
 Typing ``make`` gives an overview of all possible shortcut commands.
 
 
+Installing
+----------
+To use the :file:`Makefile`, install `uv`:
+
+```
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+Then run:
+```
+make install
+```
+
+to install the django-gisserver package and its dependencies. Then the other `make` commands can be used.
+
+
 Running tests
 -------------
 
@@ -129,7 +145,7 @@ Releasing
 ---------
 
 We use GitHub pull requests. If your PR should produce a new release of
-schema-tools, make sure one of the commit increments the version number in
+django-gisserver, make sure one of the commit increments the version number in
 ``gisserver/__init__.py`` appropriately. Also add an entry to ``CHANGES.md``.
 Then,
 
