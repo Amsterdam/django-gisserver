@@ -1,3 +1,7 @@
+# 2026-05-19 (2.5.0)
+
+* Add RelatedGeometryFeatureField class to resolve related geometry relations
+
 # 2026-05-19 (2.4.0)
 
 * Support for Django 6.0.
