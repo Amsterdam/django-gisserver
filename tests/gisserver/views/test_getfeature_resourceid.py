@@ -15,8 +15,7 @@ class TestGetFeature:
 
     @parametrize_response(
         Get(
-            lambda id: "?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0"
-            f"&RESOURCEID=restaurant.{id}"
+            lambda id: f"?SERVICE=WFS&REQUEST=GetFeature&VERSION=2.0.0&RESOURCEID=restaurant.{id}"
         ),
         Post(
             lambda id: f"""<GetFeature service="WFS" version="2.0.0" {XML_NS}>
