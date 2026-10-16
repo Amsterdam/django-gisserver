@@ -293,8 +293,7 @@ class CRS:
             and (
                 # Also, legacy notations like EPSG:4326 are treated differently,
                 # unless this is configured to not make a difference.
-                not compare_legacy
-                or self.force_xy == other.force_xy
+                not compare_legacy or self.force_xy == other.force_xy
             )
         )
 

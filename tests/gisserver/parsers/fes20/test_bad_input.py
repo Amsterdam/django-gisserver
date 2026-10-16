@@ -33,8 +33,7 @@ def test_invalid_root():
         Filter.from_string("<FilterTest></FilterTest>")
 
     assert str(e.value) == (
-        "Filter parser expects an <{http://www.opengis.net/fes/2.0}Filter> node,"
-        " got <FilterTest>"
+        "Filter parser expects an <{http://www.opengis.net/fes/2.0}Filter> node, got <FilterTest>"
     )
 
 
