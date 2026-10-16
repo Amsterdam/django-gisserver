@@ -114,7 +114,7 @@ def fix_type_name(type_name: str, feature_namespace: str):
         # When the XML POST request used xmlns="http://www.opengis.net/wfs/2.0",
         # this will define a default namespace that all QName values resolve to.
         # As this is not detectable at the moment of parsing, correct it here.
-        alt_type_name = f"{{{feature_namespace}}}{type_name[type_name.index('}')+1:]}"
+        alt_type_name = f"{{{feature_namespace}}}{type_name[type_name.index('}') + 1 :]}"
         logger.debug("Corrected namespaced '%s' to '%s'", type_name, alt_type_name)
     elif type_name[0] != "{":
         # Typically happens in GET requests, or when no namespace prefix is used in XML POST
