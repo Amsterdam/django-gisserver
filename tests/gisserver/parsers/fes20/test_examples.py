@@ -637,9 +637,9 @@ def test_fes20_c5_example10():
 
     # Test SQL generating
     query = compile_query(result)
-    assert query == CompiledQuery(
-        query.feature_types, lookups=[Q(LAST_NAME__fes_like="JOHN%")]
-    ), repr(query)
+    assert query == CompiledQuery(query.feature_types, lookups=[Q(LAST_NAME__fes_like="JOHN%")]), (
+        repr(query)
+    )
 
 
 def test_fes20_c5_example11():

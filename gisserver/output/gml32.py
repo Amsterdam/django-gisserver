@@ -449,9 +449,7 @@ class GML32Renderer(CollectionOutputRenderer, XmlOutputRenderer):
         coords = " ".join(map(str, value.coords))
         dim = 3 if value.hasz else 2
         return (
-            f"<gml:Point{base_attrs}>"
-            f'<gml:pos srsDimension="{dim}">{coords}</gml:pos>'
-            f"</gml:Point>"
+            f'<gml:Point{base_attrs}><gml:pos srsDimension="{dim}">{coords}</gml:pos></gml:Point>'
         )
 
     @register_geos_type(geos.Polygon)
@@ -524,7 +522,6 @@ class GML32Renderer(CollectionOutputRenderer, XmlOutputRenderer):
 
 
 class DBGMLRenderingMixin:
-
     def render_gml_value(self, projection, gml_id, value: str, extra_xmlns=""):
         """DB optimized: 'value' is pre-rendered GML XML string."""
         # Write the gml:id inside the first tag
