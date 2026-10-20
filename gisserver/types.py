@@ -364,8 +364,7 @@ class XsdNode:
 
     def __repr__(self):
         return (
-            f"<{self.__class__.__name__}: {self.xml_name}"
-            f", model_attribute={self.model_attribute}>"
+            f"<{self.__class__.__name__}: {self.xml_name}, model_attribute={self.model_attribute}>"
         )
 
     @staticmethod
