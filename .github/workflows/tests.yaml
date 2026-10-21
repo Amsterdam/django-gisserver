@@ -33,16 +33,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Django 4.2
-          - django: "4.2"
-            python: "3.10"
-          - django: "4.2"
-            python: "3.11"
-          - django: "4.2"
-            python: "3.12"
           # Django 5.2
-          - django: "5.2"
-            python: "3.10"
           - django: "5.2"
             python: "3.11"
           - django: "5.2"
@@ -60,23 +51,17 @@ jobs:
             python: "3.14"
 
     steps:
-      - name: Install GeoDjango dependencies
-        run: sudo apt-get update && sudo apt-get install -y gettext libgdal34t64
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v4
-
-      - name: Install Python ${{ matrix.python }}
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python }}
-
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Install GeoDjango dependencies
+        run: sudo apt-get update && sudo apt-get install -y gettext libgdal34t64
+
       - name: Install Python Packages
-        run: |
-          uv pip install --system "Django==${{ matrix.django }}.*" codecov -e .[tests]
+        run: uv sync --locked --group tests --python ${{ matrix.python }}
 
       - name: Cache schemas.opengis.net
         uses: actions/cache@v4
@@ -87,9 +72,8 @@ jobs:
       - name: Run Tests
         run: |
           echo "Python ${{ matrix.python }} / Django ${{ matrix.django }}"
-          PYTHONPATH=. GISSERVER_USE_DB_RENDERING=1 uv run coverage run --rcfile=.coveragerc -m pytest
-          PYTHONPATH=. GISSERVER_USE_DB_RENDERING=0 uv run coverage run --rcfile=.coveragerc --append -m pytest
-          uv run codecov
+          GISSERVER_USE_DB_RENDERING=1 uv run --locked --group tests --python ${{ matrix.python }} --with "Django==${{ matrix.django }}.*" pytest
+          GISSERVER_USE_DB_RENDERING=0 uv run --locked --group tests --python ${{ matrix.python }} --with "Django==${{ matrix.django }}.*" pytest
         env:
           PGUSER: postgres
           PGPASSWORD: password

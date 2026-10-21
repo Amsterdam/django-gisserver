@@ -1,101 +1,102 @@
-[build-system]
-requires = ["setuptools>=69", "wheel"]
-build-backend = "setuptools.build_meta"
-
 [project]
 name = "django-gisserver"
+version = "2.6.0"
 description = "Django speaking WFS 2.0 (exposing GeoDjango model fields)"
 readme = "README.md"
 license = "MPL-2.0"
 authors = [
-    { name = "Diederik van der Boor", email = "opensource@edoburu.nl" },
+    { name = "Team Data Diensten, van het Dataplatform onder de Directie Digitale Voorzieningen (Gemeente Amsterdam)", email = "datapunt@amsterdam.nl" },
 ]
-requires-python = ">=3.10"
-dynamic = ["version"]
-dependencies = [
-    "Django >= 4.2",
-    "defusedxml >= 0.7.1",
-    "lru_dict >= 1.4.1",
-    "orjson >= 3.11.5",
-    "pyproj >= 3.7.1",
-]
+requires-python = ">=3.11"
+
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Environment :: Web Environment",
     "Intended Audience :: Developers",
     "Operating System :: OS Independent",
     "Programming Language :: Python",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
     "Framework :: Django",
-    "Framework :: Django :: 4.2",
     "Framework :: Django :: 5.2",
+    "Framework :: Django :: 6.0",
     "Topic :: Internet :: WWW/HTTP",
     "Topic :: Internet :: WWW/HTTP :: Dynamic Content",
     "Topic :: Software Development :: Libraries :: Application Frameworks",
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 
-[project.urls]
-Homepage = "https://github.com/amsterdam/django-gisserver"
-Repository = "https://github.com/amsterdam/django-gisserver"
+dependencies = [
+    "Django >= 5.2",
+    "defusedxml >= 0.7.1",
+    "lru_dict >= 1.4.1",
+    "orjson >= 3.11.5",
+    "pyproj >= 3.7.1",
+]
 
-[project.optional-dependencies]
+[dependency-groups]
 tests = [
-    "django-environ >= 0.12.0",
+    "django-environ >= 0.14.0",
+    "django-coverage-plugin >= 3.2.2",
     "psycopg2-binary >= 2.9.11",
     "lxml >= 6.0.2",
-    "pytest >= 9.0.2",
-    "pytest-django >= 4.11.1",
-    "pytest-cov >= 7.0.0",
+    "pytest >= 9.1.1",
+    "pytest-django >= 4.14.0",
+    "pytest-cov >= 7.1.0",
+    "ruff==0.16.10",
+    "ty==0.0.84",
+    "codecov==2.1.13",
 ]
 docs = [
-    "Django ~= 5.2",
+    "Django >= 5.2",
     "sphinxcontrib-django >= 2.5",
     "myst-parser >= 4.0.1",
     "psycopg2-binary >= 2.9.11",
 ]
 
-[tool.setuptools]
-include-package-data = true
-zip-safe = false
+[project.urls]
+Homepage = "https://github.com/amsterdam/django-gisserver"
+Repository = "https://github.com/amsterdam/django-gisserver"
 
-[tool.setuptools.dynamic]
-version = { attr = "gisserver.__version__" }
+[build-system]
+requires = ["uv_build>=0.11.21,<0.14.0"]
+build-backend = "uv_build"
 
-[tool.setuptools.packages.find]
-include = ["gisserver*"]
-exclude = ["tests*", "example*"]
+[tool.uv.build-backend]
+module-name = "gisserver"
+module-root = ""
 
 # ==== pytest ====
 [tool.pytest.ini_options]
-xfail_strict = true
-minversion = "6.0"
+minversion = "9.0"
 django_find_project = false
-pythonpath = "."
+pythonpath = "./"
 testpaths = ["tests"]
 addopts = [
+    "--doctest-modules",
     "--nomigrations",
     "--reuse-db",
+    "--cov=gisserver",
+    "--cov-fail-under=80",
     "--ds=tests.settings",
-    "--strict-markers"
+]
+norecursedirs = ["node_modules", ".tox", ".git", "dist", "build", "venv", ".venv"]
+filterwarnings = [
+    "once::DeprecationWarning",
+    "once::PendingDeprecationWarning",
+    "ignore:Model '.*' was already registered. Reloading models is not advised.*:RuntimeWarning",
+    'ignore:DateTimeField .* received a naive datetime .* while time zone support is active\.:RuntimeWarning:django\.db\.models\.fields',
 ]
 
 # ==== Coverage ====
 [tool.coverage.run]
 branch = true
 source = ["gisserver"]
-omit = ["*/migrations/*.py", "*/test*.py", "*/tests/*"]
+omit = ["*/migrations/*.py", "*/test*.py"]
+relative_files = true
 plugins = ["django_coverage_plugin"]
-
-
-# ==== black ====
-[tool.black]
-line-length = 99
-target-version = ["py39"]
 
 # ==== ruff ====
 [tool.ruff]

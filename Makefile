@@ -1,8 +1,8 @@
 .PHONY: help install test retest coverage dist docs format typecheck
 
 ROOT_DIR := $(shell dirname $(realpath $(firstword $(MAKEFILE_LIST))))
-TEST_DATABASE_URL ?= postgresql://postgres:insecure@localhost:15432/gisserver_example
-DOCKER_TEST_DATABASE_URL ?= postgresql://postgres:insecure@host.docker.internal:15432/gisserver_example
+TEST_DATABASE_URL = postgresql://postgres:insecure@localhost:15432/gisserver_example
+DOCKER_TEST_DATABASE_URL = postgresql://postgres:insecure@host.docker.internal:15432/gisserver_example
 
 help:
 	@grep -F -h "##" $(MAKEFILE_LIST) | fgrep -v fgrep | perl -pe 's/^([\w\-]+):(.+?)##/"  $$1:" . " " x (20 - length($$1))/e' | perl -pe 's/^## ?//'
@@ -12,9 +12,12 @@ help:
 ## Developer install:
 ##
 
-install:       ## Install the package into the current virtualenv
-	uv venv --clear
-	uv sync --extra tests
+install:       ## Install the package
+	if ! command -v uv >/dev/null 2>&1; \
+	then echo "uv not found, installing..." \
+	&& curl -LsSf https://astral.sh/uv/install.sh | sh; \
+	fi
+	uv sync --all-extras --group tests
 	uv run pre-commit install
 
 ##
@@ -22,8 +25,8 @@ install:       ## Install the package into the current virtualenv
 ##
 
 test:          ## Run the tests
-	DATABASE_URL=$(TEST_DATABASE_URL) GISSERVER_USE_DB_RENDERING=1 uv run pytest -vs
-	DATABASE_URL=$(TEST_DATABASE_URL) GISSERVER_USE_DB_RENDERING=0 uv run pytest -vs
+	DATABASE_URL=$(TEST_DATABASE_URL) GISSERVER_USE_DB_RENDERING=1 uv run pytest -v
+	DATABASE_URL=$(TEST_DATABASE_URL) GISSERVER_USE_DB_RENDERING=0 uv run pytest -v
 
 ogctest:       ## Start the OGC teamserver
 	@echo "* Start the example app"
