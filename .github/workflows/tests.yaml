@@ -33,16 +33,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Django 4.2
-          - django: "4.2"
-            python: "3.10"
-          - django: "4.2"
-            python: "3.11"
-          - django: "4.2"
-            python: "3.12"
           # Django 5.2
-          - django: "5.2"
-            python: "3.10"
           - django: "5.2"
             python: "3.11"
           - django: "5.2"
@@ -76,7 +67,8 @@ jobs:
 
       - name: Install Python Packages
         run: |
-          uv pip install --system "Django==${{ matrix.django }}.*" codecov -e .[tests]
+          uv sync --group tests
+          uv add "Django==${{ matrix.django }}.*
 
       - name: Cache schemas.opengis.net
         uses: actions/cache@v4
@@ -87,8 +79,8 @@ jobs:
       - name: Run Tests
         run: |
           echo "Python ${{ matrix.python }} / Django ${{ matrix.django }}"
-          PYTHONPATH=. GISSERVER_USE_DB_RENDERING=1 uv run coverage run --rcfile=.coveragerc -m pytest
-          PYTHONPATH=. GISSERVER_USE_DB_RENDERING=0 uv run coverage run --rcfile=.coveragerc --append -m pytest
+          GISSERVER_USE_DB_RENDERING=1 uv run coverage run --rcfile=.coveragerc -m pytest
+          GISSERVER_USE_DB_RENDERING=0 uv run coverage run --rcfile=.coveragerc --append -m pytest
           uv run codecov
         env:
           PGUSER: postgres

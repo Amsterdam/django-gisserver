@@ -1,5 +1,4 @@
-FROM python:3.14-bookworm
-COPY --from=ghcr.io/astral-sh/uv /uv /uvx /usr/local/bin/
+FROM ghcr.io/astral-sh/uv:python3.14-trixie
 
 ARG DEBIAN_FRONTEND=noninteractive
 ENV LANG=C.UTF-8
@@ -7,7 +6,7 @@ ENV LANG=C.UTF-8
 # Install system packages for GeoDjango and our dependencies
 RUN apt-get update \
       && apt-get install -y --no-install-recommends \
-      libgdal32 \
+      libgdal36 \
       libproj25 \
       libpq-dev \
       cargo \
@@ -19,8 +18,7 @@ RUN apt-get update \
 WORKDIR /host/
 COPY pyproject.toml README.md ./
 RUN mkdir gisserver \
-      && echo '__version__ = "0.1.dev0"' > gisserver/__init__.py \
-      && uv pip install --system --no-cache-dir ".[tests]" \
+      && uv sync --group tests \
       && curl -o /tmp/provinces.geojson 'https://cartomap.github.io/nl/wgs84/provincie_2025.geojson'
 
 # Install app, allow to be overwritten with a volume.
