@@ -1,4 +1,0 @@
-[run]
-source = gisserver
-omit =
-    */migrations/*
