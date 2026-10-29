@@ -46,7 +46,7 @@ tests = [
     "pytest-django >= 4.14.0",
     "pytest-cov >= 7.1.0",
     "ruff==0.16.10",
-    "ty==0.0.84",
+    "ty==0.0.92",
     "codecov==2.1.13",
 ]
 docs = [
