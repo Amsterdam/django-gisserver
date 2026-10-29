@@ -72,8 +72,8 @@ jobs:
       - name: Run Tests
         run: |
           echo "Python ${{ matrix.python }} / Django ${{ matrix.django }}"
-          GISSERVER_USE_DB_RENDERING=1 uv run --locked --group tests --python ${{ matrix.python }} --with "Django==${{ matrix.django }}.*" pytest
-          GISSERVER_USE_DB_RENDERING=0 uv run --locked --group tests --python ${{ matrix.python }} --with "Django==${{ matrix.django }}.*" pytest
+          GISSERVER_USE_DB_RENDERING=1 uv run --with "Django==${{ matrix.django }}.*" pytest
+          GISSERVER_USE_DB_RENDERING=0 uv run --with "Django==${{ matrix.django }}.*" pytest
         env:
           PGUSER: postgres
           PGPASSWORD: password
