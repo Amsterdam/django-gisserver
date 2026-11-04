@@ -151,7 +151,7 @@ Then,
 
 * Merge the commit in GitHub, after approval.
 * Checkout the latest master branch,
-  ``git fetch && git checkout origin/master``.
+  ``git switch main && git pull``.
 * Tag the release X.Y.Z with ``git tag -a vX.Y.Z -m "Bump to vX.Y.Z"``.
 * Push the tag to GitHub with ``git push origin --tags``.
 * The publish-to-pypi workflow will automatically publish the release.
