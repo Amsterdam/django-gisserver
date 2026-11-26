@@ -121,12 +121,16 @@ class GEOSGMLGeometry(AbstractGeometry):
         elif compiler.feature_types:  # for unit tests
             self.srs = compiler.feature_types[0].resolve_crs(self.srs, locator="bbox")
 
-        # Make sure the data is suitable for processing by the ORM.
         # The database needs the geometry in traditional (x/y) ordering.
-        if self.srs.is_north_east_order:
-            return self.srs.apply_to(self.geos_data, clone=True, axis_order=AxisOrder.TRADITIONAL)
+        if self.srs.is_north_east_order and not self.srs.force_xy:
+            geometry = self.srs.apply_to(
+                self.geos_data, clone=True, axis_order=AxisOrder.TRADITIONAL
+            )
         else:
-            return self.geos_data
+            geometry = self.geos_data.clone()
+            CRS.tag_geometry(geometry, axis_order=AxisOrder.TRADITIONAL)
+
+        return geometry
 
 
 @tag_registry.register("TimeInstant", hidden=True)
