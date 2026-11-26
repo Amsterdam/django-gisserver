@@ -31,6 +31,7 @@ from gisserver.exceptions import (
 from gisserver.extensions.functions import function_registry
 from gisserver.extensions.queries import stored_query_registry
 from gisserver.features import FeatureType
+from gisserver.geometries import WGS84BoundingBox
 from gisserver.output import CollectionOutputRenderer
 from gisserver.parsers import ows, wfs20
 
@@ -115,6 +116,28 @@ class GetCapabilities(XmlTemplateMixin, OutputFormatMixin, WFSOperation):
         service_operations = self.view.accept_operations[self.ows_request.service]
         app_namespaces = self.view.get_xml_namespaces_to_prefixes()
 
+        # Setting for the bounding box (BBOX) that is returned in the endpoint
+        bbox_setting = conf.GISSERVER_CAPABILITIES_BOUNDING_BOX
+
+        # Calculate BBOX from the returned Features or don't return at all
+        if isinstance(bbox_setting, bool):
+            calculate_bounding_box = bbox_setting
+            configured_bounding_box = None
+
+        # Return a default pre-set BBOX for all Features
+        elif (
+            isinstance(bbox_setting, tuple)
+            and len(bbox_setting) == 4
+            and all(isinstance(value, (int, float)) for value in bbox_setting)
+        ):
+            calculate_bounding_box = False
+            configured_bounding_box = WGS84BoundingBox(*bbox_setting)
+        else:
+            raise ImproperlyConfigured(
+                "GISSERVER_CAPABILITIES_BOUNDING_BOX must be a boolean or a tuple "
+                "of four WGS84 coordinates (min_lon, min_lat, max_lon, max_lat)."
+            )
+
         get_feature_op_cls = service_operations["GetFeature"]
         feature_output_formats = get_feature_op_cls(self.view, None).get_output_formats()
 
@@ -132,7 +155,8 @@ class GetCapabilities(XmlTemplateMixin, OutputFormatMixin, WFSOperation):
             "feature_types": self.view.get_bound_feature_types(),
             "feature_output_formats": feature_output_formats,
             "default_max_features": self.view.max_page_size,
-            "BOUNDING_BOX": conf.GISSERVER_CAPABILITIES_BOUNDING_BOX,
+            "BOUNDING_BOX": calculate_bounding_box,
+            "DEFAULT_BOUNDING_BOX": configured_bounding_box,
         }
 
 

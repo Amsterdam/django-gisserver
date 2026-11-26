@@ -2,8 +2,11 @@ import re
 from urllib.parse import quote_plus
 
 import pytest
+from django.core.exceptions import ImproperlyConfigured
 from lxml import etree
 
+from gisserver.extensions.functions import function_registry
+from gisserver.features import FeatureType
 from gisserver.parsers.xml import xmlns
 from tests.requests import Get, Post, Url, parametrize_response
 from tests.utils import (
@@ -19,6 +22,33 @@ from tests.utils import (
 pytestmark = [pytest.mark.urls("tests.test_gisserver.urls")]
 
 gml32 = quote_plus("application/gml+xml; version=3.2")
+
+
+def test_static_bounding_box(client, settings, monkeypatch):
+    settings.GISSERVER_CAPABILITIES_BOUNDING_BOX = (4.72, 52.27, 5.1, 52.43)
+    monkeypatch.setattr(function_registry, "functions", {})
+
+    def unexpected_calculation(self):
+        pytest.fail("A configured capabilities bounding box should avoid database calculation")
+
+    monkeypatch.setattr(FeatureType, "get_bounding_box", unexpected_calculation)
+    response = client.get("/v1/wfs/?SERVICE=WFS&REQUEST=GetCapabilities&ACCEPTVERSIONS=2.0.0")
+    content = response.content.decode()
+    assert response.status_code == 200, content
+
+    xml_doc = validate_xsd(response.content, WFS_20_XSD)
+    bboxes = xml_doc.findall(".//ows:WGS84BoundingBox", NAMESPACES)
+    assert len(bboxes) == 3
+    for bbox_element in bboxes:
+        assert bbox_element.findtext("ows:LowerCorner", namespaces=NAMESPACES) == "4.72 52.27"
+        assert bbox_element.findtext("ows:UpperCorner", namespaces=NAMESPACES) == "5.1 52.43"
+
+
+def test_invalid_bounding_box_setting_raises(client, settings):
+    settings.GISSERVER_CAPABILITIES_BOUNDING_BOX = "default_bbox"
+
+    with pytest.raises(ImproperlyConfigured, match="must be a boolean or a tuple"):
+        client.get("/v1/wfs/?SERVICE=WFS&REQUEST=GetCapabilities&ACCEPTVERSIONS=2.0.0")
 
 
 @pytest.mark.django_db

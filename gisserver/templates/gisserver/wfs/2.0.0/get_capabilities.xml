@@ -103,7 +103,10 @@
       {% if BOUNDING_BOX %}{% with bbox=feature_type.get_bounding_box %}{% if bbox %}<ows:WGS84BoundingBox dimensions="2">
         <ows:LowerCorner>{{ bbox.lower_corner|join:" " }}</ows:LowerCorner>
         <ows:UpperCorner>{{ bbox.upper_corner|join:" " }}</ows:UpperCorner>
-      </ows:WGS84BoundingBox>{% endif %}{% endwith %}{% endif %}{% if feature_type.metadata_url %}
+      </ows:WGS84BoundingBox>{% endif %}{% endwith %}{% elif DEFAULT_BOUNDING_BOX %}<ows:WGS84BoundingBox dimensions="2">
+        <ows:LowerCorner>{{ DEFAULT_BOUNDING_BOX.lower_corner|join:" " }}</ows:LowerCorner>
+        <ows:UpperCorner>{{ DEFAULT_BOUNDING_BOX.upper_corner|join:" " }}</ows:UpperCorner>
+      </ows:WGS84BoundingBox>{% endif %}{% if feature_type.metadata_url %}
       <MetadataURL xlink:href="{{ metadata_url|urljoin:server_url }}"/>{% endif %}
     </FeatureType>
     {% endfor %}
