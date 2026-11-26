@@ -11,6 +11,7 @@ The defaults are:
 
     # Flags
     GISSERVER_CAPABILITIES_BOUNDING_BOX = True
+    GISSERVER_CAPABILITIES_BOUNDING_BOX = (4.50, 52.10, 5.30, 52.60)
     GISSERVER_USE_DB_RENDERING = True
     GISSERVER_SUPPORTED_CRS_ONLY = True
     GISSERVER_COUNT_NUMBER_MATCHED = 1
@@ -34,10 +35,15 @@ The defaults are:
 GISSERVER_CAPABILITIES_BOUNDING_BOX
 -----------------------------------
 
-By default, the ``GetCapabilities`` response includes the bounding box of each feature.
-Since this is an expensive operation for large datasets, this can be disabled entirely.
+By default, the ``GetCapabilities`` response includes the calculated WGS84 bounding box of
+each feature type. Since calculating it can be expensive for large datasets, it can be
+disabled by setting this to ``False``.
 
-If the project has the ``CACHES`` setting configured, the result will be briefly stored in a cache.
+Alternatively, you can set this to a 4-item tuple ``(min_lon, min_lat, max_lon, max_lat)`` to
+supply a fixed WGS84 bounding box for every feature type without querying the data.
+For example, this can be useful when all served data is known to fit within a fixed region (such as Amsterdam + Weesp).
+If the project has the ``CACHES`` setting configured, calculated results will be briefly stored
+in a cache.
 
 
 GISSERVER_USE_DB_RENDERING
