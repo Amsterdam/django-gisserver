@@ -378,7 +378,7 @@ wheels = [
 
 [[package]]
 name = "django-gisserver"
-version = "2.6.0.dev1"
+version = "2.7.0"
 source = { editable = "." }
 dependencies = [
     { name = "defusedxml" },
