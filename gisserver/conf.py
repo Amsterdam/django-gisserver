@@ -1,6 +1,7 @@
 import math
 
 from django.conf import settings
+from django.core.exceptions import ImproperlyConfigured
 from django.core.signals import setting_changed
 from django.dispatch import receiver
 
@@ -13,6 +14,42 @@ _originals = {}
 GISSERVER_CAPABILITIES_BOUNDING_BOX = getattr(
     settings, "GISSERVER_CAPABILITIES_BOUNDING_BOX", True
 )
+GISSERVER_CAPABILITIES_DEFAULT_BBOX = getattr(
+    settings, "GISSERVER_CAPABILITIES_DEFAULT_BBOX", None
+)
+
+
+def validate_capabilities_bounding_box_settings():
+    """Validate the optional fixed capabilities bounding box at Django startup."""
+    if not isinstance(GISSERVER_CAPABILITIES_BOUNDING_BOX, bool):
+        raise ImproperlyConfigured("GISSERVER_CAPABILITIES_BOUNDING_BOX must be a boolean.")
+
+    default_bbox = GISSERVER_CAPABILITIES_DEFAULT_BBOX
+    if default_bbox is None:
+        return
+
+    if not (
+        isinstance(default_bbox, tuple)
+        and len(default_bbox) == 4
+        and all(
+            isinstance(value, (int, float)) and not isinstance(value, bool)
+            for value in default_bbox
+        )
+    ):
+        raise ImproperlyConfigured(
+            "GISSERVER_CAPABILITIES_DEFAULT_BBOX must be a tuple of four WGS84 "
+            "coordinates (min_lon, min_lat, max_lon, max_lat)."
+        )
+
+    if (
+        not hasattr(settings, "GISSERVER_CAPABILITIES_BOUNDING_BOX")
+        or settings.GISSERVER_CAPABILITIES_BOUNDING_BOX is not False
+    ):
+        raise ImproperlyConfigured(
+            "Set GISSERVER_CAPABILITIES_BOUNDING_BOX = False when "
+            "GISSERVER_CAPABILITIES_DEFAULT_BBOX is configured."
+        )
+
 
 # Whether to use the database for rendering GML / GeoJSON fragments.
 # This gives a better performance overall, but output may vary between database vendors.

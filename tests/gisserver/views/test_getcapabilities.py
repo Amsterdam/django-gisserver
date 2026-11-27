@@ -2,6 +2,7 @@ import re
 from urllib.parse import quote_plus
 
 import pytest
+from django.apps import apps
 from django.core.exceptions import ImproperlyConfigured
 from lxml import etree
 
@@ -24,8 +25,9 @@ pytestmark = [pytest.mark.urls("tests.test_gisserver.urls")]
 gml32 = quote_plus("application/gml+xml; version=3.2")
 
 
-def test_static_bounding_box(client, settings, monkeypatch):
-    settings.GISSERVER_CAPABILITIES_BOUNDING_BOX = (4.72, 52.27, 5.1, 52.43)
+def test_default_bounding_box(client, settings, monkeypatch):
+    settings.GISSERVER_CAPABILITIES_BOUNDING_BOX = False
+    settings.GISSERVER_CAPABILITIES_DEFAULT_BBOX = (4.72, 52.27, 5.1, 52.43)
     monkeypatch.setattr(function_registry, "functions", {})
 
     def unexpected_calculation(self):
@@ -44,11 +46,46 @@ def test_static_bounding_box(client, settings, monkeypatch):
         assert bbox_element.findtext("ows:UpperCorner", namespaces=NAMESPACES) == "5.1 52.43"
 
 
-def test_invalid_bounding_box_setting_raises(client, settings):
-    settings.GISSERVER_CAPABILITIES_BOUNDING_BOX = "default_bbox"
+@pytest.mark.parametrize("calculate_setting", [None, True])
+def test_default_bounding_box_requires_calculation_disabled(
+    settings, monkeypatch, calculate_setting
+):
+    settings.GISSERVER_CAPABILITIES_DEFAULT_BBOX = (4.72, 52.27, 5.1, 52.43)
+    if calculate_setting is None:
+        monkeypatch.delattr(settings, "GISSERVER_CAPABILITIES_BOUNDING_BOX", raising=False)
+    else:
+        settings.GISSERVER_CAPABILITIES_BOUNDING_BOX = calculate_setting
 
-    with pytest.raises(ImproperlyConfigured, match="must be a boolean or a tuple"):
-        client.get("/v1/wfs/?SERVICE=WFS&REQUEST=GetCapabilities&ACCEPTVERSIONS=2.0.0")
+    with pytest.raises(
+        ImproperlyConfigured, match="Set GISSERVER_CAPABILITIES_BOUNDING_BOX = False"
+    ):
+        apps.get_app_config("gisserver").ready()
+
+
+@pytest.mark.parametrize(
+    "default_bbox",
+    [
+        (4.72, 52.27, 5.1),
+        [4.72, 52.27, 5.1, 52.43],
+        "4.72,52.27,5.1,52.43",
+        (4.72, 52.27, "5.1", 52.43),
+        (False, 52.27, 5.1, 52.43),
+    ],
+)
+def test_default_bounding_box_setting_must_be_a_four_number_tuple(settings, default_bbox):
+    settings.GISSERVER_CAPABILITIES_BOUNDING_BOX = False
+    settings.GISSERVER_CAPABILITIES_DEFAULT_BBOX = default_bbox
+
+    with pytest.raises(ImproperlyConfigured, match="must be a tuple of four WGS84 coordinates"):
+        apps.get_app_config("gisserver").ready()
+
+
+@pytest.mark.parametrize("bbox_setting", ["default_bbox", (4.72, 52.27, 5.1, 52.43), 0, 1, None])
+def test_invalid_bounding_box_setting_raises(settings, bbox_setting):
+    settings.GISSERVER_CAPABILITIES_BOUNDING_BOX = bbox_setting
+
+    with pytest.raises(ImproperlyConfigured, match="must be a boolean"):
+        apps.get_app_config("gisserver").ready()
 
 
 @pytest.mark.django_db
