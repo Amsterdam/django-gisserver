@@ -1,6 +1,6 @@
 [project]
 name = "django-gisserver"
-version = "2.6.0.dev1"
+version = "2.7.0"
 description = "Django speaking WFS 2.0 (exposing GeoDjango model fields)"
 readme = "README.md"
 license = "MPL-2.0"

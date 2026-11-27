@@ -1,3 +1,9 @@
+# 2026-11-27 (2.7.0)
+
+* Add an optional fixed WGS84 bounding box to GetCapabilities via `GISSERVER_CAPABILITIES_DEFAULT_BBOX`, requiring `GISSERVER_CAPABILITIES_BOUNDING_BOX=False`
+* This bounding box must be a 4-item tuple, for example: ``(min_lon, min_lat, max_lon, max_lat)``
+* Fix axis-order handling for spatial filter geometries
+
 # 2026-10-22 (2.6.0)
 
 * Use uv, ruff and ty
