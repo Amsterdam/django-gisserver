@@ -136,6 +136,11 @@ DATABASES = {
 # As this is an example, we offer to play with the various performance optimization settings:
 GISSERVER_USE_DB_RENDERING = env.bool("GISSERVER_USE_DB_RENDERING", default=True)
 GISSERVER_CAPABILITIES_BOUNDING_BOX = env.bool("GISSERVER_CAPABILITIES_BOUNDING_BOX", default=True)
+
+# The default BBOX env var needs to parsed as a tuple of floats
+default_bbox = env.list("GISSERVER_CAPABILITIES_DEFAULT_BBOX", default=None, cast=float)
+GISSERVER_CAPABILITIES_DEFAULT_BBOX = tuple(default_bbox) if default_bbox is not None else None
+
 GISSERVER_COUNT_NUMBER_MATCHED = env.int("GISSERVER_COUNT_NUMBER_MATCHED", default=1)
 
 # Allow playing with settings in the example:

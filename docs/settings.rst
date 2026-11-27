@@ -11,7 +11,7 @@ The defaults are:
 
     # Flags
     GISSERVER_CAPABILITIES_BOUNDING_BOX = True
-    GISSERVER_CAPABILITIES_BOUNDING_BOX = (4.50, 52.10, 5.30, 52.60)
+    GISSERVER_CAPABILITIES_DEFAULT_BBOX = None
     GISSERVER_USE_DB_RENDERING = True
     GISSERVER_SUPPORTED_CRS_ONLY = True
     GISSERVER_COUNT_NUMBER_MATCHED = 1
@@ -37,11 +37,18 @@ GISSERVER_CAPABILITIES_BOUNDING_BOX
 
 By default, the ``GetCapabilities`` response includes the calculated WGS84 bounding box of
 each feature type. Since calculating it can be expensive for large datasets, it can be
-disabled by setting this to ``False``.
+disabled by setting this to ``False``. This setting must be a boolean.
 
-Alternatively, you can set this to a 4-item tuple ``(min_lon, min_lat, max_lon, max_lat)`` to
-supply a fixed WGS84 bounding box for every feature type without querying the data.
-For example, this can be useful when all served data is known to fit within a fixed region (such as Amsterdam + Weesp).
+
+GISSERVER_CAPABILITIES_DEFAULT_BBOX
+-----------------------------------
+
+This setting defaults to ``None`` (no fixed box). When configured, it must be a
+4-item tuple ``(min_lon, min_lat, max_lon, max_lat)`` of numbers to advertise
+a fixed WGS84 bounding box for every feature type without querying the data. When this setting
+is used, ``GISSERVER_CAPABILITIES_BOUNDING_BOX`` must also be explicitly set to ``False``;
+otherwise Django raises ``ImproperlyConfigured`` during startup.
+
 If the project has the ``CACHES`` setting configured, calculated results will be briefly stored
 in a cache.
 
